@@ -305,7 +305,7 @@ export default function InvoicePage() {
                     <Button
                       type="button"
                       variant="outline"
-                      className="flex-1 border-steel/40 text-steel hover:text-white hover:bg-charcoal/80 tap-feedback"
+                      className="flex-1 border-steel/40 text-steel hover:text-steel hover:bg-steel/10 hover:border-steel tap-feedback"
                       onClick={() => setIsDialogOpen(false)}
                     >
                       Cancel
