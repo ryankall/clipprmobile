@@ -1,0 +1,469 @@
+import { useState, useEffect } from "react";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { queryClient } from "@/lib/queryClient";
+import { useLocation, useParams } from "wouter";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
+import { BottomNavigation } from "@/components/bottom-navigation";
+import { Receipt, Plus, ArrowLeft, DollarSign, CreditCard, Smartphone, Banknote } from "lucide-react";
+import { Link } from "wouter";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { insertInvoiceSchema } from "@shared/schema";
+import { apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
+import type { Invoice, Client, Service } from "@shared/schema";
+import { z } from "zod";
+import { format } from "date-fns";
+
+const invoiceFormSchema = insertInvoiceSchema.extend({
+  userId: z.number().optional(),
+  tipPercentage: z.number().optional(),
+});
+
+export default function InvoicePage() {
+  const { id } = useParams<{ id?: string }>();
+  const [location] = useLocation();
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const { toast } = useToast();
+
+  // Parse query params for pre-filled service
+  const urlParams = new URLSearchParams(location.split('?')[1] || '');
+  const prefilledService = urlParams.get('service');
+
+  const { data: invoices, isLoading: invoicesLoading } = useQuery<Invoice[]>({
+    queryKey: ["/api/invoices"],
+  });
+
+  const { data: clients } = useQuery<Client[]>({
+    queryKey: ["/api/clients"],
+  });
+
+  const { data: services } = useQuery<Service[]>({
+    queryKey: ["/api/services"],
+  });
+
+  const form = useForm<z.infer<typeof invoiceFormSchema>>({
+    resolver: zodResolver(invoiceFormSchema),
+    defaultValues: {
+      subtotal: "0",
+      tip: "0",
+      total: "0",
+      status: "pending",
+      paymentMethod: undefined,
+    },
+  });
+
+  const createInvoiceMutation = useMutation({
+    mutationFn: async (data: z.infer<typeof invoiceFormSchema>) => {
+      return apiRequest("POST", "/api/invoices", data);
+    },
+    onSuccess: (response) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/invoices"] });
+      toast({
+        title: "Invoice Created",
+        description: "Invoice has been created successfully",
+      });
+      setIsDialogOpen(false);
+      form.reset();
+      
+      // Navigate to checkout if payment is required
+      const invoice = response.data;
+      if (invoice.paymentMethod === 'stripe') {
+        window.location.href = `/checkout/${invoice.id}`;
+      }
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to create invoice",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Auto-calculate total when subtotal or tip changes
+  const watchedSubtotal = form.watch("subtotal");
+  const watchedTip = form.watch("tip");
+  const watchedTipPercentage = form.watch("tipPercentage");
+
+  useEffect(() => {
+    const subtotal = parseFloat(watchedSubtotal) || 0;
+    let tip = parseFloat(watchedTip) || 0;
+    
+    // Calculate tip from percentage if provided
+    if (watchedTipPercentage && watchedTipPercentage > 0) {
+      tip = subtotal * (watchedTipPercentage / 100);
+      form.setValue("tip", tip.toFixed(2));
+    }
+    
+    const total = subtotal + tip;
+    form.setValue("total", total.toFixed(2));
+  }, [watchedSubtotal, watchedTip, watchedTipPercentage, form]);
+
+  // Pre-fill form based on service selection
+  useEffect(() => {
+    if (prefilledService && services) {
+      const service = services.find(s => 
+        s.category === prefilledService || 
+        s.name.toLowerCase().includes(prefilledService.toLowerCase())
+      );
+      
+      if (service) {
+        form.setValue("subtotal", service.price);
+      }
+    }
+  }, [prefilledService, services, form]);
+
+  const onSubmit = (data: z.infer<typeof invoiceFormSchema>) => {
+    createInvoiceMutation.mutate(data);
+  };
+
+  const handleQuickInvoice = (serviceType: string, price: string) => {
+    form.setValue("subtotal", price);
+    const service = services?.find(s => s.category === serviceType);
+    if (service && clients?.[0]) {
+      form.setValue("clientId", clients[0].id);
+    }
+    setIsDialogOpen(true);
+  };
+
+  return (
+    <div className="min-h-screen bg-dark-bg text-white pb-20">
+      {/* Header */}
+      <header className="bg-charcoal p-4 sticky top-0 z-50 border-b border-steel/20">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-3">
+            {id ? (
+              <Link href="/invoice">
+                <Button variant="ghost" size="sm" className="text-steel hover:text-white p-2">
+                  <ArrowLeft className="w-5 h-5" />
+                </Button>
+              </Link>
+            ) : null}
+            <Receipt className="w-6 h-6 text-gold" />
+            <h1 className="text-xl font-bold text-white">
+              {id ? "Invoice Details" : "Invoices"}
+            </h1>
+          </div>
+          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+            <DialogTrigger asChild>
+              <Button size="sm" className="gradient-gold text-charcoal tap-feedback">
+                <Plus className="w-4 h-4 mr-1" />
+                Create
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="bg-dark-card border-steel/20 text-white">
+              <DialogHeader>
+                <DialogTitle className="text-white">Create Invoice</DialogTitle>
+              </DialogHeader>
+              <Form {...form}>
+                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                  <FormField
+                    control={form.control}
+                    name="clientId"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-white">Client</FormLabel>
+                        <Select onValueChange={(value) => field.onChange(parseInt(value))}>
+                          <FormControl>
+                            <SelectTrigger className="bg-charcoal border-steel/40 text-white">
+                              <SelectValue placeholder="Select client" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent className="bg-charcoal border-steel/40">
+                            {clients?.map((client) => (
+                              <SelectItem key={client.id} value={client.id.toString()}>
+                                {client.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="subtotal"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-white">Service Amount ($)</FormLabel>
+                        <FormControl>
+                          <Input 
+                            {...field} 
+                            type="number"
+                            step="0.01"
+                            className="bg-charcoal border-steel/40 text-white"
+                            placeholder="0.00"
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="tipPercentage"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-white">Tip (%)</FormLabel>
+                          <Select onValueChange={(value) => field.onChange(parseInt(value))}>
+                            <FormControl>
+                              <SelectTrigger className="bg-charcoal border-steel/40 text-white">
+                                <SelectValue placeholder="Tip %" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent className="bg-charcoal border-steel/40">
+                              <SelectItem value="0">No tip</SelectItem>
+                              <SelectItem value="15">15%</SelectItem>
+                              <SelectItem value="18">18%</SelectItem>
+                              <SelectItem value="20">20%</SelectItem>
+                              <SelectItem value="25">25%</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="tip"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-white">Tip Amount ($)</FormLabel>
+                          <FormControl>
+                            <Input 
+                              {...field} 
+                              type="number"
+                              step="0.01"
+                              className="bg-charcoal border-steel/40 text-white"
+                              placeholder="0.00"
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+
+                  <FormField
+                    control={form.control}
+                    name="total"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-white">Total Amount ($)</FormLabel>
+                        <FormControl>
+                          <Input 
+                            {...field} 
+                            type="number"
+                            step="0.01"
+                            className="bg-charcoal border-steel/40 text-white font-bold text-gold"
+                            placeholder="0.00"
+                            readOnly
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="paymentMethod"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-white">Payment Method</FormLabel>
+                        <Select onValueChange={field.onChange}>
+                          <FormControl>
+                            <SelectTrigger className="bg-charcoal border-steel/40 text-white">
+                              <SelectValue placeholder="Select payment method" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent className="bg-charcoal border-steel/40">
+                            <SelectItem value="stripe">Card Payment</SelectItem>
+                            <SelectItem value="apple_pay">Apple Pay</SelectItem>
+                            <SelectItem value="cash">Cash</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <div className="flex space-x-2 pt-4">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="flex-1 border-steel/40 text-white hover:bg-charcoal/80 tap-feedback"
+                      onClick={() => setIsDialogOpen(false)}
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      type="submit"
+                      className="flex-1 gradient-gold text-charcoal tap-feedback"
+                      disabled={createInvoiceMutation.isPending}
+                    >
+                      {createInvoiceMutation.isPending ? "Creating..." : "Create Invoice"}
+                    </Button>
+                  </div>
+                </form>
+              </Form>
+            </DialogContent>
+          </Dialog>
+        </div>
+      </header>
+
+      <main className="p-4 space-y-6">
+        {/* Quick Invoice Templates */}
+        <Card className="bg-dark-card border-steel/20">
+          <CardHeader>
+            <CardTitle className="text-white">Quick Invoice Templates</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 gap-3">
+              <Button
+                variant="outline"
+                className="bg-charcoal border-steel/40 h-auto p-4 text-center touch-target flex flex-col items-center space-y-2 tap-feedback hover:bg-charcoal/80"
+                onClick={() => handleQuickInvoice("haircut", "45.00")}
+              >
+                <Receipt className="w-5 h-5 text-gold" />
+                <div className="text-sm font-medium">Haircut</div>
+                <div className="text-xs text-steel">$45</div>
+              </Button>
+              <Button
+                variant="outline"
+                className="bg-charcoal border-steel/40 h-auto p-4 text-center touch-target flex flex-col items-center space-y-2 tap-feedback hover:bg-charcoal/80"
+                onClick={() => handleQuickInvoice("beard", "25.00")}
+              >
+                <Receipt className="w-5 h-5 text-gold" />
+                <div className="text-sm font-medium">Beard Trim</div>
+                <div className="text-xs text-steel">$25</div>
+              </Button>
+              <Button
+                variant="outline"
+                className="bg-charcoal border-steel/40 h-auto p-4 text-center touch-target flex flex-col items-center space-y-2 tap-feedback hover:bg-charcoal/80"
+                onClick={() => handleQuickInvoice("combo", "65.00")}
+              >
+                <Receipt className="w-5 h-5 text-gold" />
+                <div className="text-sm font-medium">Combo</div>
+                <div className="text-xs text-steel">$65</div>
+              </Button>
+              <Button
+                variant="outline"
+                className="bg-charcoal border-steel/40 h-auto p-4 text-center touch-target flex flex-col items-center space-y-2 tap-feedback hover:bg-charcoal/80"
+                onClick={() => setIsDialogOpen(true)}
+              >
+                <Plus className="w-5 h-5 text-gold" />
+                <div className="text-sm font-medium">Custom</div>
+                <div className="text-xs text-steel">Any amount</div>
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Invoice Stats */}
+        <div className="grid grid-cols-3 gap-4">
+          <Card className="bg-dark-card border-steel/20">
+            <CardContent className="p-4 text-center">
+              <div className="text-2xl font-bold text-gold">
+                {invoices?.length || 0}
+              </div>
+              <div className="text-xs text-steel">Total Invoices</div>
+            </CardContent>
+          </Card>
+          <Card className="bg-dark-card border-steel/20">
+            <CardContent className="p-4 text-center">
+              <div className="text-2xl font-bold text-gold">
+                {invoices?.filter(i => i.status === 'paid').length || 0}
+              </div>
+              <div className="text-xs text-steel">Paid</div>
+            </CardContent>
+          </Card>
+          <Card className="bg-dark-card border-steel/20">
+            <CardContent className="p-4 text-center">
+              <div className="text-2xl font-bold text-gold">
+                ${invoices?.filter(i => i.status === 'paid').reduce((sum, i) => sum + parseFloat(i.total), 0).toFixed(2) || "0.00"}
+              </div>
+              <div className="text-xs text-steel">Revenue</div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Recent Invoices */}
+        <Card className="bg-dark-card border-steel/20">
+          <CardHeader>
+            <CardTitle className="text-white">Recent Invoices</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {invoicesLoading ? (
+              <div className="flex justify-center py-8">
+                <div className="animate-spin w-6 h-6 border-2 border-gold border-t-transparent rounded-full" />
+              </div>
+            ) : invoices && invoices.length > 0 ? (
+              <div className="space-y-3">
+                {invoices.slice(0, 10).map((invoice) => {
+                  const client = clients?.find(c => c.id === invoice.clientId);
+                  return (
+                    <div key={invoice.id} className="flex items-center justify-between p-3 bg-charcoal rounded-lg">
+                      <div className="flex items-center space-x-3">
+                        <div className="w-10 h-10 bg-steel/20 rounded-full flex items-center justify-center">
+                          {invoice.paymentMethod === 'stripe' && <CreditCard className="w-4 h-4 text-gold" />}
+                          {invoice.paymentMethod === 'apple_pay' && <Smartphone className="w-4 h-4 text-gold" />}
+                          {invoice.paymentMethod === 'cash' && <Banknote className="w-4 h-4 text-gold" />}
+                          {!invoice.paymentMethod && <Receipt className="w-4 h-4 text-gold" />}
+                        </div>
+                        <div>
+                          <div className="font-medium text-white">
+                            {client?.name || 'Unknown Client'}
+                          </div>
+                          <div className="text-sm text-steel">
+                            {format(new Date(invoice.createdAt!), 'MMM d, yyyy • h:mm a')}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-gold font-medium">${invoice.total}</div>
+                        <Badge 
+                          variant={invoice.status === 'paid' ? 'default' : invoice.status === 'pending' ? 'secondary' : 'destructive'}
+                          className="text-xs"
+                        >
+                          {invoice.status}
+                        </Badge>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="text-center py-8 text-steel">
+                <Receipt className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                <p>No invoices created yet</p>
+                <Button
+                  onClick={() => setIsDialogOpen(true)}
+                  variant="link"
+                  className="text-gold text-sm mt-2 p-0 h-auto"
+                >
+                  Create your first invoice
+                </Button>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </main>
+
+      <BottomNavigation currentPath="/invoice" />
+    </div>
+  );
+}

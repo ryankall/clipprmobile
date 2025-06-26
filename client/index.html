@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no" />
+    <meta name="theme-color" content="#1F1F1F" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Clippr" />
+    
+    <!-- SEO Meta Tags -->
+    <title>Clippr - Mobile Barber & Stylist Management App</title>
+    <meta name="description" content="Professional mobile barber and stylist management app. Schedule appointments, manage clients, process payments, and showcase your portfolio with Clippr's urban minimalist design." />
+    <meta name="keywords" content="barber app, stylist app, appointment scheduling, mobile barber, client management, payment processing, portfolio gallery" />
+    
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://clippr.app/" />
+    <meta property="og:title" content="Clippr - Mobile Barber & Stylist Management App" />
+    <meta property="og:description" content="Professional mobile barber and stylist management app with smart scheduling, client profiles, payment processing, and portfolio management." />
+    <meta property="og:image" content="https://clippr.app/og-image.jpg" />
+    
+    <!-- Twitter -->
+    <meta property="twitter:card" content="summary_large_image" />
+    <meta property="twitter:url" content="https://clippr.app/" />
+    <meta property="twitter:title" content="Clippr - Mobile Barber & Stylist Management App" />
+    <meta property="twitter:description" content="Professional mobile barber and stylist management app with smart scheduling, client profiles, payment processing, and portfolio management." />
+    <meta property="twitter:image" content="https://clippr.app/og-image.jpg" />
+    
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="/manifest.json" />
+    
+    <!-- Icons -->
+    <link rel="icon" type="image/svg+xml" href="/clippr-icon.svg" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
+    
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+    
+    <!-- PWA Configuration -->
+    <script>
+      // Register service worker for PWA functionality
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/sw.js')
+            .then(registration => {
+              console.log('SW registered: ', registration);
+            })
+            .catch(registrationError => {
+              console.log('SW registration failed: ', registrationError);
+            });
+        });
+      }
+      
+      // Prevent zoom on iOS Safari
+      document.addEventListener('gesturestart', function (e) {
+        e.preventDefault();
+      });
+      
+      // Set viewport height for mobile browsers
+      function setViewportHeight() {
+        const vh = window.innerHeight * 0.01;
+        document.documentElement.style.setProperty('--vh', `${vh}px`);
+      }
+      
+      setViewportHeight();
+      window.addEventListener('resize', setViewportHeight);
+      window.addEventListener('orientationchange', setViewportHeight);
+    </script>
+    
+    <style>
+      /* Prevent pull-to-refresh and ensure dark mode */
+      html, body {
+        overscroll-behavior: none;
+        -webkit-touch-callout: none;
+        -webkit-user-select: none;
+        -khtml-user-select: none;
+        -moz-user-select: none;
+        -ms-user-select: none;
+        user-select: none;
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        background-color: #121212;
+        color: #f5f5f5;
+      }
+      
+      /* Use custom viewport height for full-screen mobile experience */
+      .full-height {
+        height: 100vh;
+        height: calc(var(--vh, 1vh) * 100);
+      }
+      
+      /* Loading spinner */
+      .loading-container {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: #121212;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 9999;
+      }
+      
+      .loading-spinner {
+        width: 40px;
+        height: 40px;
+        border: 4px solid #6B7280;
+        border-top: 4px solid #F59E0B;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+      }
+      
+      @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+      }
+      
+      /* Hide loading container after app loads */
+      .app-loaded .loading-container {
+        display: none;
+      }
+      
+      /* iOS specific fixes */
+      @supports (-webkit-appearance: none) {
+        input[type="date"], 
+        input[type="time"], 
+        input[type="datetime-local"] {
+          -webkit-appearance: none;
+          background: #2D2D2D;
+          color: #f5f5f5;
+          border: 1px solid #6B7280;
+          border-radius: 6px;
+          padding: 8px 12px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Loading screen -->
+    <div class="loading-container">
+      <div>
+        <div class="loading-spinner"></div>
+        <div style="text-align: center; margin-top: 16px; color: #6B7280; font-size: 14px;">
+          Loading Clippr...
+        </div>
+      </div>
+    </div>
+    
+    <!-- App root -->
+    <div id="root"></div>
+    
+    <!-- App script -->
+    <script type="module" src="/src/main.tsx"></script>
+    
+    <!-- Remove loading screen after React mounts -->
+    <script>
+      // Hide loading screen once React has mounted
+      window.addEventListener('load', () => {
+        setTimeout(() => {
+          document.body.classList.add('app-loaded');
+        }, 500);
+      });
+    </script>
+    
+    <!-- PWA Installation prompt -->
+    <script>
+      let deferredPrompt;
+      
+      window.addEventListener('beforeinstallprompt', (e) => {
+        e.preventDefault();
+        deferredPrompt = e;
+        
+        // Show install button or banner
+        console.log('PWA install prompt available');
+      });
+      
+      window.addEventListener('appinstalled', () => {
+        console.log('PWA was installed');
+        deferredPrompt = null;
+      });
+    </script>
+    
+    <!-- This is a replit script which adds a banner on the top of the page when opened in development mode outside the replit environment -->
+    <script type="text/javascript" src="https://replit.com/public/js/replit-dev-banner.js"></script>
+  </body>
+</html>
