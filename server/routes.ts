@@ -46,7 +46,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Dashboard stats
   app.get("/api/dashboard", async (req, res) => {
     try {
-      const userId = (req as any).user.id;
+      // Temporary: Use demo user ID until authentication is implemented
+      const userId = 2;
       const stats = await storage.getDashboardStats(userId);
       res.json(stats);
     } catch (error: any) {
@@ -57,7 +58,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Appointments routes
   app.get("/api/appointments", async (req, res) => {
     try {
-      const userId = (req as any).user.id;
+      // Temporary: Use demo user ID until authentication is implemented
+      const userId = 2;
       const { startDate, endDate } = req.query;
       
       const start = startDate ? new Date(startDate as string) : undefined;
@@ -72,7 +74,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/appointments/today", async (req, res) => {
     try {
-      const userId = (req as any).user.id;
+      // Temporary: Use demo user ID until authentication is implemented
+      const userId = 2;
       const appointments = await storage.getTodayAppointments(userId);
       res.json(appointments);
     } catch (error: any) {
@@ -82,7 +85,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/appointments", async (req, res) => {
     try {
-      const userId = (req as any).user.id;
+      // Temporary: Use demo user ID until authentication is implemented
+      const userId = 2;
       const appointmentData = insertAppointmentSchema.parse({ ...req.body, userId });
       const appointment = await storage.createAppointment(appointmentData);
       res.json(appointment);
@@ -105,7 +109,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Clients routes
   app.get("/api/clients", async (req, res) => {
     try {
-      const userId = (req as any).user.id;
+      // Temporary: Use demo user ID until authentication is implemented
+      const userId = 2;
       const clients = await storage.getClientsByUserId(userId);
       res.json(clients);
     } catch (error: any) {
@@ -125,7 +130,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/clients", async (req, res) => {
     try {
-      const userId = (req as any).user.id;
+      // Temporary: Use demo user ID until authentication is implemented
+      const userId = 2;
       const clientData = insertClientSchema.parse({ ...req.body, userId });
       const client = await storage.createClient(clientData);
       res.json(client);
@@ -148,7 +154,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Services routes
   app.get("/api/services", async (req, res) => {
     try {
-      const userId = (req as any).user.id;
+      // Temporary: Use demo user ID until authentication is implemented
+      const userId = 2;
       const services = await storage.getServicesByUserId(userId);
       res.json(services);
     } catch (error: any) {
@@ -158,7 +165,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/services", async (req, res) => {
     try {
-      const userId = (req as any).user.id;
+      // Temporary: Use demo user ID until authentication is implemented
+      const userId = 2;
       const serviceData = insertServiceSchema.parse({ ...req.body, userId });
       const service = await storage.createService(serviceData);
       res.json(service);
@@ -170,7 +178,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Gallery routes
   app.get("/api/gallery", async (req, res) => {
     try {
-      const userId = (req as any).user.id;
+      // Temporary: Use demo user ID until authentication is implemented
+      const userId = 2;
       const photos = await storage.getGalleryPhotosByUserId(userId);
       res.json(photos);
     } catch (error: any) {
@@ -180,7 +189,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/gallery", upload.single('photo'), async (req, res) => {
     try {
-      const userId = (req as any).user.id;
+      // Temporary: Use demo user ID until authentication is implemented
+      const userId = 2;
       const file = req.file;
       
       if (!file) {
@@ -207,7 +217,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Invoice routes
   app.get("/api/invoices", async (req, res) => {
     try {
-      const userId = (req as any).user.id;
+      // Temporary: Use demo user ID until authentication is implemented
+      const userId = 2;
       const invoices = await storage.getInvoicesByUserId(userId);
       res.json(invoices);
     } catch (error: any) {
@@ -217,7 +228,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/invoices", async (req, res) => {
     try {
-      const userId = (req as any).user.id;
+      // Temporary: Use demo user ID until authentication is implemented
+      const userId = 2;
       const invoiceData = insertInvoiceSchema.parse({ ...req.body, userId });
       const invoice = await storage.createInvoice(invoiceData);
       res.json(invoice);
@@ -303,7 +315,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Seed default services for new users
   app.post("/api/seed-services", async (req, res) => {
     try {
-      const userId = (req as any).user.id;
+      // Temporary: Use demo user ID until authentication is implemented
+      const userId = 2;
       
       const defaultServices = [
         { name: "Haircut", description: "Professional haircut", price: "45.00", duration: 45, category: "haircut", userId },
