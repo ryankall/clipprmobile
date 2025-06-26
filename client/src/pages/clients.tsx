@@ -22,6 +22,22 @@ import { z } from "zod";
 
 const clientFormSchema = insertClientSchema.extend({
   userId: z.number().optional(),
+  phone: z.string().optional().refine((val) => {
+    if (!val || val.trim() === "") return true;
+    // Validate phone number format - accepts various formats like (123) 456-7890, 123-456-7890, 1234567890
+    const phoneRegex = /^[\+]?[1-9]?[\(\)\-\s\d]{10,18}$/;
+    return phoneRegex.test(val.replace(/\s/g, ''));
+  }, {
+    message: "Please enter a valid phone number",
+  }),
+  email: z.string().optional().refine((val) => {
+    if (!val || val.trim() === "") return true;
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(val);
+  }, {
+    message: "Please enter a valid email address",
+  }),
 });
 
 export default function Clients() {
@@ -126,8 +142,9 @@ export default function Clients() {
                         <FormControl>
                           <Input 
                             {...field} 
+                            type="tel"
                             className="bg-charcoal border-steel/40 text-white"
-                            placeholder="Phone number"
+                            placeholder="(555) 123-4567"
                           />
                         </FormControl>
                         <FormMessage />
@@ -143,8 +160,9 @@ export default function Clients() {
                         <FormControl>
                           <Input 
                             {...field} 
+                            type="email"
                             className="bg-charcoal border-steel/40 text-white"
-                            placeholder="Email address"
+                            placeholder="client@example.com"
                           />
                         </FormControl>
                         <FormMessage />
