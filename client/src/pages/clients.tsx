@@ -378,9 +378,9 @@ export default function Clients() {
                               {client.phone}
                             </div>
                           )}
-                          {client.totalVisits > 0 && (
+                          {(client.totalVisits || 0) > 0 && (
                             <div className="text-xs text-steel">
-                              {client.totalVisits} visit{client.totalVisits !== 1 ? 's' : ''}
+                              {client.totalVisits || 0} visit{(client.totalVisits || 0) !== 1 ? 's' : ''}
                             </div>
                           )}
                         </div>
