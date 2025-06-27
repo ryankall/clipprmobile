@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient } from "@/lib/queryClient";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -39,7 +39,92 @@ const profileFormSchema = z.object({
 export default function Settings() {
   const [activeSection, setActiveSection] = useState<string>('profile');
   const [isWorkingHoursOpen, setIsWorkingHoursOpen] = useState(false);
+  const [pushNotifications, setPushNotifications] = useState(true);
+  const [soundEffects, setSoundEffects] = useState(true);
   const { toast } = useToast();
+
+  // Load preferences from localStorage on mount
+  useEffect(() => {
+    const savedNotifications = localStorage.getItem('pushNotifications');
+    const savedSounds = localStorage.getItem('soundEffects');
+    
+    if (savedNotifications !== null) {
+      setPushNotifications(JSON.parse(savedNotifications));
+    }
+    if (savedSounds !== null) {
+      setSoundEffects(JSON.parse(savedSounds));
+    }
+  }, []);
+
+  // Sound effect function
+  const playSound = () => {
+    if (soundEffects) {
+      // Create a simple beep sound using Web Audio API
+      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const oscillator = audioContext.createOscillator();
+      const gainNode = audioContext.createGain();
+      
+      oscillator.connect(gainNode);
+      gainNode.connect(audioContext.destination);
+      
+      oscillator.frequency.setValueAtTime(800, audioContext.currentTime);
+      gainNode.gain.setValueAtTime(0.1, audioContext.currentTime);
+      gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.1);
+      
+      oscillator.start(audioContext.currentTime);
+      oscillator.stop(audioContext.currentTime + 0.1);
+    }
+  };
+
+  // Handle preference changes
+  const handleNotificationToggle = (checked: boolean) => {
+    setPushNotifications(checked);
+    localStorage.setItem('pushNotifications', JSON.stringify(checked));
+    playSound();
+    
+    if (checked) {
+      // Request notification permission
+      if ('Notification' in window && Notification.permission === 'default') {
+        Notification.requestPermission().then(permission => {
+          if (permission === 'granted') {
+            toast({
+              title: "Notifications Enabled",
+              description: "You'll receive appointment reminders and updates",
+            });
+          }
+        });
+      } else {
+        toast({
+          title: "Notifications Enabled",
+          description: "You'll receive appointment reminders and updates",
+        });
+      }
+    } else {
+      toast({
+        title: "Notifications Disabled",
+        description: "You won't receive push notifications",
+      });
+    }
+  };
+
+  const handleSoundToggle = (checked: boolean) => {
+    setSoundEffects(checked);
+    localStorage.setItem('soundEffects', JSON.stringify(checked));
+    
+    // Play sound to demonstrate if enabling
+    if (checked) {
+      playSound();
+      toast({
+        title: "Sound Effects Enabled",
+        description: "You'll hear sounds for app interactions",
+      });
+    } else {
+      toast({
+        title: "Sound Effects Disabled",
+        description: "App interactions will be silent",
+      });
+    }
+  };
 
   const form = useForm<z.infer<typeof profileFormSchema>>({
     resolver: zodResolver(profileFormSchema),
@@ -378,14 +463,20 @@ export default function Settings() {
                 <Label className="text-white">Push Notifications</Label>
                 <p className="text-sm text-steel">Get notified about appointments and reminders</p>
               </div>
-              <Switch defaultChecked />
+              <Switch 
+                checked={pushNotifications} 
+                onCheckedChange={handleNotificationToggle}
+              />
             </div>
             <div className="flex items-center justify-between">
               <div>
                 <Label className="text-white">Sound Effects</Label>
                 <p className="text-sm text-steel">Play sounds for interactions and notifications</p>
               </div>
-              <Switch defaultChecked />
+              <Switch 
+                checked={soundEffects} 
+                onCheckedChange={handleSoundToggle}
+              />
             </div>
           </CardContent>
         </Card>
