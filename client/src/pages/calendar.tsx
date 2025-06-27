@@ -93,8 +93,8 @@ export default function Calendar() {
                     }`}
                     onClick={() => setSelectedDate(day)}
                   >
-                    <div className="text-xs">{format(day, 'EEE')}</div>
-                    <div className="text-sm font-medium">{format(day, 'd')}</div>
+                    <div className="text-xs leading-none">{format(day, 'EEE')}</div>
+                    <div className="text-sm font-medium leading-none flex items-center justify-center min-h-[1.25rem]">{format(day, 'd')}</div>
                     {dayAppointments.length > 0 && (
                       <div className="w-1 h-1 bg-current rounded-full mt-1" />
                     )}
