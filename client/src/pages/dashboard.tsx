@@ -1,3 +1,4 @@
+import { useState, useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -5,11 +6,29 @@ import { Badge } from "@/components/ui/badge";
 import { BottomNavigation } from "@/components/bottom-navigation";
 import { AppointmentCard } from "@/components/appointment-card";
 import { QuickActions } from "@/components/quick-actions";
-import { Scissors, Slice, Bell, Plus, Calendar, Users, Camera, Settings } from "lucide-react";
+import { Scissors, Slice, Bell, Plus, Calendar, Users, Camera, Settings, X } from "lucide-react";
 import { Link } from "wouter";
+import { format } from "date-fns";
 import type { DashboardStats, AppointmentWithRelations, GalleryPhoto } from "@shared/schema";
 
 export default function Dashboard() {
+  const [showNotifications, setShowNotifications] = useState(false);
+  const notificationRef = useRef<HTMLDivElement>(null);
+
+  // Close notifications when clicking outside
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (notificationRef.current && !notificationRef.current.contains(event.target as Node)) {
+        setShowNotifications(false);
+      }
+    }
+
+    if (showNotifications) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [showNotifications]);
+  
   const { data: stats, isLoading: statsLoading } = useQuery<DashboardStats>({
     queryKey: ["/api/dashboard"],
   });
@@ -22,6 +41,31 @@ export default function Dashboard() {
     queryKey: ["/api/gallery"],
     select: (data) => data?.slice(0, 3) || [],
   });
+
+  // Mock notifications data - in real app this would come from API
+  const notifications = [
+    {
+      id: 1,
+      title: "Upcoming Appointment",
+      message: "steve the job - 2:00 PM today",
+      time: "5 min ago",
+      type: "appointment"
+    },
+    {
+      id: 2,
+      title: "Payment Received",
+      message: "bob the builder paid $25.00",
+      time: "1 hour ago",
+      type: "payment"
+    },
+    {
+      id: 3,
+      title: "New Client Inquiry",
+      message: "Someone messaged about services",
+      time: "2 hours ago",
+      type: "message"
+    }
+  ];
 
   if (statsLoading) {
     return (
@@ -43,14 +87,58 @@ export default function Dashboard() {
             <h1 className="text-xl font-bold text-gold">Clippr</h1>
           </div>
           <div className="flex items-center space-x-4">
-            <div className="relative touch-target">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="relative touch-target p-2"
+              onClick={() => setShowNotifications(!showNotifications)}
+            >
               <Bell className="w-5 h-5 text-steel" />
-              <div className="notification-badge">3</div>
-            </div>
+              {notifications.length > 0 && (
+                <div className="notification-badge">{notifications.length}</div>
+              )}
+            </Button>
             <div className="w-8 h-8 bg-steel rounded-full" />
           </div>
         </div>
       </header>
+
+      {/* Notifications Panel */}
+      {showNotifications && (
+        <div ref={notificationRef} className="absolute top-16 right-4 w-80 bg-charcoal border border-steel/20 rounded-lg shadow-xl z-50 max-h-96 overflow-y-auto">
+          <div className="p-4 border-b border-steel/20 flex justify-between items-center">
+            <h3 className="text-lg font-semibold text-white">Notifications</h3>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowNotifications(false)}
+            >
+              <X className="w-4 h-4" />
+            </Button>
+          </div>
+          <div className="p-2">
+            {notifications.length > 0 ? (
+              notifications.map((notification) => (
+                <div
+                  key={notification.id}
+                  className="p-3 hover:bg-steel/10 rounded-lg cursor-pointer transition-colors"
+                >
+                  <div className="flex justify-between items-start mb-1">
+                    <h4 className="text-sm font-medium text-white">{notification.title}</h4>
+                    <span className="text-xs text-steel">{notification.time}</span>
+                  </div>
+                  <p className="text-sm text-steel">{notification.message}</p>
+                </div>
+              ))
+            ) : (
+              <div className="p-6 text-center text-steel">
+                <Bell className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                <p>No new notifications</p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       <main className="p-4 space-y-6">
         {/* Daily Summary Card */}
