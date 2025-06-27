@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { ArrowLeft, Phone, Mail, MapPin, Calendar, Star, Camera, DollarSign, Edit, Save, X, MessageCircle } from "lucide-react";
 import { Link } from "wouter";
 import { format } from "date-fns";
@@ -534,28 +535,57 @@ export default function ClientProfile() {
                 {messages
                   .sort((a, b) => new Date(b.createdAt!).getTime() - new Date(a.createdAt!).getTime())
                   .map((message) => (
-                    <div key={message.id} className="p-4 bg-charcoal rounded-lg">
-                      <div className="flex items-start justify-between mb-2">
-                        <div className="flex-1">
-                          <h4 className="font-medium text-white">{message.subject}</h4>
-                          <p className="text-sm text-steel">
-                            From: {message.customerName} • {format(new Date(message.createdAt!), 'MMM d, yyyy • h:mm a')}
-                          </p>
+                    <Dialog key={message.id}>
+                      <DialogTrigger asChild>
+                        <div className="p-4 bg-charcoal rounded-lg cursor-pointer hover:bg-steel/20 transition-colors">
+                          <div className="flex items-start justify-between mb-2">
+                            <div className="flex-1">
+                              <h4 className="font-medium text-white">{message.subject}</h4>
+                              <p className="text-sm text-steel">
+                                From: {message.customerName} • {format(new Date(message.createdAt!), 'MMM d, yyyy • h:mm a')}
+                              </p>
+                            </div>
+                            <Badge 
+                              variant={message.status === 'unread' ? 'destructive' : 'secondary'}
+                              className="text-xs"
+                            >
+                              {message.status}
+                            </Badge>
+                          </div>
+                          {message.serviceRequested && (
+                            <div className="text-xs text-gold">
+                              Service Requested: {message.serviceRequested}
+                            </div>
+                          )}
                         </div>
-                        <Badge 
-                          variant={message.status === 'unread' ? 'destructive' : 'secondary'}
-                          className="text-xs"
-                        >
-                          {message.status}
-                        </Badge>
-                      </div>
-                      <p className="text-sm text-white mb-2">{message.message}</p>
-                      {message.serviceRequested && (
-                        <div className="text-xs text-gold">
-                          Service Requested: {message.serviceRequested}
+                      </DialogTrigger>
+                      <DialogContent className="bg-dark-card border-steel/20 text-white max-w-2xl">
+                        <DialogHeader>
+                          <DialogTitle className="text-white">{message.subject}</DialogTitle>
+                        </DialogHeader>
+                        <div className="space-y-4">
+                          <div className="text-sm text-steel">
+                            <p>From: {message.customerName}</p>
+                            <p>Date: {format(new Date(message.createdAt!), 'MMM d, yyyy • h:mm a')}</p>
+                            {message.customerPhone && <p>Phone: {message.customerPhone}</p>}
+                            {message.customerEmail && <p>Email: {message.customerEmail}</p>}
+                            {message.serviceRequested && (
+                              <p className="text-gold">Service Requested: {message.serviceRequested}</p>
+                            )}
+                          </div>
+                          <div className="p-4 bg-charcoal rounded-lg">
+                            <p className="text-white whitespace-pre-wrap">{message.message}</p>
+                          </div>
+                          <div className="flex justify-end">
+                            <Badge 
+                              variant={message.status === 'unread' ? 'destructive' : 'secondary'}
+                            >
+                              {message.status}
+                            </Badge>
+                          </div>
                         </div>
-                      )}
-                    </div>
+                      </DialogContent>
+                    </Dialog>
                   ))}
               </div>
             ) : (
