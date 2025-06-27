@@ -301,7 +301,7 @@ export default function Settings() {
                                 type="button"
                                 variant="outline"
                                 size="sm"
-                                className="border-steel/40 text-charcoal bg-white hover:bg-steel/20 hover:text-white tap-feedback flex-1"
+                                className="border-steel/40 text-charcoal bg-white hover:bg-steel/10 hover:text-charcoal tap-feedback flex-1"
                                 onClick={handleCameraCapture}
                               >
                                 <Camera className="w-4 h-4 mr-2" />
@@ -311,7 +311,7 @@ export default function Settings() {
                                 type="button"
                                 variant="outline"
                                 size="sm"
-                                className="border-steel/40 text-charcoal bg-white hover:bg-steel/20 hover:text-white tap-feedback flex-1"
+                                className="border-steel/40 text-charcoal bg-white hover:bg-steel/10 hover:text-charcoal tap-feedback flex-1"
                                 onClick={handleUpload}
                               >
                                 <Upload className="w-4 h-4 mr-2" />
