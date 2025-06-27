@@ -113,7 +113,7 @@ export class DatabaseStorage implements IStorage {
         lastVisit: clients.lastVisit,
         createdAt: clients.createdAt,
         totalSpent: sql<string>`COALESCE(SUM(${invoices.total}), '0')`,
-        upcomingAppointments: sql<number>`COUNT(CASE WHEN ${appointments.id} IS NOT NULL THEN 1 END)`,
+        upcomingAppointments: sql<number>`CAST(COUNT(CASE WHEN ${appointments.id} IS NOT NULL THEN 1 END) AS INTEGER)`,
       })
       .from(clients)
       .leftJoin(invoices, eq(clients.id, invoices.clientId))
