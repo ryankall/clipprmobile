@@ -1,6 +1,7 @@
 import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Camera, Upload, X } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 
 interface PhotoUploadProps {
   onPhotoSelected: (file: File) => void;
@@ -10,13 +11,38 @@ interface PhotoUploadProps {
 export function PhotoUpload({ onPhotoSelected, preview }: PhotoUploadProps) {
   const [previewUrl, setPreviewUrl] = useState<string | null>(preview || null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const { toast } = useToast();
+
+  // Supported file types
+  const SUPPORTED_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+  const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB in bytes
 
   const handleFileSelect = (file: File) => {
-    if (file && file.type.startsWith('image/')) {
-      const url = URL.createObjectURL(file);
-      setPreviewUrl(url);
-      onPhotoSelected(file);
+    // Check file type
+    if (!SUPPORTED_TYPES.includes(file.type.toLowerCase())) {
+      toast({
+        title: "Unsupported File Format",
+        description: "Please upload JPEG, PNG, or WEBP images only. HEIC files are not supported.",
+        variant: "destructive",
+      });
+      return;
     }
+
+    // Check file size
+    if (file.size > MAX_FILE_SIZE) {
+      const sizeMB = (file.size / (1024 * 1024)).toFixed(1);
+      toast({
+        title: "File Too Large",
+        description: `File size is ${sizeMB}MB. Please choose an image under 10MB.`,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // File is valid, process it
+    const url = URL.createObjectURL(file);
+    setPreviewUrl(url);
+    onPhotoSelected(file);
   };
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -52,7 +78,7 @@ export function PhotoUpload({ onPhotoSelected, preview }: PhotoUploadProps) {
       <input
         ref={fileInputRef}
         type="file"
-        accept="image/*"
+        accept="image/jpeg,image/jpg,image/png,image/webp"
         onChange={handleFileChange}
         className="hidden"
       />
