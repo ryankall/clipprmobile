@@ -145,6 +145,17 @@ export default function Clients() {
                             type="tel"
                             className="bg-charcoal border-steel/40 text-white"
                             placeholder="(555) 123-4567"
+                            onInput={(e) => {
+                              // Allow only numbers, spaces, parentheses, hyphens, and plus sign
+                              const target = e.target as HTMLInputElement;
+                              target.value = target.value.replace(/[^0-9\s\(\)\-\+]/g, '');
+                              field.onChange(target.value);
+                            }}
+                            onChange={(e) => {
+                              field.onChange(e.target.value);
+                              // Trigger validation immediately
+                              form.trigger('phone');
+                            }}
                           />
                         </FormControl>
                         <FormMessage />
@@ -163,6 +174,11 @@ export default function Clients() {
                             type="email"
                             className="bg-charcoal border-steel/40 text-white"
                             placeholder="client@example.com"
+                            onChange={(e) => {
+                              field.onChange(e.target.value);
+                              // Trigger validation immediately
+                              form.trigger('email');
+                            }}
                           />
                         </FormControl>
                         <FormMessage />
