@@ -153,8 +153,8 @@ export default function Auth() {
             </div>
             <h1 className="text-2xl font-bold text-white">Clippr</h1>
           </div>
-          <p className="text-steel/70">
-            Professional barber management made simple
+          <p className="text-white/80">
+            Simplifying the business side of your style game.
           </p>
         </div>
 
@@ -164,7 +164,7 @@ export default function Auth() {
             <CardTitle className="text-white">
               {activeTab === "signin" ? "Welcome back" : "Create account"}
             </CardTitle>
-            <CardDescription>
+            <CardDescription className="text-white/70">
               {activeTab === "signin" 
                 ? "Sign in to manage your business" 
                 : "Join Clippr to streamline your barber business"
