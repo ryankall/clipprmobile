@@ -58,7 +58,7 @@ export default function Gallery() {
       formData.append('photo', selectedFile);
       formData.append('type', data.type);
       formData.append('description', data.description || '');
-      formData.append('isPublic', data.isPublic?.toString() || 'false');
+      formData.append('isPublic', data.isPublic ? 'true' : 'false');
       
       if (data.clientId) {
         formData.append('clientId', data.clientId.toString());

@@ -201,11 +201,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // For now, we'll use a placeholder URL
       const photoUrl = `data:${file.mimetype};base64,${file.buffer.toString('base64')}`;
       
-      const photoData = insertGalleryPhotoSchema.parse({
+      // Convert FormData string values to correct types
+      const bodyData = {
         ...req.body,
         userId,
         photoUrl,
-      });
+        clientId: req.body.clientId ? parseInt(req.body.clientId) : undefined,
+        isPublic: req.body.isPublic === 'true',
+      };
+      
+      const photoData = insertGalleryPhotoSchema.parse(bodyData);
       
       const photo = await storage.createGalleryPhoto(photoData);
       res.json(photo);
