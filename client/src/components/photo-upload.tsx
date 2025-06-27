@@ -106,6 +106,7 @@ export function PhotoUpload({ onPhotoSelected, preview, placeholder = "Add a pho
           <p className="text-steel mb-4">{placeholder}</p>
           <div className="flex flex-col sm:flex-row gap-2 justify-center">
             <Button
+              type="button"
               variant="outline"
               className="border-steel/40 text-white hover:bg-steel/20 tap-feedback"
               onClick={handleCameraCapture}
@@ -114,6 +115,7 @@ export function PhotoUpload({ onPhotoSelected, preview, placeholder = "Add a pho
               Take Photo
             </Button>
             <Button
+              type="button"
               variant="outline"
               className="border-steel/40 text-white hover:bg-steel/20 tap-feedback"
               onClick={handleUpload}
