@@ -141,6 +141,7 @@ npm run start
 
 ```
 Changelog:
+- June 27, 2025. Implemented comprehensive authentication system with sign-up/sign-in pages, email/password authentication, Google OAuth (optional), Apple Sign In (optional for iOS), phone number requirement for signup, JWT token management, session handling, protected routes, and sign-out functionality
 - June 27, 2025. Enhanced settings page with comprehensive profile editing functionality - added pencil edit icon, current profile display, photo upload with JPEG/PNG/WEBP support only, HEIC blocking, file size validation, and horizontal upload button layout with improved visibility
 - June 27, 2025. Added user profile API endpoints (GET /api/user/profile, PATCH /api/user/profile) with proper database schema updates for profile photos, service area, and about fields
 - June 27, 2025. Added validation to prevent scheduling appointments in the past - includes both frontend form validation and backend API validation

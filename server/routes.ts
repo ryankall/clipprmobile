@@ -1,11 +1,13 @@
 import type { Express, Request } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertClientSchema, insertServiceSchema, insertAppointmentSchema, insertInvoiceSchema, insertGalleryPhotoSchema, insertMessageSchema } from "@shared/schema";
+import { insertClientSchema, insertServiceSchema, insertAppointmentSchema, insertInvoiceSchema, insertGalleryPhotoSchema, insertMessageSchema, insertUserSchema } from "@shared/schema";
 import { z } from "zod";
 import Stripe from "stripe";
 import multer from "multer";
 import path from "path";
+import passport from "passport";
+import { setupAuth, requireAuth, generateToken, hashPassword } from "./auth";
 
 // Initialize Stripe (will be set up by user)
 let stripe: Stripe | null = null;
@@ -33,19 +35,152 @@ const upload = multer({
 });
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // Mock user authentication - in production, implement proper auth
-  app.use((req, res, next) => {
-    // For demo purposes, simulate logged-in user
-    (req as any).user = { id: 1, username: "demo_barber" };
-    (req as any).isAuthenticated = () => true;
-    next();
+  // Setup authentication
+  setupAuth(app);
+
+  // Authentication routes
+  
+  // Sign up with email/password
+  app.post("/api/auth/signup", async (req, res) => {
+    try {
+      const signupSchema = insertUserSchema.extend({
+        password: z.string().min(6, "Password must be at least 6 characters"),
+        confirmPassword: z.string(),
+      }).refine((data) => data.password === data.confirmPassword, {
+        message: "Passwords don't match",
+        path: ["confirmPassword"],
+      });
+
+      const { password, confirmPassword, ...userData } = signupSchema.parse(req.body);
+      
+      // Check if user already exists
+      const existingUser = await storage.getUserByEmail(userData.email);
+      if (existingUser) {
+        return res.status(400).json({ message: "User already exists with this email" });
+      }
+
+      // Hash password and create user
+      const hashedPassword = await hashPassword(password);
+      const user = await storage.createUser({
+        ...userData,
+        password: hashedPassword,
+      });
+
+      // Generate token
+      const token = generateToken(user.id);
+      
+      res.json({ 
+        message: "Account created successfully", 
+        token,
+        user: { 
+          id: user.id, 
+          email: user.email, 
+          firstName: user.firstName,
+          lastName: user.lastName,
+          phone: user.phone 
+        }
+      });
+    } catch (error) {
+      console.error("Signup error:", error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: error.errors[0].message });
+      }
+      res.status(500).json({ message: "Failed to create account" });
+    }
+  });
+
+  // Sign in with email/password
+  app.post("/api/auth/signin", (req, res, next) => {
+    passport.authenticate('local', (err: any, user: any, info: any) => {
+      if (err) {
+        return res.status(500).json({ message: "Authentication error" });
+      }
+      if (!user) {
+        return res.status(401).json({ message: info.message || "Invalid credentials" });
+      }
+
+      req.logIn(user, (err) => {
+        if (err) {
+          return res.status(500).json({ message: "Login error" });
+        }
+        
+        const token = generateToken(user.id);
+        res.json({ 
+          message: "Signed in successfully", 
+          token,
+          user: { 
+            id: user.id, 
+            email: user.email, 
+            firstName: user.firstName,
+            lastName: user.lastName,
+            phone: user.phone 
+          }
+        });
+      });
+    })(req, res, next);
+  });
+
+  // Google OAuth routes
+  app.get("/api/auth/google", passport.authenticate('google', { scope: ['profile', 'email'] }));
+  
+  app.get("/api/auth/google/callback", 
+    passport.authenticate('google', { failureRedirect: '/auth?error=google_failed' }),
+    (req, res) => {
+      const token = generateToken((req.user as any).id);
+      res.redirect(`/?token=${token}`);
+    }
+  );
+
+  // Apple OAuth routes
+  app.get("/api/auth/apple", passport.authenticate('apple'));
+  
+  app.post("/api/auth/apple/callback", 
+    passport.authenticate('apple', { failureRedirect: '/auth?error=apple_failed' }),
+    (req, res) => {
+      const token = generateToken((req.user as any).id);
+      res.redirect(`/?token=${token}`);
+    }
+  );
+
+  // Sign out
+  app.post("/api/auth/signout", (req, res) => {
+    req.logout((err) => {
+      if (err) {
+        return res.status(500).json({ message: "Sign out error" });
+      }
+      res.json({ message: "Signed out successfully" });
+    });
+  });
+
+  // Get current user
+  app.get("/api/auth/me", requireAuth, async (req, res) => {
+    try {
+      const user = await storage.getUser((req.user as any).id);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      res.json({
+        id: user.id,
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        phone: user.phone,
+        businessName: user.businessName,
+        photoUrl: user.photoUrl,
+        serviceArea: user.serviceArea,
+        about: user.about,
+      });
+    } catch (error) {
+      console.error("Get user error:", error);
+      res.status(500).json({ message: "Failed to get user" });
+    }
   });
 
   // Dashboard stats
-  app.get("/api/dashboard", async (req, res) => {
+  app.get("/api/dashboard", requireAuth, async (req, res) => {
     try {
-      // Temporary: Use demo user ID until authentication is implemented
-      const userId = 2;
+      const userId = (req.user as any).id;
       const stats = await storage.getDashboardStats(userId);
       res.json(stats);
     } catch (error: any) {
@@ -54,10 +189,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // User profile routes
-  app.get("/api/user/profile", async (req, res) => {
+  app.get("/api/user/profile", requireAuth, async (req, res) => {
     try {
-      // Temporary: Use demo user ID until authentication is implemented
-      const userId = 2;
+      const userId = (req.user as any).id;
       const user = await storage.getUser(userId);
       if (!user) {
         return res.status(404).json({ message: "User not found" });
@@ -68,10 +202,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch("/api/user/profile", async (req, res) => {
+  app.patch("/api/user/profile", requireAuth, async (req, res) => {
     try {
-      // Temporary: Use demo user ID until authentication is implemented
-      const userId = 2;
+      const userId = (req.user as any).id;
       const user = await storage.updateUser(userId, req.body);
       res.json(user);
     } catch (error: any) {

@@ -11,6 +11,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { BottomNavigation } from "@/components/bottom-navigation";
 import { Settings as SettingsIcon, User, Bell, Shield, HelpCircle, LogOut, Edit3, Camera, Upload, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
 import { useLocation } from "wouter";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -55,6 +56,7 @@ export default function Settings() {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
+  const { signOut } = useAuth();
 
   // Supported file types for photo upload
   const SUPPORTED_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
@@ -208,11 +210,7 @@ export default function Settings() {
   };
 
   const handleLogout = () => {
-    toast({
-      title: "Logged Out",
-      description: "You've been signed out successfully",
-    });
-    setLocation("/");
+    signOut();
   };
 
   const onSubmit = (data: ProfileFormData) => {

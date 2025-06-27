@@ -5,19 +5,31 @@ import { z } from "zod";
 
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
-  username: text("username").notNull().unique(),
-  password: text("password").notNull(),
-  email: text("email"),
+  email: text("email").notNull().unique(),
+  password: text("password"), // nullable for OAuth users
+  phone: text("phone").notNull(), // required for signup
   businessName: text("business_name"),
-  phone: text("phone"),
+  firstName: text("first_name"),
+  lastName: text("last_name"),
   address: text("address"),
   photoUrl: text("photo_url"),
   serviceArea: text("service_area"),
   about: text("about"),
   workingHours: json("working_hours").default({}),
   travelTimeBuffer: integer("travel_time_buffer").default(15), // minutes
+  
+  // OAuth fields
+  googleId: text("google_id"),
+  appleId: text("apple_id"),
+  
+  // Stripe integration
   stripeCustomerId: text("stripe_customer_id"),
   stripeSubscriptionId: text("stripe_subscription_id"),
+  
+  // Account verification
+  emailVerified: boolean("email_verified").default(false),
+  phoneVerified: boolean("phone_verified").default(false),
+  
   createdAt: timestamp("created_at").defaultNow(),
 });
 
