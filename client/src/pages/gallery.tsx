@@ -65,9 +65,18 @@ export default function Gallery() {
         formData.append('clientId', data.clientId.toString());
       }
 
+      const token = localStorage.getItem("token");
+      const headers: Record<string, string> = {};
+      
+      if (token) {
+        headers.Authorization = `Bearer ${token}`;
+      }
+
       const response = await fetch('/api/gallery', {
         method: 'POST',
+        headers,
         body: formData,
+        credentials: "include",
       });
 
       if (!response.ok) {

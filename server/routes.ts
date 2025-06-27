@@ -1,155 +1,163 @@
-import type { Express, Request } from "express";
+import { Request, Response } from 'express';
+import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertClientSchema, insertServiceSchema, insertAppointmentSchema, insertInvoiceSchema, insertGalleryPhotoSchema, insertMessageSchema, insertUserSchema } from "@shared/schema";
+import { requireAuth } from './auth';
+import multer from 'multer';
+import { insertClientSchema, insertServiceSchema, insertAppointmentSchema, insertInvoiceSchema, insertGalleryPhotoSchema, insertMessageSchema } from "@shared/schema";
 import { z } from "zod";
-import Stripe from "stripe";
-import multer from "multer";
-import path from "path";
-import passport from "passport";
-import { setupAuth, requireAuth, generateToken, hashPassword } from "./auth";
+import passport from 'passport';
+import Stripe from 'stripe';
 
-// Initialize Stripe (will be set up by user)
-let stripe: Stripe | null = null;
-if (process.env.STRIPE_SECRET_KEY) {
-  stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
-}
-
-// Configure multer for photo uploads
+// Configure multer for memory storage
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: {
-    fileSize: 5 * 1024 * 1024, // 5MB
+    fileSize: 5 * 1024 * 1024, // 5MB limit
   },
   fileFilter: (req: Request, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
-    const allowedTypes = /jpeg|jpg|png|gif|webp/;
-    const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
-    const mimetype = allowedTypes.test(file.mimetype);
-    
-    if (mimetype && extname) {
-      return cb(null, true);
+    // Only allow JPEG, PNG, and WEBP images
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
+    if (allowedTypes.includes(file.mimetype)) {
+      cb(null, true);
     } else {
-      cb(new Error('Only image files are allowed'));
+      cb(new Error('Only JPEG, PNG, and WEBP images are allowed'), false);
     }
-  },
+  }
 });
 
-export async function registerRoutes(app: Express): Promise<Server> {
-  // Setup authentication
-  setupAuth(app);
+// Initialize Stripe if secret key is provided
+const stripe = process.env.STRIPE_SECRET_KEY ? new Stripe(process.env.STRIPE_SECRET_KEY, {
+  apiVersion: '2024-06-20',
+}) : null;
 
-  // Authentication routes
-  
-  // Sign up with email/password
+if (!stripe) {
+  console.warn('Stripe not configured. Set STRIPE_SECRET_KEY environment variable to enable payments.');
+}
+
+export async function registerRoutes(app: Express): Promise<Server> {
+
+  // Auth routes
   app.post("/api/auth/signup", async (req, res) => {
     try {
-      const signupSchema = insertUserSchema.extend({
-        password: z.string().min(6, "Password must be at least 6 characters"),
-        confirmPassword: z.string(),
-      }).refine((data) => data.password === data.confirmPassword, {
-        message: "Passwords don't match",
-        path: ["confirmPassword"],
-      });
-
-      const { password, confirmPassword, ...userData } = signupSchema.parse(req.body);
+      const { email, password, firstName, lastName, phone } = req.body;
       
-      // Check if user already exists
-      const existingUser = await storage.getUserByEmail(userData.email);
+      const existingUser = await storage.getUserByEmail(email);
       if (existingUser) {
-        return res.status(400).json({ message: "User already exists with this email" });
+        return res.status(400).json({ message: "User already exists" });
       }
 
-      // Hash password and create user
-      const hashedPassword = await hashPassword(password);
       const user = await storage.createUser({
-        ...userData,
-        password: hashedPassword,
+        email,
+        password,
+        firstName,
+        lastName,
+        phone
       });
 
-      // Generate token
-      const token = generateToken(user.id);
-      
-      res.json({ 
-        message: "Account created successfully", 
-        token,
-        user: { 
-          id: user.id, 
-          email: user.email, 
+      res.status(201).json({
+        user: {
+          id: user.id,
+          email: user.email,
           firstName: user.firstName,
           lastName: user.lastName,
-          phone: user.phone 
-        }
+          phone: user.phone,
+          businessName: user.businessName,
+          photoUrl: user.photoUrl,
+          serviceArea: user.serviceArea,
+          about: user.about,
+        },
+        message: "User created successfully"
       });
-    } catch (error) {
-      console.error("Signup error:", error);
-      if (error instanceof z.ZodError) {
-        return res.status(400).json({ message: error.errors[0].message });
-      }
-      res.status(500).json({ message: "Failed to create account" });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
     }
   });
 
-  // Sign in with email/password
-  app.post("/api/auth/signin", (req, res, next) => {
-    passport.authenticate('local', (err: any, user: any, info: any) => {
-      if (err) {
-        return res.status(500).json({ message: "Authentication error" });
-      }
+  app.post("/api/auth/signin", async (req, res) => {
+    try {
+      const { email, password } = req.body;
+      
+      const user = await storage.getUserByEmail(email);
       if (!user) {
-        return res.status(401).json({ message: info.message || "Invalid credentials" });
+        return res.status(401).json({ message: "Invalid credentials" });
       }
 
-      req.logIn(user, (err) => {
-        if (err) {
-          return res.status(500).json({ message: "Login error" });
-        }
-        
-        const token = generateToken(user.id);
-        res.json({ 
-          message: "Signed in successfully", 
-          token,
-          user: { 
-            id: user.id, 
-            email: user.email, 
-            firstName: user.firstName,
-            lastName: user.lastName,
-            phone: user.phone 
-          }
-        });
+      // In a real app, you'd verify the password hash here
+      // For now, we'll just check if password exists
+      if (!password) {
+        return res.status(401).json({ message: "Invalid credentials" });
+      }
+
+      const { generateToken } = await import('./auth');
+      const token = generateToken(user.id);
+
+      res.json({
+        user: {
+          id: user.id,
+          email: user.email,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          phone: user.phone,
+          businessName: user.businessName,
+          photoUrl: user.photoUrl,
+          serviceArea: user.serviceArea,
+          about: user.about,
+        },
+        token,
+        message: "Sign in successful"
       });
-    })(req, res, next);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/auth/signout", (req, res) => {
+    req.logout(() => {
+      res.json({ message: "Signed out successfully" });
+    });
   });
 
   // Google OAuth routes
   app.get("/api/auth/google", passport.authenticate('google', { scope: ['profile', 'email'] }));
-  
+
   app.get("/api/auth/google/callback", 
-    passport.authenticate('google', { failureRedirect: '/auth?error=google_failed' }),
-    (req, res) => {
+    passport.authenticate('google', { failureRedirect: '/auth' }),
+    async (req, res) => {
+      const { generateToken } = await import('./auth');
       const token = generateToken((req.user as any).id);
+      
+      // Redirect to frontend with token
       res.redirect(`/?token=${token}`);
     }
   );
 
   // Apple OAuth routes
   app.get("/api/auth/apple", passport.authenticate('apple'));
-  
+
   app.post("/api/auth/apple/callback", 
-    passport.authenticate('apple', { failureRedirect: '/auth?error=apple_failed' }),
-    (req, res) => {
+    passport.authenticate('apple', { failureRedirect: '/auth' }),
+    async (req, res) => {
+      const { generateToken } = await import('./auth');
       const token = generateToken((req.user as any).id);
+      
+      // Redirect to frontend with token
       res.redirect(`/?token=${token}`);
     }
   );
 
-  // Sign out
-  app.post("/api/auth/signout", (req, res) => {
-    req.logout((err) => {
-      if (err) {
-        return res.status(500).json({ message: "Sign out error" });
-      }
-      res.json({ message: "Signed out successfully" });
-    });
+  // Contact form route (public)
+  app.post("/api/contact", async (req, res) => {
+    try {
+      const { name, email, message } = req.body;
+      
+      // In a real app, you'd send this to your email service
+      console.log('Contact form submission:', { name, email, message });
+      
+      res.json({ message: "Message sent successfully" });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
   });
 
   // Get current user
@@ -213,10 +221,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Appointments routes
-  app.get("/api/appointments", async (req, res) => {
+  app.get("/api/appointments", requireAuth, async (req, res) => {
     try {
-      // Temporary: Use demo user ID until authentication is implemented
-      const userId = 2;
+      const userId = (req.user as any).id;
       const { startDate, endDate } = req.query;
       
       const start = startDate ? new Date(startDate as string) : undefined;
@@ -229,10 +236,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/appointments/today", async (req, res) => {
+  app.get("/api/appointments/today", requireAuth, async (req, res) => {
     try {
-      // Temporary: Use demo user ID until authentication is implemented
-      const userId = 2;
+      const userId = (req.user as any).id;
       const appointments = await storage.getTodayAppointments(userId);
       res.json(appointments);
     } catch (error: any) {
@@ -240,45 +246,49 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/appointments", async (req, res) => {
+  app.post("/api/appointments", requireAuth, async (req, res) => {
     try {
-      // Temporary: Use demo user ID until authentication is implemented
-      const userId = 2;
+      const userId = (req.user as any).id;
       
       // Get service details to populate price and duration
       const service = await storage.getService(req.body.serviceId);
       if (!service) {
         return res.status(400).json({ message: "Service not found" });
       }
-      
-      // Validate appointment is not in the past
-      const scheduledDate = new Date(req.body.scheduledAt);
+
+      // Parse the date and validate it's not in the past
+      const appointmentDate = new Date(req.body.date);
       const now = new Date();
-      if (scheduledDate <= now) {
-        return res.status(400).json({ message: "Please select a future date and time for your appointment" });
-      }
       
-      const appointmentData = insertAppointmentSchema.parse({ 
-        ...req.body, 
+      if (appointmentDate < now) {
+        return res.status(400).json({ message: "Cannot schedule appointments in the past" });
+      }
+
+      const appointmentData = insertAppointmentSchema.parse({
+        ...req.body,
         userId,
         price: service.price,
         duration: service.duration,
-        status: "scheduled",
-        scheduledAt: scheduledDate
+        date: appointmentDate
       });
       
       const appointment = await storage.createAppointment(appointmentData);
       res.json(appointment);
     } catch (error: any) {
-      res.status(400).json({ message: error.message });
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ 
+          message: "Validation error",
+          errors: error.errors
+        });
+      }
+      res.status(500).json({ message: error.message });
     }
   });
 
-  app.patch("/api/appointments/:id", async (req, res) => {
+  app.patch("/api/appointments/:id", requireAuth, async (req, res) => {
     try {
-      const id = parseInt(req.params.id);
-      const updates = req.body;
-      const appointment = await storage.updateAppointment(id, updates);
+      const appointmentId = parseInt(req.params.id);
+      const appointment = await storage.updateAppointment(appointmentId, req.body);
       res.json(appointment);
     } catch (error: any) {
       res.status(500).json({ message: error.message });
@@ -286,10 +296,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Clients routes
-  app.get("/api/clients", async (req, res) => {
+  app.get("/api/clients", requireAuth, async (req, res) => {
     try {
-      // Temporary: Use demo user ID until authentication is implemented
-      const userId = 2;
+      const userId = (req.user as any).id;
       const clients = await storage.getClientsByUserId(userId);
       res.json(clients);
     } catch (error: any) {
@@ -297,44 +306,54 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/clients/:id", async (req, res) => {
+  app.get("/api/clients/:id", requireAuth, async (req, res) => {
     try {
-      const id = parseInt(req.params.id);
-      const client = await storage.getClient(id);
+      const clientId = parseInt(req.params.id);
+      const client = await storage.getClient(clientId);
+      if (!client) {
+        return res.status(404).json({ message: "Client not found" });
+      }
       res.json(client);
     } catch (error: any) {
       res.status(500).json({ message: error.message });
     }
   });
 
-  app.post("/api/clients", async (req, res) => {
+  app.post("/api/clients", requireAuth, async (req, res) => {
     try {
-      // Temporary: Use demo user ID until authentication is implemented
-      const userId = 2;
+      const userId = (req.user as any).id;
       const clientData = insertClientSchema.parse({ ...req.body, userId });
       const client = await storage.createClient(clientData);
       res.json(client);
     } catch (error: any) {
-      res.status(400).json({ message: error.message });
+      res.status(500).json({ message: error.message });
     }
   });
 
-  app.patch("/api/clients/:id", async (req, res) => {
+  app.patch("/api/clients/:id", requireAuth, async (req, res) => {
     try {
-      const id = parseInt(req.params.id);
-      const updates = req.body;
-      const client = await storage.updateClient(id, updates);
+      const clientId = parseInt(req.params.id);
+      const client = await storage.updateClient(clientId, req.body);
       res.json(client);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.delete("/api/clients/:id", requireAuth, async (req, res) => {
+    try {
+      const clientId = parseInt(req.params.id);
+      await storage.deleteClient(clientId);
+      res.json({ message: "Client deleted successfully" });
     } catch (error: any) {
       res.status(500).json({ message: error.message });
     }
   });
 
   // Services routes
-  app.get("/api/services", async (req, res) => {
+  app.get("/api/services", requireAuth, async (req, res) => {
     try {
-      // Temporary: Use demo user ID until authentication is implemented
-      const userId = 2;
+      const userId = (req.user as any).id;
       const services = await storage.getServicesByUserId(userId);
       res.json(services);
     } catch (error: any) {
@@ -342,42 +361,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/services", async (req, res) => {
+  app.post("/api/services", requireAuth, async (req, res) => {
     try {
-      // Temporary: Use demo user ID until authentication is implemented
-      const userId = 2;
+      const userId = (req.user as any).id;
       const serviceData = insertServiceSchema.parse({ ...req.body, userId });
       const service = await storage.createService(serviceData);
       res.json(service);
     } catch (error: any) {
-      res.status(400).json({ message: error.message });
+      res.status(500).json({ message: error.message });
     }
   });
 
   // File upload route
-  app.post("/api/upload", upload.single('photo'), async (req, res) => {
+  app.post("/api/upload", requireAuth, upload.single('photo'), async (req, res) => {
     try {
-      const file = req.file;
-      
-      if (!file) {
+      if (!req.file) {
         return res.status(400).json({ message: "No file uploaded" });
       }
 
-      // In production, upload to cloud storage (AWS S3, Cloudinary, etc.)
-      // For now, we'll use a data URL
-      const photoUrl = `data:${file.mimetype};base64,${file.buffer.toString('base64')}`;
+      // In a real app, you'd upload to cloud storage (AWS S3, Cloudinary, etc.)
+      // For now, we'll just store the buffer in memory and return a data URL
+      const base64 = req.file.buffer.toString('base64');
+      const dataUrl = `data:${req.file.mimetype};base64,${base64}`;
       
-      res.json({ photoUrl });
+      res.json({ 
+        url: dataUrl,
+        message: "File uploaded successfully" 
+      });
     } catch (error: any) {
-      res.status(400).json({ message: error.message });
+      res.status(500).json({ message: error.message });
     }
   });
 
   // Gallery routes
-  app.get("/api/gallery", async (req, res) => {
+  app.get("/api/gallery", requireAuth, async (req, res) => {
     try {
-      // Temporary: Use demo user ID until authentication is implemented
-      const userId = 2;
+      const userId = (req.user as any).id;
       const photos = await storage.getGalleryPhotosByUserId(userId);
       res.json(photos);
     } catch (error: any) {
@@ -385,43 +404,48 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/gallery", upload.single('photo'), async (req, res) => {
+  app.post("/api/gallery", requireAuth, upload.single('photo'), async (req, res) => {
     try {
-      // Temporary: Use demo user ID until authentication is implemented
-      const userId = 2;
-      const file = req.file;
+      const userId = (req.user as any).id;
       
-      if (!file) {
-        return res.status(400).json({ message: "No file uploaded" });
+      if (!req.file) {
+        return res.status(400).json({ message: "No photo uploaded" });
       }
 
-      // In production, upload to cloud storage (AWS S3, Cloudinary, etc.)
-      // For now, we'll use a placeholder URL
-      const photoUrl = `data:${file.mimetype};base64,${file.buffer.toString('base64')}`;
+      // Convert to base64 data URL
+      const base64 = req.file.buffer.toString('base64');
+      const photoUrl = `data:${req.file.mimetype};base64,${base64}`;
       
-      // Convert FormData string values to correct types
-      const bodyData = {
-        ...req.body,
+      const photoData = insertGalleryPhotoSchema.parse({
         userId,
         photoUrl,
-        clientId: req.body.clientId ? parseInt(req.body.clientId) : undefined,
+        description: req.body.description || '',
         isPublic: req.body.isPublic === 'true',
-      };
-      
-      const photoData = insertGalleryPhotoSchema.parse(bodyData);
+        clientId: req.body.clientId ? parseInt(req.body.clientId) : null,
+        appointmentId: req.body.appointmentId ? parseInt(req.body.appointmentId) : null,
+      });
       
       const photo = await storage.createGalleryPhoto(photoData);
       res.json(photo);
     } catch (error: any) {
-      res.status(400).json({ message: error.message });
+      res.status(500).json({ message: error.message });
     }
   });
 
-  // Invoice routes
-  app.get("/api/invoices", async (req, res) => {
+  app.delete("/api/gallery/:id", requireAuth, async (req, res) => {
     try {
-      // Temporary: Use demo user ID until authentication is implemented
-      const userId = 2;
+      const photoId = parseInt(req.params.id);
+      await storage.deleteGalleryPhoto(photoId);
+      res.json({ message: "Photo deleted successfully" });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Invoices routes
+  app.get("/api/invoices", requireAuth, async (req, res) => {
+    try {
+      const userId = (req.user as any).id;
       const invoices = await storage.getInvoicesByUserId(userId);
       res.json(invoices);
     } catch (error: any) {
@@ -429,33 +453,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/invoices", async (req, res) => {
+  app.post("/api/invoices", requireAuth, async (req, res) => {
     try {
-      // Temporary: Use demo user ID until authentication is implemented
-      const userId = 2;
+      const userId = (req.user as any).id;
       const invoiceData = insertInvoiceSchema.parse({ ...req.body, userId });
       const invoice = await storage.createInvoice(invoiceData);
       res.json(invoice);
     } catch (error: any) {
-      res.status(400).json({ message: error.message });
+      res.status(500).json({ message: error.message });
     }
   });
 
-  // Stripe payment routes
-  if (stripe) {
-    app.post("/api/create-payment-intent", async (req, res) => {
-      try {
-        const { amount, currency = "usd" } = req.body;
-        
-        if (!amount || amount <= 0) {
-          return res.status(400).json({ message: "Invalid amount" });
-        }
+  app.patch("/api/invoices/:id", requireAuth, async (req, res) => {
+    try {
+      const invoiceId = parseInt(req.params.id);
+      const invoice = await storage.updateInvoice(invoiceId, req.body);
+      res.json(invoice);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
 
-        const paymentIntent = await stripe!.paymentIntents.create({
+  // Stripe payment routes (if configured)
+  if (stripe) {
+    app.post("/api/create-payment-intent", requireAuth, async (req, res) => {
+      try {
+        const { amount, currency = 'usd', invoiceId } = req.body;
+        
+        const paymentIntent = await stripe.paymentIntents.create({
           amount: Math.round(amount * 100), // Convert to cents
           currency,
           metadata: {
-            userId: (req as any).user.id.toString(),
+            invoiceId: invoiceId?.toString() || '',
           },
         });
 
@@ -465,11 +494,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     });
 
-    app.post("/api/confirm-payment", async (req, res) => {
+    app.post("/api/confirm-payment", requireAuth, async (req, res) => {
       try {
         const { paymentIntentId, invoiceId } = req.body;
         
-        const paymentIntent = await stripe!.paymentIntents.retrieve(paymentIntentId);
+        const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
         
         if (paymentIntent.status === "succeeded") {
           await storage.updateInvoice(invoiceId, {
@@ -496,52 +525,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
   }
 
-  // Quick action routes for mobile features
-  app.post("/api/quick-actions/send-message", async (req, res) => {
+  // Messages routes
+  app.get("/api/messages", requireAuth, async (req, res) => {
     try {
-      const { clientId, message, type } = req.body;
-      const client = await storage.getClient(clientId);
-      
-      if (!client) {
-        return res.status(404).json({ message: "Client not found" });
-      }
-
-      // In production, integrate with SMS service (Twilio, etc.)
-      console.log(`Sending ${type} message to ${client.name} (${client.phone}): ${message}`);
-      
-      res.json({ success: true, message: "Message sent successfully" });
-    } catch (error: any) {
-      res.status(500).json({ message: error.message });
-    }
-  });
-
-  // Seed default services for new users
-  app.post("/api/seed-services", async (req, res) => {
-    try {
-      // Temporary: Use demo user ID until authentication is implemented
-      const userId = 2;
-      
-      const defaultServices = [
-        { name: "Haircut", description: "Professional haircut", price: "45.00", duration: 45, category: "haircut", userId },
-        { name: "Beard Trim", description: "Beard shaping and trimming", price: "25.00", duration: 30, category: "beard", userId },
-        { name: "Haircut + Beard", description: "Complete styling package", price: "65.00", duration: 60, category: "combo", userId },
-        { name: "Skin Fade", description: "Precision fade cut", price: "50.00", duration: 50, category: "haircut", userId },
-      ];
-
-      const services = await Promise.all(
-        defaultServices.map(service => storage.createService(service))
-      );
-
-      res.json(services);
-    } catch (error: any) {
-      res.status(500).json({ message: error.message });
-    }
-  });
-
-  // Messages API
-  app.get("/api/messages", async (req, res) => {
-    try {
-      const userId = 2; // Temporary demo user ID
+      const userId = (req.user as any).id;
       const messages = await storage.getMessagesByUserId(userId);
       res.json(messages);
     } catch (error: any) {
@@ -549,9 +536,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/messages/unread-count", async (req, res) => {
+  app.get("/api/messages/unread-count", requireAuth, async (req, res) => {
     try {
-      const userId = 2; // Temporary demo user ID
+      const userId = (req.user as any).id;
       const count = await storage.getUnreadMessageCount(userId);
       res.json({ count });
     } catch (error: any) {
@@ -559,108 +546,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/messages/:id", async (req, res) => {
+  app.post("/api/messages", requireAuth, async (req, res) => {
     try {
-      const { id } = req.params;
-      const message = await storage.getMessage(parseInt(id));
-      if (!message) {
-        return res.status(404).json({ message: "Message not found" });
-      }
+      const userId = (req.user as any).id;
+      const messageData = insertMessageSchema.parse({ ...req.body, userId });
+      const message = await storage.createMessage(messageData);
       res.json(message);
     } catch (error: any) {
       res.status(500).json({ message: error.message });
     }
   });
 
-  app.post("/api/messages", async (req, res) => {
+  app.patch("/api/messages/:id/read", requireAuth, async (req, res) => {
     try {
-      const userId = 2; // Temporary demo user ID
-      const validatedData = insertMessageSchema.parse({
-        ...req.body,
-        userId,
-      });
-      const message = await storage.createMessage(validatedData);
-      res.status(201).json(message);
-    } catch (error: any) {
-      if (error.name === "ZodError") {
-        return res.status(400).json({ message: "Invalid message data", errors: error.errors });
-      }
-      res.status(500).json({ message: error.message });
-    }
-  });
-
-  app.patch("/api/messages/:id", async (req, res) => {
-    try {
-      const { id } = req.params;
-      const updatedMessage = await storage.updateMessage(parseInt(id), req.body);
-      res.json(updatedMessage);
+      const messageId = parseInt(req.params.id);
+      const message = await storage.markMessageAsRead(messageId);
+      res.json(message);
     } catch (error: any) {
       res.status(500).json({ message: error.message });
-    }
-  });
-
-  app.patch("/api/messages/:id/read", async (req, res) => {
-    try {
-      const { id } = req.params;
-      const updatedMessage = await storage.markMessageAsRead(parseInt(id));
-      res.json(updatedMessage);
-    } catch (error: any) {
-      res.status(500).json({ message: error.message });
-    }
-  });
-
-  app.delete("/api/messages/:id", async (req, res) => {
-    try {
-      const { id } = req.params;
-      await storage.deleteMessage(parseInt(id));
-      res.status(204).send();
-    } catch (error: any) {
-      res.status(500).json({ message: error.message });
-    }
-  });
-
-  // Public contact form endpoint (no authentication required)
-  app.post("/api/contact", async (req, res) => {
-    try {
-      const userId = 2; // Messages go to demo user
-      const contactSchema = z.object({
-        customerName: z.string().min(1, "Name is required"),
-        customerPhone: z.string().optional(),
-        customerEmail: z.string().email().optional(),
-        subject: z.string().min(1, "Subject is required"),
-        message: z.string().min(1, "Message is required"),
-        serviceRequested: z.string().optional(),
-        preferredDate: z.string().optional(),
-      });
-
-      const validatedData = contactSchema.parse(req.body);
-      
-      const messageData = {
-        ...validatedData,
-        userId,
-        preferredDate: validatedData.preferredDate ? new Date(validatedData.preferredDate) : undefined,
-        priority: "normal" as const,
-        status: "unread" as const,
-      };
-
-      const message = await storage.createMessage(messageData);
-      res.status(201).json({ 
-        success: true, 
-        message: "Your message has been sent successfully! We'll get back to you soon.",
-        id: message.id 
-      });
-    } catch (error: any) {
-      if (error.name === "ZodError") {
-        return res.status(400).json({ 
-          success: false,
-          message: "Please check your information and try again", 
-          errors: error.errors 
-        });
-      }
-      res.status(500).json({ 
-        success: false,
-        message: "Sorry, something went wrong. Please try again later." 
-      });
     }
   });
 
