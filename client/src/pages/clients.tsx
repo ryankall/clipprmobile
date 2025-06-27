@@ -38,6 +38,14 @@ const clientFormSchema = insertClientSchema.extend({
   }, {
     message: "Please enter a valid email address",
   }),
+  address: z.string().optional().refine((val) => {
+    if (!val || val.trim() === "") return true;
+    // Basic address validation - should contain at least a number and some text
+    const addressRegex = /^.{5,}$/; // At least 5 characters for a valid address
+    return addressRegex.test(val.trim());
+  }, {
+    message: "Please enter a valid address (minimum 5 characters)",
+  }),
 });
 
 export default function Clients() {
@@ -148,8 +156,25 @@ export default function Clients() {
                             onInput={(e) => {
                               // Allow only numbers, spaces, parentheses, hyphens, and plus sign
                               const target = e.target as HTMLInputElement;
-                              target.value = target.value.replace(/[^0-9\s\(\)\-\+]/g, '');
-                              field.onChange(target.value);
+                              let value = target.value.replace(/[^0-9\s\(\)\-\+]/g, '');
+                              
+                              // Auto-format phone number as (XXX) XXX-XXXX
+                              const numbers = value.replace(/\D/g, '');
+                              if (numbers.length <= 10) {
+                                if (numbers.length >= 6) {
+                                  value = `(${numbers.slice(0, 3)}) ${numbers.slice(3, 6)}-${numbers.slice(6)}`;
+                                } else if (numbers.length >= 3) {
+                                  value = `(${numbers.slice(0, 3)}) ${numbers.slice(3)}`;
+                                } else if (numbers.length > 0) {
+                                  value = numbers;
+                                }
+                              } else {
+                                // For numbers longer than 10 digits (international)
+                                value = numbers;
+                              }
+                              
+                              target.value = value;
+                              field.onChange(value);
                             }}
                             onChange={(e) => {
                               field.onChange(e.target.value);
@@ -195,7 +220,14 @@ export default function Clients() {
                           <Input 
                             {...field} 
                             className="bg-charcoal border-steel/40 text-white"
-                            placeholder="Home address"
+                            placeholder="123 Main St, City, State 12345"
+                            onChange={(e) => {
+                              // Capitalize first letter of each word for proper address formatting
+                              const value = e.target.value.replace(/\b\w/g, (char) => char.toUpperCase());
+                              field.onChange(value);
+                              // Trigger validation immediately
+                              form.trigger('address');
+                            }}
                           />
                         </FormControl>
                         <FormMessage />
