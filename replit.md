@@ -141,6 +141,8 @@ npm run start
 
 ```
 Changelog:
+- June 27, 2025. Enhanced settings page with comprehensive profile editing functionality - added pencil edit icon, current profile display, photo upload with JPEG/PNG/WEBP support only, HEIC blocking, file size validation, and horizontal upload button layout with improved visibility
+- June 27, 2025. Added user profile API endpoints (GET /api/user/profile, PATCH /api/user/profile) with proper database schema updates for profile photos, service area, and about fields
 - June 27, 2025. Added validation to prevent scheduling appointments in the past - includes both frontend form validation and backend API validation
 - June 27, 2025. Fixed appointment creation 400 errors by properly handling date parsing and service price/duration population
 - June 27, 2025. Fixed client list display bug where "0" was appearing due to improper conditional logic in totalVisits rendering

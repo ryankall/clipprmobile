@@ -104,11 +104,11 @@ export function PhotoUpload({ onPhotoSelected, preview, placeholder = "Add a pho
         <div className="border-2 border-dashed border-steel/40 rounded-lg p-8 text-center">
           <Camera className="w-12 h-12 mx-auto mb-4 text-steel" />
           <p className="text-steel mb-4">{placeholder}</p>
-          <div className="flex flex-col sm:flex-row gap-2 justify-center">
+          <div className="flex gap-2 justify-center">
             <Button
               type="button"
               variant="outline"
-              className="border-steel/40 text-white hover:bg-steel/20 tap-feedback"
+              className="border-steel/40 text-charcoal bg-white hover:bg-steel/20 hover:text-white tap-feedback flex-1"
               onClick={handleCameraCapture}
             >
               <Camera className="w-4 h-4 mr-2" />
@@ -117,7 +117,7 @@ export function PhotoUpload({ onPhotoSelected, preview, placeholder = "Add a pho
             <Button
               type="button"
               variant="outline"
-              className="border-steel/40 text-white hover:bg-steel/20 tap-feedback"
+              className="border-steel/40 text-charcoal bg-white hover:bg-steel/20 hover:text-white tap-feedback flex-1"
               onClick={handleUpload}
             >
               <Upload className="w-4 h-4 mr-2" />

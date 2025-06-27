@@ -296,12 +296,12 @@ export default function Settings() {
                           <div className="border-2 border-dashed border-steel/40 rounded-lg p-4 text-center">
                             <Camera className="w-8 h-8 mx-auto mb-2 text-steel" />
                             <p className="text-steel text-sm mb-3">Add a profile photo</p>
-                            <div className="flex flex-col gap-2">
+                            <div className="flex gap-2">
                               <Button
                                 type="button"
                                 variant="outline"
                                 size="sm"
-                                className="border-steel/40 text-white hover:bg-steel/20 tap-feedback"
+                                className="border-steel/40 text-charcoal bg-white hover:bg-steel/20 hover:text-white tap-feedback flex-1"
                                 onClick={handleCameraCapture}
                               >
                                 <Camera className="w-4 h-4 mr-2" />
@@ -311,7 +311,7 @@ export default function Settings() {
                                 type="button"
                                 variant="outline"
                                 size="sm"
-                                className="border-steel/40 text-white hover:bg-steel/20 tap-feedback"
+                                className="border-steel/40 text-charcoal bg-white hover:bg-steel/20 hover:text-white tap-feedback flex-1"
                                 onClick={handleUpload}
                               >
                                 <Upload className="w-4 h-4 mr-2" />
