@@ -6,9 +6,10 @@ import { useToast } from "@/hooks/use-toast";
 interface PhotoUploadProps {
   onPhotoSelected: (file: File) => void;
   preview?: string;
+  placeholder?: string;
 }
 
-export function PhotoUpload({ onPhotoSelected, preview }: PhotoUploadProps) {
+export function PhotoUpload({ onPhotoSelected, preview, placeholder = "Add a photo to your gallery" }: PhotoUploadProps) {
   const [previewUrl, setPreviewUrl] = useState<string | null>(preview || null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
@@ -102,7 +103,7 @@ export function PhotoUpload({ onPhotoSelected, preview }: PhotoUploadProps) {
       ) : (
         <div className="border-2 border-dashed border-steel/40 rounded-lg p-8 text-center">
           <Camera className="w-12 h-12 mx-auto mb-4 text-steel" />
-          <p className="text-steel mb-4">Add a photo to your gallery</p>
+          <p className="text-steel mb-4">{placeholder}</p>
           <div className="flex flex-col sm:flex-row gap-2 justify-center">
             <Button
               variant="outline"

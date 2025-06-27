@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { BottomNavigation } from "@/components/bottom-navigation";
+import { PhotoUpload } from "@/components/photo-upload";
 import { Settings as SettingsIcon, User, Clock, Palette, Bell, Shield, HelpCircle, LogOut } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -41,6 +42,8 @@ export default function Settings() {
   const [isWorkingHoursOpen, setIsWorkingHoursOpen] = useState(false);
   const [pushNotifications, setPushNotifications] = useState(true);
   const [soundEffects, setSoundEffects] = useState(true);
+  const [selectedPhoto, setSelectedPhoto] = useState<File | null>(null);
+  const [profilePhotoUrl, setProfilePhotoUrl] = useState<string>("");
   const { toast } = useToast();
 
   // Load preferences from localStorage on mount
@@ -152,13 +155,29 @@ export default function Settings() {
 
   const updateProfileMutation = useMutation({
     mutationFn: async (data: z.infer<typeof profileFormSchema>) => {
-      return apiRequest("PATCH", "/api/user/profile", data);
+      // If there's a selected photo, upload it first
+      if (selectedPhoto) {
+        const formData = new FormData();
+        formData.append('photo', selectedPhoto);
+        
+        const uploadResponse = await apiRequest("POST", "/api/upload", formData);
+        const uploadData = await uploadResponse.json();
+        
+        // Update profile with photo URL
+        return apiRequest("PATCH", "/api/user/profile", {
+          ...data,
+          photoUrl: uploadData.url
+        });
+      } else {
+        return apiRequest("PATCH", "/api/user/profile", data);
+      }
     },
     onSuccess: () => {
       toast({
         title: "Profile Updated",
         description: "Your profile has been updated successfully",
       });
+      setSelectedPhoto(null); // Clear selected photo after successful upload
     },
     onError: (error: any) => {
       toast({
@@ -245,6 +264,16 @@ export default function Settings() {
           <CardContent>
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onProfileSubmit)} className="space-y-4">
+                {/* Profile Photo Upload */}
+                <div className="space-y-2">
+                  <Label className="text-white">Profile Photo</Label>
+                  <PhotoUpload
+                    onPhotoSelected={setSelectedPhoto}
+                    preview={profilePhotoUrl}
+                    placeholder="Add your profile photo"
+                  />
+                </div>
+                
                 <FormField
                   control={form.control}
                   name="businessName"
