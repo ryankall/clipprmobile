@@ -376,6 +376,7 @@ export default function Clients() {
                             <div className="flex items-center text-xs text-steel">
                               <Phone className="w-3 h-3 mr-1" />
                               {client.phone}
+                              <span className="bg-red-500 text-xs">|PHONE_END|</span>
                             </div>
                           )}
                           {client.totalVisits && client.totalVisits > 0 && (
