@@ -182,9 +182,9 @@ export default function Gallery() {
                                 <SelectValue placeholder="Select client" />
                               </SelectTrigger>
                             </FormControl>
-                            <SelectContent className="bg-charcoal border-steel/40">
+                            <SelectContent className="bg-charcoal border-steel/40 text-white">
                               {clients?.map((client) => (
-                                <SelectItem key={client.id} value={client.id.toString()}>
+                                <SelectItem key={client.id} value={client.id.toString()} className="text-white hover:bg-steel/20">
                                   {client.name}
                                 </SelectItem>
                               ))}
