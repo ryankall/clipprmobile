@@ -55,10 +55,7 @@ export default function AppointmentNew() {
 
   const createAppointmentMutation = useMutation({
     mutationFn: async (data: z.infer<typeof appointmentFormSchema>) => {
-      return apiRequest("POST", "/api/appointments", {
-        ...data,
-        scheduledAt: new Date(data.scheduledAt).toISOString(),
-      });
+      return apiRequest("POST", "/api/appointments", data);
     },
     onSuccess: () => {
       toast({

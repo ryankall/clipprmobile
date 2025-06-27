@@ -99,7 +99,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         userId,
         price: service.price,
         duration: service.duration,
-        status: "scheduled"
+        status: "scheduled",
+        scheduledAt: new Date(req.body.scheduledAt)
       });
       
       const appointment = await storage.createAppointment(appointmentData);
