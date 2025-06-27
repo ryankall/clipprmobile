@@ -28,6 +28,7 @@ export default function Gallery() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [filterType, setFilterType] = useState<string>('all');
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const { toast } = useToast();
 
   const { data: photos, isLoading: photosLoading } = useQuery<GalleryPhoto[]>({
@@ -49,7 +50,31 @@ export default function Gallery() {
 
   const createPhotoMutation = useMutation({
     mutationFn: async (data: z.infer<typeof photoFormSchema>) => {
-      return apiRequest("POST", "/api/gallery", data);
+      if (!selectedFile) {
+        throw new Error("No file selected");
+      }
+
+      const formData = new FormData();
+      formData.append('photo', selectedFile);
+      formData.append('type', data.type);
+      formData.append('description', data.description || '');
+      formData.append('isPublic', data.isPublic?.toString() || 'false');
+      
+      if (data.clientId) {
+        formData.append('clientId', data.clientId.toString());
+      }
+
+      const response = await fetch('/api/gallery', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Upload failed');
+      }
+
+      return response.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/gallery"] });
@@ -58,6 +83,7 @@ export default function Gallery() {
         description: "Photo has been added to your gallery",
       });
       setIsDialogOpen(false);
+      setSelectedFile(null);
       form.reset();
     },
     onError: (error: any) => {
@@ -138,12 +164,9 @@ export default function Gallery() {
                   <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
                     <PhotoUpload
                       onPhotoSelected={(file) => {
-                        // Convert file to base64 for demo purposes
-                        const reader = new FileReader();
-                        reader.onload = (e) => {
-                          form.setValue('photoUrl', e.target?.result as string);
-                        };
-                        reader.readAsDataURL(file);
+                        setSelectedFile(file);
+                        // Store file reference in form for validation
+                        form.setValue('photoUrl', file.name);
                       }}
                     />
                     
