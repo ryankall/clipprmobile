@@ -99,9 +99,21 @@ export class DatabaseStorage implements IStorage {
   async getClientsByUserId(userId: number): Promise<ClientWithStats[]> {
     const result = await db
       .select({
-        ...clients,
-        totalSpent: sql<string>`COALESCE(SUM(${invoices.total}), 0)`,
-        upcomingAppointments: sql<number>`COUNT(${appointments.id})`,
+        id: clients.id,
+        userId: clients.userId,
+        name: clients.name,
+        phone: clients.phone,
+        email: clients.email,
+        address: clients.address,
+        photoUrl: clients.photoUrl,
+        preferredStyle: clients.preferredStyle,
+        notes: clients.notes,
+        loyaltyStatus: clients.loyaltyStatus,
+        totalVisits: clients.totalVisits,
+        lastVisit: clients.lastVisit,
+        createdAt: clients.createdAt,
+        totalSpent: sql<string>`COALESCE(SUM(${invoices.total}), '0')`,
+        upcomingAppointments: sql<number>`COUNT(CASE WHEN ${appointments.id} IS NOT NULL THEN 1 END)`,
       })
       .from(clients)
       .leftJoin(invoices, eq(clients.id, invoices.clientId))
@@ -111,7 +123,21 @@ export class DatabaseStorage implements IStorage {
         eq(appointments.status, "scheduled")
       ))
       .where(eq(clients.userId, userId))
-      .groupBy(clients.id)
+      .groupBy(
+        clients.id,
+        clients.userId,
+        clients.name,
+        clients.phone,
+        clients.email,
+        clients.address,
+        clients.photoUrl,
+        clients.preferredStyle,
+        clients.notes,
+        clients.loyaltyStatus,
+        clients.totalVisits,
+        clients.lastVisit,
+        clients.createdAt
+      )
       .orderBy(desc(clients.lastVisit));
     
     return result as ClientWithStats[];
