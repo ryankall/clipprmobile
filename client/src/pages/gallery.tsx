@@ -29,6 +29,7 @@ export default function Gallery() {
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [filterType, setFilterType] = useState<string>('all');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [selectedPhoto, setSelectedPhoto] = useState<GalleryPhoto | null>(null);
   const { toast } = useToast();
 
   const { data: photos, isLoading: photosLoading } = useQuery<GalleryPhoto[]>({
@@ -326,7 +327,8 @@ export default function Gallery() {
                       <img 
                         src={photo.photoUrl} 
                         alt={photo.description || "Gallery photo"} 
-                        className="w-full h-32 object-cover rounded" 
+                        className="w-full h-32 object-cover rounded cursor-pointer hover:opacity-90 transition-opacity" 
+                        onClick={() => setSelectedPhoto(photo)}
                       />
                       <div className="text-xs text-center mt-2 text-steel truncate">
                         {photo.description || format(new Date(photo.createdAt!), 'MMM d, yyyy')}
@@ -349,7 +351,8 @@ export default function Gallery() {
                       <img 
                         src={photo.photoUrl} 
                         alt={photo.description || "Gallery photo"} 
-                        className="w-16 h-16 object-cover rounded" 
+                        className="w-16 h-16 object-cover rounded cursor-pointer hover:opacity-90 transition-opacity" 
+                        onClick={() => setSelectedPhoto(photo)}
                       />
                       <div className="flex-1">
                         <div className="font-medium text-white">
@@ -394,6 +397,44 @@ export default function Gallery() {
           </CardContent>
         </Card>
       </main>
+
+      {/* Photo Viewer Modal */}
+      {selectedPhoto && (
+        <Dialog open={!!selectedPhoto} onOpenChange={() => setSelectedPhoto(null)}>
+          <DialogContent className="bg-dark-card border-steel/20 text-white max-w-4xl w-full h-[90vh] flex flex-col">
+            <DialogHeader>
+              <DialogTitle className="text-white flex items-center justify-between">
+                <span>{selectedPhoto.description || 'Photo'}</span>
+                <div className="flex items-center space-x-2">
+                  <span className="text-sm text-steel capitalize">{selectedPhoto.type}</span>
+                  {selectedPhoto.isPublic && (
+                    <span className="text-xs bg-green-600 text-white px-2 py-1 rounded">Public</span>
+                  )}
+                </div>
+              </DialogTitle>
+            </DialogHeader>
+            <div className="flex-1 flex items-center justify-center p-4">
+              <img 
+                src={selectedPhoto.photoUrl} 
+                alt={selectedPhoto.description || "Gallery photo"} 
+                className="max-w-full max-h-full object-contain rounded-lg"
+              />
+            </div>
+            <div className="p-4 border-t border-steel/20">
+              <div className="flex justify-between items-center text-sm text-steel">
+                <span>
+                  {selectedPhoto.clientId && clients && (
+                    <>Client: {clients.find(c => c.id === selectedPhoto.clientId)?.name}</>
+                  )}
+                </span>
+                <span>
+                  {selectedPhoto.createdAt && format(new Date(selectedPhoto.createdAt), 'MMM d, yyyy • h:mm a')}
+                </span>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
 
       <BottomNavigation currentPath="/gallery" />
     </div>
