@@ -87,7 +87,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       // Temporary: Use demo user ID until authentication is implemented
       const userId = 2;
-      const appointmentData = insertAppointmentSchema.parse({ ...req.body, userId });
+      
+      // Get service details to populate price and duration
+      const service = await storage.getService(req.body.serviceId);
+      if (!service) {
+        return res.status(400).json({ message: "Service not found" });
+      }
+      
+      const appointmentData = insertAppointmentSchema.parse({ 
+        ...req.body, 
+        userId,
+        price: service.price,
+        duration: service.duration,
+        status: "scheduled"
+      });
+      
       const appointment = await storage.createAppointment(appointmentData);
       res.json(appointment);
     } catch (error: any) {
