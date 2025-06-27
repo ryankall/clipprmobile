@@ -36,6 +36,7 @@ export default function ClientProfile() {
   const { id } = useParams<{ id: string }>();
   const clientId = parseInt(id || "0");
   const [isEditing, setIsEditing] = useState(false);
+  const [showAllMessages, setShowAllMessages] = useState(false);
   const { toast } = useToast();
 
   const { data: client, isLoading: clientLoading } = useQuery<Client>({
@@ -534,6 +535,7 @@ export default function ClientProfile() {
               <div className="space-y-3">
                 {messages
                   .sort((a, b) => new Date(b.createdAt!).getTime() - new Date(a.createdAt!).getTime())
+                  .slice(0, showAllMessages ? messages.length : 5)
                   .map((message) => (
                     <Dialog key={message.id}>
                       <DialogTrigger asChild>
@@ -587,6 +589,19 @@ export default function ClientProfile() {
                       </DialogContent>
                     </Dialog>
                   ))}
+                
+                {/* Show expand/collapse button if there are more than 5 messages */}
+                {messages.length > 5 && (
+                  <div className="flex justify-end mt-4">
+                    <Button
+                      variant="link"
+                      onClick={() => setShowAllMessages(!showAllMessages)}
+                      className="text-gold text-sm p-0 h-auto"
+                    >
+                      {showAllMessages ? `Show recent 5` : `Show all ${messages.length} messages`}
+                    </Button>
+                  </div>
+                )}
               </div>
             ) : (
               <div className="text-center py-8 text-steel">
