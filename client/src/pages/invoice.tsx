@@ -177,9 +177,9 @@ export default function InvoicePage() {
                               <SelectValue placeholder="Select client" />
                             </SelectTrigger>
                           </FormControl>
-                          <SelectContent className="bg-charcoal border-steel/40">
+                          <SelectContent className="bg-charcoal border-steel/40 text-white">
                             {clients?.map((client) => (
-                              <SelectItem key={client.id} value={client.id.toString()}>
+                              <SelectItem key={client.id} value={client.id.toString()} className="text-white hover:bg-steel/20">
                                 {client.name}
                               </SelectItem>
                             ))}
@@ -223,12 +223,12 @@ export default function InvoicePage() {
                                 <SelectValue placeholder="Tip %" />
                               </SelectTrigger>
                             </FormControl>
-                            <SelectContent className="bg-charcoal border-steel/40">
-                              <SelectItem value="0">No tip</SelectItem>
-                              <SelectItem value="15">15%</SelectItem>
-                              <SelectItem value="18">18%</SelectItem>
-                              <SelectItem value="20">20%</SelectItem>
-                              <SelectItem value="25">25%</SelectItem>
+                            <SelectContent className="bg-charcoal border-steel/40 text-white">
+                              <SelectItem value="0" className="text-white hover:bg-steel/20">No tip</SelectItem>
+                              <SelectItem value="15" className="text-white hover:bg-steel/20">15%</SelectItem>
+                              <SelectItem value="18" className="text-white hover:bg-steel/20">18%</SelectItem>
+                              <SelectItem value="20" className="text-white hover:bg-steel/20">20%</SelectItem>
+                              <SelectItem value="25" className="text-white hover:bg-steel/20">25%</SelectItem>
                             </SelectContent>
                           </Select>
                           <FormMessage />
@@ -290,10 +290,10 @@ export default function InvoicePage() {
                               <SelectValue placeholder="Select payment method" />
                             </SelectTrigger>
                           </FormControl>
-                          <SelectContent className="bg-charcoal border-steel/40">
-                            <SelectItem value="stripe">Card Payment</SelectItem>
-                            <SelectItem value="apple_pay">Apple Pay</SelectItem>
-                            <SelectItem value="cash">Cash</SelectItem>
+                          <SelectContent className="bg-charcoal border-steel/40 text-white">
+                            <SelectItem value="stripe" className="text-white hover:bg-steel/20">Card Payment</SelectItem>
+                            <SelectItem value="apple_pay" className="text-white hover:bg-steel/20">Apple Pay</SelectItem>
+                            <SelectItem value="cash" className="text-white hover:bg-steel/20">Cash</SelectItem>
                           </SelectContent>
                         </Select>
                         <FormMessage />
