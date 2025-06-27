@@ -5,6 +5,7 @@ import {
   appointments,
   invoices,
   galleryPhotos,
+  messages,
   type User,
   type InsertUser,
   type Client,
@@ -17,6 +18,8 @@ import {
   type InsertInvoice,
   type GalleryPhoto,
   type InsertGalleryPhoto,
+  type Message,
+  type InsertMessage,
   type AppointmentWithRelations,
   type ClientWithStats,
   type DashboardStats,
@@ -63,6 +66,15 @@ export interface IStorage {
   getGalleryPhotosByUserId(userId: number): Promise<GalleryPhoto[]>;
   createGalleryPhoto(photo: InsertGalleryPhoto): Promise<GalleryPhoto>;
   deleteGalleryPhoto(id: number): Promise<void>;
+
+  // Messages
+  getMessagesByUserId(userId: number): Promise<Message[]>;
+  getMessage(id: number): Promise<Message | undefined>;
+  createMessage(message: InsertMessage): Promise<Message>;
+  updateMessage(id: number, message: Partial<InsertMessage>): Promise<Message>;
+  deleteMessage(id: number): Promise<void>;
+  markMessageAsRead(id: number): Promise<Message>;
+  getUnreadMessageCount(userId: number): Promise<number>;
 
   // Dashboard
   getDashboardStats(userId: number): Promise<DashboardStats>;
@@ -387,6 +399,52 @@ export class DatabaseStorage implements IStorage {
       monthlyEarnings: monthlyStats?.earnings || "0",
       totalClients: clientStats?.totalClients || 0,
     };
+  }
+
+  // Messages
+  async getMessagesByUserId(userId: number): Promise<Message[]> {
+    return await db.select().from(messages).where(eq(messages.userId, userId)).orderBy(desc(messages.createdAt));
+  }
+
+  async getMessage(id: number): Promise<Message | undefined> {
+    const [message] = await db.select().from(messages).where(eq(messages.id, id));
+    return message || undefined;
+  }
+
+  async createMessage(message: InsertMessage): Promise<Message> {
+    const [newMessage] = await db.insert(messages).values(message).returning();
+    return newMessage;
+  }
+
+  async updateMessage(id: number, message: Partial<InsertMessage>): Promise<Message> {
+    const [updatedMessage] = await db.update(messages)
+      .set(message)
+      .where(eq(messages.id, id))
+      .returning();
+    return updatedMessage;
+  }
+
+  async deleteMessage(id: number): Promise<void> {
+    await db.delete(messages).where(eq(messages.id, id));
+  }
+
+  async markMessageAsRead(id: number): Promise<Message> {
+    const [updatedMessage] = await db.update(messages)
+      .set({ 
+        status: "read",
+        readAt: new Date()
+      })
+      .where(eq(messages.id, id))
+      .returning();
+    return updatedMessage;
+  }
+
+  async getUnreadMessageCount(userId: number): Promise<number> {
+    const [result] = await db
+      .select({ count: count() })
+      .from(messages)
+      .where(and(eq(messages.userId, userId), eq(messages.status, "unread")));
+    return result?.count || 0;
   }
 }
 

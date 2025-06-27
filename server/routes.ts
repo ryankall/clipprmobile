@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertClientSchema, insertServiceSchema, insertAppointmentSchema, insertInvoiceSchema, insertGalleryPhotoSchema } from "@shared/schema";
+import { insertClientSchema, insertServiceSchema, insertAppointmentSchema, insertInvoiceSchema, insertGalleryPhotoSchema, insertMessageSchema } from "@shared/schema";
 import { z } from "zod";
 import Stripe from "stripe";
 import multer from "multer";
@@ -359,6 +359,132 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(services);
     } catch (error: any) {
       res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Messages API
+  app.get("/api/messages", async (req, res) => {
+    try {
+      const userId = 2; // Temporary demo user ID
+      const messages = await storage.getMessagesByUserId(userId);
+      res.json(messages);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/messages/unread-count", async (req, res) => {
+    try {
+      const userId = 2; // Temporary demo user ID
+      const count = await storage.getUnreadMessageCount(userId);
+      res.json({ count });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/messages/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const message = await storage.getMessage(parseInt(id));
+      if (!message) {
+        return res.status(404).json({ message: "Message not found" });
+      }
+      res.json(message);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/messages", async (req, res) => {
+    try {
+      const userId = 2; // Temporary demo user ID
+      const validatedData = insertMessageSchema.parse({
+        ...req.body,
+        userId,
+      });
+      const message = await storage.createMessage(validatedData);
+      res.status(201).json(message);
+    } catch (error: any) {
+      if (error.name === "ZodError") {
+        return res.status(400).json({ message: "Invalid message data", errors: error.errors });
+      }
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.patch("/api/messages/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const updatedMessage = await storage.updateMessage(parseInt(id), req.body);
+      res.json(updatedMessage);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.patch("/api/messages/:id/read", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const updatedMessage = await storage.markMessageAsRead(parseInt(id));
+      res.json(updatedMessage);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.delete("/api/messages/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      await storage.deleteMessage(parseInt(id));
+      res.status(204).send();
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Public contact form endpoint (no authentication required)
+  app.post("/api/contact", async (req, res) => {
+    try {
+      const userId = 2; // Messages go to demo user
+      const contactSchema = z.object({
+        customerName: z.string().min(1, "Name is required"),
+        customerPhone: z.string().optional(),
+        customerEmail: z.string().email().optional(),
+        subject: z.string().min(1, "Subject is required"),
+        message: z.string().min(1, "Message is required"),
+        serviceRequested: z.string().optional(),
+        preferredDate: z.string().optional(),
+      });
+
+      const validatedData = contactSchema.parse(req.body);
+      
+      const messageData = {
+        ...validatedData,
+        userId,
+        preferredDate: validatedData.preferredDate ? new Date(validatedData.preferredDate) : undefined,
+        priority: "normal" as const,
+        status: "unread" as const,
+      };
+
+      const message = await storage.createMessage(messageData);
+      res.status(201).json({ 
+        success: true, 
+        message: "Your message has been sent successfully! We'll get back to you soon.",
+        id: message.id 
+      });
+    } catch (error: any) {
+      if (error.name === "ZodError") {
+        return res.status(400).json({ 
+          success: false,
+          message: "Please check your information and try again", 
+          errors: error.errors 
+        });
+      }
+      res.status(500).json({ 
+        success: false,
+        message: "Sorry, something went wrong. Please try again later." 
+      });
     }
   });
 

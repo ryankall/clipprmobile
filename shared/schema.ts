@@ -88,6 +88,25 @@ export const galleryPhotos = pgTable("gallery_photos", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+export const messages = pgTable("messages", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id),
+  clientId: integer("client_id").references(() => clients.id),
+  customerName: text("customer_name").notNull(),
+  customerPhone: text("customer_phone"),
+  customerEmail: text("customer_email"),
+  subject: text("subject").notNull(),
+  message: text("message").notNull(),
+  status: text("status").notNull().default("unread"), // unread, read, replied, archived
+  priority: text("priority").notNull().default("normal"), // low, normal, high, urgent
+  serviceRequested: text("service_requested"),
+  preferredDate: timestamp("preferred_date"),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow(),
+  readAt: timestamp("read_at"),
+  repliedAt: timestamp("replied_at"),
+});
+
 // Relations
 export const usersRelations = relations(users, ({ many }) => ({
   clients: many(clients),
@@ -95,6 +114,7 @@ export const usersRelations = relations(users, ({ many }) => ({
   appointments: many(appointments),
   invoices: many(invoices),
   galleryPhotos: many(galleryPhotos),
+  messages: many(messages),
 }));
 
 export const clientsRelations = relations(clients, ({ one, many }) => ({
@@ -105,6 +125,7 @@ export const clientsRelations = relations(clients, ({ one, many }) => ({
   appointments: many(appointments),
   invoices: many(invoices),
   galleryPhotos: many(galleryPhotos),
+  messages: many(messages),
 }));
 
 export const servicesRelations = relations(services, ({ one, many }) => ({
@@ -162,6 +183,17 @@ export const galleryPhotosRelations = relations(galleryPhotos, ({ one }) => ({
   }),
 }));
 
+export const messagesRelations = relations(messages, ({ one }) => ({
+  user: one(users, {
+    fields: [messages.userId],
+    references: [users.id],
+  }),
+  client: one(clients, {
+    fields: [messages.clientId],
+    references: [clients.id],
+  }),
+}));
+
 // Insert schemas
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
@@ -197,6 +229,13 @@ export const insertGalleryPhotoSchema = createInsertSchema(galleryPhotos).omit({
   createdAt: true,
 });
 
+export const insertMessageSchema = createInsertSchema(messages).omit({
+  id: true,
+  createdAt: true,
+  readAt: true,
+  repliedAt: true,
+});
+
 // Types
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
@@ -215,6 +254,9 @@ export type Invoice = typeof invoices.$inferSelect;
 
 export type InsertGalleryPhoto = z.infer<typeof insertGalleryPhotoSchema>;
 export type GalleryPhoto = typeof galleryPhotos.$inferSelect;
+
+export type InsertMessage = z.infer<typeof insertMessageSchema>;
+export type Message = typeof messages.$inferSelect;
 
 // Extended types for API responses
 export type AppointmentWithRelations = Appointment & {
