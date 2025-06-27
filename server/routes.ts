@@ -94,13 +94,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Service not found" });
       }
       
+      // Validate appointment is not in the past
+      const scheduledDate = new Date(req.body.scheduledAt);
+      const now = new Date();
+      if (scheduledDate <= now) {
+        return res.status(400).json({ message: "Cannot schedule appointments in the past" });
+      }
+      
       const appointmentData = insertAppointmentSchema.parse({ 
         ...req.body, 
         userId,
         price: service.price,
         duration: service.duration,
         status: "scheduled",
-        scheduledAt: new Date(req.body.scheduledAt)
+        scheduledAt: scheduledDate
       });
       
       const appointment = await storage.createAppointment(appointmentData);

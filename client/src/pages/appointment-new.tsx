@@ -21,7 +21,16 @@ import type { Client, Service } from "@shared/schema";
 const appointmentFormSchema = z.object({
   clientId: z.number().min(1, "Client is required"),
   serviceId: z.number().min(1, "Service is required"),
-  scheduledAt: z.string().min(1, "Date and time is required"),
+  scheduledAt: z.string().min(1, "Date and time is required").refine(
+    (dateStr) => {
+      const selectedDate = new Date(dateStr);
+      const now = new Date();
+      return selectedDate > now;
+    },
+    {
+      message: "Cannot schedule appointments in the past"
+    }
+  ),
   notes: z.string().optional(),
   address: z.string().optional(),
 });
