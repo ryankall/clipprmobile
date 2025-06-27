@@ -159,10 +159,10 @@ export default function Gallery() {
                                 <SelectValue placeholder="Select photo type" />
                               </SelectTrigger>
                             </FormControl>
-                            <SelectContent className="bg-charcoal border-steel/40">
-                              <SelectItem value="before">Before</SelectItem>
-                              <SelectItem value="after">After</SelectItem>
-                              <SelectItem value="portfolio">Portfolio</SelectItem>
+                            <SelectContent className="bg-charcoal border-steel/40 text-white">
+                              <SelectItem value="before" className="text-white hover:bg-steel/20">Before</SelectItem>
+                              <SelectItem value="after" className="text-white hover:bg-steel/20">After</SelectItem>
+                              <SelectItem value="portfolio" className="text-white hover:bg-steel/20">Portfolio</SelectItem>
                             </SelectContent>
                           </Select>
                           <FormMessage />
