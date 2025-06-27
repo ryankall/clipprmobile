@@ -141,6 +141,7 @@ npm run start
 
 ```
 Changelog:
+- June 27, 2025. Fixed critical authentication security vulnerabilities - added requireAuth middleware to all protected routes, updated all endpoints to use authenticated user ID instead of hardcoded demo user, replaced black circle in dashboard with clickable profile picture showing user photo or initials fallback, confirmed profile updates working correctly
 - June 27, 2025. Updated authentication page styling to professional dark theme - changed from light amber/orange background to dark charcoal, updated card to dark theme, made all text white for better contrast, and changed tagline to "Simplifying the business side of your style game."
 - June 27, 2025. Implemented comprehensive authentication system with sign-up/sign-in pages, email/password authentication, Google OAuth (optional), Apple Sign In (optional for iOS), phone number requirement for signup, JWT token management, session handling, protected routes, and sign-out functionality
 - June 27, 2025. Enhanced settings page with comprehensive profile editing functionality - added pencil edit icon, current profile display, photo upload with JPEG/PNG/WEBP support only, HEIC blocking, file size validation, and horizontal upload button layout with improved visibility
