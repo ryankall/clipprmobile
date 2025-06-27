@@ -154,14 +154,14 @@ export default function Messages() {
 
       <main className="p-4 space-y-4">
         {/* Filter Tabs */}
-        <div className="flex space-x-2 overflow-x-auto">
+        <div className="flex flex-wrap gap-2">
           {["all", "unread", "read", "replied", "archived"].map((status) => (
             <Button
               key={status}
               variant={filter === status ? "default" : "ghost"}
               size="sm"
               onClick={() => setFilter(status)}
-              className={filter === status ? "gradient-gold text-charcoal" : "text-white hover:bg-charcoal/50"}
+              className={`flex-shrink-0 ${filter === status ? "gradient-gold text-charcoal" : "text-white hover:bg-charcoal/50"}`}
             >
               {status.charAt(0).toUpperCase() + status.slice(1)}
               {status !== "all" && (
