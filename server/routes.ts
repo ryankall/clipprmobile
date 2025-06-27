@@ -98,7 +98,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const scheduledDate = new Date(req.body.scheduledAt);
       const now = new Date();
       if (scheduledDate <= now) {
-        return res.status(400).json({ message: "Cannot schedule appointments in the past" });
+        return res.status(400).json({ message: "Please select a future date and time for your appointment" });
       }
       
       const appointmentData = insertAppointmentSchema.parse({ 

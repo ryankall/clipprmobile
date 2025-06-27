@@ -28,7 +28,7 @@ const appointmentFormSchema = z.object({
       return selectedDate > now;
     },
     {
-      message: "Cannot schedule appointments in the past"
+      message: "Please select a future date and time"
     }
   ),
   notes: z.string().optional(),
@@ -74,10 +74,21 @@ export default function AppointmentNew() {
       queryClient.invalidateQueries({ queryKey: ["/api/appointments"] });
       navigate("/calendar");
     },
-    onError: (error: any) => {
+    onError: async (error: any) => {
+      let errorMessage = "Failed to create appointment";
+      
+      if (error.response) {
+        try {
+          const errorData = await error.response.json();
+          errorMessage = errorData.message || errorMessage;
+        } catch {
+          // If parsing fails, use default message
+        }
+      }
+      
       toast({
-        title: "Error",
-        description: error.message || "Failed to create appointment",
+        title: "Unable to Schedule",
+        description: errorMessage,
         variant: "destructive",
       });
     },
