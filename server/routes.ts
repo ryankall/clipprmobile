@@ -547,7 +547,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         res.json({ url: accountLink.url });
       } catch (error: any) {
-        res.status(500).json({ message: "Error creating Stripe account: " + error.message });
+        console.error('Stripe Connect error:', error);
+        
+        // Handle specific Stripe Connect setup error
+        if (error.message.includes('signed up for Connect')) {
+          res.status(400).json({ 
+            message: "Stripe Connect setup required",
+            details: "Please enable Stripe Connect in your Stripe dashboard first. Go to https://dashboard.stripe.com/connect/overview and complete the setup process.",
+            setupRequired: true
+          });
+        } else {
+          res.status(500).json({ message: "Error creating Stripe account: " + error.message });
+        }
       }
     });
 

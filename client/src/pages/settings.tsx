@@ -118,11 +118,21 @@ export default function Settings() {
       }
     },
     onError: (error: any) => {
-      toast({
-        title: "Connection Failed",
-        description: error.message || "Failed to connect to Stripe",
-        variant: "destructive",
-      });
+      const errorData = JSON.parse(error.message.replace('400: ', '').replace('500: ', ''));
+      
+      if (errorData.setupRequired) {
+        toast({
+          title: "Stripe Connect Setup Required",
+          description: "Please enable Stripe Connect in your dashboard first",
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Connection Failed",
+          description: errorData.message || "Failed to connect to Stripe",
+          variant: "destructive",
+        });
+      }
       setIsConnectingStripe(false);
     },
   });
@@ -623,6 +633,26 @@ export default function Settings() {
                       <li>• Direct deposits to your bank</li>
                       <li>• Transaction history and reports</li>
                     </ul>
+                  </div>
+
+                  <div className="bg-amber-900/20 border border-amber-700/30 p-3 rounded-lg">
+                    <h4 className="text-amber-300 font-medium text-sm mb-2">Setup Required:</h4>
+                    <p className="text-amber-200 text-xs mb-2">
+                      Before connecting, you need to enable Stripe Connect in your Stripe dashboard:
+                    </p>
+                    <ol className="text-amber-200 text-xs space-y-1 ml-4">
+                      <li>1. Go to your Stripe Dashboard</li>
+                      <li>2. Navigate to Connect → Overview</li>
+                      <li>3. Complete the Connect setup process</li>
+                      <li>4. Return here to connect your account</li>
+                    </ol>
+                    <Button
+                      variant="link"
+                      className="text-amber-300 p-0 h-auto text-xs mt-2"
+                      onClick={() => window.open('https://dashboard.stripe.com/connect/overview', '_blank')}
+                    >
+                      Open Stripe Connect Setup →
+                    </Button>
                   </div>
                   
                   <Button
