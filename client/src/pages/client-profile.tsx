@@ -192,8 +192,7 @@ export default function ClientProfile() {
                   className="border-steel/40 text-white hover:bg-steel/20"
                   onClick={() => setIsEditing(true)}
                 >
-                  <Edit className="w-4 h-4 mr-1" />
-                  Edit
+                  <Edit className="w-4 h-4" />
                 </Button>
                 <Link href={`/appointments/new?clientId=${client.id}`}>
                   <Button size="sm" className="gradient-gold text-charcoal tap-feedback">
