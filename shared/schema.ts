@@ -11,6 +11,9 @@ export const users = pgTable("users", {
   businessName: text("business_name"),
   phone: text("phone"),
   address: text("address"),
+  photoUrl: text("photo_url"),
+  serviceArea: text("service_area"),
+  about: text("about"),
   workingHours: json("working_hours").default({}),
   travelTimeBuffer: integer("travel_time_buffer").default(15), // minutes
   stripeCustomerId: text("stripe_customer_id"),

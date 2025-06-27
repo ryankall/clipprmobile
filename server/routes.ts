@@ -53,6 +53,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // User profile routes
+  app.get("/api/user/profile", async (req, res) => {
+    try {
+      // Temporary: Use demo user ID until authentication is implemented
+      const userId = 2;
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      res.json(user);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.patch("/api/user/profile", async (req, res) => {
+    try {
+      // Temporary: Use demo user ID until authentication is implemented
+      const userId = 2;
+      const user = await storage.updateUser(userId, req.body);
+      res.json(user);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
   // Appointments routes
   app.get("/api/appointments", async (req, res) => {
     try {
