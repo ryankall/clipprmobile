@@ -22,6 +22,7 @@ import { z } from "zod";
 
 const clientFormSchema = insertClientSchema.extend({
   userId: z.number().optional(),
+  name: z.string().min(1, "Name is required"),
   phone: z.string().optional().refine((val) => {
     if (!val || val.trim() === "") return true;
     // Validate phone number format - accepts various formats like (123) 456-7890, 123-456-7890, 1234567890
@@ -46,6 +47,12 @@ const clientFormSchema = insertClientSchema.extend({
   }, {
     message: "Please enter a valid address (minimum 5 characters)",
   }),
+}).refine((data) => {
+  // Require either phone or email
+  return (data.phone && data.phone.trim() !== "") || (data.email && data.email.trim() !== "");
+}, {
+  message: "Please provide either a phone number or email address",
+  path: ["phone"], // This will show the error on the phone field
 });
 
 export default function Clients() {
@@ -129,7 +136,7 @@ export default function Clients() {
                     name="name"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="text-white">Name</FormLabel>
+                        <FormLabel className="text-white">Name *</FormLabel>
                         <FormControl>
                           <Input 
                             {...field} 
@@ -210,6 +217,10 @@ export default function Clients() {
                       </FormItem>
                     )}
                   />
+                  {/* Contact requirement message */}
+                  <div className="text-sm text-steel/60 italic">
+                    * Please provide either a phone number or email address
+                  </div>
                   <FormField
                     control={form.control}
                     name="address"
