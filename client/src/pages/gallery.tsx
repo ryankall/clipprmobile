@@ -269,11 +269,11 @@ export default function Gallery() {
             <SelectTrigger className="w-40 bg-dark-card border-steel/40 text-white">
               <SelectValue />
             </SelectTrigger>
-            <SelectContent className="bg-charcoal border-steel/40">
-              <SelectItem value="all">All Photos</SelectItem>
-              <SelectItem value="before">Before</SelectItem>
-              <SelectItem value="after">After</SelectItem>
-              <SelectItem value="portfolio">Portfolio</SelectItem>
+            <SelectContent className="bg-charcoal border-steel/40 text-white">
+              <SelectItem value="all" className="text-white hover:bg-steel/20">All Photos</SelectItem>
+              <SelectItem value="before" className="text-white hover:bg-steel/20">Before</SelectItem>
+              <SelectItem value="after" className="text-white hover:bg-steel/20">After</SelectItem>
+              <SelectItem value="portfolio" className="text-white hover:bg-steel/20">Portfolio</SelectItem>
             </SelectContent>
           </Select>
         </div>
