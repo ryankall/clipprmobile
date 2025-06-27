@@ -34,17 +34,29 @@ const profileFormSchema = z.object({
   phone: z.string().optional(),
   email: z.string().email().optional().or(z.literal("")),
   address: z.string().optional(),
+  bio: z.string().optional(),
   travelTimeBuffer: z.number().min(5).max(60),
 });
 
 export default function Settings() {
   const [activeSection, setActiveSection] = useState<string>('profile');
   const [isWorkingHoursOpen, setIsWorkingHoursOpen] = useState(false);
+  const [isProfileEditing, setIsProfileEditing] = useState(false);
   const [pushNotifications, setPushNotifications] = useState(true);
   const [soundEffects, setSoundEffects] = useState(true);
   const [selectedPhoto, setSelectedPhoto] = useState<File | null>(null);
   const [profilePhotoUrl, setProfilePhotoUrl] = useState<string>("");
   const { toast } = useToast();
+
+  // Mock current profile data - in real app this would come from user query
+  const currentProfile = {
+    businessName: "Clippr Mobile Cuts",
+    phone: "(555) 123-4567",
+    email: "clippr@example.com",
+    address: "Mobile Service - Greater LA Area",
+    bio: "Professional mobile barber with 8+ years experience. Specializing in modern cuts and classic styles.",
+    travelTimeBuffer: 15
+  };
 
   // Load preferences from localStorage on mount
   useEffect(() => {
@@ -132,11 +144,12 @@ export default function Settings() {
   const form = useForm<z.infer<typeof profileFormSchema>>({
     resolver: zodResolver(profileFormSchema),
     defaultValues: {
-      businessName: "",
-      phone: "",
-      email: "",
-      address: "",
-      travelTimeBuffer: 15,
+      businessName: currentProfile.businessName,
+      phone: currentProfile.phone,
+      email: currentProfile.email,
+      address: currentProfile.address,
+      bio: currentProfile.bio,
+      travelTimeBuffer: currentProfile.travelTimeBuffer,
     },
   });
 
@@ -178,6 +191,7 @@ export default function Settings() {
         description: "Your profile has been updated successfully",
       });
       setSelectedPhoto(null); // Clear selected photo after successful upload
+      setIsProfileEditing(false); // Exit edit mode after successful update
     },
     onError: (error: any) => {
       toast({
@@ -256,125 +270,218 @@ export default function Settings() {
         {/* Profile Settings */}
         <Card className="bg-dark-card border-steel/20">
           <CardHeader>
-            <CardTitle className="text-white flex items-center">
-              <User className="w-5 h-5 mr-2" />
-              Profile & Business Info
+            <CardTitle className="text-white flex items-center justify-between">
+              <div className="flex items-center">
+                <User className="w-5 h-5 mr-2" />
+                Profile & Business Info
+              </div>
+              {!isProfileEditing && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="border-steel/40 text-white hover:bg-steel/20"
+                  onClick={() => setIsProfileEditing(true)}
+                >
+                  Edit
+                </Button>
+              )}
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <Form {...form}>
-              <form onSubmit={form.handleSubmit(onProfileSubmit)} className="space-y-4">
-                {/* Profile Photo Upload */}
-                <div className="space-y-2">
-                  <Label className="text-white">Profile Photo</Label>
-                  <PhotoUpload
-                    onPhotoSelected={setSelectedPhoto}
-                    preview={profilePhotoUrl}
-                    placeholder="Add your profile photo"
-                  />
+            {!isProfileEditing ? (
+              // Display Mode
+              <div className="space-y-4">
+                {/* Profile Photo Display */}
+                <div className="flex items-center space-x-4">
+                  <div className="w-16 h-16 bg-charcoal rounded-full flex items-center justify-center">
+                    {profilePhotoUrl ? (
+                      <img src={profilePhotoUrl} alt="Profile" className="w-16 h-16 rounded-full object-cover" />
+                    ) : (
+                      <User className="w-8 h-8 text-steel" />
+                    )}
+                  </div>
+                  <div>
+                    <h3 className="text-white font-semibold">{currentProfile.businessName}</h3>
+                    <p className="text-steel text-sm">Professional Barber</p>
+                  </div>
                 </div>
                 
-                <FormField
-                  control={form.control}
-                  name="businessName"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="text-white">Business Name</FormLabel>
-                      <FormControl>
-                        <Input 
-                          {...field} 
-                          className="bg-charcoal border-steel/40 text-white"
-                          placeholder="Your barbershop name"
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                {/* Contact Information */}
                 <div className="grid grid-cols-2 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="phone"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="text-white">Phone</FormLabel>
-                        <FormControl>
-                          <Input 
-                            {...field} 
-                            className="bg-charcoal border-steel/40 text-white"
-                            placeholder="Phone number"
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="email"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="text-white">Email</FormLabel>
-                        <FormControl>
-                          <Input 
-                            {...field} 
-                            type="email"
-                            className="bg-charcoal border-steel/40 text-white"
-                            placeholder="Email address"
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                  <div>
+                    <Label className="text-steel text-sm">Phone</Label>
+                    <p className="text-white">{currentProfile.phone}</p>
+                  </div>
+                  <div>
+                    <Label className="text-steel text-sm">Email</Label>
+                    <p className="text-white">{currentProfile.email}</p>
+                  </div>
                 </div>
-                <FormField
-                  control={form.control}
-                  name="address"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="text-white">Business Address</FormLabel>
-                      <FormControl>
-                        <Textarea 
-                          {...field} 
-                          className="bg-charcoal border-steel/40 text-white"
-                          placeholder="Your business address"
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="travelTimeBuffer"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="text-white">Travel Time Buffer (minutes)</FormLabel>
-                      <FormControl>
-                        <Input 
-                          {...field} 
-                          type="number"
-                          min="5"
-                          max="60"
-                          onChange={(e) => field.onChange(parseInt(e.target.value))}
-                          className="bg-charcoal border-steel/40 text-white"
-                          placeholder="15"
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <Button
-                  type="submit"
-                  className="w-full gradient-gold text-charcoal tap-feedback"
-                  disabled={updateProfileMutation.isPending}
-                >
-                  {updateProfileMutation.isPending ? "Updating..." : "Update Profile"}
-                </Button>
-              </form>
-            </Form>
+                
+                <div>
+                  <Label className="text-steel text-sm">Service Area</Label>
+                  <p className="text-white">{currentProfile.address}</p>
+                </div>
+                
+                <div>
+                  <Label className="text-steel text-sm">About</Label>
+                  <p className="text-white">{currentProfile.bio}</p>
+                </div>
+                
+                <div>
+                  <Label className="text-steel text-sm">Travel Buffer Time</Label>
+                  <p className="text-white">{currentProfile.travelTimeBuffer} minutes</p>
+                </div>
+              </div>
+            ) : (
+              // Edit Mode
+              <Form {...form}>
+                <form onSubmit={form.handleSubmit(onProfileSubmit)} className="space-y-4">
+                  {/* Profile Photo Upload */}
+                  <div className="space-y-2">
+                    <Label className="text-white">Profile Photo</Label>
+                    <PhotoUpload
+                      onPhotoSelected={setSelectedPhoto}
+                      preview={profilePhotoUrl}
+                      placeholder="Add your profile photo"
+                    />
+                  </div>
+                  
+                  <FormField
+                    control={form.control}
+                    name="businessName"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-white">Business Name</FormLabel>
+                        <FormControl>
+                          <Input 
+                            {...field} 
+                            className="bg-charcoal border-steel/40 text-white"
+                            placeholder="Your barbershop name"
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="phone"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-white">Phone</FormLabel>
+                          <FormControl>
+                            <Input 
+                              {...field} 
+                              className="bg-charcoal border-steel/40 text-white"
+                              placeholder="Phone number"
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="email"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-white">Email</FormLabel>
+                          <FormControl>
+                            <Input 
+                              {...field} 
+                              type="email"
+                              className="bg-charcoal border-steel/40 text-white"
+                              placeholder="Email address"
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                  <FormField
+                    control={form.control}
+                    name="address"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-white">Service Area</FormLabel>
+                        <FormControl>
+                          <Input 
+                            {...field} 
+                            className="bg-charcoal border-steel/40 text-white"
+                            placeholder="Your service area"
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <FormField
+                    control={form.control}
+                    name="bio"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-white">About</FormLabel>
+                        <FormControl>
+                          <Textarea 
+                            {...field} 
+                            className="bg-charcoal border-steel/40 text-white"
+                            placeholder="Tell your clients about your experience and specialties"
+                            rows={3}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <FormField
+                    control={form.control}
+                    name="travelTimeBuffer"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-white">Travel Buffer Time (minutes)</FormLabel>
+                        <FormControl>
+                          <Input 
+                            {...field} 
+                            type="number"
+                            className="bg-charcoal border-steel/40 text-white"
+                            placeholder="15"
+                            onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <div className="flex space-x-2">
+                    <Button
+                      type="submit"
+                      className="bg-gold hover:bg-gold/90 text-black font-semibold"
+                      disabled={updateProfileMutation.isPending}
+                    >
+                      {updateProfileMutation.isPending ? "Saving..." : "Save Changes"}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="border-steel/40 text-white hover:bg-steel/20"
+                      onClick={() => {
+                        setIsProfileEditing(false);
+                        form.reset();
+                        setSelectedPhoto(null);
+                      }}
+                    >
+                      Cancel
+                    </Button>
+                  </div>
+                </form>
+              </Form>
+            )}
           </CardContent>
         </Card>
 
