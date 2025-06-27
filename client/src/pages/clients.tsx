@@ -283,7 +283,7 @@ export default function Clients() {
                     <Button
                       type="button"
                       variant="outline"
-                      className="flex-1 border-steel/40 text-white hover:bg-charcoal/80 tap-feedback"
+                      className="flex-1 border-steel/40 text-steel bg-transparent hover:bg-steel/10 hover:text-white tap-feedback"
                       onClick={() => setIsDialogOpen(false)}
                     >
                       Cancel
