@@ -197,6 +197,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // File upload route
+  app.post("/api/upload", upload.single('photo'), async (req, res) => {
+    try {
+      const file = req.file;
+      
+      if (!file) {
+        return res.status(400).json({ message: "No file uploaded" });
+      }
+
+      // In production, upload to cloud storage (AWS S3, Cloudinary, etc.)
+      // For now, we'll use a data URL
+      const photoUrl = `data:${file.mimetype};base64,${file.buffer.toString('base64')}`;
+      
+      res.json({ photoUrl });
+    } catch (error: any) {
+      res.status(400).json({ message: error.message });
+    }
+  });
+
   // Gallery routes
   app.get("/api/gallery", async (req, res) => {
     try {
