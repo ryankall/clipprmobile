@@ -88,18 +88,7 @@ export default function Messages() {
     },
   });
 
-  const createClientMutation = useMutation({
-    mutationFn: async (clientData: any) => {
-      return apiRequest("POST", "/api/clients", clientData);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/clients"] });
-      toast({
-        title: "Client Created",
-        description: "New client has been added to your client list",
-      });
-    },
-  });
+
 
   const handleMessageClick = (message: Message) => {
     setSelectedMessage(message);
@@ -119,15 +108,39 @@ export default function Messages() {
     }
   };
 
-  const handleCreateClient = (message: Message) => {
+  const handleCreateClient = async (message: Message) => {
     const clientData = {
       name: message.customerName,
       phone: message.customerPhone || undefined,
       email: message.customerEmail || undefined,
-      notes: `Customer contacted via message: "${message.subject}"\n\nService requested: ${message.serviceRequested || 'Not specified'}\n\nOriginal message: ${message.message}`,
+      notes: '', // Keep notes empty for user input
     };
     
-    createClientMutation.mutate(clientData);
+    try {
+      const response = await apiRequest("POST", "/api/clients", clientData);
+      const clientResponse = await response.json();
+      const newClient = clientResponse;
+      
+      // Update the message to link it to the new client
+      await apiRequest("PATCH", `/api/messages/${message.id}`, {
+        clientId: newClient.id
+      });
+      
+      // Refresh queries
+      queryClient.invalidateQueries({ queryKey: ["/api/clients"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/messages"] });
+      
+      toast({
+        title: "Client Created",
+        description: "New client has been added and linked to this message",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to create client. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   const canCreateClient = (message: Message) => {
@@ -379,7 +392,7 @@ export default function Messages() {
                           variant="outline"
                           size="sm"
                           onClick={() => handleCreateClient(selectedMessage)}
-                          disabled={!canCreateClient(selectedMessage) || createClientMutation.isPending}
+                          disabled={!canCreateClient(selectedMessage)}
                           className={`${
                             canCreateClient(selectedMessage)
                               ? "border-purple-500/30 text-purple-400 hover:bg-purple-500/10"
@@ -387,7 +400,7 @@ export default function Messages() {
                           }`}
                         >
                           <UserPlus className="w-4 h-4 mr-2" />
-                          {createClientMutation.isPending ? "Creating..." : "Create Client"}
+                          Create Client
                         </Button>
                       </TooltipTrigger>
                       <TooltipContent>
