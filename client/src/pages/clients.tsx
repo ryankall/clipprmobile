@@ -376,17 +376,13 @@ export default function Clients() {
                             <div className="flex items-center text-xs text-steel">
                               <Phone className="w-3 h-3 mr-1" />
                               {client.phone}
-                              <span className="bg-red-500 text-xs">|PHONE_END|</span>
                             </div>
                           )}
                           {client.totalVisits && client.totalVisits > 0 && (
                             <div className="text-xs text-steel">
-                              <span className="bg-blue-500">|VISITS_START|</span>
                               {client.totalVisits} visit{client.totalVisits !== 1 ? 's' : ''}
-                              <span className="bg-blue-500">|VISITS_END|</span>
                             </div>
                           )}
-                          <span className="bg-green-500 text-xs">|CONTAINER_END|</span>
                         </div>
                         {parseFloat(client.totalSpent || '0') > 0 && (
                           <div className="text-xs text-gold mt-1">
