@@ -7,6 +7,7 @@ import Dashboard from "@/pages/dashboard";
 import Calendar from "@/pages/calendar";
 import Clients from "@/pages/clients";
 import ClientProfile from "@/pages/client-profile";
+import AppointmentNew from "@/pages/appointment-new";
 import Gallery from "@/pages/gallery";
 import Settings from "@/pages/settings";
 import Invoice from "@/pages/invoice";
@@ -20,6 +21,7 @@ function Router() {
       <Route path="/calendar" component={Calendar} />
       <Route path="/clients" component={Clients} />
       <Route path="/clients/:id" component={ClientProfile} />
+      <Route path="/appointments/new" component={AppointmentNew} />
       <Route path="/gallery" component={Gallery} />
       <Route path="/settings" component={Settings} />
       <Route path="/invoice/:id?" component={Invoice} />
