@@ -45,8 +45,6 @@ export function ClientCard({ client, showActions = true, compact = false }: Clie
                 <div className="flex items-center text-xs text-steel">
                   <Phone className="w-3 h-3 mr-1" />
                   <span className="truncate">{client.phone}</span>
-                  {/* Debug: check what might be adding extra content */}
-                  {console.log('Phone field data:', client.phone, 'Upcoming:', client.upcomingAppointments)}
                 </div>
               )}
               {client.email && (

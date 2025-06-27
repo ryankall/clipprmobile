@@ -384,9 +384,9 @@ export default function Clients() {
                             </div>
                           )}
                         </div>
-                        {client.totalSpent && parseFloat(client.totalSpent) > 0 && (
+                        {parseFloat(client.totalSpent || '0') > 0 && (
                           <div className="text-xs text-gold mt-1">
-                            Total spent: ${parseFloat(client.totalSpent).toFixed(2)}
+                            Total spent: ${parseFloat(client.totalSpent || '0').toFixed(2)}
                           </div>
                         )}
                       </div>
