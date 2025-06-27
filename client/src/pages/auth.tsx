@@ -143,7 +143,7 @@ export default function Auth() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-amber-50 to-orange-50 dark:from-charcoal dark:to-steel/20 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-charcoal flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         {/* Header */}
         <div className="text-center mb-8">
@@ -151,17 +151,17 @@ export default function Auth() {
             <div className="w-12 h-12 bg-gradient-to-br from-amber-400 to-orange-500 rounded-xl flex items-center justify-center">
               <Scissors className="w-6 h-6 text-white" />
             </div>
-            <h1 className="text-2xl font-bold text-charcoal dark:text-white">Clippr</h1>
+            <h1 className="text-2xl font-bold text-white">Clippr</h1>
           </div>
-          <p className="text-steel dark:text-steel/70">
+          <p className="text-steel/70">
             Professional barber management made simple
           </p>
         </div>
 
         {/* Auth Card */}
-        <Card className="bg-white/80 dark:bg-charcoal/80 backdrop-blur-sm border-steel/20">
+        <Card className="bg-dark-card border-steel/20">
           <CardHeader className="text-center">
-            <CardTitle className="text-charcoal dark:text-white">
+            <CardTitle className="text-white">
               {activeTab === "signin" ? "Welcome back" : "Create account"}
             </CardTitle>
             <CardDescription>
@@ -183,7 +183,7 @@ export default function Auth() {
               <TabsContent value="signin" className="space-y-4">
                 <form onSubmit={signInForm.handleSubmit(handleSignIn)} className="space-y-4">
                   <div className="space-y-2">
-                    <Label htmlFor="signin-email">Email</Label>
+                    <Label htmlFor="signin-email" className="text-white">Email</Label>
                     <div className="relative">
                       <Mail className="absolute left-3 top-3 h-4 w-4 text-steel" />
                       <Input
@@ -199,7 +199,7 @@ export default function Auth() {
                   </div>
                   
                   <div className="space-y-2">
-                    <Label htmlFor="signin-password">Password</Label>
+                    <Label htmlFor="signin-password" className="text-white">Password</Label>
                     <div className="relative">
                       <Lock className="absolute left-3 top-3 h-4 w-4 text-steel" />
                       <Input
@@ -230,7 +230,7 @@ export default function Auth() {
                 <form onSubmit={signUpForm.handleSubmit(handleSignUp)} className="space-y-4">
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="signup-firstName">First Name</Label>
+                      <Label htmlFor="signup-firstName" className="text-white">First Name</Label>
                       <div className="relative">
                         <User className="absolute left-3 top-3 h-4 w-4 text-steel" />
                         <Input
@@ -246,7 +246,7 @@ export default function Auth() {
                     </div>
                     
                     <div className="space-y-2">
-                      <Label htmlFor="signup-lastName">Last Name</Label>
+                      <Label htmlFor="signup-lastName" className="text-white">Last Name</Label>
                       <div className="relative">
                         <User className="absolute left-3 top-3 h-4 w-4 text-steel" />
                         <Input
@@ -263,7 +263,7 @@ export default function Auth() {
                   </div>
                   
                   <div className="space-y-2">
-                    <Label htmlFor="signup-email">Email</Label>
+                    <Label htmlFor="signup-email" className="text-white">Email</Label>
                     <div className="relative">
                       <Mail className="absolute left-3 top-3 h-4 w-4 text-steel" />
                       <Input
@@ -279,7 +279,7 @@ export default function Auth() {
                   </div>
                   
                   <div className="space-y-2">
-                    <Label htmlFor="signup-phone">Phone Number</Label>
+                    <Label htmlFor="signup-phone" className="text-white">Phone Number</Label>
                     <div className="relative">
                       <Phone className="absolute left-3 top-3 h-4 w-4 text-steel" />
                       <Input
@@ -295,7 +295,7 @@ export default function Auth() {
                   </div>
                   
                   <div className="space-y-2">
-                    <Label htmlFor="signup-password">Password</Label>
+                    <Label htmlFor="signup-password" className="text-white">Password</Label>
                     <div className="relative">
                       <Lock className="absolute left-3 top-3 h-4 w-4 text-steel" />
                       <Input
@@ -312,7 +312,7 @@ export default function Auth() {
                   </div>
                   
                   <div className="space-y-2">
-                    <Label htmlFor="signup-confirmPassword">Confirm Password</Label>
+                    <Label htmlFor="signup-confirmPassword" className="text-white">Confirm Password</Label>
                     <div className="relative">
                       <Lock className="absolute left-3 top-3 h-4 w-4 text-steel" />
                       <Input
@@ -346,7 +346,7 @@ export default function Auth() {
                   <span className="w-full border-t border-steel/20" />
                 </div>
                 <div className="relative flex justify-center text-xs uppercase">
-                  <span className="bg-white dark:bg-charcoal px-2 text-steel">Or continue with</span>
+                  <span className="bg-dark-card px-2 text-steel">Or continue with</span>
                 </div>
               </div>
               
