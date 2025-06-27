@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { BottomNavigation } from "@/components/bottom-navigation";
 import { 
   MessageCircle, 
@@ -18,7 +19,8 @@ import {
   Trash2,
   CheckCircle,
   AlertCircle,
-  Archive
+  Archive,
+  UserPlus
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
@@ -86,6 +88,19 @@ export default function Messages() {
     },
   });
 
+  const createClientMutation = useMutation({
+    mutationFn: async (clientData: any) => {
+      return apiRequest("POST", "/api/clients", clientData);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/clients"] });
+      toast({
+        title: "Client Created",
+        description: "New client has been added to your client list",
+      });
+    },
+  });
+
   const handleMessageClick = (message: Message) => {
     setSelectedMessage(message);
     if (message.status === "unread") {
@@ -102,6 +117,31 @@ export default function Messages() {
     if (selectedMessage && selectedMessage.id === id) {
       setSelectedMessage({ ...selectedMessage, status: status as any });
     }
+  };
+
+  const handleCreateClient = (message: Message) => {
+    const clientData = {
+      name: message.customerName,
+      phone: message.customerPhone || undefined,
+      email: message.customerEmail || undefined,
+      notes: `Customer contacted via message: "${message.subject}"\n\nService requested: ${message.serviceRequested || 'Not specified'}\n\nOriginal message: ${message.message}`,
+    };
+    
+    createClientMutation.mutate(clientData);
+  };
+
+  const canCreateClient = (message: Message) => {
+    return message.customerName && (message.customerPhone || message.customerEmail);
+  };
+
+  const getCreateClientTooltip = (message: Message) => {
+    if (!message.customerName) {
+      return "Missing customer name";
+    }
+    if (!message.customerPhone && !message.customerEmail) {
+      return "Need either phone number or email address";
+    }
+    return "Create new client from this message";
   };
 
   const getPriorityColor = (priority: string) => {
@@ -333,11 +373,33 @@ export default function Messages() {
                       Archive
                     </Button>
 
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleCreateClient(selectedMessage)}
+                          disabled={!canCreateClient(selectedMessage) || createClientMutation.isPending}
+                          className={`${
+                            canCreateClient(selectedMessage)
+                              ? "border-purple-500/30 text-purple-400 hover:bg-purple-500/10"
+                              : "border-gray-500/30 text-gray-500 cursor-not-allowed"
+                          }`}
+                        >
+                          <UserPlus className="w-4 h-4 mr-2" />
+                          {createClientMutation.isPending ? "Creating..." : "Create Client"}
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>{getCreateClientTooltip(selectedMessage)}</p>
+                      </TooltipContent>
+                    </Tooltip>
+
                     <Button
                       variant="outline"
                       size="sm"
                       onClick={() => {
-                        setLocation(`/appointment-new?clientName=${encodeURIComponent(selectedMessage.customerName)}&phone=${encodeURIComponent(selectedMessage.customerPhone || "")}&email=${encodeURIComponent(selectedMessage.customerEmail || "")}`);
+                        setLocation(`/appointments/new?clientName=${encodeURIComponent(selectedMessage.customerName)}&phone=${encodeURIComponent(selectedMessage.customerPhone || "")}&email=${encodeURIComponent(selectedMessage.customerEmail || "")}`);
                       }}
                       className="border-gold/30 text-gold hover:bg-gold/10"
                     >
