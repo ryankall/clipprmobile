@@ -403,13 +403,17 @@ export default function Gallery() {
         <Dialog open={!!selectedPhoto} onOpenChange={() => setSelectedPhoto(null)}>
           <DialogContent className="bg-dark-card border-steel/20 text-white max-w-4xl w-full h-[90vh] flex flex-col">
             <DialogHeader>
-              <DialogTitle className="text-white flex items-center justify-between">
-                <span>{selectedPhoto.description || 'Photo'}</span>
-                <div className="flex items-center space-x-2">
-                  <span className="text-sm text-steel capitalize">{selectedPhoto.type}</span>
-                  {selectedPhoto.isPublic && (
-                    <span className="text-xs bg-green-600 text-white px-2 py-1 rounded">Public</span>
-                  )}
+              <DialogTitle className="text-white">
+                <div className="flex items-start justify-between pr-8">
+                  <div className="flex-1">
+                    <div className="text-lg font-semibold">{selectedPhoto.description || 'Photo'}</div>
+                    <div className="flex items-center space-x-2 mt-1">
+                      <span className="text-sm text-steel capitalize">{selectedPhoto.type}</span>
+                      {selectedPhoto.isPublic && (
+                        <span className="text-xs bg-green-600 text-white px-2 py-1 rounded">Public</span>
+                      )}
+                    </div>
+                  </div>
                 </div>
               </DialogTitle>
             </DialogHeader>
