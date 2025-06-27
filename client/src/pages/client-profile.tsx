@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { ArrowLeft, Phone, Mail, MapPin, Calendar, Star, Camera, DollarSign, Edit, Save, X } from "lucide-react";
+import { ArrowLeft, Phone, Mail, MapPin, Calendar, Star, Camera, DollarSign, Edit, Save, X, MessageCircle } from "lucide-react";
 import { Link } from "wouter";
 import { format } from "date-fns";
 import { useForm } from "react-hook-form";
@@ -18,7 +18,7 @@ import { insertClientSchema } from "@shared/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { z } from "zod";
-import type { Client, AppointmentWithRelations, GalleryPhoto } from "@shared/schema";
+import type { Client, AppointmentWithRelations, GalleryPhoto, Message } from "@shared/schema";
 
 // Create client form schema for editing
 const clientFormSchema = z.object({
@@ -51,6 +51,12 @@ export default function ClientProfile() {
   const { data: photos, isLoading: photosLoading } = useQuery<GalleryPhoto[]>({
     queryKey: ["/api/gallery"],
     select: (data) => data?.filter(photo => photo.clientId === clientId) || [],
+    enabled: !!clientId,
+  });
+
+  const { data: messages, isLoading: messagesLoading } = useQuery<Message[]>({
+    queryKey: ["/api/messages"],
+    select: (data) => data?.filter(message => message.clientId === clientId) || [],
     enabled: !!clientId,
   });
 
@@ -505,6 +511,57 @@ export default function ClientProfile() {
               <div className="text-center py-8 text-steel">
                 <Calendar className="w-12 h-12 mx-auto mb-3 opacity-50" />
                 <p>No appointments yet</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Message History */}
+        <Card className="bg-dark-card border-steel/20">
+          <CardHeader>
+            <CardTitle className="text-white flex items-center">
+              <MessageCircle className="w-5 h-5 mr-2" />
+              Message History ({messages?.length || 0})
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {messagesLoading ? (
+              <div className="flex justify-center py-4">
+                <div className="animate-spin w-6 h-6 border-2 border-gold border-t-transparent rounded-full" />
+              </div>
+            ) : messages && messages.length > 0 ? (
+              <div className="space-y-3">
+                {messages
+                  .sort((a, b) => new Date(b.createdAt!).getTime() - new Date(a.createdAt!).getTime())
+                  .map((message) => (
+                    <div key={message.id} className="p-4 bg-charcoal rounded-lg">
+                      <div className="flex items-start justify-between mb-2">
+                        <div className="flex-1">
+                          <h4 className="font-medium text-white">{message.subject}</h4>
+                          <p className="text-sm text-steel">
+                            From: {message.customerName} • {format(new Date(message.createdAt!), 'MMM d, yyyy • h:mm a')}
+                          </p>
+                        </div>
+                        <Badge 
+                          variant={message.status === 'unread' ? 'destructive' : 'secondary'}
+                          className="text-xs"
+                        >
+                          {message.status}
+                        </Badge>
+                      </div>
+                      <p className="text-sm text-white mb-2">{message.message}</p>
+                      {message.serviceRequested && (
+                        <div className="text-xs text-gold">
+                          Service Requested: {message.serviceRequested}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+              </div>
+            ) : (
+              <div className="text-center py-8 text-steel">
+                <MessageCircle className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                <p>No messages yet</p>
               </div>
             )}
           </CardContent>
