@@ -210,29 +210,43 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getAppointmentsByUserId(userId: number, startDate?: Date, endDate?: Date): Promise<AppointmentWithRelations[]> {
-    let query = db
-      .select({
-        ...appointments,
-        client: clients,
-        service: services,
-      })
+    // First get appointments
+    let appointmentQuery = db
+      .select()
       .from(appointments)
-      .innerJoin(clients, eq(appointments.clientId, clients.id))
-      .innerJoin(services, eq(appointments.serviceId, services.id))
       .where(eq(appointments.userId, userId));
 
     if (startDate && endDate) {
-      query = query.where(
-        and(
-          eq(appointments.userId, userId),
-          gte(appointments.scheduledAt, startDate),
-          lte(appointments.scheduledAt, endDate)
-        )
-      );
+      appointmentQuery = db
+        .select()
+        .from(appointments)
+        .where(
+          and(
+            eq(appointments.userId, userId),
+            gte(appointments.scheduledAt, startDate),
+            lte(appointments.scheduledAt, endDate)
+          )
+        );
     }
 
-    const result = await query.orderBy(appointments.scheduledAt);
-    return result as AppointmentWithRelations[];
+    const appointmentResults = await appointmentQuery.orderBy(appointments.scheduledAt);
+    
+    // Then get related data
+    const results: AppointmentWithRelations[] = [];
+    for (const appointment of appointmentResults) {
+      const client = await db.select().from(clients).where(eq(clients.id, appointment.clientId)).limit(1);
+      const service = await db.select().from(services).where(eq(services.id, appointment.serviceId)).limit(1);
+      
+      if (client[0] && service[0]) {
+        results.push({
+          ...appointment,
+          client: client[0],
+          service: service[0],
+        });
+      }
+    }
+    
+    return results;
   }
 
   async getTodayAppointments(userId: number): Promise<AppointmentWithRelations[]> {
@@ -245,18 +259,19 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getAppointment(id: number): Promise<AppointmentWithRelations | undefined> {
-    const [result] = await db
-      .select({
-        ...appointments,
-        client: clients,
-        service: services,
-      })
-      .from(appointments)
-      .innerJoin(clients, eq(appointments.clientId, clients.id))
-      .innerJoin(services, eq(appointments.serviceId, services.id))
-      .where(eq(appointments.id, id));
+    const appointment = await db.select().from(appointments).where(eq(appointments.id, id)).limit(1);
+    if (!appointment[0]) return undefined;
     
-    return result as AppointmentWithRelations || undefined;
+    const client = await db.select().from(clients).where(eq(clients.id, appointment[0].clientId)).limit(1);
+    const service = await db.select().from(services).where(eq(services.id, appointment[0].serviceId)).limit(1);
+    
+    if (!client[0] || !service[0]) return undefined;
+    
+    return {
+      ...appointment[0],
+      client: client[0],
+      service: service[0],
+    };
   }
 
   async createAppointment(appointment: InsertAppointment): Promise<Appointment> {

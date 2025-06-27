@@ -1,258 +1,48 @@
-import { useState, useEffect } from "react";
-import { useQuery, useMutation } from "@tanstack/react-query";
-import { queryClient } from "@/lib/queryClient";
+import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { BottomNavigation } from "@/components/bottom-navigation";
-import { PhotoUpload } from "@/components/photo-upload";
-import { Settings as SettingsIcon, User, Clock, Palette, Bell, Shield, HelpCircle, LogOut } from "lucide-react";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { apiRequest } from "@/lib/queryClient";
+import { Settings as SettingsIcon, User, Bell, Shield, HelpCircle, LogOut } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { z } from "zod";
-
-const workingHoursSchema = z.object({
-  monday: z.object({ start: z.string(), end: z.string(), enabled: z.boolean() }),
-  tuesday: z.object({ start: z.string(), end: z.string(), enabled: z.boolean() }),
-  wednesday: z.object({ start: z.string(), end: z.string(), enabled: z.boolean() }),
-  thursday: z.object({ start: z.string(), end: z.string(), enabled: z.boolean() }),
-  friday: z.object({ start: z.string(), end: z.string(), enabled: z.boolean() }),
-  saturday: z.object({ start: z.string(), end: z.string(), enabled: z.boolean() }),
-  sunday: z.object({ start: z.string(), end: z.string(), enabled: z.boolean() }),
-});
-
-const profileFormSchema = z.object({
-  businessName: z.string().optional(),
-  phone: z.string().optional(),
-  email: z.string().email().optional().or(z.literal("")),
-  address: z.string().optional(),
-  bio: z.string().optional(),
-  travelTimeBuffer: z.number().min(5).max(60),
-});
+import { useLocation } from "wouter";
 
 export default function Settings() {
-  const [activeSection, setActiveSection] = useState<string>('profile');
-  const [isWorkingHoursOpen, setIsWorkingHoursOpen] = useState(false);
-  const [isProfileEditing, setIsProfileEditing] = useState(false);
+  const [location, setLocation] = useLocation();
   const [pushNotifications, setPushNotifications] = useState(true);
   const [soundEffects, setSoundEffects] = useState(true);
-  const [selectedPhoto, setSelectedPhoto] = useState<File | null>(null);
-  const [profilePhotoUrl, setProfilePhotoUrl] = useState<string>("");
   const { toast } = useToast();
 
-  // Mock current profile data - in real app this would come from user query
-  const currentProfile = {
-    businessName: "Clippr Mobile Cuts",
-    phone: "(555) 123-4567",
-    email: "clippr@example.com",
-    address: "Mobile Service - Greater LA Area",
-    bio: "Professional mobile barber with 8+ years experience. Specializing in modern cuts and classic styles.",
-    travelTimeBuffer: 15
-  };
-
-  // Load preferences from localStorage on mount
-  useEffect(() => {
-    const savedNotifications = localStorage.getItem('pushNotifications');
-    const savedSounds = localStorage.getItem('soundEffects');
-    
-    if (savedNotifications !== null) {
-      setPushNotifications(JSON.parse(savedNotifications));
-    }
-    if (savedSounds !== null) {
-      setSoundEffects(JSON.parse(savedSounds));
-    }
-  }, []);
-
-  // Sound effect function
-  const playSound = () => {
-    if (soundEffects) {
-      // Create a simple beep sound using Web Audio API
-      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
-      const oscillator = audioContext.createOscillator();
-      const gainNode = audioContext.createGain();
-      
-      oscillator.connect(gainNode);
-      gainNode.connect(audioContext.destination);
-      
-      oscillator.frequency.setValueAtTime(800, audioContext.currentTime);
-      gainNode.gain.setValueAtTime(0.1, audioContext.currentTime);
-      gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.1);
-      
-      oscillator.start(audioContext.currentTime);
-      oscillator.stop(audioContext.currentTime + 0.1);
-    }
-  };
-
-  // Handle preference changes
   const handleNotificationToggle = (checked: boolean) => {
     setPushNotifications(checked);
     localStorage.setItem('pushNotifications', JSON.stringify(checked));
-    playSound();
     
-    if (checked) {
-      // Request notification permission
-      if ('Notification' in window && Notification.permission === 'default') {
-        Notification.requestPermission().then(permission => {
-          if (permission === 'granted') {
-            toast({
-              title: "Notifications Enabled",
-              description: "You'll receive appointment reminders and updates",
-            });
-          }
-        });
-      } else {
-        toast({
-          title: "Notifications Enabled",
-          description: "You'll receive appointment reminders and updates",
-        });
-      }
-    } else {
-      toast({
-        title: "Notifications Disabled",
-        description: "You won't receive push notifications",
-      });
-    }
+    toast({
+      title: checked ? "Notifications Enabled" : "Notifications Disabled",
+      description: checked ? "You'll receive appointment reminders" : "Push notifications turned off",
+    });
   };
 
   const handleSoundToggle = (checked: boolean) => {
     setSoundEffects(checked);
     localStorage.setItem('soundEffects', JSON.stringify(checked));
     
-    // Play sound to demonstrate if enabling
-    if (checked) {
-      playSound();
-      toast({
-        title: "Sound Effects Enabled",
-        description: "You'll hear sounds for app interactions",
-      });
-    } else {
-      toast({
-        title: "Sound Effects Disabled",
-        description: "App interactions will be silent",
-      });
-    }
+    toast({
+      title: checked ? "Sound Effects Enabled" : "Sound Effects Disabled",
+      description: checked ? "App sounds are now on" : "App sounds are now off",
+    });
   };
 
-  const form = useForm<z.infer<typeof profileFormSchema>>({
-    resolver: zodResolver(profileFormSchema),
-    defaultValues: {
-      businessName: currentProfile.businessName,
-      phone: currentProfile.phone,
-      email: currentProfile.email,
-      address: currentProfile.address,
-      bio: currentProfile.bio,
-      travelTimeBuffer: currentProfile.travelTimeBuffer,
-    },
-  });
-
-  const workingHoursForm = useForm<z.infer<typeof workingHoursSchema>>({
-    resolver: zodResolver(workingHoursSchema),
-    defaultValues: {
-      monday: { start: "09:00", end: "17:00", enabled: true },
-      tuesday: { start: "09:00", end: "17:00", enabled: true },
-      wednesday: { start: "09:00", end: "17:00", enabled: true },
-      thursday: { start: "09:00", end: "17:00", enabled: true },
-      friday: { start: "09:00", end: "17:00", enabled: true },
-      saturday: { start: "09:00", end: "15:00", enabled: true },
-      sunday: { start: "10:00", end: "14:00", enabled: false },
-    },
-  });
-
-  const updateProfileMutation = useMutation({
-    mutationFn: async (data: z.infer<typeof profileFormSchema>) => {
-      // If there's a selected photo, upload it first
-      if (selectedPhoto) {
-        const formData = new FormData();
-        formData.append('photo', selectedPhoto);
-        
-        const uploadResponse = await apiRequest("POST", "/api/upload", formData);
-        const uploadData = await uploadResponse.json();
-        
-        // Update profile with photo URL
-        return apiRequest("PATCH", "/api/user/profile", {
-          ...data,
-          photoUrl: uploadData.url
-        });
-      } else {
-        return apiRequest("PATCH", "/api/user/profile", data);
-      }
-    },
-    onSuccess: () => {
-      toast({
-        title: "Profile Updated",
-        description: "Your profile has been updated successfully",
-      });
-      setSelectedPhoto(null); // Clear selected photo after successful upload
-      setIsProfileEditing(false); // Exit edit mode after successful update
-    },
-    onError: (error: any) => {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to update profile",
-        variant: "destructive",
-      });
-    },
-  });
-
-  const updateWorkingHoursMutation = useMutation({
-    mutationFn: async (data: z.infer<typeof workingHoursSchema>) => {
-      return apiRequest("PATCH", "/api/user/working-hours", { workingHours: data });
-    },
-    onSuccess: () => {
-      toast({
-        title: "Working Hours Updated",
-        description: "Your working hours have been updated successfully",
-      });
-      setIsWorkingHoursOpen(false);
-    },
-    onError: (error: any) => {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to update working hours",
-        variant: "destructive",
-      });
-    },
-  });
-
-  const seedServicesMutation = useMutation({
-    mutationFn: async () => {
-      return apiRequest("POST", "/api/seed-services", {});
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/services"] });
-      toast({
-        title: "Services Added",
-        description: "Default services have been added to your account",
-      });
-    },
-    onError: (error: any) => {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to add default services",
-        variant: "destructive",
-      });
-    },
-  });
-
-  const onProfileSubmit = (data: z.infer<typeof profileFormSchema>) => {
-    updateProfileMutation.mutate(data);
+  const handleLogout = () => {
+    toast({
+      title: "Logged Out",
+      description: "You've been signed out successfully",
+    });
+    setLocation("/");
   };
-
-  const onWorkingHoursSubmit = (data: z.infer<typeof workingHoursSchema>) => {
-    updateWorkingHoursMutation.mutate(data);
-  };
-
-  const daysOfWeek = [
-    'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'
-  ] as const;
 
   return (
     <div className="min-h-screen bg-dark-bg text-white pb-20">
@@ -270,409 +60,135 @@ export default function Settings() {
         {/* Profile Settings */}
         <Card className="bg-dark-card border-steel/20">
           <CardHeader>
-            <CardTitle className="text-white flex items-center justify-between">
-              <div className="flex items-center">
-                <User className="w-5 h-5 mr-2" />
-                Profile & Business Info
-              </div>
-              {!isProfileEditing && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="border-steel/40 text-white hover:bg-steel/20"
-                  onClick={() => setIsProfileEditing(true)}
-                >
-                  Edit
-                </Button>
-              )}
+            <CardTitle className="text-white flex items-center">
+              <User className="w-5 h-5 mr-2" />
+              Profile & Business Info
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            {!isProfileEditing ? (
-              // Display Mode
-              <div className="space-y-4">
-                {/* Profile Photo Display */}
-                <div className="flex items-center space-x-4">
-                  <div className="w-16 h-16 bg-charcoal rounded-full flex items-center justify-center">
-                    {profilePhotoUrl ? (
-                      <img src={profilePhotoUrl} alt="Profile" className="w-16 h-16 rounded-full object-cover" />
-                    ) : (
-                      <User className="w-8 h-8 text-steel" />
-                    )}
-                  </div>
-                  <div>
-                    <h3 className="text-white font-semibold">{currentProfile.businessName}</h3>
-                    <p className="text-steel text-sm">Professional Barber</p>
-                  </div>
-                </div>
-                
-                {/* Contact Information */}
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label className="text-steel text-sm">Phone</Label>
-                    <p className="text-white">{currentProfile.phone}</p>
-                  </div>
-                  <div>
-                    <Label className="text-steel text-sm">Email</Label>
-                    <p className="text-white">{currentProfile.email}</p>
-                  </div>
-                </div>
-                
-                <div>
-                  <Label className="text-steel text-sm">Service Area</Label>
-                  <p className="text-white">{currentProfile.address}</p>
-                </div>
-                
-                <div>
-                  <Label className="text-steel text-sm">About</Label>
-                  <p className="text-white">{currentProfile.bio}</p>
-                </div>
-                
-                <div>
-                  <Label className="text-steel text-sm">Travel Buffer Time</Label>
-                  <p className="text-white">{currentProfile.travelTimeBuffer} minutes</p>
-                </div>
-              </div>
-            ) : (
-              // Edit Mode
-              <Form {...form}>
-                <form onSubmit={form.handleSubmit(onProfileSubmit)} className="space-y-4">
-                  {/* Profile Photo Upload */}
-                  <div className="space-y-2">
-                    <Label className="text-white">Profile Photo</Label>
-                    <PhotoUpload
-                      onPhotoSelected={setSelectedPhoto}
-                      preview={profilePhotoUrl}
-                      placeholder="Add your profile photo"
-                    />
-                  </div>
-                  
-                  <FormField
-                    control={form.control}
-                    name="businessName"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="text-white">Business Name</FormLabel>
-                        <FormControl>
-                          <Input 
-                            {...field} 
-                            className="bg-charcoal border-steel/40 text-white"
-                            placeholder="Your barbershop name"
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <div className="grid grid-cols-2 gap-4">
-                    <FormField
-                      control={form.control}
-                      name="phone"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className="text-white">Phone</FormLabel>
-                          <FormControl>
-                            <Input 
-                              {...field} 
-                              className="bg-charcoal border-steel/40 text-white"
-                              placeholder="Phone number"
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="email"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className="text-white">Email</FormLabel>
-                          <FormControl>
-                            <Input 
-                              {...field} 
-                              type="email"
-                              className="bg-charcoal border-steel/40 text-white"
-                              placeholder="Email address"
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-                  <FormField
-                    control={form.control}
-                    name="address"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="text-white">Service Area</FormLabel>
-                        <FormControl>
-                          <Input 
-                            {...field} 
-                            className="bg-charcoal border-steel/40 text-white"
-                            placeholder="Your service area"
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  
-                  <FormField
-                    control={form.control}
-                    name="bio"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="text-white">About</FormLabel>
-                        <FormControl>
-                          <Textarea 
-                            {...field} 
-                            className="bg-charcoal border-steel/40 text-white"
-                            placeholder="Tell your clients about your experience and specialties"
-                            rows={3}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  
-                  <FormField
-                    control={form.control}
-                    name="travelTimeBuffer"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="text-white">Travel Buffer Time (minutes)</FormLabel>
-                        <FormControl>
-                          <Input 
-                            {...field} 
-                            type="number"
-                            className="bg-charcoal border-steel/40 text-white"
-                            placeholder="15"
-                            onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  
-                  <div className="flex space-x-2">
-                    <Button
-                      type="submit"
-                      className="bg-gold hover:bg-gold/90 text-black font-semibold"
-                      disabled={updateProfileMutation.isPending}
-                    >
-                      {updateProfileMutation.isPending ? "Saving..." : "Save Changes"}
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="border-steel/40 text-white hover:bg-steel/20"
-                      onClick={() => {
-                        setIsProfileEditing(false);
-                        form.reset();
-                        setSelectedPhoto(null);
-                      }}
-                    >
-                      Cancel
-                    </Button>
-                  </div>
-                </form>
-              </Form>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Working Hours */}
-        <Card className="bg-dark-card border-steel/20">
-          <CardHeader>
-            <CardTitle className="text-white flex items-center justify-between">
-              <div className="flex items-center">
-                <Clock className="w-5 h-5 mr-2" />
-                Working Hours
-              </div>
-              <Dialog open={isWorkingHoursOpen} onOpenChange={setIsWorkingHoursOpen}>
-                <DialogTrigger asChild>
-                  <Button variant="outline" size="sm" className="border-steel/40 text-white hover:bg-charcoal/80">
-                    Edit
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="bg-dark-card border-steel/20 text-white max-w-md">
-                  <DialogHeader>
-                    <DialogTitle className="text-white">Working Hours</DialogTitle>
-                  </DialogHeader>
-                  <Form {...workingHoursForm}>
-                    <form onSubmit={workingHoursForm.handleSubmit(onWorkingHoursSubmit)} className="space-y-4">
-                      {daysOfWeek.map((day) => (
-                        <div key={day} className="space-y-2">
-                          <div className="flex items-center justify-between">
-                            <Label className="text-white capitalize">{day}</Label>
-                            <FormField
-                              control={workingHoursForm.control}
-                              name={`${day}.enabled`}
-                              render={({ field }) => (
-                                <Switch
-                                  checked={field.value}
-                                  onCheckedChange={field.onChange}
-                                />
-                              )}
-                            />
-                          </div>
-                          {workingHoursForm.watch(`${day}.enabled`) && (
-                            <div className="grid grid-cols-2 gap-2">
-                              <FormField
-                                control={workingHoursForm.control}
-                                name={`${day}.start`}
-                                render={({ field }) => (
-                                  <Input
-                                    {...field}
-                                    type="time"
-                                    className="bg-charcoal border-steel/40 text-white"
-                                  />
-                                )}
-                              />
-                              <FormField
-                                control={workingHoursForm.control}
-                                name={`${day}.end`}
-                                render={({ field }) => (
-                                  <Input
-                                    {...field}
-                                    type="time"
-                                    className="bg-charcoal border-steel/40 text-white"
-                                  />
-                                )}
-                              />
-                            </div>
-                          )}
-                        </div>
-                      ))}
-                      <div className="flex space-x-2 pt-4">
-                        <Button
-                          type="button"
-                          variant="outline"
-                          className="flex-1 border-steel/40 text-white hover:bg-charcoal/80"
-                          onClick={() => setIsWorkingHoursOpen(false)}
-                        >
-                          Cancel
-                        </Button>
-                        <Button
-                          type="submit"
-                          className="flex-1 gradient-gold text-charcoal"
-                          disabled={updateWorkingHoursMutation.isPending}
-                        >
-                          {updateWorkingHoursMutation.isPending ? "Saving..." : "Save"}
-                        </Button>
-                      </div>
-                    </form>
-                  </Form>
-                </DialogContent>
-              </Dialog>
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-sm text-steel">
-              Set your available working hours for each day of the week. This helps with appointment scheduling and client expectations.
+          <CardContent className="space-y-4">
+            <div>
+              <Label className="text-white">Business Name</Label>
+              <Input 
+                className="bg-charcoal border-steel/40 text-white mt-1"
+                placeholder="Your barbershop name"
+                defaultValue="Clippr Mobile Cuts"
+              />
             </div>
+            
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label className="text-white">Phone</Label>
+                <Input 
+                  className="bg-charcoal border-steel/40 text-white mt-1"
+                  placeholder="Phone number"
+                  defaultValue="(555) 123-4567"
+                />
+              </div>
+              <div>
+                <Label className="text-white">Email</Label>
+                <Input 
+                  type="email"
+                  className="bg-charcoal border-steel/40 text-white mt-1"
+                  placeholder="Email address"
+                  defaultValue="clippr@example.com"
+                />
+              </div>
+            </div>
+            
+            <div>
+              <Label className="text-white">Service Area</Label>
+              <Input 
+                className="bg-charcoal border-steel/40 text-white mt-1"
+                placeholder="Your service area"
+                defaultValue="Mobile Service - Greater LA Area"
+              />
+            </div>
+            
+            <div>
+              <Label className="text-white">About</Label>
+              <Textarea 
+                className="bg-charcoal border-steel/40 text-white mt-1"
+                placeholder="Tell clients about your services"
+                defaultValue="Professional mobile barber with 8+ years experience. Specializing in modern cuts and classic styles."
+              />
+            </div>
+            
+            <Button className="gradient-gold text-charcoal font-semibold">
+              Update Profile
+            </Button>
           </CardContent>
         </Card>
 
-        {/* App Preferences */}
+        {/* Notification Settings */}
         <Card className="bg-dark-card border-steel/20">
           <CardHeader>
             <CardTitle className="text-white flex items-center">
-              <Palette className="w-5 h-5 mr-2" />
-              App Preferences
+              <Bell className="w-5 h-5 mr-2" />
+              Notifications
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="flex items-center justify-between">
               <div>
-                <Label className="text-white">Dark Mode</Label>
-                <p className="text-sm text-steel">Optimized for working in dim environments</p>
-              </div>
-              <Switch checked={true} disabled />
-            </div>
-            <div className="flex items-center justify-between">
-              <div>
                 <Label className="text-white">Push Notifications</Label>
-                <p className="text-sm text-steel">Get notified about appointments and reminders</p>
+                <p className="text-sm text-steel">Get notified about new appointments</p>
               </div>
-              <Switch 
-                checked={pushNotifications} 
+              <Switch
+                checked={pushNotifications}
                 onCheckedChange={handleNotificationToggle}
               />
             </div>
+            
             <div className="flex items-center justify-between">
               <div>
                 <Label className="text-white">Sound Effects</Label>
-                <p className="text-sm text-steel">Play sounds for interactions and notifications</p>
+                <p className="text-sm text-steel">Play sounds for app interactions</p>
               </div>
-              <Switch 
-                checked={soundEffects} 
+              <Switch
+                checked={soundEffects}
                 onCheckedChange={handleSoundToggle}
               />
             </div>
           </CardContent>
         </Card>
 
-        {/* Default Services */}
+        {/* Account Settings */}
         <Card className="bg-dark-card border-steel/20">
           <CardHeader>
             <CardTitle className="text-white flex items-center">
               <Shield className="w-5 h-5 mr-2" />
-              Quick Setup
+              Account & Security
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div>
-              <Label className="text-white">Add Default Services</Label>
-              <p className="text-sm text-steel mb-3">
-                Quickly add common barber services (Haircut, Beard Trim, Combo, Skin Fade) to get started.
-              </p>
-              <Button
-                onClick={() => seedServicesMutation.mutate()}
-                className="gradient-gold text-charcoal tap-feedback"
-                disabled={seedServicesMutation.isPending}
-              >
-                {seedServicesMutation.isPending ? "Adding Services..." : "Add Default Services"}
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Help & Support */}
-        <Card className="bg-dark-card border-steel/20">
-          <CardHeader>
-            <CardTitle className="text-white flex items-center">
-              <HelpCircle className="w-5 h-5 mr-2" />
+            <Button
+              variant="outline"
+              className="w-full border-steel/40 text-white hover:bg-steel/20"
+            >
+              Change Password
+            </Button>
+            
+            <Button
+              variant="outline"
+              className="w-full border-steel/40 text-white hover:bg-steel/20"
+            >
+              <HelpCircle className="w-4 h-4 mr-2" />
               Help & Support
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <Button variant="ghost" className="w-full justify-start text-white hover:bg-charcoal/80">
-              <HelpCircle className="w-4 h-4 mr-3" />
-              Help Center
             </Button>
-            <Button variant="ghost" className="w-full justify-start text-white hover:bg-charcoal/80">
-              <Bell className="w-4 h-4 mr-3" />
-              Contact Support
+            
+            <Button
+              variant="destructive"
+              className="w-full"
+              onClick={handleLogout}
+            >
+              <LogOut className="w-4 h-4 mr-2" />
+              Sign Out
             </Button>
-          </CardContent>
-        </Card>
-
-        {/* App Info */}
-        <Card className="bg-dark-card border-steel/20">
-          <CardContent className="p-4 text-center">
-            <h3 className="text-gold font-bold text-lg">Clippr</h3>
-            <p className="text-steel text-sm">Mobile Barber & Stylist App</p>
-            <p className="text-steel text-xs mt-2">Version 1.0.0</p>
           </CardContent>
         </Card>
       </main>
 
-      <BottomNavigation currentPath="/settings" />
+      <BottomNavigation currentPath={location} />
     </div>
   );
 }

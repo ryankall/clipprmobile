@@ -221,7 +221,6 @@ export const insertAppointmentSchema = createInsertSchema(appointments).omit({
 export const insertInvoiceSchema = createInsertSchema(invoices).omit({
   id: true,
   createdAt: true,
-  paidAt: true,
 });
 
 export const insertGalleryPhotoSchema = createInsertSchema(galleryPhotos).omit({
