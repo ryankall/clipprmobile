@@ -416,19 +416,19 @@ export default function Settings() {
                       
                       <div className="flex gap-2 pt-2">
                         <Button
+                          type="button"
+                          variant="outline"
+                          className="border-steel/40 text-charcoal bg-white hover:bg-steel/10 hover:text-charcoal flex-1"
+                          onClick={() => setIsEditingProfile(false)}
+                        >
+                          Cancel
+                        </Button>
+                        <Button
                           type="submit"
                           disabled={updateProfileMutation.isPending}
                           className="gradient-gold text-charcoal font-semibold flex-1"
                         >
                           {updateProfileMutation.isPending ? "Updating..." : "Update Profile"}
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          className="border-steel/40 text-charcoal bg-white hover:bg-steel/10 hover:text-charcoal"
-                          onClick={() => setIsEditingProfile(false)}
-                        >
-                          Cancel
                         </Button>
                       </div>
                     </form>
