@@ -1,17 +1,41 @@
+import { useState, useEffect } from "react";
 import { useParams } from "wouter";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { ArrowLeft, Phone, Mail, MapPin, Calendar, Star, Camera, DollarSign } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { ArrowLeft, Phone, Mail, MapPin, Calendar, Star, Camera, DollarSign, Edit, Save, X } from "lucide-react";
 import { Link } from "wouter";
 import { format } from "date-fns";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { insertClientSchema } from "@shared/schema";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
+import { z } from "zod";
 import type { Client, AppointmentWithRelations, GalleryPhoto } from "@shared/schema";
+
+// Create client form schema for editing
+const clientFormSchema = z.object({
+  name: z.string().min(1, "Name is required"),
+  phone: z.string().optional().nullable(),
+  email: z.string().email("Invalid email").optional().or(z.literal("")),
+  address: z.string().optional().nullable(),
+  preferredStyle: z.string().optional().nullable(),
+  notes: z.string().optional().nullable(),
+  loyaltyStatus: z.enum(["regular", "vip"]).default("regular"),
+});
 
 export default function ClientProfile() {
   const { id } = useParams<{ id: string }>();
   const clientId = parseInt(id || "0");
+  const [isEditing, setIsEditing] = useState(false);
+  const { toast } = useToast();
 
   const { data: client, isLoading: clientLoading } = useQuery<Client>({
     queryKey: [`/api/clients/${clientId}`],
@@ -29,6 +53,74 @@ export default function ClientProfile() {
     select: (data) => data?.filter(photo => photo.clientId === clientId) || [],
     enabled: !!clientId,
   });
+
+  const form = useForm({
+    defaultValues: {
+      name: "",
+      phone: "",
+      email: "",
+      address: "",
+      preferredStyle: "",
+      notes: "",
+      loyaltyStatus: "regular",
+    },
+  });
+
+  // Update form when client data loads
+  useEffect(() => {
+    if (client) {
+      form.reset({
+        name: client.name || "",
+        phone: client.phone || "",
+        email: client.email || "",
+        address: client.address || "",
+        preferredStyle: client.preferredStyle || "",
+        notes: client.notes || "",
+        loyaltyStatus: (client.loyaltyStatus as "regular" | "vip") || "regular",
+      });
+    }
+  }, [client, form]);
+
+  const updateClientMutation = useMutation({
+    mutationFn: async (data: z.infer<typeof clientFormSchema>) => {
+      return apiRequest("PUT", `/api/clients/${clientId}`, data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [`/api/clients/${clientId}`] });
+      queryClient.invalidateQueries({ queryKey: ["/api/clients"] });
+      toast({
+        title: "Client Updated",
+        description: "Client details have been updated successfully",
+      });
+      setIsEditing(false);
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update client",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleSave = (data: any) => {
+    updateClientMutation.mutate(data);
+  };
+
+  const handleCancel = () => {
+    if (client) {
+      form.reset({
+        name: client.name || "",
+        phone: client.phone || "",
+        email: client.email || "",
+        address: client.address || "",
+        preferredStyle: client.preferredStyle || "",
+        notes: client.notes || "",
+        loyaltyStatus: client.loyaltyStatus || "regular",
+      });
+    }
+    setIsEditing(false);
+  };
 
   if (clientLoading) {
     return (
@@ -72,14 +164,47 @@ export default function ClientProfile() {
             <h1 className="text-xl font-bold text-white">{client.name}</h1>
           </div>
           <div className="flex items-center space-x-2">
-            <Link href={`/appointments/new?clientId=${client.id}`}>
-              <Button size="sm" className="gradient-gold text-charcoal tap-feedback">
-                Book
-              </Button>
-            </Link>
-            <Button variant="ghost" size="sm" className="text-steel hover:text-white">
-              <Phone className="w-4 h-4" />
-            </Button>
+            {isEditing ? (
+              <>
+                <Button 
+                  size="sm" 
+                  className="gradient-gold text-charcoal tap-feedback"
+                  onClick={form.handleSubmit(handleSave)}
+                  disabled={updateClientMutation.isPending}
+                >
+                  <Save className="w-4 h-4 mr-1" />
+                  Save
+                </Button>
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  className="text-steel hover:text-white"
+                  onClick={handleCancel}
+                >
+                  <X className="w-4 h-4" />
+                </Button>
+              </>
+            ) : (
+              <>
+                <Button 
+                  size="sm" 
+                  variant="outline" 
+                  className="border-steel/40 text-white hover:bg-steel/20"
+                  onClick={() => setIsEditing(true)}
+                >
+                  <Edit className="w-4 h-4 mr-1" />
+                  Edit
+                </Button>
+                <Link href={`/appointments/new?clientId=${client.id}`}>
+                  <Button size="sm" className="gradient-gold text-charcoal tap-feedback">
+                    Book
+                  </Button>
+                </Link>
+                <Button variant="ghost" size="sm" className="text-steel hover:text-white">
+                  <Phone className="w-4 h-4" />
+                </Button>
+              </>
+            )}
           </div>
         </div>
       </header>
@@ -88,63 +213,225 @@ export default function ClientProfile() {
         {/* Client Info */}
         <Card className="bg-dark-card border-steel/20">
           <CardContent className="p-6">
-            <div className="flex items-start space-x-4">
-              <Avatar className="h-20 w-20">
-                <AvatarImage 
-                  src={client.photoUrl || undefined} 
-                  alt={client.name} 
-                />
-                <AvatarFallback className="bg-steel text-white text-xl">
-                  {client.name.split(' ').map(n => n[0]).join('').toUpperCase()}
-                </AvatarFallback>
-              </Avatar>
-              
-              <div className="flex-1">
-                <div className="flex items-center space-x-2 mb-2">
-                  <h2 className="text-xl font-bold text-white">{client.name}</h2>
-                  {client.loyaltyStatus === 'vip' && (
-                    <Badge className="bg-gold text-charcoal">
-                      <Star className="w-3 h-3 mr-1" />
-                      VIP
-                    </Badge>
-                  )}
+            {isEditing ? (
+              <Form {...form}>
+                <form className="space-y-4">
+                  <div className="flex items-start space-x-4">
+                    <Avatar className="h-20 w-20">
+                      <AvatarImage 
+                        src={client.photoUrl || undefined} 
+                        alt={client.name} 
+                      />
+                      <AvatarFallback className="bg-steel text-white text-xl">
+                        {client.name.split(' ').map(n => n[0]).join('').toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
+                    
+                    <div className="flex-1 space-y-4">
+                      <FormField
+                        control={form.control}
+                        name="name"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-white">Name</FormLabel>
+                            <FormControl>
+                              <Input 
+                                {...field} 
+                                className="bg-charcoal border-steel/40 text-white"
+                                placeholder="Client name"
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <FormField
+                          control={form.control}
+                          name="phone"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel className="text-white">Phone</FormLabel>
+                              <FormControl>
+                                <Input 
+                                  {...field} 
+                                  value={field.value || ""}
+                                  className="bg-charcoal border-steel/40 text-white"
+                                  placeholder="Phone number"
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        
+                        <FormField
+                          control={form.control}
+                          name="email"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel className="text-white">Email</FormLabel>
+                              <FormControl>
+                                <Input 
+                                  {...field} 
+                                  value={field.value || ""}
+                                  type="email"
+                                  className="bg-charcoal border-steel/40 text-white"
+                                  placeholder="Email address"
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+                      
+                      <FormField
+                        control={form.control}
+                        name="address"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-white">Address</FormLabel>
+                            <FormControl>
+                              <Input 
+                                {...field} 
+                                value={field.value || ""}
+                                className="bg-charcoal border-steel/40 text-white"
+                                placeholder="Address"
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <FormField
+                          control={form.control}
+                          name="preferredStyle"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel className="text-white">Preferred Style</FormLabel>
+                              <FormControl>
+                                <Input 
+                                  {...field} 
+                                  value={field.value || ""}
+                                  className="bg-charcoal border-steel/40 text-white"
+                                  placeholder="Preferred style"
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        
+                        <FormField
+                          control={form.control}
+                          name="loyaltyStatus"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel className="text-white">Loyalty Status</FormLabel>
+                              <Select onValueChange={field.onChange} value={field.value}>
+                                <FormControl>
+                                  <SelectTrigger className="bg-charcoal border-steel/40 text-white">
+                                    <SelectValue placeholder="Select status" />
+                                  </SelectTrigger>
+                                </FormControl>
+                                <SelectContent className="bg-charcoal border-steel/40 text-white">
+                                  <SelectItem value="regular" className="text-white hover:bg-steel/20">Regular</SelectItem>
+                                  <SelectItem value="vip" className="text-white hover:bg-steel/20">VIP</SelectItem>
+                                </SelectContent>
+                              </Select>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+                      
+                      <FormField
+                        control={form.control}
+                        name="notes"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-white">Notes</FormLabel>
+                            <FormControl>
+                              <Textarea 
+                                {...field} 
+                                value={field.value || ""}
+                                className="bg-charcoal border-steel/40 text-white min-h-[80px]"
+                                placeholder="Additional notes about the client"
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                  </div>
+                </form>
+              </Form>
+            ) : (
+              <>
+                <div className="flex items-start space-x-4">
+                  <Avatar className="h-20 w-20">
+                    <AvatarImage 
+                      src={client.photoUrl || undefined} 
+                      alt={client.name} 
+                    />
+                    <AvatarFallback className="bg-steel text-white text-xl">
+                      {client.name.split(' ').map(n => n[0]).join('').toUpperCase()}
+                    </AvatarFallback>
+                  </Avatar>
+                  
+                  <div className="flex-1">
+                    <div className="flex items-center space-x-2 mb-2">
+                      <h2 className="text-xl font-bold text-white">{client.name}</h2>
+                      {client.loyaltyStatus === 'vip' && (
+                        <Badge className="bg-gold text-charcoal">
+                          <Star className="w-3 h-3 mr-1" />
+                          VIP
+                        </Badge>
+                      )}
+                    </div>
+                    
+                    <div className="space-y-2">
+                      {client.phone && (
+                        <div className="flex items-center text-sm text-steel">
+                          <Phone className="w-4 h-4 mr-2" />
+                          {client.phone}
+                        </div>
+                      )}
+                      {client.email && (
+                        <div className="flex items-center text-sm text-steel">
+                          <Mail className="w-4 h-4 mr-2" />
+                          {client.email}
+                        </div>
+                      )}
+                      {client.address && (
+                        <div className="flex items-center text-sm text-steel">
+                          <MapPin className="w-4 h-4 mr-2" />
+                          {client.address}
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 </div>
-                
-                <div className="space-y-2">
-                  {client.phone && (
-                    <div className="flex items-center text-sm text-steel">
-                      <Phone className="w-4 h-4 mr-2" />
-                      {client.phone}
-                    </div>
-                  )}
-                  {client.email && (
-                    <div className="flex items-center text-sm text-steel">
-                      <Mail className="w-4 h-4 mr-2" />
-                      {client.email}
-                    </div>
-                  )}
-                  {client.address && (
-                    <div className="flex items-center text-sm text-steel">
-                      <MapPin className="w-4 h-4 mr-2" />
-                      {client.address}
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
 
-            {client.preferredStyle && (
-              <div className="mt-4 p-3 bg-charcoal rounded-lg">
-                <h4 className="text-sm font-medium text-white mb-1">Preferred Style</h4>
-                <p className="text-sm text-steel">{client.preferredStyle}</p>
-              </div>
-            )}
+                {client.preferredStyle && (
+                  <div className="mt-4 p-3 bg-charcoal rounded-lg">
+                    <h4 className="text-sm font-medium text-white mb-1">Preferred Style</h4>
+                    <p className="text-sm text-steel">{client.preferredStyle}</p>
+                  </div>
+                )}
 
-            {client.notes && (
-              <div className="mt-4 p-3 bg-charcoal rounded-lg">
-                <h4 className="text-sm font-medium text-white mb-1">Notes</h4>
-                <p className="text-sm text-steel">{client.notes}</p>
-              </div>
+                {client.notes && (
+                  <div className="mt-4 p-3 bg-charcoal rounded-lg">
+                    <h4 className="text-sm font-medium text-white mb-1">Notes</h4>
+                    <p className="text-sm text-steel">{client.notes}</p>
+                  </div>
+                )}
+              </>
             )}
           </CardContent>
         </Card>
