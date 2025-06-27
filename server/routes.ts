@@ -517,9 +517,78 @@ export async function registerRoutes(app: Express): Promise<Server> {
         res.status(500).json({ message: error.message });
       }
     });
+
+    // Stripe Connect routes
+    app.post("/api/stripe/connect", requireAuth, async (req, res) => {
+      try {
+        const userId = (req.user as any).id;
+        
+        // Create Stripe Connect account
+        const account = await stripe.accounts.create({
+          type: 'express',
+          country: 'US',
+          email: (req.user as any).email,
+          capabilities: {
+            card_payments: { requested: true },
+            transfers: { requested: true },
+          },
+        });
+
+        // Update user with Stripe account ID
+        await storage.updateUserStripeInfo(userId, account.id);
+
+        // Create account link for onboarding
+        const accountLink = await stripe.accountLinks.create({
+          account: account.id,
+          refresh_url: `${req.protocol}://${req.get('host')}/settings`,
+          return_url: `${req.protocol}://${req.get('host')}/settings?stripe=connected`,
+          type: 'account_onboarding',
+        });
+
+        res.json({ url: accountLink.url });
+      } catch (error: any) {
+        res.status(500).json({ message: "Error creating Stripe account: " + error.message });
+      }
+    });
+
+    app.get("/api/stripe/status", requireAuth, async (req, res) => {
+      try {
+        const userId = (req.user as any).id;
+        const user = await storage.getUser(userId);
+        
+        if (!user?.stripeCustomerId) {
+          return res.json({ connected: false });
+        }
+
+        // Get account details from Stripe
+        const account = await stripe.accounts.retrieve(user.stripeCustomerId);
+        
+        res.json({
+          connected: true,
+          status: account.charges_enabled ? 'active' : 'pending',
+          country: account.country,
+          dashboardUrl: `https://dashboard.stripe.com/express/accounts/${account.id}`,
+          capabilities: account.capabilities,
+        });
+      } catch (error: any) {
+        res.json({ connected: false });
+      }
+    });
   } else {
     // Stripe not configured, return error for payment routes
     app.post("/api/create-payment-intent", (req, res) => {
+      res.status(501).json({ 
+        message: "Stripe not configured. Please set STRIPE_SECRET_KEY environment variable." 
+      });
+    });
+
+    app.post("/api/stripe/connect", (req, res) => {
+      res.status(501).json({ 
+        message: "Stripe not configured. Please set STRIPE_SECRET_KEY environment variable." 
+      });
+    });
+
+    app.get("/api/stripe/status", (req, res) => {
       res.status(501).json({ 
         message: "Stripe not configured. Please set STRIPE_SECRET_KEY environment variable." 
       });

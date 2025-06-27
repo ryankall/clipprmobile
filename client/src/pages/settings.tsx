@@ -9,7 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { BottomNavigation } from "@/components/bottom-navigation";
-import { Settings as SettingsIcon, User, Bell, Shield, HelpCircle, LogOut, Edit3, Camera, Upload, X } from "lucide-react";
+import { Settings as SettingsIcon, User, Bell, Shield, HelpCircle, LogOut, Edit3, Camera, Upload, X, CreditCard, DollarSign, CheckCircle, AlertCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { useLocation } from "wouter";
@@ -29,6 +29,15 @@ const profileSchema = z.object({
 });
 
 type ProfileFormData = z.infer<typeof profileSchema>;
+
+// Stripe status type
+interface StripeStatus {
+  connected: boolean;
+  status?: string;
+  country?: string;
+  dashboardUrl?: string;
+  capabilities?: any;
+}
 
 // User type from database
 interface User {
@@ -54,6 +63,7 @@ export default function Settings() {
   const [soundEffects, setSoundEffects] = useState(true);
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [isConnectingStripe, setIsConnectingStripe] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
   const { signOut } = useAuth();
@@ -92,6 +102,35 @@ export default function Settings() {
         variant: "destructive",
       });
     },
+  });
+
+  // Stripe Connect mutation
+  const connectStripeMutation = useMutation({
+    mutationFn: async () => {
+      return await apiRequest('/api/stripe/connect', {
+        method: 'POST',
+      });
+    },
+    onSuccess: (data: any) => {
+      if (data.url) {
+        // Redirect to Stripe Connect onboarding
+        window.location.href = data.url;
+      }
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Connection Failed",
+        description: error.message || "Failed to connect to Stripe",
+        variant: "destructive",
+      });
+      setIsConnectingStripe(false);
+    },
+  });
+
+  // Get Stripe account status
+  const { data: stripeStatus } = useQuery<StripeStatus>({
+    queryKey: ['/api/stripe/status'],
+    retry: false,
   });
 
   // Form setup with current user data
@@ -201,6 +240,11 @@ export default function Settings() {
 
   const handleLogout = () => {
     signOut();
+  };
+
+  const handleConnectStripe = () => {
+    setIsConnectingStripe(true);
+    connectStripeMutation.mutate();
   };
 
   const onSubmit = (data: ProfileFormData) => {
@@ -499,6 +543,105 @@ export default function Settings() {
                 onCheckedChange={handleSoundToggle}
               />
             </div>
+          </CardContent>
+        </Card>
+
+        {/* Payment Settings */}
+        <Card className="bg-dark-card border-steel/20">
+          <CardHeader>
+            <CardTitle className="text-white flex items-center">
+              <CreditCard className="w-5 h-5 mr-2" />
+              Payment Settings
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {stripeStatus && stripeStatus.connected ? (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between p-3 bg-green-900/20 border border-green-700/30 rounded-lg">
+                  <div className="flex items-center space-x-3">
+                    <CheckCircle className="w-5 h-5 text-green-400" />
+                    <div>
+                      <p className="text-white font-medium">Stripe Connected</p>
+                      <p className="text-green-300 text-sm">Ready to receive payments</p>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <Label className="text-steel">Account Status</Label>
+                    <p className="text-white capitalize">{stripeStatus?.status || 'Active'}</p>
+                  </div>
+                  <div>
+                    <Label className="text-steel">Country</Label>
+                    <p className="text-white">{stripeStatus?.country || 'US'}</p>
+                  </div>
+                </div>
+                
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    className="border-steel/40 text-white hover:bg-steel/20 flex-1"
+                    onClick={() => window.open(stripeStatus?.dashboardUrl, '_blank')}
+                  >
+                    <DollarSign className="w-4 h-4 mr-2" />
+                    View Dashboard
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="border-steel/40 text-white hover:bg-steel/20 flex-1"
+                    onClick={handleConnectStripe}
+                    disabled={isConnectingStripe}
+                  >
+                    Update Settings
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between p-3 bg-amber-900/20 border border-amber-700/30 rounded-lg">
+                  <div className="flex items-center space-x-3">
+                    <AlertCircle className="w-5 h-5 text-amber-400" />
+                    <div>
+                      <p className="text-white font-medium">Payment Setup Required</p>
+                      <p className="text-amber-300 text-sm">Connect Stripe to receive payments</p>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="space-y-3">
+                  <p className="text-steel text-sm">
+                    Connect your Stripe account to start accepting credit card payments from clients. 
+                    Stripe handles all payment processing securely.
+                  </p>
+                  
+                  <div className="bg-charcoal/50 p-3 rounded-lg">
+                    <h4 className="text-white font-medium text-sm mb-2">What you'll get:</h4>
+                    <ul className="text-steel text-sm space-y-1">
+                      <li>• Secure credit card processing</li>
+                      <li>• Automatic payment tracking</li>
+                      <li>• Direct deposits to your bank</li>
+                      <li>• Transaction history and reports</li>
+                    </ul>
+                  </div>
+                  
+                  <Button
+                    className="w-full gradient-gold text-charcoal font-semibold"
+                    onClick={handleConnectStripe}
+                    disabled={isConnectingStripe || connectStripeMutation.isPending}
+                  >
+                    {isConnectingStripe || connectStripeMutation.isPending ? (
+                      "Connecting..."
+                    ) : (
+                      <>
+                        <CreditCard className="w-4 h-4 mr-2" />
+                        Connect Stripe Account
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
 
