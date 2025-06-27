@@ -425,7 +425,7 @@ export default function Settings() {
                         <Button
                           type="button"
                           variant="outline"
-                          className="border-steel/40 text-white hover:bg-steel/20"
+                          className="border-steel/40 text-white hover:bg-steel/10 hover:text-white"
                           onClick={() => setIsEditingProfile(false)}
                         >
                           Cancel
