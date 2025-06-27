@@ -141,6 +141,7 @@ npm run start
 
 ```
 Changelog:
+- June 27, 2025. Fixed client list display bug where "0" was appearing due to improper conditional logic in totalVisits rendering
 - June 26, 2025. Initial setup
 ```
 
