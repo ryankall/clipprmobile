@@ -3,9 +3,11 @@ import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { BottomNavigation } from "@/components/bottom-navigation";
 import { AppointmentCard } from "@/components/appointment-card";
 import { QuickActions } from "@/components/quick-actions";
+import { useAuth } from "@/hooks/useAuth";
 import { Scissors, Slice, Bell, Plus, Calendar, Users, Camera, Settings, X } from "lucide-react";
 import { Link } from "wouter";
 import { format } from "date-fns";
@@ -14,6 +16,7 @@ import type { DashboardStats, AppointmentWithRelations, GalleryPhoto } from "@sh
 export default function Dashboard() {
   const [showNotifications, setShowNotifications] = useState(false);
   const notificationRef = useRef<HTMLDivElement>(null);
+  const { user } = useAuth();
 
   // Close notifications when clicking outside
   useEffect(() => {
@@ -98,7 +101,14 @@ export default function Dashboard() {
                 <div className="notification-badge">{notifications.length}</div>
               )}
             </Button>
-            <div className="w-8 h-8 bg-steel rounded-full" />
+            <Link href="/settings" className="touch-target">
+              <Avatar className="w-8 h-8">
+                <AvatarImage src={user?.photoUrl || undefined} alt={`${user?.firstName} ${user?.lastName}`} />
+                <AvatarFallback className="bg-gold text-charcoal text-sm font-medium">
+                  {user?.firstName?.[0]}{user?.lastName?.[0]}
+                </AvatarFallback>
+              </Avatar>
+            </Link>
           </div>
         </div>
       </header>
