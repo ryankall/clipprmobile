@@ -217,7 +217,7 @@ export default function Gallery() {
                       <Button
                         type="button"
                         variant="outline"
-                        className="flex-1 border-steel/40 text-white hover:bg-charcoal/80 tap-feedback"
+                        className="flex-1 border-steel/40 text-black hover:bg-charcoal/80 tap-feedback"
                         onClick={() => setIsDialogOpen(false)}
                       >
                         Cancel
