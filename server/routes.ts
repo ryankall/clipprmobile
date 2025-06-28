@@ -8,6 +8,7 @@ import { insertClientSchema, insertServiceSchema, insertAppointmentSchema, inser
 import { z } from "zod";
 import passport from 'passport';
 import Stripe from 'stripe';
+import { travelTimeService } from "./travelTimeService";
 
 // Configure multer for memory storage
 const upload = multer({
@@ -605,6 +606,123 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     });
   }
+
+  // Travel time and scheduling routes
+  app.post("/api/travel-time/calculate", requireAuth, async (req, res) => {
+    try {
+      const { origin, destination } = req.body;
+      
+      if (!origin || !destination) {
+        return res.status(400).json({ message: "Origin and destination are required" });
+      }
+
+      const result = await travelTimeService.calculateTravelTime(origin, destination);
+      res.json(result);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/appointments/:date/travel-buffers", requireAuth, async (req, res) => {
+    try {
+      const userId = (req.user as any).id;
+      const dateParam = req.params.date;
+      const appointmentDate = new Date(dateParam);
+
+      if (isNaN(appointmentDate.getTime())) {
+        return res.status(400).json({ message: "Invalid date format" });
+      }
+
+      const travelBuffers = await travelTimeService.calculateDayTravelBuffers(userId, appointmentDate);
+      res.json(travelBuffers);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/appointments/available-slots", requireAuth, async (req, res) => {
+    try {
+      const userId = (req.user as any).id;
+      const { date, clientAddress, serviceDuration } = req.body;
+      
+      if (!date || !clientAddress) {
+        return res.status(400).json({ message: "Date and client address are required" });
+      }
+
+      const appointmentDate = new Date(date);
+      if (isNaN(appointmentDate.getTime())) {
+        return res.status(400).json({ message: "Invalid date format" });
+      }
+
+      const availableSlots = await travelTimeService.getAvailableTimeSlots(
+        userId, 
+        appointmentDate, 
+        clientAddress,
+        serviceDuration || 60
+      );
+      
+      res.json(availableSlots);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/appointments/validate-scheduling", requireAuth, async (req, res) => {
+    try {
+      const userId = (req.user as any).id;
+      const { proposedStart, proposedEnd, clientAddress } = req.body;
+      
+      if (!proposedStart || !proposedEnd || !clientAddress) {
+        return res.status(400).json({ message: "Proposed start time, end time, and client address are required" });
+      }
+
+      const startTime = new Date(proposedStart);
+      const endTime = new Date(proposedEnd);
+      
+      if (isNaN(startTime.getTime()) || isNaN(endTime.getTime())) {
+        return res.status(400).json({ message: "Invalid date format" });
+      }
+
+      // Get travel buffers for the day
+      const travelBuffers = await travelTimeService.calculateDayTravelBuffers(userId, startTime);
+      
+      // Check for conflicts with existing appointments
+      const existingAppointments = await storage.getAppointmentsByUserId(userId, startTime, endTime);
+      
+      let conflictMessage = null;
+      let suggestedTimes = [];
+
+      // Check if the proposed time conflicts with existing appointments + travel times
+      for (const appointment of existingAppointments) {
+        const appointmentStart = new Date(appointment.scheduledAt);
+        const appointmentEnd = new Date(appointmentStart.getTime() + (appointment.service.duration || 60) * 60 * 1000);
+        
+        const buffer = travelBuffers.find(b => b.appointmentId === appointment.id);
+        const bufferTime = buffer?.totalBuffer || 15;
+
+        const bufferStart = new Date(appointmentStart.getTime() - bufferTime * 60 * 1000);
+        const bufferEnd = new Date(appointmentEnd.getTime() + bufferTime * 60 * 1000);
+
+        if (
+          (startTime >= bufferStart && startTime < bufferEnd) ||
+          (endTime > bufferStart && endTime <= bufferEnd) ||
+          (startTime < bufferStart && endTime > bufferEnd)
+        ) {
+          conflictMessage = `⚠️ Travel time between appointments is ${bufferTime} mins — try a later time or different location.`;
+          break;
+        }
+      }
+
+      res.json({
+        isValid: !conflictMessage,
+        conflictMessage,
+        travelBuffers,
+        suggestedTimes
+      });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
 
   // Messages routes
   app.get("/api/messages", requireAuth, async (req, res) => {

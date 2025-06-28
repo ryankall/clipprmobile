@@ -141,6 +141,7 @@ npm run start
 
 ```
 Changelog:
+- June 28, 2025. Implemented intelligent scheduling with real-time travel time calculations using Google Maps API - replaces fixed appointment buffers with dynamic travel time estimates plus grace periods, includes home base address configuration, smart buffer settings, travel time validation API endpoints, appointment conflict detection with user feedback, and automatic scheduling optimization based on actual route calculations
 - June 27, 2025. Added comprehensive payment receiving functionality with Stripe Connect integration - includes payment settings section in settings page, account connection flow, status display, dashboard access, backend API endpoints for account linking and status checking, proper error handling with setup instructions, and professional onboarding workflow
 - June 27, 2025. Fixed critical authentication security vulnerabilities - added requireAuth middleware to all protected routes, updated all endpoints to use authenticated user ID instead of hardcoded demo user, replaced black circle in dashboard with clickable profile picture showing user photo or initials fallback, confirmed profile updates working correctly
 - June 27, 2025. Updated authentication page styling to professional dark theme - changed from light amber/orange background to dark charcoal, updated card to dark theme, made all text white for better contrast, and changed tagline to "Simplifying the business side of your style game."

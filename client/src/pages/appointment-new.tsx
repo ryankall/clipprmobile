@@ -10,7 +10,8 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { ArrowLeft, Calendar, Clock, User, Scissors } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { ArrowLeft, Calendar, Clock, User, Scissors, AlertTriangle, CheckCircle } from "lucide-react";
 import { Link } from "wouter";
 import { format } from "date-fns";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -38,6 +39,12 @@ const appointmentFormSchema = z.object({
 export default function AppointmentNew() {
   const [, navigate] = useLocation();
   const { toast } = useToast();
+  const [scheduleValidation, setScheduleValidation] = useState<{
+    isValidating: boolean;
+    isValid?: boolean;
+    message?: string;
+    travelInfo?: string;
+  }>({ isValidating: false });
   
   // Get clientId from URL params if provided
   const urlParams = new URLSearchParams(window.location.search);
@@ -94,6 +101,46 @@ export default function AppointmentNew() {
     },
   });
 
+  // Travel time validation function
+  const validateScheduling = async (scheduledAt: string, clientId: number, serviceId: number) => {
+    if (!scheduledAt || !clientId || !serviceId) return;
+
+    const selectedClient = clients?.find(c => c.id === clientId);
+    const selectedService = services?.find(s => s.id === serviceId);
+    
+    if (!selectedClient?.address || !selectedService) return;
+
+    setScheduleValidation({ isValidating: true });
+
+    try {
+      const scheduledDate = new Date(scheduledAt);
+      const serviceDuration = selectedService.duration || 60;
+      const endTime = new Date(scheduledDate.getTime() + serviceDuration * 60 * 1000);
+
+      const response = await apiRequest('/api/appointments/validate-scheduling', {
+        method: 'POST',
+        body: JSON.stringify({
+          proposedStart: scheduledDate.toISOString(),
+          proposedEnd: endTime.toISOString(),
+          clientAddress: selectedClient.address
+        }),
+      });
+
+      setScheduleValidation({
+        isValidating: false,
+        isValid: response.isValid,
+        message: response.conflictMessage,
+        travelInfo: response.travelBuffers?.length > 0 ? `Travel time calculated for ${response.travelBuffers.length} appointments` : undefined
+      });
+    } catch (error: any) {
+      setScheduleValidation({
+        isValidating: false,
+        isValid: false,
+        message: "Unable to validate scheduling - please check manually"
+      });
+    }
+  };
+
   const handleSubmit = (data: z.infer<typeof appointmentFormSchema>) => {
     createAppointmentMutation.mutate(data);
   };
@@ -106,6 +153,20 @@ export default function AppointmentNew() {
     const defaultDateTime = format(nextHour, "yyyy-MM-dd'T'HH:mm");
     form.setValue("scheduledAt", defaultDateTime);
   }, [form]);
+
+  // Watch form values and validate scheduling
+  const watchedValues = form.watch();
+  useEffect(() => {
+    const { scheduledAt, clientId, serviceId } = watchedValues;
+    if (scheduledAt && clientId && serviceId) {
+      const timer = setTimeout(() => {
+        validateScheduling(scheduledAt, clientId, serviceId);
+      }, 500); // Debounce validation
+      return () => clearTimeout(timer);
+    } else {
+      setScheduleValidation({ isValidating: false });
+    }
+  }, [watchedValues.scheduledAt, watchedValues.clientId, watchedValues.serviceId]);
 
   const selectedClient = clients?.find(c => c.id === form.watch("clientId"));
 
@@ -246,6 +307,39 @@ export default function AppointmentNew() {
                     </FormItem>
                   )}
                 />
+
+                {/* Schedule Validation Feedback */}
+                {(scheduleValidation.isValidating || scheduleValidation.isValid !== undefined) && (
+                  <div className="space-y-2">
+                    {scheduleValidation.isValidating ? (
+                      <Alert className="bg-blue-900/20 border-blue-700/30">
+                        <Clock className="h-4 w-4 text-blue-400" />
+                        <AlertDescription className="text-blue-200">
+                          Calculating travel time and checking for conflicts...
+                        </AlertDescription>
+                      </Alert>
+                    ) : scheduleValidation.isValid === false ? (
+                      <Alert className="bg-red-900/20 border-red-700/30">
+                        <AlertTriangle className="h-4 w-4 text-red-400" />
+                        <AlertDescription className="text-red-200">
+                          {scheduleValidation.message || "Scheduling conflict detected"}
+                        </AlertDescription>
+                      </Alert>
+                    ) : scheduleValidation.isValid === true ? (
+                      <Alert className="bg-green-900/20 border-green-700/30">
+                        <CheckCircle className="h-4 w-4 text-green-400" />
+                        <AlertDescription className="text-green-200">
+                          ✓ Appointment time is available
+                          {scheduleValidation.travelInfo && (
+                            <div className="text-green-300 text-xs mt-1">
+                              {scheduleValidation.travelInfo}
+                            </div>
+                          )}
+                        </AlertDescription>
+                      </Alert>
+                    ) : null}
+                  </div>
+                )}
 
                 {/* Notes (optional) */}
                 <FormField

@@ -26,6 +26,8 @@ const profileSchema = z.object({
   serviceArea: z.string().optional(),
   about: z.string().optional(),
   photoUrl: z.string().optional(),
+  homeBaseAddress: z.string().optional(),
+  defaultGraceTime: z.number().min(0).max(60).optional(),
 });
 
 type ProfileFormData = z.infer<typeof profileSchema>;
@@ -153,6 +155,8 @@ export default function Settings() {
       serviceArea: "",
       about: "",
       photoUrl: "",
+      homeBaseAddress: "",
+      defaultGraceTime: 5,
     },
   });
 
@@ -166,6 +170,8 @@ export default function Settings() {
         serviceArea: user.serviceArea || "",
         about: user.about || "",
         photoUrl: user.photoUrl || "",
+        homeBaseAddress: (user as any).homeBaseAddress || "",
+        defaultGraceTime: (user as any).defaultGraceTime || 5,
       });
       setPreviewUrl(user.photoUrl || null);
     }
@@ -455,6 +461,57 @@ export default function Settings() {
                           </FormItem>
                         )}
                       />
+
+                      {/* Scheduling Settings */}
+                      <div className="space-y-4 pt-4 border-t border-steel/20">
+                        <h4 className="text-white font-medium">Smart Scheduling Settings</h4>
+                        
+                        <FormField
+                          control={form.control}
+                          name="homeBaseAddress"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel className="text-white">Home Base Address</FormLabel>
+                              <FormControl>
+                                <Input 
+                                  {...field}
+                                  className="bg-charcoal border-steel/40 text-white"
+                                  placeholder="Your starting location (e.g., 123 Main St, City, State)"
+                                />
+                              </FormControl>
+                              <p className="text-steel text-xs">
+                                Starting point for calculating travel time to your first appointment
+                              </p>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        
+                        <FormField
+                          control={form.control}
+                          name="defaultGraceTime"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel className="text-white">Grace Time Buffer (minutes)</FormLabel>
+                              <FormControl>
+                                <Input 
+                                  {...field}
+                                  type="number"
+                                  min="0"
+                                  max="60"
+                                  className="bg-charcoal border-steel/40 text-white"
+                                  placeholder="5"
+                                  onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
+                                />
+                              </FormControl>
+                              <p className="text-steel text-xs">
+                                Extra time added to travel estimates for parking, elevators, etc.
+                              </p>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
                       
                       <div className="flex gap-2 pt-2">
                         <Button

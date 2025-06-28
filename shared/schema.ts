@@ -12,11 +12,13 @@ export const users = pgTable("users", {
   firstName: text("first_name"),
   lastName: text("last_name"),
   address: text("address"),
+  homeBaseAddress: text("home_base_address"), // starting point for first appointment
   photoUrl: text("photo_url"),
   serviceArea: text("service_area"),
   about: text("about"),
   workingHours: json("working_hours").default({}),
-  travelTimeBuffer: integer("travel_time_buffer").default(15), // minutes
+  travelTimeBuffer: integer("travel_time_buffer").default(15), // minutes (fallback)
+  defaultGraceTime: integer("default_grace_time").default(5), // minutes to add to calculated travel time
   
   // OAuth fields
   googleId: text("google_id"),
