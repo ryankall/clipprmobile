@@ -226,28 +226,14 @@
   box-shadow: 0 0 0 1px var(--gold) !important;
 }
 
-/* Style scrollbar for modal dialogs */
+/* Hide scrollbar for modal dialogs while keeping scroll functionality */
 [data-radix-dialog-content]::-webkit-scrollbar {
-  width: 8px;
+  display: none;
 }
 
-[data-radix-dialog-content]::-webkit-scrollbar-track {
-  background: var(--dark-card);
-}
-
-[data-radix-dialog-content]::-webkit-scrollbar-thumb {
-  background: var(--charcoal);
-  border-radius: 4px;
-}
-
-[data-radix-dialog-content]::-webkit-scrollbar-thumb:hover {
-  background: var(--steel);
-}
-
-/* Firefox scrollbar styling */
 [data-radix-dialog-content] {
-  scrollbar-width: thin;
-  scrollbar-color: var(--charcoal) var(--dark-card);
+  -ms-overflow-style: none;  /* Internet Explorer 10+ */
+  scrollbar-width: none;  /* Firefox */
 }
 
 /* Override any autofill or browser styling that might cause white backgrounds */
