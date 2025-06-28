@@ -9,7 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { BottomNavigation } from "@/components/bottom-navigation";
-import { Settings as SettingsIcon, User, Bell, Shield, HelpCircle, LogOut, Edit3, Camera, Upload, X, CreditCard, DollarSign, CheckCircle, AlertCircle } from "lucide-react";
+import { Settings as SettingsIcon, User, Bell, Shield, HelpCircle, LogOut, Edit3, Camera, Upload, X, CreditCard, DollarSign, CheckCircle, AlertCircle, Share, Copy, Calendar, MessageSquare } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { useLocation } from "wouter";
@@ -621,6 +621,68 @@ export default function Settings() {
               <div>
                 <Label className="text-steel">About</Label>
                 <p className="text-white text-sm">{user.about}</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Public Booking Link */}
+        <Card className="bg-dark-card border-steel/20">
+          <CardHeader>
+            <CardTitle className="text-white flex items-center">
+              <Share className="w-5 h-5 mr-2" />
+              Public Booking Link
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-steel text-sm">
+              Share this link with clients so they can book appointments directly with you from anywhere.
+            </p>
+            
+            {user?.phone ? (
+              <div className="space-y-3">
+                <div className="bg-charcoal rounded-lg p-3 border border-steel/20">
+                  <Label className="text-steel text-xs">Your Booking URL</Label>
+                  <div className="flex items-center space-x-2 mt-1">
+                    <code className="text-gold text-sm bg-charcoal/50 px-2 py-1 rounded flex-1 break-all">
+                      {window.location.origin}/book/{user.phone}-{(user.businessName || `${user.firstName}${user.lastName}`).toLowerCase().replace(/\s+/g, '')}
+                    </code>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="bg-charcoal border-steel/40 text-gold hover:bg-charcoal/80 px-3"
+                      onClick={() => {
+                        const bookingUrl = `${window.location.origin}/book/${user.phone}-${(user.businessName || `${user.firstName}${user.lastName}`).toLowerCase().replace(/\s+/g, '')}`;
+                        navigator.clipboard.writeText(bookingUrl);
+                        toast({
+                          title: "Copied!",
+                          description: "Booking link copied to clipboard",
+                        });
+                      }}
+                    >
+                      <Copy className="w-4 h-4" />
+                    </Button>
+                  </div>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="bg-charcoal rounded-lg p-3 border border-steel/20 text-center">
+                    <Calendar className="w-5 h-5 text-gold mx-auto mb-1" />
+                    <div className="text-xs font-medium text-white">Real-time Calendar</div>
+                    <div className="text-xs text-steel">Shows your availability</div>
+                  </div>
+                  <div className="bg-charcoal rounded-lg p-3 border border-steel/20 text-center">
+                    <MessageSquare className="w-5 h-5 text-gold mx-auto mb-1" />
+                    <div className="text-xs font-medium text-white">Direct Booking</div>
+                    <div className="text-xs text-steel">Requests sent to inbox</div>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="bg-charcoal rounded-lg p-4 border border-steel/20 text-center">
+                <p className="text-steel text-sm">
+                  Add your phone number to profile to generate your booking link
+                </p>
               </div>
             )}
           </CardContent>

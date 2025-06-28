@@ -888,6 +888,178 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Public booking API endpoints (no authentication required)
+  
+  // Get barber profile by phone number
+  app.get("/api/public/barber/:phone", async (req, res) => {
+    try {
+      const phone = req.params.phone;
+      const user = await storage.getUserByPhone(phone);
+      
+      if (!user) {
+        return res.status(404).json({ message: "Barber not found" });
+      }
+
+      // Return only public profile data
+      const publicProfile = {
+        id: user.id,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        businessName: user.businessName,
+        serviceArea: user.serviceArea,
+        about: user.about,
+        photoUrl: user.photoUrl,
+      };
+
+      res.json(publicProfile);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Get barber services by phone number
+  app.get("/api/public/barber/:phone/services", async (req, res) => {
+    try {
+      const phone = req.params.phone;
+      const user = await storage.getUserByPhone(phone);
+      
+      if (!user) {
+        return res.status(404).json({ message: "Barber not found" });
+      }
+
+      const services = await storage.getServicesByUserId(user.id);
+      // Return only active services with public data
+      const publicServices = services
+        .filter(service => service.isActive)
+        .map(service => ({
+          id: service.id,
+          name: service.name,
+          description: service.description,
+          price: service.price,
+          duration: service.duration,
+          category: service.category,
+        }));
+
+      res.json(publicServices);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Get available time slots for a date
+  app.get("/api/public/barber/:phone/availability", async (req, res) => {
+    try {
+      const phone = req.params.phone;
+      const date = req.query.date as string;
+      
+      if (!date) {
+        return res.status(400).json({ message: "Date parameter is required" });
+      }
+
+      const user = await storage.getUserByPhone(phone);
+      
+      if (!user) {
+        return res.status(404).json({ message: "Barber not found" });
+      }
+
+      // Get existing appointments for the date
+      const startDate = new Date(date);
+      const endDate = new Date(date);
+      endDate.setDate(endDate.getDate() + 1);
+      
+      const appointments = await storage.getAppointmentsByUserId(user.id, startDate, endDate);
+      
+      // Generate time slots (9 AM to 6 PM, hourly)
+      const timeSlots = [];
+      for (let hour = 9; hour <= 18; hour++) {
+        const timeString = `${hour.toString().padStart(2, '0')}:00`;
+        const isBooked = appointments.some(apt => {
+          const aptTime = new Date(apt.scheduledAt);
+          return aptTime.getHours() === hour;
+        });
+        
+        timeSlots.push({
+          time: timeString,
+          available: !isBooked && hour <= 18, // Don't allow booking past 6 PM
+        });
+      }
+
+      res.json(timeSlots);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Submit booking request
+  app.post("/api/public/booking-request", async (req, res) => {
+    try {
+      const {
+        barberPhone,
+        clientName,
+        clientPhone,
+        clientEmail,
+        selectedDate,
+        selectedTime,
+        selectedServices,
+        customService,
+        message
+      } = req.body;
+
+      // Validate required fields
+      if (!barberPhone || !clientName || !clientPhone || !selectedDate || !selectedTime || !selectedServices?.length) {
+        return res.status(400).json({ message: "Missing required fields" });
+      }
+
+      const user = await storage.getUserByPhone(barberPhone);
+      
+      if (!user) {
+        return res.status(404).json({ message: "Barber not found" });
+      }
+
+      // Get service details
+      const services = await storage.getServicesByUserId(user.id);
+      const requestedServices = services.filter(s => selectedServices.includes(s.id.toString()));
+      
+      const serviceNames = requestedServices.map(s => s.name);
+      if (customService) {
+        serviceNames.push(customService);
+      }
+
+      // Create a message in the barber's inbox
+      const messageText = `New booking request from ${clientName}
+
+📅 Date: ${selectedDate}
+⏰ Time: ${selectedTime}
+💇 Services: ${serviceNames.join(', ')}
+📞 Phone: ${clientPhone}
+${clientEmail ? `📧 Email: ${clientEmail}` : ''}
+${message ? `💬 Message: ${message}` : ''}
+
+Please contact the client to confirm the appointment.`;
+
+      const bookingMessage = await storage.createMessage({
+        userId: user.id,
+        customerName: clientName,
+        customerPhone: clientPhone,
+        customerEmail: clientEmail || undefined,
+        subject: "New Booking Request",
+        message: messageText,
+        status: "unread",
+        priority: "normal",
+        serviceRequested: serviceNames.join(', '),
+        preferredDate: new Date(`${selectedDate}T${selectedTime}:00`),
+      });
+
+      res.json({ 
+        success: true, 
+        message: "Booking request sent successfully",
+        messageId: bookingMessage.id 
+      });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

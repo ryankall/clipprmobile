@@ -16,6 +16,7 @@ import Messages from "@/pages/messages";
 import Settings from "@/pages/settings";
 import Invoice from "@/pages/invoice";
 import Checkout from "@/pages/checkout";
+import BookingPage from "@/pages/book";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -52,6 +53,8 @@ function Router() {
 
   return (
     <Switch>
+      {/* Public booking page - accessible without authentication */}
+      <Route path="/book/:barberInfo" component={BookingPage} />
       <Route path="/" component={Dashboard} />
       <Route path="/calendar" component={Calendar} />
       <Route path="/clients" component={Clients} />

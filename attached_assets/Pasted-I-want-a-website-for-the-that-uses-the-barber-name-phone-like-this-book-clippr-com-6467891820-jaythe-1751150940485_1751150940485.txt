@@ -1,0 +1,69 @@
+I want a website for the that uses the barber name-phone like this book.clippr.com/6467891820-jaythebarber.
+
+every barber that user clippr can have a shareable link that if a client opens that link from any where it go to this website
+that fill in all the data that is on the barber app. Such as the service the they provide, the baber name, service area ..etc, the calendar availability 
+
+  ✅ 1. Color & Style Guidelines
+  Background: #111111 (matte charcoal black)
+
+  Text: #FFFFFF for main text, #AAAAAA for secondary
+
+  Accent color: #FFD700 (soft gold) for CTA buttons and highlights
+
+  Font: SF Pro or Montserrat, medium weight
+
+  Style: Clean, rounded inputs, soft shadows, large tap targets
+
+  🖥️ 2. Page Layout Overview
+
+  ┌──────────────────────────────────────────────┐
+  │ Logo or Barber Name (centered, white text)   │
+  │ Subtext: "Book your next cut or style"       │
+  ├──────────────────────────────────────────────┤
+  │ Calendar with available time slots           │
+  │ ⏱️ Tap slot → shows service form below       │
+  ├──────────────────────────────────────────────┤
+  │ 👤 Client Info Input                         │
+  │ • Name (required)                            │
+  │ • Phone (required)                           │
+  │ • Email (optional)                           │
+  ├──────────────────────────────────────────────┤
+  │ 💇 Select Services (multi-select)            │
+  │ ☐ Haircut                                    │
+  │ ☐ Beard Trim                                 │
+  │ ☐ Full Groom                                 │
+  │ ☐ Custom (shows free-text field if checked)  │
+  │ [ + Add custom request ]                     │
+  ├──────────────────────────────────────────────┤
+  │ 📝 Optional Message Box                      │
+  │ [ Tell us anything you'd like us to know ]   │
+  ├──────────────────────────────────────────────┤
+  │ 📩 [ Request Appointment ] (Gold CTA button) │
+  └──────────────────────────────────────────────┘
+  📲 3. Interactive Flow
+  Client taps a time slot
+
+  Slot turns gold with a checkmark
+
+  Form slides down (or scrolls smoothly to form)
+
+  Client fills in name, phone, service(s)
+
+  Optionally adds:
+
+  Custom service if not listed
+
+  Message (e.g., "Can you bring black cape for photo shoot")
+
+  Taps "Request Appointment"
+
+  ✅ Confirmation screen: "Request sent to Jay the Barber. You’ll receive a confirmation soon!"
+
+  ✅ 4. UX Details
+  Validation: Name and phone required, others optional
+
+  Mobile optimized: Large inputs, click/tap-friendly service cards
+
+  Accessibility: Proper labels for all form fields
+
+  Optional reCAPTCHA or anti-spam logic
