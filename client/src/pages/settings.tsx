@@ -348,7 +348,7 @@ export default function Settings() {
                     <Edit3 className="w-4 h-4" />
                   </Button>
                 </DialogTrigger>
-                <DialogContent className="bg-dark-card border-steel/20 max-h-[90vh] overflow-y-auto">
+                <DialogContent className="bg-dark-card border-steel/20 max-h-[90vh] overflow-y-auto scrollbar-hide">
                   <DialogHeader>
                     <DialogTitle className="text-white">Edit Profile</DialogTitle>
                   </DialogHeader>

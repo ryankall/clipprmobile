@@ -236,6 +236,38 @@
   scrollbar-width: none;  /* Firefox */
 }
 
+/* Additional targeting for overflow containers */
+.overflow-y-auto::-webkit-scrollbar {
+  display: none;
+}
+
+.overflow-y-auto {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Specific targeting for the dialog content with overflow */
+[data-radix-dialog-content].overflow-y-auto::-webkit-scrollbar,
+.bg-dark-card.overflow-y-auto::-webkit-scrollbar {
+  display: none;
+}
+
+[data-radix-dialog-content].overflow-y-auto,
+.bg-dark-card.overflow-y-auto {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Tailwind-style scrollbar hide utility */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
 /* Override any autofill or browser styling that might cause white backgrounds */
 [data-radix-dialog-content] input:-webkit-autofill,
 [data-radix-dialog-content] input:-webkit-autofill:hover,
