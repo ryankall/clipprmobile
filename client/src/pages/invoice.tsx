@@ -27,10 +27,18 @@ const invoiceFormSchema = insertInvoiceSchema.extend({
   tipPercentage: z.number().optional(),
 });
 
+const templateFormSchema = z.object({
+  name: z.string().min(1, "Template name is required"),
+  description: z.string().optional(),
+  amount: z.string().min(1, "Amount is required"),
+  category: z.string().min(1, "Category is required"),
+});
+
 export default function InvoicePage() {
   const { id } = useParams<{ id?: string }>();
   const [location] = useLocation();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isTemplateDialogOpen, setIsTemplateDialogOpen] = useState(false);
   const { toast } = useToast();
 
   // Parse query params for pre-filled service
@@ -60,6 +68,16 @@ export default function InvoicePage() {
     },
   });
 
+  const templateForm = useForm<z.infer<typeof templateFormSchema>>({
+    resolver: zodResolver(templateFormSchema),
+    defaultValues: {
+      name: "",
+      description: "",
+      amount: "",
+      category: "",
+    },
+  });
+
   const createInvoiceMutation = useMutation({
     mutationFn: async (data: z.infer<typeof invoiceFormSchema>) => {
       return apiRequest("POST", "/api/invoices", data);
@@ -83,6 +101,37 @@ export default function InvoicePage() {
       toast({
         title: "Error",
         description: error.message || "Failed to create invoice",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const createTemplateMutation = useMutation({
+    mutationFn: async (data: z.infer<typeof templateFormSchema>) => {
+      // For now, we'll save templates to localStorage since there's no template table
+      // In production, this would save to a database table
+      const existingTemplates = JSON.parse(localStorage.getItem('invoiceTemplates') || '[]');
+      const newTemplate = {
+        id: Date.now(),
+        ...data,
+        createdAt: new Date().toISOString(),
+      };
+      existingTemplates.push(newTemplate);
+      localStorage.setItem('invoiceTemplates', JSON.stringify(existingTemplates));
+      return newTemplate;
+    },
+    onSuccess: () => {
+      toast({
+        title: "Template Created",
+        description: "Invoice template saved successfully",
+      });
+      setIsTemplateDialogOpen(false);
+      templateForm.reset();
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to create template",
         variant: "destructive",
       });
     },
@@ -123,6 +172,10 @@ export default function InvoicePage() {
 
   const onSubmit = (data: z.infer<typeof invoiceFormSchema>) => {
     createInvoiceMutation.mutate(data);
+  };
+
+  const onTemplateSubmit = (data: z.infer<typeof templateFormSchema>) => {
+    createTemplateMutation.mutate(data);
   };
 
   const handleQuickInvoice = (serviceType: string, price: string) => {
@@ -400,6 +453,142 @@ export default function InvoicePage() {
             </CardContent>
           </Card>
         </div>
+
+        {/* Quick Invoice Templates Creator */}
+        <Card className="bg-dark-card border-steel/20">
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle className="text-white">Create Quick Templates</CardTitle>
+            <Dialog open={isTemplateDialogOpen} onOpenChange={setIsTemplateDialogOpen}>
+              <DialogTrigger asChild>
+                <Button variant="outline" size="sm" className="bg-charcoal border-steel/40 text-gold hover:bg-charcoal/80">
+                  <Plus className="w-4 h-4 mr-2" />
+                  New Template
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="bg-dark-card border-steel/40 text-white max-w-md">
+                <DialogHeader>
+                  <DialogTitle className="text-white">Create Invoice Template</DialogTitle>
+                </DialogHeader>
+                <Form {...templateForm}>
+                  <form onSubmit={templateForm.handleSubmit(onTemplateSubmit)} className="space-y-4">
+                    <FormField
+                      control={templateForm.control}
+                      name="name"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-white">Template Name</FormLabel>
+                          <FormControl>
+                            <Input 
+                              {...field} 
+                              className="bg-charcoal border-steel/40 text-white"
+                              placeholder="e.g., Premium Haircut"
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={templateForm.control}
+                      name="category"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-white">Category</FormLabel>
+                          <Select onValueChange={field.onChange}>
+                            <FormControl>
+                              <SelectTrigger className="bg-charcoal border-steel/40 text-white">
+                                <SelectValue placeholder="Select category" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent className="bg-charcoal border-steel/40 text-white">
+                              <SelectItem value="haircut" className="text-white hover:bg-steel/20">Haircut</SelectItem>
+                              <SelectItem value="beard" className="text-white hover:bg-steel/20">Beard Services</SelectItem>
+                              <SelectItem value="combo" className="text-white hover:bg-steel/20">Combo Package</SelectItem>
+                              <SelectItem value="special" className="text-white hover:bg-steel/20">Special Service</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={templateForm.control}
+                      name="amount"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-white">Default Amount ($)</FormLabel>
+                          <FormControl>
+                            <Input 
+                              {...field} 
+                              type="number"
+                              step="0.01"
+                              className="bg-charcoal border-steel/40 text-white"
+                              placeholder="0.00"
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={templateForm.control}
+                      name="description"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-white">Description (Optional)</FormLabel>
+                          <FormControl>
+                            <Textarea 
+                              {...field} 
+                              className="bg-charcoal border-steel/40 text-white"
+                              placeholder="Brief description of the service..."
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <div className="flex space-x-3">
+                      <Button 
+                        type="button" 
+                        variant="outline" 
+                        className="flex-1 bg-charcoal border-steel/40 text-white hover:bg-steel/20"
+                        onClick={() => setIsTemplateDialogOpen(false)}
+                      >
+                        Cancel
+                      </Button>
+                      <Button 
+                        type="submit" 
+                        className="flex-1 gradient-gold text-charcoal font-semibold"
+                        disabled={createTemplateMutation.isPending}
+                      >
+                        {createTemplateMutation.isPending ? "Creating..." : "Create Template"}
+                      </Button>
+                    </div>
+                  </form>
+                </Form>
+              </DialogContent>
+            </Dialog>
+          </CardHeader>
+          <CardContent>
+            <p className="text-steel text-sm">
+              Create custom invoice templates for frequently used services. Templates can be quickly selected when creating new invoices, saving you time and ensuring consistent pricing.
+            </p>
+            <div className="grid grid-cols-2 gap-3 mt-4">
+              <div className="bg-charcoal rounded-lg p-3 border border-steel/20">
+                <div className="text-sm font-medium text-white">Quick Access</div>
+                <div className="text-xs text-steel">One-tap invoicing</div>
+              </div>
+              <div className="bg-charcoal rounded-lg p-3 border border-steel/20">
+                <div className="text-sm font-medium text-white">Consistent Pricing</div>
+                <div className="text-xs text-steel">Standardized rates</div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Recent Invoices */}
         <Card className="bg-dark-card border-steel/20">
