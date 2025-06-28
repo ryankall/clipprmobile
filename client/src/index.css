@@ -225,3 +225,68 @@
   color: white !important;
   box-shadow: 0 0 0 1px var(--gold) !important;
 }
+
+/* Style scrollbar for modal dialogs */
+[data-radix-dialog-content]::-webkit-scrollbar {
+  width: 8px;
+}
+
+[data-radix-dialog-content]::-webkit-scrollbar-track {
+  background: var(--dark-card);
+}
+
+[data-radix-dialog-content]::-webkit-scrollbar-thumb {
+  background: var(--charcoal);
+  border-radius: 4px;
+}
+
+[data-radix-dialog-content]::-webkit-scrollbar-thumb:hover {
+  background: var(--steel);
+}
+
+/* Firefox scrollbar styling */
+[data-radix-dialog-content] {
+  scrollbar-width: thin;
+  scrollbar-color: var(--charcoal) var(--dark-card);
+}
+
+/* Override any autofill or browser styling that might cause white backgrounds */
+[data-radix-dialog-content] input:-webkit-autofill,
+[data-radix-dialog-content] input:-webkit-autofill:hover,
+[data-radix-dialog-content] input:-webkit-autofill:focus,
+[data-radix-dialog-content] input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 30px var(--charcoal) inset !important;
+  -webkit-text-fill-color: white !important;
+  background-color: var(--charcoal) !important;
+}
+
+/* Strong override for any input styling issues in profile modal */
+[data-radix-dialog-content] .space-y-4 input,
+[data-radix-dialog-content] .space-y-4 textarea,
+[data-radix-dialog-content] form input,
+[data-radix-dialog-content] form textarea {
+  background: hsl(0, 0%, 12%) !important;
+  background-color: hsl(0, 0%, 12%) !important;
+  border: 1px solid rgba(113, 123, 137, 0.4) !important;
+  color: white !important;
+}
+
+[data-radix-dialog-content] .space-y-4 input:focus,
+[data-radix-dialog-content] .space-y-4 textarea:focus,
+[data-radix-dialog-content] form input:focus,
+[data-radix-dialog-content] form textarea:focus {
+  background: hsl(0, 0%, 12%) !important;
+  background-color: hsl(0, 0%, 12%) !important;
+  border-color: hsl(45, 93%, 47%) !important;
+  color: white !important;
+  outline: none !important;
+  box-shadow: 0 0 0 1px hsl(45, 93%, 47%) !important;
+}
+
+/* Target specific business name input that's causing issues */
+[data-radix-dialog-content] input[name="businessName"],
+[data-radix-dialog-content] input[placeholder*="barbershop"],
+[data-radix-dialog-content] input[placeholder*="business"] {
+  background: hsl(0, 0%, 12%) !important;
+  background-color: hsl(0, 0%, 12%) !important;
+}
