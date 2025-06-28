@@ -18,15 +18,57 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 
+// Phone number validation regex (US format)
+const phoneRegex = /^(\+1\s?)?(\([0-9]{3}\)|[0-9]{3})[\s.-]?[0-9]{3}[\s.-]?[0-9]{4}$/;
+
+// Phone number formatting function
+const formatPhoneNumber = (value: string): string => {
+  if (!value) return value;
+  
+  // Remove all non-digits
+  const phoneNumber = value.replace(/[^\d]/g, '');
+  
+  // Don't format if number is too short
+  if (phoneNumber.length < 4) return phoneNumber;
+  
+  // Format as (XXX) XXX-XXXX
+  if (phoneNumber.length < 7) {
+    return `(${phoneNumber.slice(0, 3)}) ${phoneNumber.slice(3)}`;
+  }
+  
+  return `(${phoneNumber.slice(0, 3)}) ${phoneNumber.slice(3, 6)}-${phoneNumber.slice(6, 10)}`;
+};
+
+// Address validation function
+const validateAddress = async (address: string): Promise<boolean> => {
+  if (!address || address.trim().length < 10) return false;
+  
+  try {
+    const response = await fetch(`https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(address)}&key=${import.meta.env.VITE_GOOGLE_MAPS_API_KEY}`);
+    const data = await response.json();
+    return data.status === "OK" && data.results.length > 0;
+  } catch {
+    return false;
+  }
+};
+
 // Form schema for profile updates
 const profileSchema = z.object({
   businessName: z.string().optional(),
-  email: z.string().email().optional().or(z.literal("")),
-  phone: z.string().optional(),
+  email: z.string().email("Please enter a valid email address").optional().or(z.literal("")),
+  phone: z.string()
+    .optional()
+    .refine((val) => !val || phoneRegex.test(val), {
+      message: "Please enter a valid phone number (e.g., (555) 123-4567)",
+    }),
   serviceArea: z.string().optional(),
   about: z.string().optional(),
   photoUrl: z.string().optional(),
-  homeBaseAddress: z.string().optional(),
+  homeBaseAddress: z.string()
+    .optional()
+    .refine(async (val) => !val || await validateAddress(val), {
+      message: "Please enter a valid address that can be found on the map",
+    }),
   defaultGraceTime: z.number().min(0).max(60).optional(),
 });
 
@@ -276,7 +318,7 @@ export default function Settings() {
   }
 
   return (
-    <div className="min-h-screen bg-dark-bg text-white pb-20">
+    <div className="min-h-screen bg-dark-bg text-white pb-32 overflow-y-auto">
       {/* Header */}
       <header className="bg-charcoal p-4 sticky top-0 z-50 border-b border-steel/20">
         <div className="flex items-center justify-between">
@@ -399,7 +441,11 @@ export default function Settings() {
                                 <Input 
                                   {...field}
                                   className="bg-charcoal border-steel/40 text-white"
-                                  placeholder="Phone number"
+                                  placeholder="(555) 123-4567"
+                                  onChange={(e) => {
+                                    const formatted = formatPhoneNumber(e.target.value);
+                                    field.onChange(formatted);
+                                  }}
                                 />
                               </FormControl>
                               <FormMessage />

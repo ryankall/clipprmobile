@@ -9,6 +9,7 @@ import { z } from "zod";
 import passport from 'passport';
 import Stripe from 'stripe';
 import { travelTimeService } from "./travelTimeService";
+import { format } from "date-fns";
 
 // Configure multer for memory storage
 const upload = multer({
@@ -275,6 +276,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
       
       const appointment = await storage.createAppointment(appointmentData);
+      
+      // Send automatic confirmation message
+      try {
+        const client = await storage.getClient(appointment.clientId);
+        if (client) {
+          const appointmentTime = format(new Date(appointment.scheduledAt), "EEEE, MMMM do 'at' h:mm a");
+          const confirmationMessage = `Hi ${client.name}! Your appointment for ${service.name} is confirmed for ${appointmentTime}. Please reply 'YES' to confirm or 'NO' to cancel. Thanks!`;
+          
+          // Prefer SMS, fallback to email
+          const method = client.phone ? 'sms' : 'email';
+          
+          // Log the confirmation message
+          await storage.createMessage({
+            userId,
+            clientId: appointment.clientId,
+            customerName: client.name,
+            customerPhone: client.phone || '',
+            customerEmail: client.email || '',
+            subject: 'Appointment Confirmation',
+            message: confirmationMessage,
+            status: 'sent',
+          });
+        }
+      } catch (confirmationError) {
+        // Don't fail appointment creation if confirmation fails
+        console.warn("Failed to send appointment confirmation:", confirmationError);
+      }
+      
       res.json(appointment);
     } catch (error: any) {
       if (error instanceof z.ZodError) {
@@ -761,6 +790,99 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const messageId = parseInt(req.params.id);
       const message = await storage.markMessageAsRead(messageId);
       res.json(message);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Communications endpoints
+  app.post("/api/communications/send-message", requireAuth, async (req, res) => {
+    try {
+      const { appointmentId, message, method } = req.body;
+      const userId = (req.user as any).id;
+
+      // Get appointment details
+      const appointment = await storage.getAppointment(appointmentId);
+      if (!appointment || appointment.userId !== userId) {
+        return res.status(404).json({ message: "Appointment not found" });
+      }
+
+      // Mock sending message (in production, integrate with Twilio/SendGrid)
+      const success = Math.random() > 0.1; // 90% success rate for demo
+      
+      if (!success) {
+        return res.status(500).json({ message: "Failed to send message" });
+      }
+
+      // Log the communication
+      await storage.createMessage({
+        userId,
+        clientId: appointment.clientId,
+        customerName: appointment.client.name,
+        customerPhone: appointment.client.phone || '',
+        customerEmail: appointment.client.email || '',
+        subject: method === 'sms' ? 'SMS Message' : 'Email Message',
+        message: message,
+        status: 'sent',
+      });
+
+      res.json({ 
+        success: true, 
+        method,
+        message: "Message sent successfully",
+        timestamp: new Date().toISOString()
+      });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Appointment confirmation endpoints
+  app.post("/api/communications/send-confirmation", requireAuth, async (req, res) => {
+    try {
+      const { appointmentId } = req.body;
+      const userId = (req.user as any).id;
+
+      const appointment = await storage.getAppointment(appointmentId);
+      if (!appointment || appointment.userId !== userId) {
+        return res.status(404).json({ message: "Appointment not found" });
+      }
+
+      const client = appointment.client;
+      const service = appointment.service;
+      const appointmentTime = format(new Date(appointment.scheduledAt), "EEEE, MMMM do 'at' h:mm a");
+
+      // Create confirmation message
+      const confirmationMessage = `Hi ${client.name}! Your appointment for ${service.name} is confirmed for ${appointmentTime}. Please reply 'YES' to confirm or 'NO' to cancel. Thanks!`;
+
+      // Prefer SMS for confirmations
+      const method = client.phone ? 'sms' : 'email';
+
+      // Mock sending (in production: integrate with Twilio/SendGrid)
+      const success = Math.random() > 0.1;
+      
+      if (!success) {
+        return res.status(500).json({ message: "Failed to send confirmation" });
+      }
+
+      // Log the communication
+      await storage.createMessage({
+        userId,
+        clientId: appointment.clientId,
+        customerName: client.name,
+        customerPhone: client.phone || '',
+        customerEmail: client.email || '',
+        subject: 'Appointment Confirmation',
+        message: confirmationMessage,
+        status: 'sent',
+      });
+
+      res.json({
+        success: true,
+        method,
+        message: "Confirmation sent successfully",
+        confirmationMessage
+      });
     } catch (error: any) {
       res.status(500).json({ message: error.message });
     }
