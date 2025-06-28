@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
@@ -39,6 +39,7 @@ export default function InvoicePage() {
   const [location] = useLocation();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isTemplateDialogOpen, setIsTemplateDialogOpen] = useState(false);
+  const [savedTemplates, setSavedTemplates] = useState<any[]>([]);
   const { toast } = useToast();
 
   // Parse query params for pre-filled service
@@ -122,11 +123,13 @@ export default function InvoicePage() {
     },
     onSuccess: () => {
       toast({
-        title: "Template Created",
+        title: "Template Created", 
         description: "Invoice template saved successfully",
       });
       setIsTemplateDialogOpen(false);
       templateForm.reset();
+      // Refresh templates list
+      loadTemplates();
     },
     onError: (error: any) => {
       toast({
@@ -136,6 +139,17 @@ export default function InvoicePage() {
       });
     },
   });
+
+  // Load templates from localStorage
+  const loadTemplates = () => {
+    const templates = JSON.parse(localStorage.getItem('invoiceTemplates') || '[]');
+    setSavedTemplates(templates);
+  };
+
+  // Load templates on mount
+  useEffect(() => {
+    loadTemplates();
+  }, []);
 
   // Auto-calculate total when subtotal or tip changes
   const watchedSubtotal = form.watch("subtotal");
@@ -215,6 +229,9 @@ export default function InvoicePage() {
             <DialogContent className="bg-dark-card border-steel/20 text-white">
               <DialogHeader>
                 <DialogTitle className="text-white">Create Invoice</DialogTitle>
+                <DialogDescription className="text-steel">
+                  Create a new invoice for your client with itemized services and payment options.
+                </DialogDescription>
               </DialogHeader>
               <Form {...form}>
                 <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
@@ -386,6 +403,7 @@ export default function InvoicePage() {
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-2 gap-3">
+              {/* Default Templates */}
               <Button
                 variant="outline"
                 className="bg-charcoal border-steel/40 h-auto p-4 text-center touch-target flex flex-col items-center space-y-2 tap-feedback hover:bg-charcoal/80"
@@ -413,6 +431,22 @@ export default function InvoicePage() {
                 <div className="text-sm font-medium">Combo</div>
                 <div className="text-xs text-steel">$65</div>
               </Button>
+
+              {/* Saved Templates */}
+              {savedTemplates.map((template) => (
+                <Button
+                  key={template.id}
+                  variant="outline"
+                  className="bg-charcoal border-steel/40 h-auto p-4 text-center touch-target flex flex-col items-center space-y-2 tap-feedback hover:bg-charcoal/80"
+                  onClick={() => handleQuickInvoice(template.category, template.amount)}
+                >
+                  <Receipt className="w-5 h-5 text-gold" />
+                  <div className="text-sm font-medium">{template.name}</div>
+                  <div className="text-xs text-steel">${template.amount}</div>
+                </Button>
+              ))}
+
+              {/* Custom Invoice Button */}
               <Button
                 variant="outline"
                 className="bg-charcoal border-steel/40 h-auto p-4 text-center touch-target flex flex-col items-center space-y-2 tap-feedback hover:bg-charcoal/80"
@@ -468,6 +502,9 @@ export default function InvoicePage() {
               <DialogContent className="bg-dark-card border-steel/40 text-white max-w-md">
                 <DialogHeader>
                   <DialogTitle className="text-white">Create Invoice Template</DialogTitle>
+                  <DialogDescription className="text-steel">
+                    Create a reusable template for quick invoice generation with consistent pricing.
+                  </DialogDescription>
                 </DialogHeader>
                 <Form {...templateForm}>
                   <form onSubmit={templateForm.handleSubmit(onTemplateSubmit)} className="space-y-4">
