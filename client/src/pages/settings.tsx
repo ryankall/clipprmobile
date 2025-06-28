@@ -659,6 +659,80 @@ export default function Settings() {
           </CardContent>
         </Card>
 
+        {/* Quick Action Settings */}
+        <Card className="bg-dark-card border-steel/20">
+          <CardHeader>
+            <CardTitle className="text-white flex items-center">
+              <Bell className="w-5 h-5 mr-2" />
+              Quick Action Messages
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-3">
+              <div>
+                <Label className="text-white text-sm font-medium">Default Messages</Label>
+                <p className="text-steel text-xs">Pre-built messages for common situations</p>
+              </div>
+              
+              <div className="space-y-2">
+                <div className="bg-charcoal/50 p-3 rounded-lg border border-steel/20">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-white text-sm font-medium">On My Way</span>
+                    <span className="text-steel text-xs">Default</span>
+                  </div>
+                  <p className="text-steel text-xs">
+                    "Hi [Client Name], I'm on my way to your appointment at [Time]. See you soon!"
+                  </p>
+                </div>
+                
+                <div className="bg-charcoal/50 p-3 rounded-lg border border-steel/20">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-white text-sm font-medium">Running Late</span>
+                    <span className="text-steel text-xs">Default</span>
+                  </div>
+                  <p className="text-steel text-xs">
+                    "Hi [Client Name], I'm running about [Minutes] minutes late for your [Time] appointment. Sorry for the delay!"
+                  </p>
+                </div>
+                
+                <div className="bg-charcoal/50 p-3 rounded-lg border border-steel/20">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-white text-sm font-medium">Appointment Confirmation</span>
+                    <span className="text-steel text-xs">Default</span>
+                  </div>
+                  <p className="text-steel text-xs">
+                    "Hi [Client Name], confirming your [Service] appointment on [Date] at [Time]. Looking forward to seeing you!"
+                  </p>
+                </div>
+              </div>
+              
+              <div className="pt-3 border-t border-steel/20">
+                <Button
+                  variant="outline"
+                  className="w-full border-steel/40 text-white hover:bg-steel/20"
+                  onClick={() => {
+                    toast({
+                      title: "Feature Coming Soon",
+                      description: "Custom quick action messages will be available in a future update.",
+                    });
+                  }}
+                >
+                  <Bell className="w-4 h-4 mr-2" />
+                  Create Custom Message
+                </Button>
+              </div>
+              
+              <div className="bg-blue-900/20 border border-blue-700/30 p-3 rounded-lg">
+                <h4 className="text-blue-300 font-medium text-sm mb-1">How Quick Actions Work</h4>
+                <p className="text-blue-200 text-xs">
+                  Quick actions appear on your dashboard when you have appointments coming up within the next hour. 
+                  Tap a message to instantly send it to your client via SMS or email.
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
         {/* Payment Settings */}
         <Card className="bg-dark-card border-steel/20">
           <CardHeader>
