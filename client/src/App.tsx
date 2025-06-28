@@ -47,26 +47,29 @@ function Router() {
     );
   }
 
-  if (!isAuthenticated) {
-    return <Auth />;
-  }
-
   return (
     <Switch>
       {/* Public booking page - accessible without authentication */}
       <Route path="/book/:barberInfo" component={BookingPage} />
-      <Route path="/" component={Dashboard} />
-      <Route path="/calendar" component={Calendar} />
-      <Route path="/clients" component={Clients} />
-      <Route path="/clients/:id" component={ClientProfile} />
-      <Route path="/appointments/new" component={AppointmentNew} />
-      <Route path="/gallery" component={Gallery} />
-      <Route path="/messages" component={Messages} />
-      <Route path="/settings" component={Settings} />
-      <Route path="/invoice/:id?" component={Invoice} />
-      <Route path="/checkout/:invoiceId" component={Checkout} />
-      <Route path="/auth" component={Auth} />
-      <Route component={NotFound} />
+      
+      {/* Protected routes - require authentication */}
+      {!isAuthenticated ? (
+        <Route component={Auth} />
+      ) : (
+        <>
+          <Route path="/" component={Dashboard} />
+          <Route path="/calendar" component={Calendar} />
+          <Route path="/clients" component={Clients} />
+          <Route path="/clients/:id" component={ClientProfile} />
+          <Route path="/appointments/new" component={AppointmentNew} />
+          <Route path="/gallery" component={Gallery} />
+          <Route path="/messages" component={Messages} />
+          <Route path="/settings" component={Settings} />
+          <Route path="/invoice/:id?" component={Invoice} />
+          <Route path="/checkout/:invoiceId" component={Checkout} />
+          <Route component={NotFound} />
+        </>
+      )}
     </Switch>
   );
 }
