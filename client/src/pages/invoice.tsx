@@ -85,7 +85,10 @@ const serviceFormSchema = z.object({
     const num = parseFloat(val);
     return !isNaN(num) && num >= 0 && num <= 99999999.99;
   }, "Price must be between $0.00 and $99,999,999.99"),
-  duration: z.string().min(1, "Duration is required"),
+  duration: z.string().min(1, "Duration is required").refine((val) => {
+    const num = parseInt(val);
+    return !isNaN(num) && num >= 1 && num <= 10080; // max 1 week in minutes
+  }, "Duration must be between 1 and 10,080 minutes (1 week)"),
   category: z.string().min(1, "Category is required"),
 });
 
@@ -96,7 +99,10 @@ const serviceCreateSchema = z.object({
     const num = parseFloat(val);
     return !isNaN(num) && num >= 0 && num <= 99999999.99;
   }, "Price must be between $0.00 and $99,999,999.99"),
-  duration: z.string().min(1, "Duration is required"),
+  duration: z.string().min(1, "Duration is required").refine((val) => {
+    const num = parseInt(val);
+    return !isNaN(num) && num >= 1 && num <= 10080; // max 1 week in minutes
+  }, "Duration must be between 1 and 10,080 minutes (1 week)"),
   category: z.string().min(1, "Category is required"),
 });
 
@@ -1539,6 +1545,8 @@ export default function InvoicePage() {
                         <Input
                           {...field}
                           type="number"
+                          min="1"
+                          max="10080"
                           className="bg-charcoal border-steel/40 text-white"
                           placeholder="45"
                         />
@@ -1708,6 +1716,8 @@ export default function InvoicePage() {
                         <Input
                           {...field}
                           type="number"
+                          min="1"
+                          max="10080"
                           className="bg-charcoal border-steel/40 text-white"
                           placeholder="30"
                         />
