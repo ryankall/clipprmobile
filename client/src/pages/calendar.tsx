@@ -1,31 +1,17 @@
-import { useState, useEffect } from "react";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Calendar as CalendarIcon, Plus, ChevronLeft, ChevronRight, Settings, Clock } from "lucide-react";
+import { Calendar as CalendarIcon, Plus, ChevronLeft, ChevronRight, Settings } from "lucide-react";
 import { BottomNavigation } from "@/components/bottom-navigation";
 import { AppointmentCard } from "@/components/appointment-card";
+import { WorkingHoursDialog } from "@/components/working-hours-dialog";
 import { format, addDays, subDays, startOfWeek, endOfWeek } from "date-fns";
 import { Link } from "wouter";
-import { useToast } from "@/hooks/use-toast";
-import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { AppointmentWithRelations } from "@shared/schema";
 
 export default function Calendar() {
   const [selectedDate, setSelectedDate] = useState(new Date());
-  const [workingHours, setWorkingHours] = useState({
-    monday: { start: '09:00', end: '18:00', enabled: true },
-    tuesday: { start: '09:00', end: '18:00', enabled: true },
-    wednesday: { start: '09:00', end: '18:00', enabled: true },
-    thursday: { start: '09:00', end: '18:00', enabled: true },
-    friday: { start: '09:00', end: '18:00', enabled: true },
-    saturday: { start: '10:00', end: '16:00', enabled: true },
-    sunday: { start: '10:00', end: '16:00', enabled: false }
-  });
-  const { toast } = useToast();
   
   const startDate = startOfWeek(selectedDate);
   const endDate = endOfWeek(selectedDate);
@@ -34,37 +20,9 @@ export default function Calendar() {
     queryKey: ["/api/appointments", startDate.toISOString(), endDate.toISOString()],
   });
 
-  // Fetch user profile to get current working hours
+  // Fetch user profile to pass working hours to dialog
   const { data: userProfile } = useQuery({
     queryKey: ["/api/user/profile"],
-  });
-
-  // Update working hours state when user profile loads
-  useEffect(() => {
-    if (userProfile && userProfile.workingHours) {
-      setWorkingHours(userProfile.workingHours);
-    }
-  }, [userProfile]);
-
-  // Update working hours mutation
-  const updateWorkingHoursMutation = useMutation({
-    mutationFn: async (hours: typeof workingHours) => {
-      return apiRequest("PATCH", "/api/user/profile", { workingHours: hours });
-    },
-    onSuccess: () => {
-      toast({
-        title: "Working Hours Updated",
-        description: "Your working hours have been saved successfully",
-      });
-      queryClient.invalidateQueries({ queryKey: ["/api/user/profile"] });
-    },
-    onError: (error: any) => {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to update working hours",
-        variant: "destructive",
-      });
-    },
   });
 
   const selectedDateAppointments = appointments?.filter(apt => 

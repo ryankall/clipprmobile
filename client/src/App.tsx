@@ -7,7 +7,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { useAuth } from "@/hooks/useAuth";
 import Auth from "@/pages/auth";
 import Dashboard from "@/pages/dashboard";
-import Calendar from "@/pages/calendar";
+import Calendar from "@/pages/calendar-new";
 import Clients from "@/pages/clients";
 import ClientProfile from "@/pages/client-profile";
 import AppointmentNew from "@/pages/appointment-new";
