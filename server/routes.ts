@@ -1163,19 +1163,53 @@ export async function registerRoutes(app: Express): Promise<Server> {
         selectedTime,
         selectedServices,
         customService,
+        needsTravel,
+        clientAddress,
         message
       } = req.body;
 
+      console.log("Booking request received:", {
+        barberPhone,
+        clientName,
+        clientPhone,
+        selectedDate,
+        selectedTime,
+        selectedServices,
+        customService,
+        needsTravel,
+        clientAddress,
+        message
+      });
+
       // Validate required fields
       if (!barberPhone || !clientName || !clientPhone || !selectedDate || !selectedTime || !selectedServices?.length) {
+        console.log("Missing required fields:", { barberPhone, clientName, clientPhone, selectedDate, selectedTime, selectedServices });
         return res.status(400).json({ message: "Missing required fields" });
       }
 
-      const user = await storage.getUserByPhone(barberPhone);
+      // Try to find user by different phone formats
+      let user = await storage.getUserByPhone(barberPhone);
+      console.log("First phone lookup result:", user ? "Found" : "Not found", "for phone:", barberPhone);
       
       if (!user) {
+        // Try extracting digits and reformatting
+        const phoneDigits = barberPhone.replace(/[^\d]/g, '');
+        console.log("Extracted phone digits:", phoneDigits);
+        
+        if (phoneDigits.length === 10) {
+          const formattedPhone = `(${phoneDigits.slice(0,3)}) ${phoneDigits.slice(3,6)}-${phoneDigits.slice(6)}`;
+          console.log("Trying formatted phone:", formattedPhone);
+          user = await storage.getUserByPhone(formattedPhone);
+          console.log("Formatted phone lookup result:", user ? "Found" : "Not found");
+        }
+      }
+      
+      if (!user) {
+        console.log("Barber not found after all phone format attempts");
         return res.status(404).json({ message: "Barber not found" });
       }
+
+      console.log("Found barber:", { id: user.id, name: `${user.firstName} ${user.lastName}`, phone: user.phone });
 
       // Get service details
       const services = await storage.getServicesByUserId(user.id);

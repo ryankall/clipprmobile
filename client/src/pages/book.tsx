@@ -48,9 +48,9 @@ export default function BookingPage() {
   const [existingClient, setExistingClient] = useState<any>(null);
   const { toast } = useToast();
 
-  // Parse barber info from URL (format: phone_barbername)
-  const barberPhone = barberInfo?.split('_')[0] || '';
-  const barberSlug = barberInfo?.split('_').slice(1).join('_') || '';
+  // Parse barber info from URL (format: phone-barbername)
+  const barberPhone = barberInfo?.split('-')[0] || '';
+  const barberSlug = barberInfo?.split('-').slice(1).join('-') || '';
 
   // Fetch barber profile data
   const { data: barber, isLoading: barberLoading } = useQuery<UserType>({
