@@ -45,6 +45,13 @@ export default function Dashboard() {
     select: (data) => data?.slice(0, 3) || [],
   });
 
+  const { data: unreadData } = useQuery<{ count: number }>({
+    queryKey: ["/api/messages/unread-count"],
+    refetchInterval: 30000, // Refresh every 30 seconds
+  });
+
+  const unreadCount = unreadData?.count || 0;
+
   // Mock notifications data - in real app this would come from API
   const notifications = [
     {
@@ -90,17 +97,18 @@ export default function Dashboard() {
             <h1 className="text-xl font-bold text-gold">Clippr</h1>
           </div>
           <div className="flex items-center space-x-4">
-            <Button
-              variant="ghost"
-              size="sm"
-              className="relative touch-target p-2"
-              onClick={() => setShowNotifications(!showNotifications)}
-            >
-              <Bell className="w-5 h-5 text-steel" />
-              {notifications.length > 0 && (
-                <div className="notification-badge">{notifications.length}</div>
-              )}
-            </Button>
+            <Link href="/messages">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="relative touch-target p-2"
+              >
+                <Bell className="w-5 h-5 text-steel" />
+                {unreadCount > 0 && (
+                  <div className="notification-badge">{unreadCount}</div>
+                )}
+              </Button>
+            </Link>
             <Link href="/settings" className="touch-target">
               <Avatar className="w-8 h-8">
                 <AvatarImage src={user?.photoUrl || undefined} alt={`${user?.firstName} ${user?.lastName}`} />
