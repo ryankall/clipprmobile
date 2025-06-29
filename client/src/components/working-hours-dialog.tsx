@@ -47,9 +47,24 @@ export function WorkingHoursDialog({ currentHours }: WorkingHoursDialogProps) {
   const updateWorkingHoursMutation = useMutation({
     mutationFn: async (hours: WorkingHours) => {
       console.log('Sending working hours update:', hours);
-      const response = await apiRequest("PATCH", "/api/user/profile", { workingHours: hours });
-      console.log('Working hours update response:', response);
-      return response;
+      const response = await fetch("/api/user/profile", {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "include",
+        body: JSON.stringify({ workingHours: hours }),
+      });
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Server response error:', response.status, errorText);
+        throw new Error(`Server error: ${response.status}`);
+      }
+      
+      const result = await response.json();
+      console.log('Working hours update response:', result);
+      return result;
     },
     onSuccess: () => {
       console.log('Working hours update succeeded');
