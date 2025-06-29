@@ -331,8 +331,14 @@ export default function Settings() {
           const place = autocomplete.getPlace();
           console.log('Auto-initialized place selected:', place);
           if (place.formatted_address) {
+            // Update both the form and the input element directly
             form.setValue('homeBaseAddress', place.formatted_address);
             form.trigger('homeBaseAddress');
+            
+            // Also update the input element value directly
+            if (addressInputRef.current) {
+              addressInputRef.current.value = place.formatted_address;
+            }
           }
         });
 
@@ -371,9 +377,12 @@ export default function Settings() {
         homeBaseAddress: (user as any).homeBaseAddress || "",
         defaultGraceTime: (user as any).defaultGraceTime || 5,
       });
-      setPreviewUrl(user.photoUrl || null);
+      // Only set previewUrl if user has a photo URL and it's not already set
+      if (user.photoUrl && !previewUrl) {
+        setPreviewUrl(user.photoUrl);
+      }
     }
-  }, [user, form]);
+  }, [user, form, previewUrl]);
 
   const handleFileSelect = (file: File) => {
     // Check file type
@@ -579,9 +588,15 @@ export default function Settings() {
                                 {...field}
                                 className="bg-charcoal border-steel/40 text-white"
                                 placeholder="Your barbershop name"
+                                maxLength={60}
                               />
                             </FormControl>
-                            <FormMessage />
+                            <div className="flex justify-between items-center">
+                              <FormMessage />
+                              <span className="text-steel text-xs">
+                                {field.value?.length || 0}/60
+                              </span>
+                            </div>
                           </FormItem>
                         )}
                       />
@@ -639,9 +654,15 @@ export default function Settings() {
                                 {...field}
                                 className="bg-charcoal border-steel/40 text-white"
                                 placeholder="Your service area"
+                                maxLength={100}
                               />
                             </FormControl>
-                            <FormMessage />
+                            <div className="flex justify-between items-center">
+                              <FormMessage />
+                              <span className="text-steel text-xs">
+                                {field.value?.length || 0}/100
+                              </span>
+                            </div>
                           </FormItem>
                         )}
                       />
@@ -655,11 +676,18 @@ export default function Settings() {
                             <FormControl>
                               <Textarea 
                                 {...field}
-                                className="bg-charcoal border-steel/40 text-white"
+                                className="bg-charcoal border-steel/40 text-white scrollbar-hide"
                                 placeholder="Tell clients about your services"
+                                maxLength={300}
+                                rows={4}
                               />
                             </FormControl>
-                            <FormMessage />
+                            <div className="flex justify-between items-center">
+                              <FormMessage />
+                              <span className="text-steel text-xs">
+                                {field.value?.length || 0}/300
+                              </span>
+                            </div>
                           </FormItem>
                         )}
                       />
