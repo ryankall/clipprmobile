@@ -990,6 +990,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get client by phone for barber
+  app.get("/api/public/barber/:phone/client-lookup", async (req, res) => {
+    try {
+      const barberPhone = req.params.phone;
+      const clientPhone = req.query.phone as string;
+      
+      if (!clientPhone) {
+        return res.status(400).json({ message: "Client phone number required" });
+      }
+
+      const barber = await storage.getUserByPhone(barberPhone);
+      if (!barber) {
+        return res.status(404).json({ message: "Barber not found" });
+      }
+
+      // Find client by phone number for this barber
+      const clients = await storage.getClientsByUserId(barber.id);
+      const client = clients.find(c => c.phone === clientPhone);
+      
+      if (client) {
+        res.json({
+          name: client.name,
+          phone: client.phone,
+          email: client.email,
+          address: client.address
+        });
+      } else {
+        res.json(null);
+      }
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
   // Submit booking request
   app.post("/api/public/booking-request", async (req, res) => {
     try {

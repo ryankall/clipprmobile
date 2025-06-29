@@ -7,11 +7,11 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
-import { Calendar, Clock, MapPin, Phone, Mail, User as UserIcon, Scissors, CheckCircle } from "lucide-react";
+import { Calendar, Clock, MapPin, Phone, Mail, User as UserIcon, Scissors, CheckCircle, ChevronLeft, ChevronRight } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import type { User as UserType, Service } from "@shared/schema";
-import { format, addDays, startOfDay, parseISO } from "date-fns";
+import { format, addDays, startOfDay, parseISO, isToday, isTomorrow, isYesterday } from "date-fns";
 
 interface BookingRequest {
   barberPhone: string;
@@ -32,16 +32,20 @@ interface TimeSlot {
 
 export default function BookingPage() {
   const { barberInfo } = useParams<{ barberInfo: string }>();
-  const [selectedDate, setSelectedDate] = useState(format(new Date(), 'yyyy-MM-dd'));
+  const [currentStep, setCurrentStep] = useState(1);
+  const [selectedDate, setSelectedDate] = useState('');
   const [selectedTime, setSelectedTime] = useState('');
-  const [clientName, setClientName] = useState('');
-  const [clientPhone, setClientPhone] = useState('');
-  const [clientEmail, setClientEmail] = useState('');
   const [selectedServices, setSelectedServices] = useState<string[]>([]);
   const [customService, setCustomService] = useState('');
   const [showCustomService, setShowCustomService] = useState(false);
+  const [clientPhone, setClientPhone] = useState('');
+  const [clientName, setClientName] = useState('');
+  const [clientEmail, setClientEmail] = useState('');
+  const [needsTravel, setNeedsTravel] = useState<boolean | null>(null);
+  const [clientAddress, setClientAddress] = useState('');
   const [message, setMessage] = useState('');
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const [existingClient, setExistingClient] = useState<any>(null);
   const { toast } = useToast();
 
   // Parse barber info from URL (format: phone_barbername)
@@ -63,8 +67,35 @@ export default function BookingPage() {
   // Fetch available time slots for selected date
   const { data: timeSlots, isLoading: slotsLoading } = useQuery<TimeSlot[]>({
     queryKey: [`/api/public/barber/${barberPhone}/availability`, selectedDate],
-    enabled: !!barberPhone && !!selectedDate,
+    enabled: !!barberPhone && !!selectedDate && currentStep === 2,
   });
+
+  // Client lookup by phone
+  const checkClientMutation = useMutation({
+    mutationFn: async (phone: string) => {
+      return apiRequest("GET", `/api/public/barber/${barberPhone}/client-lookup?phone=${encodeURIComponent(phone)}`);
+    },
+    onSuccess: (data) => {
+      if (data && data.name) {
+        setExistingClient(data);
+        setClientName(data.name);
+        setClientEmail(data.email || '');
+        toast({
+          title: "Welcome back!",
+          description: `Found your information: ${data.name}`,
+        });
+      } else {
+        setExistingClient(null);
+      }
+    },
+  });
+
+  // Check for existing client when phone number changes
+  useEffect(() => {
+    if (clientPhone.length >= 10 && currentStep === 4) {
+      checkClientMutation.mutate(clientPhone);
+    }
+  }, [clientPhone, currentStep]);
 
   const submitBookingMutation = useMutation({
     mutationFn: async (data: BookingRequest) => {

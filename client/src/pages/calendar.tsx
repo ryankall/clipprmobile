@@ -1,22 +1,70 @@
-import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useState, useEffect } from "react";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Calendar as CalendarIcon, Plus, ChevronLeft, ChevronRight } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Calendar as CalendarIcon, Plus, ChevronLeft, ChevronRight, Settings, Clock } from "lucide-react";
 import { BottomNavigation } from "@/components/bottom-navigation";
 import { AppointmentCard } from "@/components/appointment-card";
 import { format, addDays, subDays, startOfWeek, endOfWeek } from "date-fns";
 import { Link } from "wouter";
+import { useToast } from "@/hooks/use-toast";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { AppointmentWithRelations } from "@shared/schema";
 
 export default function Calendar() {
   const [selectedDate, setSelectedDate] = useState(new Date());
+  const [workingHours, setWorkingHours] = useState({
+    monday: { start: '09:00', end: '18:00', enabled: true },
+    tuesday: { start: '09:00', end: '18:00', enabled: true },
+    wednesday: { start: '09:00', end: '18:00', enabled: true },
+    thursday: { start: '09:00', end: '18:00', enabled: true },
+    friday: { start: '09:00', end: '18:00', enabled: true },
+    saturday: { start: '10:00', end: '16:00', enabled: true },
+    sunday: { start: '10:00', end: '16:00', enabled: false }
+  });
+  const { toast } = useToast();
   
   const startDate = startOfWeek(selectedDate);
   const endDate = endOfWeek(selectedDate);
 
   const { data: appointments, isLoading } = useQuery<AppointmentWithRelations[]>({
     queryKey: ["/api/appointments", startDate.toISOString(), endDate.toISOString()],
+  });
+
+  // Fetch user profile to get current working hours
+  const { data: userProfile } = useQuery({
+    queryKey: ["/api/user/profile"],
+  });
+
+  // Update working hours state when user profile loads
+  useEffect(() => {
+    if (userProfile && userProfile.workingHours) {
+      setWorkingHours(userProfile.workingHours);
+    }
+  }, [userProfile]);
+
+  // Update working hours mutation
+  const updateWorkingHoursMutation = useMutation({
+    mutationFn: async (hours: typeof workingHours) => {
+      return apiRequest("PATCH", "/api/user/profile", { workingHours: hours });
+    },
+    onSuccess: () => {
+      toast({
+        title: "Working Hours Updated",
+        description: "Your working hours have been saved successfully",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/user/profile"] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update working hours",
+        variant: "destructive",
+      });
+    },
   });
 
   const selectedDateAppointments = appointments?.filter(apt => 
@@ -34,12 +82,86 @@ export default function Calendar() {
             <CalendarIcon className="w-6 h-6 text-gold" />
             <h1 className="text-xl font-bold text-white">Calendar</h1>
           </div>
-          <Link href="/appointments/new">
-            <Button size="sm" className="gradient-gold text-charcoal tap-feedback">
-              <Plus className="w-4 h-4 mr-1" />
-              Add
-            </Button>
-          </Link>
+          <div className="flex items-center space-x-2">
+            <Dialog>
+              <DialogTrigger asChild>
+                <Button size="sm" variant="outline" className="bg-charcoal border-steel/40 text-gold">
+                  <Clock className="w-4 h-4 mr-1" />
+                  Hours
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="bg-charcoal border-steel/20 text-white max-w-md">
+                <DialogHeader>
+                  <DialogTitle className="text-white">Working Hours</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4 max-h-96 overflow-y-auto">
+                  {Object.entries(workingHours).map(([day, hours]) => (
+                    <div key={day} className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <Label className="text-white capitalize font-medium">{day}</Label>
+                        <input
+                          type="checkbox"
+                          checked={hours.enabled}
+                          onChange={(e) => {
+                            setWorkingHours(prev => ({
+                              ...prev,
+                              [day]: { ...prev[day], enabled: e.target.checked }
+                            }));
+                          }}
+                          className="w-4 h-4 text-gold bg-charcoal border-steel/40 rounded focus:ring-gold"
+                        />
+                      </div>
+                      {hours.enabled && (
+                        <div className="grid grid-cols-2 gap-2">
+                          <div>
+                            <Label className="text-steel text-xs">Start</Label>
+                            <Input
+                              type="time"
+                              value={hours.start}
+                              onChange={(e) => {
+                                setWorkingHours(prev => ({
+                                  ...prev,
+                                  [day]: { ...prev[day], start: e.target.value }
+                                }));
+                              }}
+                              className="bg-dark-card border-steel/40 text-white"
+                            />
+                          </div>
+                          <div>
+                            <Label className="text-steel text-xs">End</Label>
+                            <Input
+                              type="time"
+                              value={hours.end}
+                              onChange={(e) => {
+                                setWorkingHours(prev => ({
+                                  ...prev,
+                                  [day]: { ...prev[day], end: e.target.value }
+                                }));
+                              }}
+                              className="bg-dark-card border-steel/40 text-white"
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                  <Button
+                    onClick={() => updateWorkingHoursMutation.mutate(workingHours)}
+                    disabled={updateWorkingHoursMutation.isPending}
+                    className="w-full gradient-gold text-charcoal"
+                  >
+                    {updateWorkingHoursMutation.isPending ? "Saving..." : "Save Working Hours"}
+                  </Button>
+                </div>
+              </DialogContent>
+            </Dialog>
+            <Link href="/appointments/new">
+              <Button size="sm" className="gradient-gold text-charcoal tap-feedback">
+                <Plus className="w-4 h-4 mr-1" />
+                Add
+              </Button>
+            </Link>
+          </div>
         </div>
       </header>
 

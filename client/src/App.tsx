@@ -16,7 +16,7 @@ import Messages from "@/pages/messages";
 import Settings from "@/pages/settings";
 import Invoice from "@/pages/invoice";
 import Checkout from "@/pages/checkout";
-import BookingPage from "@/pages/book";
+import EnhancedBookingPage from "@/pages/book-new";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -50,7 +50,7 @@ function Router() {
   return (
     <Switch>
       {/* Public booking page - accessible without authentication */}
-      <Route path="/book/:barberInfo" component={BookingPage} />
+      <Route path="/book/:barberInfo" component={EnhancedBookingPage} />
       
       {/* Protected routes - require authentication */}
       {!isAuthenticated ? (
