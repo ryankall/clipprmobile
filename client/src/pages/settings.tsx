@@ -329,16 +329,30 @@ export default function Settings() {
 
         autocomplete.addListener('place_changed', () => {
           const place = autocomplete.getPlace();
-          console.log('Auto-initialized place selected:', place);
-          if (place.formatted_address) {
-            // Update both the form and the input element directly
-            form.setValue('homeBaseAddress', place.formatted_address);
+          console.log('Place selected:', place);
+          console.log('Formatted address:', place.formatted_address);
+          
+          if (place.formatted_address && addressInputRef.current) {
+            console.log('Updating form and input with:', place.formatted_address);
+            
+            // Update the input element directly first
+            addressInputRef.current.value = place.formatted_address;
+            
+            // Dispatch input event to ensure React Hook Form detects the change
+            const event = new Event('input', { bubbles: true });
+            addressInputRef.current.dispatchEvent(event);
+            
+            // Update the form value
+            form.setValue('homeBaseAddress', place.formatted_address, {
+              shouldValidate: true,
+              shouldDirty: true,
+              shouldTouch: true
+            });
+            
+            // Trigger form validation
             form.trigger('homeBaseAddress');
             
-            // Also update the input element value directly
-            if (addressInputRef.current) {
-              addressInputRef.current.value = place.formatted_address;
-            }
+            console.log('Form value after update:', form.getValues('homeBaseAddress'));
           }
         });
 
