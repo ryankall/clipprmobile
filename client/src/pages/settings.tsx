@@ -255,92 +255,100 @@ export default function Settings() {
 
   // Initialize autocomplete when Google Maps is loaded and input is available
   useEffect(() => {
-    if (isGoogleMapsLoaded && isEditingProfile && addressInputRef.current && !autocompleteRef.current) {
-      try {
-        console.log('Initializing Google Places Autocomplete for input:', addressInputRef.current);
-        
-        // Ensure the input is visible and ready
-        const inputElement = addressInputRef.current;
-        if (!inputElement || inputElement.offsetParent === null) {
-          console.log('Input element not visible, retrying...');
-          setTimeout(() => {
-            // Retry after modal is fully rendered
-            if (addressInputRef.current && !autocompleteRef.current) {
-              initializeAutocomplete();
-            }
-          }, 500);
-          return;
-        }
+    if (isGoogleMapsLoaded && isEditingProfile) {
+      console.log('Auto-init check:', {
+        googleMapsLoaded: isGoogleMapsLoaded,
+        editingProfile: isEditingProfile,
+        inputRef: !!addressInputRef.current,
+        autocompleteRef: !!autocompleteRef.current
+      });
 
-        initializeAutocomplete();
-        
-        function initializeAutocomplete() {
-          if (!addressInputRef.current || autocompleteRef.current) return;
-          
-          try {
-            console.log('Creating autocomplete instance...');
+      // Multiple retry attempts with different delays
+      const retryDelays = [100, 300, 500, 1000];
+      
+      retryDelays.forEach((delay, index) => {
+        setTimeout(() => {
+          if (addressInputRef.current && !autocompleteRef.current) {
+            const inputElement = addressInputRef.current;
+            const isVisible = inputElement.offsetParent !== null;
             
-            // Use standard Google Places Autocomplete
-            const autocomplete = new window.google.maps.places.Autocomplete(
-              addressInputRef.current,
-              {
-                types: ['address'],
-                componentRestrictions: { country: 'US' },
-                fields: ['formatted_address', 'address_components', 'geometry']
-              }
-            );
-
-            // Fix z-index for dropdown to appear above modal
-            const pacContainer = document.querySelector('.pac-container');
-            if (pacContainer) {
-              (pacContainer as HTMLElement).style.zIndex = '10000';
+            console.log(`Auto-init attempt ${index + 1}:`, {
+              inputExists: !!inputElement,
+              isVisible,
+              hasAutocomplete: !!autocompleteRef.current
+            });
+            
+            if (isVisible) {
+              initializeAutocompleteInstance();
             }
+          }
+        }, delay);
+      });
+    }
 
-            // Listen for when the pac-container is created
-            const observer = new MutationObserver((mutations) => {
-              mutations.forEach((mutation) => {
-                mutation.addedNodes.forEach((node) => {
-                  if (node.nodeType === 1 && (node as Element).classList.contains('pac-container')) {
-                    (node as HTMLElement).style.zIndex = '10000';
-                    (node as HTMLElement).style.position = 'absolute';
-                  }
-                });
-              });
-            });
-            observer.observe(document.body, { childList: true });
+    const initializeAutocompleteInstance = () => {
+      if (!addressInputRef.current || autocompleteRef.current) {
+        console.log('Skipping init - no input or already exists');
+        return;
+      }
+      
+      try {
+        console.log('Auto-initializing Google Places Autocomplete...');
+        
+        const autocomplete = new window.google.maps.places.Autocomplete(
+          addressInputRef.current,
+          {
+            types: ['address'],
+            componentRestrictions: { country: 'US' },
+            fields: ['formatted_address', 'address_components', 'geometry']
+          }
+        );
 
-            // Store observer reference for cleanup
-            (autocomplete as any).observer = observer;
+        // Fix z-index with delay to ensure dropdown is created
+        setTimeout(() => {
+          const pacContainers = document.querySelectorAll('.pac-container');
+          pacContainers.forEach(container => {
+            (container as HTMLElement).style.zIndex = '10000';
+            (container as HTMLElement).style.position = 'absolute';
+          });
+        }, 100);
 
-            autocomplete.addListener('place_changed', () => {
-              const place = autocomplete.getPlace();
-              console.log('Place selected:', place);
-              if (place.formatted_address) {
-                form.setValue('homeBaseAddress', place.formatted_address);
-                form.trigger('homeBaseAddress'); // Trigger validation
+        // Listen for when new pac-containers are created
+        const observer = new MutationObserver((mutations) => {
+          mutations.forEach((mutation) => {
+            mutation.addedNodes.forEach((node) => {
+              if (node.nodeType === 1 && (node as Element).classList.contains('pac-container')) {
+                (node as HTMLElement).style.zIndex = '10000';
+                (node as HTMLElement).style.position = 'absolute';
               }
             });
+          });
+        });
+        observer.observe(document.body, { childList: true });
+        (autocomplete as any).observer = observer;
 
-            autocompleteRef.current = autocomplete;
-            console.log('Google Places Autocomplete initialized successfully on input');
-          } catch (error) {
-            console.error('Error in initializeAutocomplete:', error);
+        autocomplete.addListener('place_changed', () => {
+          const place = autocomplete.getPlace();
+          console.log('Auto-initialized place selected:', place);
+          if (place.formatted_address) {
+            form.setValue('homeBaseAddress', place.formatted_address);
+            form.trigger('homeBaseAddress');
           }
-        }
-        
+        });
+
+        autocompleteRef.current = autocomplete;
+        console.log('Auto-initialization successful!');
       } catch (error) {
-        console.error('Error initializing Google Places Autocomplete:', error);
+        console.error('Auto-initialization error:', error);
       }
-    }
+    };
 
     return () => {
       if (autocompleteRef.current) {
         try {
-          // Clean up observer if it exists
           if ((autocompleteRef.current as any).observer) {
             (autocompleteRef.current as any).observer.disconnect();
           }
-          
           window.google?.maps?.event?.clearInstanceListeners(autocompleteRef.current);
           autocompleteRef.current = null;
         } catch (error) {
