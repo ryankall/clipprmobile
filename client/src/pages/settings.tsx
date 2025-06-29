@@ -794,7 +794,7 @@ export default function Settings() {
         </Card>
 
         {/* Payment Settings */}
-        <Card className="bg-dark-card border-steel/20">
+        <Card className="bg-dark-card border-steel/20" data-section="payment">
           <CardHeader>
             <CardTitle className="text-white flex items-center">
               <CreditCard className="w-5 h-5 mr-2" />

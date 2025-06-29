@@ -8,7 +8,7 @@ import { BottomNavigation } from "@/components/bottom-navigation";
 import { AppointmentCard } from "@/components/appointment-card";
 import { QuickActions } from "@/components/quick-actions";
 import { useAuth } from "@/hooks/useAuth";
-import { Scissors, Slice, Bell, Plus, Calendar, Users, Camera, Settings, X } from "lucide-react";
+import { Scissors, Slice, Bell, Plus, Calendar, Users, Camera, Settings, X, MessageSquare, CreditCard, User as UserIcon } from "lucide-react";
 import { Link } from "wouter";
 import { format } from "date-fns";
 import type { DashboardStats, AppointmentWithRelations, GalleryPhoto } from "@shared/schema";
@@ -50,32 +50,65 @@ export default function Dashboard() {
     refetchInterval: 30000, // Refresh every 30 seconds
   });
 
+  const { data: stripeStatus } = useQuery<{ connected: boolean }>({
+    queryKey: ["/api/stripe/status"],
+  });
+
   const unreadCount = unreadData?.count || 0;
 
-  // Mock notifications data - in real app this would come from API
-  const notifications = [
-    {
-      id: 1,
-      title: "Upcoming Appointment",
-      message: "steve the job - 2:00 PM today",
-      time: "5 min ago",
-      type: "appointment"
-    },
-    {
-      id: 2,
-      title: "Payment Received",
-      message: "bob the builder paid $25.00",
-      time: "1 hour ago",
-      type: "payment"
-    },
-    {
-      id: 3,
-      title: "New Client Inquiry",
-      message: "Someone messaged about services",
-      time: "2 hours ago",
-      type: "message"
+  // Generate smart notifications based on user data
+  const generateNotifications = () => {
+    const notifications = [];
+
+    // Unread messages notification
+    if (unreadCount > 0) {
+      notifications.push({
+        id: 'messages',
+        title: 'Unread Messages',
+        message: `You have ${unreadCount} unread message${unreadCount > 1 ? 's' : ''}`,
+        icon: MessageSquare,
+        action: () => window.location.href = '/messages',
+        type: 'messages'
+      });
     }
-  ];
+
+    // Profile setup reminder
+    if (!user?.businessName || !user?.serviceArea || !user?.about) {
+      notifications.push({
+        id: 'profile',
+        title: 'Complete Your Profile',
+        message: 'Set up your business name, service area, and bio',
+        icon: UserIcon,
+        action: () => window.location.href = '/settings',
+        type: 'profile'
+      });
+    }
+
+    // Stripe account setup
+    if (!stripeStatus?.connected) {
+      notifications.push({
+        id: 'stripe',
+        title: 'Configure Payment Account',
+        message: 'Set up Stripe to receive payments from clients',
+        icon: CreditCard,
+        action: () => {
+          window.location.href = '/settings';
+          // Scroll to payment section after navigation
+          setTimeout(() => {
+            const paymentSection = document.querySelector('[data-section="payment"]');
+            if (paymentSection) {
+              paymentSection.scrollIntoView({ behavior: 'smooth' });
+            }
+          }, 100);
+        },
+        type: 'payment'
+      });
+    }
+
+    return notifications;
+  };
+
+  const notifications = generateNotifications();
 
   if (statsLoading) {
     return (
@@ -97,18 +130,74 @@ export default function Dashboard() {
             <h1 className="text-xl font-bold text-gold">Clippr</h1>
           </div>
           <div className="flex items-center space-x-4">
-            <Link href="/messages">
+            <div className="relative">
               <Button
                 variant="ghost"
                 size="sm"
                 className="relative touch-target p-2"
+                onClick={() => setShowNotifications(!showNotifications)}
               >
                 <Bell className="w-5 h-5 text-steel" />
-                {unreadCount > 0 && (
-                  <div className="notification-badge">{unreadCount}</div>
+                {notifications.length > 0 && (
+                  <div className="notification-badge">{notifications.length}</div>
                 )}
               </Button>
-            </Link>
+
+              {/* Notification Dropdown */}
+              {showNotifications && (
+                <div 
+                  ref={notificationRef}
+                  className="absolute right-0 top-full mt-2 w-80 bg-charcoal border border-steel/20 rounded-lg shadow-lg z-50 max-h-96 overflow-y-auto"
+                >
+                  <div className="p-3 border-b border-steel/20">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-sm font-medium text-white">Notifications</h3>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setShowNotifications(false)}
+                        className="h-6 w-6 p-0 text-steel hover:text-white"
+                      >
+                        <X className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </div>
+                  
+                  <div className="max-h-80 overflow-y-auto">
+                    {notifications.length === 0 ? (
+                      <div className="p-4 text-center text-steel text-sm">
+                        All caught up! No new notifications.
+                      </div>
+                    ) : (
+                      notifications.map((notification) => {
+                        const IconComponent = notification.icon;
+                        return (
+                          <div
+                            key={notification.id}
+                            onClick={notification.action}
+                            className="p-3 hover:bg-steel/10 cursor-pointer border-b border-steel/10 last:border-b-0 transition-colors"
+                          >
+                            <div className="flex items-start space-x-3">
+                              <div className="flex-shrink-0 mt-0.5">
+                                <IconComponent className="w-4 h-4 text-gold" />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-medium text-white">
+                                  {notification.title}
+                                </p>
+                                <p className="text-xs text-steel mt-1">
+                                  {notification.message}
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
             <Link href="/settings" className="touch-target">
               <Avatar className="w-8 h-8">
                 <AvatarImage src={user?.photoUrl || undefined} alt={`${user?.firstName} ${user?.lastName}`} />
