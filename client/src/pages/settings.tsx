@@ -327,9 +327,12 @@ export default function Settings() {
         observer.observe(document.body, { childList: true });
         (autocomplete as any).observer = observer;
 
+        // Add multiple event listeners to catch place selection
         autocomplete.addListener('place_changed', () => {
+          console.log('=== PLACE_CHANGED EVENT FIRED ===');
           const place = autocomplete.getPlace();
-          console.log('Place selected:', place);
+          console.log('Place object:', place);
+          console.log('Place name:', place.name);
           console.log('Formatted address:', place.formatted_address);
           
           if (place.formatted_address && addressInputRef.current) {
@@ -353,6 +356,28 @@ export default function Settings() {
             form.trigger('homeBaseAddress');
             
             console.log('Form value after update:', form.getValues('homeBaseAddress'));
+          } else {
+            console.log('No formatted address or input ref missing');
+          }
+        });
+
+        // Add debug listener for when dropdown items are selected
+        const inputElement = addressInputRef.current;
+        inputElement.addEventListener('focus', () => {
+          console.log('Input focused - autocomplete should be active');
+        });
+        
+        inputElement.addEventListener('blur', () => {
+          console.log('Input blurred');
+        });
+        
+        inputElement.addEventListener('keydown', (e) => {
+          console.log('Key pressed:', e.key);
+          if (e.key === 'Enter') {
+            console.log('Enter pressed - checking if place was selected');
+            setTimeout(() => {
+              console.log('Current input value after Enter:', inputElement.value);
+            }, 100);
           }
         });
 
