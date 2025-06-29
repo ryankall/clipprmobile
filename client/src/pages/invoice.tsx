@@ -81,7 +81,10 @@ const templateFormSchema = z.object({
 const serviceFormSchema = z.object({
   name: z.string().min(1, "Service name is required").max(60, "Service name must be 60 characters or less"),
   description: z.string().max(200, "Description must be 200 characters or less").optional(),
-  price: z.string().min(1, "Price is required"),
+  price: z.string().min(1, "Price is required").refine((val) => {
+    const num = parseFloat(val);
+    return !isNaN(num) && num >= 0 && num <= 99999999.99;
+  }, "Price must be between $0.00 and $99,999,999.99"),
   duration: z.string().min(1, "Duration is required"),
   category: z.string().min(1, "Category is required"),
 });
@@ -89,7 +92,10 @@ const serviceFormSchema = z.object({
 const serviceCreateSchema = z.object({
   name: z.string().min(1, "Service name is required").max(60, "Service name must be 60 characters or less"),
   description: z.string().max(200, "Description must be 200 characters or less").optional(),
-  price: z.string().min(1, "Price is required"),
+  price: z.string().min(1, "Price is required").refine((val) => {
+    const num = parseFloat(val);
+    return !isNaN(num) && num >= 0 && num <= 99999999.99;
+  }, "Price must be between $0.00 and $99,999,999.99"),
   duration: z.string().min(1, "Duration is required"),
   category: z.string().min(1, "Category is required"),
 });
@@ -1513,6 +1519,7 @@ export default function InvoicePage() {
                           {...field}
                           type="number"
                           step="0.01"
+                          max="99999999.99"
                           className="bg-charcoal border-steel/40 text-white"
                           placeholder="0.00"
                         />
@@ -1679,6 +1686,7 @@ export default function InvoicePage() {
                           {...field}
                           type="number"
                           step="0.01"
+                          max="99999999.99"
                           className="bg-charcoal border-steel/40 text-white"
                           placeholder="0.00"
                         />
