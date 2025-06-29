@@ -135,9 +135,12 @@ export function configurePassport() {
 
   passport.deserializeUser(async (id: number, done) => {
     try {
+      console.log('Deserializing user with ID:', id);
       const user = await storage.getUser(id);
+      console.log('Found user:', user ? 'yes' : 'no');
       done(null, user);
     } catch (error) {
+      console.log('Deserialization error:', error);
       done(error);
     }
   });
