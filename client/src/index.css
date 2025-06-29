@@ -246,6 +246,16 @@
   scrollbar-width: none;
 }
 
+/* Utility class for hiding scrollbars */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
 /* Specific targeting for the dialog content with overflow */
 [data-radix-dialog-content].overflow-y-auto::-webkit-scrollbar,
 .bg-dark-card.overflow-y-auto::-webkit-scrollbar {

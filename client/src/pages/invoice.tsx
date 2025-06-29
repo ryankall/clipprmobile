@@ -275,14 +275,23 @@ export default function InvoicePage() {
     const tipPercentage = form.watch("tipPercentage") || 0;
     const manualTip = parseFloat(form.watch("tip") || "0");
     
-    // Calculate tip based on percentage if set
-    const calculatedTip = tipPercentage > 0 ? (subtotal * tipPercentage / 100) : manualTip;
+    // Calculate tip based on percentage if set, otherwise use manual tip
+    let calculatedTip;
+    if (tipPercentage > 0) {
+      calculatedTip = subtotal * tipPercentage / 100;
+      form.setValue("tip", calculatedTip.toFixed(2));
+    } else if (tipPercentage === 0) {
+      // When "No tip" is selected, reset tip to 0
+      calculatedTip = 0;
+      form.setValue("tip", "0.00");
+    } else {
+      // Use manual tip amount
+      calculatedTip = manualTip;
+    }
+    
     const total = subtotal + calculatedTip;
     
     form.setValue("subtotal", subtotal.toFixed(2));
-    if (tipPercentage > 0) {
-      form.setValue("tip", calculatedTip.toFixed(2));
-    }
     form.setValue("total", total.toFixed(2));
   }, [selectedServices, form.watch("tip"), form.watch("tipPercentage")]);
 
@@ -676,7 +685,7 @@ export default function InvoicePage() {
                 Create
               </Button>
             </DialogTrigger>
-            <DialogContent className="bg-dark-card border-steel/20 text-white">
+            <DialogContent className="bg-dark-card border-steel/20 text-white max-h-[90vh] overflow-y-auto scrollbar-hide">
               <DialogHeader>
                 <DialogTitle className="text-white">Create Invoice</DialogTitle>
                 <DialogDescription className="text-steel">
@@ -848,6 +857,7 @@ export default function InvoicePage() {
                         <FormItem>
                           <FormLabel className="text-white">Tip (%)</FormLabel>
                           <Select
+                            value={field.value?.toString() || ""}
                             onValueChange={(value) =>
                               field.onChange(parseInt(value))
                             }
