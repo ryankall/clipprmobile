@@ -329,7 +329,7 @@ export default function Messages() {
                     <div className="flex items-center space-x-2">
                       <Clock className="w-4 h-4 text-gold" />
                       <span className="text-sm">
-                        {format(new Date(selectedMessage.createdAt), "PPP 'at' p")}
+                        {format(new Date(selectedMessage.createdAt), "MMM d, yyyy 'at' h:mm a")}
                       </span>
                     </div>
 
@@ -337,7 +337,7 @@ export default function Messages() {
                       <div className="flex items-center space-x-2">
                         <Calendar className="w-4 h-4 text-gold" />
                         <span className="text-sm">
-                          Preferred: {format(new Date(selectedMessage.preferredDate), "PPP")}
+                          Preferred: {format(new Date(selectedMessage.preferredDate), "MMM d, yyyy")}
                         </span>
                       </div>
                     )}

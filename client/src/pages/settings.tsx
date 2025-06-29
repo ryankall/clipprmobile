@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -64,11 +64,7 @@ const profileSchema = z.object({
   serviceArea: z.string().optional(),
   about: z.string().optional(),
   photoUrl: z.string().optional(),
-  homeBaseAddress: z.string()
-    .optional()
-    .refine(async (val) => !val || await validateAddress(val), {
-      message: "Please enter a valid address that can be found on the map",
-    }),
+  homeBaseAddress: z.string().optional(),
   defaultGraceTime: z.number().min(0).max(60).optional(),
 });
 
@@ -108,7 +104,10 @@ export default function Settings() {
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [isConnectingStripe, setIsConnectingStripe] = useState(false);
+  const [addressSuggestions, setAddressSuggestions] = useState<string[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const addressInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
   const { signOut } = useAuth();
 
@@ -196,6 +195,51 @@ export default function Settings() {
       defaultGraceTime: 5,
     },
   });
+
+  // Address autocomplete function
+  const handleAddressChange = useCallback(async (value: string) => {
+    if (!value || value.length < 3) {
+      setAddressSuggestions([]);
+      setShowSuggestions(false);
+      return;
+    }
+
+    try {
+      const response = await fetch(
+        `https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${encodeURIComponent(value)}&key=${import.meta.env.VITE_GOOGLE_MAPS_API_KEY}&types=address`
+      );
+      
+      const data = await response.json();
+      
+      if (data.status === 'OK' && data.predictions) {
+        const suggestions = data.predictions.map((prediction: any) => prediction.description);
+        setAddressSuggestions(suggestions);
+        setShowSuggestions(true);
+      } else {
+        setAddressSuggestions([]);
+        setShowSuggestions(false);
+      }
+    } catch (error) {
+      console.error('Address autocomplete error:', error);
+      setAddressSuggestions([]);
+      setShowSuggestions(false);
+    }
+  }, []);
+
+  // Validate address using Google Geocoding API
+  const validateAddressWithGoogle = useCallback(async (address: string): Promise<boolean> => {
+    if (!address || address.trim().length < 10) return false;
+    
+    try {
+      const response = await fetch(
+        `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(address)}&key=${import.meta.env.VITE_GOOGLE_MAPS_API_KEY}`
+      );
+      const data = await response.json();
+      return data.status === "OK" && data.results.length > 0;
+    } catch {
+      return false;
+    }
+  }, []);
 
   // Reset form when user data changes
   useEffect(() => {
@@ -514,11 +558,44 @@ export default function Settings() {
                             <FormItem>
                               <FormLabel className="text-white">Home Base Address</FormLabel>
                               <FormControl>
-                                <Input 
-                                  {...field}
-                                  className="bg-charcoal border-steel/40 text-white"
-                                  placeholder="Your starting location (e.g., 123 Main St, City, State)"
-                                />
+                                <div className="relative">
+                                  <Input 
+                                    {...field}
+                                    ref={addressInputRef}
+                                    className="bg-charcoal border-steel/40 text-white"
+                                    placeholder="Your starting location (e.g., 123 Main St, City, State)"
+                                    onChange={(e) => {
+                                      field.onChange(e);
+                                      handleAddressChange(e.target.value);
+                                    }}
+                                    onFocus={() => {
+                                      if (addressSuggestions.length > 0) {
+                                        setShowSuggestions(true);
+                                      }
+                                    }}
+                                    onBlur={() => {
+                                      setTimeout(() => setShowSuggestions(false), 200);
+                                    }}
+                                  />
+                                  {showSuggestions && addressSuggestions.length > 0 && (
+                                    <div className="absolute z-50 w-full mt-1 bg-charcoal border border-steel/40 rounded-md shadow-lg max-h-60 overflow-y-auto">
+                                      {addressSuggestions.map((suggestion, index) => (
+                                        <button
+                                          key={index}
+                                          type="button"
+                                          className="w-full px-3 py-2 text-left text-white hover:bg-steel/20 border-b border-steel/20 last:border-b-0"
+                                          onClick={() => {
+                                            field.onChange(suggestion);
+                                            setShowSuggestions(false);
+                                            setAddressSuggestions([]);
+                                          }}
+                                        >
+                                          {suggestion}
+                                        </button>
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
                               </FormControl>
                               <p className="text-steel text-xs">
                                 Starting point for calculating travel time to your first appointment
