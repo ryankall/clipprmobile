@@ -2,7 +2,7 @@ import { Request, Response } from 'express';
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { requireAuth } from './auth';
+import { requireAuth, setupAuth } from './auth';
 import multer from 'multer';
 import { insertClientSchema, insertServiceSchema, insertAppointmentSchema, insertInvoiceSchema, insertGalleryPhotoSchema, insertMessageSchema } from "@shared/schema";
 import { z } from "zod";
@@ -39,6 +39,8 @@ if (!stripe) {
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Initialize authentication middleware
+  setupAuth(app);
 
   // Auth routes
   app.post("/api/auth/signup", async (req, res) => {
