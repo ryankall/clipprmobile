@@ -261,7 +261,6 @@ export default function InvoicePage() {
     }) => {
       return apiRequest("PATCH", `/api/services/${data.id}`, {
         ...data.service,
-        price: parseFloat(data.service.price),
         duration: parseInt(data.service.duration),
       });
     },
@@ -289,7 +288,6 @@ export default function InvoicePage() {
     mutationFn: async (data: z.infer<typeof serviceCreateSchema>) => {
       const payload = {
         ...data,
-        price: parseFloat(data.price),
         duration: parseInt(data.duration),
       };
       console.log("Sending service data:", payload);
