@@ -46,7 +46,6 @@ export function WorkingHoursDialog({ currentHours }: WorkingHoursDialogProps) {
 
   const updateWorkingHoursMutation = useMutation({
     mutationFn: async (hours: WorkingHours) => {
-      console.log('Sending working hours update:', hours);
       const token = localStorage.getItem("token");
       
       const headers: Record<string, string> = {
@@ -66,16 +65,12 @@ export function WorkingHoursDialog({ currentHours }: WorkingHoursDialogProps) {
       
       if (!response.ok) {
         const errorText = await response.text();
-        console.error('Server response error:', response.status, errorText);
         throw new Error(`Server error: ${response.status}`);
       }
       
-      const result = await response.json();
-      console.log('Working hours update response:', result);
-      return result;
+      return await response.json();
     },
     onSuccess: () => {
-      console.log('Working hours update succeeded');
       toast({
         title: "Working Hours Updated",
         description: "Your working hours have been saved successfully",
@@ -84,7 +79,6 @@ export function WorkingHoursDialog({ currentHours }: WorkingHoursDialogProps) {
       setIsOpen(false);
     },
     onError: (error: any) => {
-      console.error('Working hours update error:', error);
       toast({
         title: "Error",
         description: error.message || "Failed to update working hours",
@@ -93,7 +87,30 @@ export function WorkingHoursDialog({ currentHours }: WorkingHoursDialogProps) {
     },
   });
 
+  const validateTimeRange = (start: string, end: string): boolean => {
+    const startMinutes = parseInt(start.split(':')[0]) * 60 + parseInt(start.split(':')[1]);
+    const endMinutes = parseInt(end.split(':')[0]) * 60 + parseInt(end.split(':')[1]);
+    return startMinutes < endMinutes;
+  };
+
   const handleSave = () => {
+    // Validate all enabled days have valid time ranges
+    const invalidDays: string[] = [];
+    Object.entries(workingHours).forEach(([day, hours]) => {
+      if (hours.enabled && !validateTimeRange(hours.start, hours.end)) {
+        invalidDays.push(day.charAt(0).toUpperCase() + day.slice(1));
+      }
+    });
+
+    if (invalidDays.length > 0) {
+      toast({
+        title: "Invalid Time Range",
+        description: `Start time must be before end time for: ${invalidDays.join(', ')}`,
+        variant: "destructive",
+      });
+      return;
+    }
+
     updateWorkingHoursMutation.mutate(workingHours);
   };
 

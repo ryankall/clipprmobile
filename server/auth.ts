@@ -145,16 +145,7 @@ export function configurePassport() {
 
 // Middleware to check if user is authenticated
 export function requireAuth(req: Request, res: Response, next: NextFunction) {
-  console.log('RequireAuth middleware:', {
-    isAuthenticated: req.isAuthenticated ? req.isAuthenticated() : false,
-    user: !!req.user,
-    sessionID: req.sessionID,
-    method: req.method,
-    url: req.url
-  });
-  
   if (req.isAuthenticated && req.isAuthenticated()) {
-    console.log('Session authentication successful');
     return next();
   }
   
@@ -164,15 +155,12 @@ export function requireAuth(req: Request, res: Response, next: NextFunction) {
     try {
       const decoded = jwt.verify(token, JWT_SECRET) as { userId: number };
       req.user = { id: decoded.userId } as User;
-      console.log('JWT authentication successful');
       return next();
     } catch (error) {
-      console.log('JWT authentication failed:', error);
       // Invalid token
     }
   }
   
-  console.log('Authentication failed');
   res.status(401).json({ message: 'Authentication required' });
 }
 
