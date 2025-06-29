@@ -79,16 +79,16 @@ const templateFormSchema = z.object({
 });
 
 const serviceFormSchema = z.object({
-  name: z.string().min(1, "Service name is required"),
-  description: z.string().optional(),
+  name: z.string().min(1, "Service name is required").max(60, "Service name must be 60 characters or less"),
+  description: z.string().max(200, "Description must be 200 characters or less").optional(),
   price: z.string().min(1, "Price is required"),
   duration: z.string().min(1, "Duration is required"),
   category: z.string().min(1, "Category is required"),
 });
 
 const serviceCreateSchema = z.object({
-  name: z.string().min(1, "Service name is required"),
-  description: z.string().optional(),
+  name: z.string().min(1, "Service name is required").max(60, "Service name must be 60 characters or less"),
+  description: z.string().max(200, "Description must be 200 characters or less").optional(),
   price: z.string().min(1, "Price is required"),
   duration: z.string().min(1, "Duration is required"),
   category: z.string().min(1, "Category is required"),
@@ -1469,6 +1469,7 @@ export default function InvoicePage() {
                     <FormControl>
                       <Input
                         {...field}
+                        maxLength={60}
                         className="bg-charcoal border-steel/40 text-white"
                         placeholder="e.g., Men's Haircut"
                       />
@@ -1487,10 +1488,14 @@ export default function InvoicePage() {
                     <FormControl>
                       <Textarea
                         {...field}
+                        maxLength={200}
                         className="bg-charcoal border-steel/40 text-white"
                         placeholder="Service description..."
                       />
                     </FormControl>
+                    <div className="text-right text-xs text-steel mt-1">
+                      {(field.value || "").length}/200
+                    </div>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -1628,6 +1633,7 @@ export default function InvoicePage() {
                     <FormControl>
                       <Input
                         {...field}
+                        maxLength={60}
                         className="bg-charcoal border-steel/40 text-white"
                         placeholder="e.g., Men's Haircut"
                       />
@@ -1648,10 +1654,14 @@ export default function InvoicePage() {
                     <FormControl>
                       <Textarea
                         {...field}
+                        maxLength={200}
                         className="bg-charcoal border-steel/40 text-white"
                         placeholder="Service description..."
                       />
                     </FormControl>
+                    <div className="text-right text-xs text-steel mt-1">
+                      {(field.value || "").length}/200
+                    </div>
                     <FormMessage />
                   </FormItem>
                 )}
