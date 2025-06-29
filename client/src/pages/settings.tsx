@@ -683,64 +683,9 @@ export default function Settings() {
                                   autoComplete="off"
                                 />
                               </FormControl>
-                              <div className="flex items-center justify-between">
-                                <p className="text-steel text-xs">
-                                  {isGoogleMapsLoaded 
-                                    ? "Google Places autocomplete is active. Start typing to see suggestions."
-                                    : "Starting point for calculating travel time to your first appointment."
-                                  }
-                                </p>
-                                {isGoogleMapsLoaded && (
-                                  <Button
-                                    type="button"
-                                    variant="outline"
-                                    size="sm"
-                                    className="text-xs h-6 px-2"
-                                    onClick={() => {
-                                      console.log('Manual autocomplete test');
-                                      console.log('Google Maps loaded:', !!window.google);
-                                      console.log('Input ref:', addressInputRef.current);
-                                      console.log('Autocomplete ref:', autocompleteRef.current);
-                                      
-                                      if (addressInputRef.current && !autocompleteRef.current) {
-                                        try {
-                                          const autocomplete = new window.google.maps.places.Autocomplete(
-                                            addressInputRef.current,
-                                            {
-                                              types: ['address'],
-                                              componentRestrictions: { country: 'US' }
-                                            }
-                                          );
-
-                                          // Fix z-index for dropdown
-                                          setTimeout(() => {
-                                            const pacContainers = document.querySelectorAll('.pac-container');
-                                            pacContainers.forEach(container => {
-                                              (container as HTMLElement).style.zIndex = '10000';
-                                              (container as HTMLElement).style.position = 'absolute';
-                                            });
-                                          }, 100);
-
-                                          autocomplete.addListener('place_changed', () => {
-                                            const place = autocomplete.getPlace();
-                                            console.log('Place selected from manual test:', place);
-                                            if (place.formatted_address) {
-                                              form.setValue('homeBaseAddress', place.formatted_address);
-                                              form.trigger('homeBaseAddress');
-                                            }
-                                          });
-                                          autocompleteRef.current = autocomplete;
-                                          console.log('Manual autocomplete initialized with z-index fix');
-                                        } catch (error) {
-                                          console.error('Manual init error:', error);
-                                        }
-                                      }
-                                    }}
-                                  >
-                                    Test
-                                  </Button>
-                                )}
-                              </div>
+                              <p className="text-steel text-xs">
+                                Starting point for calculating travel time to your first appointment. Enter your full address including city and state.
+                              </p>
                               <FormMessage />
                             </FormItem>
                           )}
