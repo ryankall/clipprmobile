@@ -86,12 +86,19 @@ const serviceFormSchema = z.object({
   category: z.string().min(1, "Category is required"),
 });
 
+const serviceCreateSchema = z.object({
+  name: z.string().min(1, "Service name is required"),
+  description: z.string().optional(),
+  price: z.string().min(1, "Price is required"),
+});
+
 export default function InvoicePage() {
   const { id } = useParams<{ id?: string }>();
   const [location] = useLocation();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isTemplateDialogOpen, setIsTemplateDialogOpen] = useState(false);
   const [isServiceEditOpen, setIsServiceEditOpen] = useState(false);
+  const [isServiceCreateOpen, setIsServiceCreateOpen] = useState(false);
   const [editingService, setEditingService] = useState<Service | null>(null);
   const [savedTemplates, setSavedTemplates] = useState<any[]>([]);
   const [selectedServices, setSelectedServices] = useState<Array<{
@@ -151,6 +158,15 @@ export default function InvoicePage() {
       price: "",
       duration: "",
       category: "",
+    },
+  });
+
+  const serviceCreateForm = useForm<z.infer<typeof serviceCreateSchema>>({
+    resolver: zodResolver(serviceCreateSchema),
+    defaultValues: {
+      name: "",
+      description: "",
+      price: "",
     },
   });
 
@@ -267,6 +283,34 @@ export default function InvoicePage() {
     },
   });
 
+  // Service create mutation
+  const createServiceMutation = useMutation({
+    mutationFn: async (data: z.infer<typeof serviceCreateSchema>) => {
+      return apiRequest("POST", "/api/services", {
+        ...data,
+        price: parseFloat(data.price),
+        duration: 30, // Default duration
+        category: "Haircuts", // Default category
+      });
+    },
+    onSuccess: () => {
+      toast({
+        title: "Service Created",
+        description: "Service has been created successfully",
+      });
+      setIsServiceCreateOpen(false);
+      serviceCreateForm.reset();
+      queryClient.invalidateQueries({ queryKey: ["/api/services"] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to create service",
+        variant: "destructive",
+      });
+    },
+  });
+
   // Service delete mutation
   const deleteServiceMutation = useMutation({
     mutationFn: async (serviceId: number) => {
@@ -344,6 +388,11 @@ export default function InvoicePage() {
     if (editingService) {
       editServiceMutation.mutate({ id: editingService.id, service: data });
     }
+  };
+
+  // Service create form submit
+  const onServiceCreateSubmit = (data: z.infer<typeof serviceCreateSchema>) => {
+    createServiceMutation.mutate(data);
   };
 
   // Handle template deletion
@@ -1201,7 +1250,7 @@ export default function InvoicePage() {
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="text-white">Service Templates</CardTitle>
             <Button
-              onClick={() => setIsDialogOpen(true)}
+              onClick={() => setIsServiceCreateOpen(true)}
               variant="outline"
               size="sm"
               className="bg-charcoal border-steel/40 text-gold hover:bg-charcoal/80"
@@ -1294,7 +1343,7 @@ export default function InvoicePage() {
                 <Scissors className="w-12 h-12 mx-auto mb-3 opacity-50" />
                 <p>No services created yet</p>
                 <Button
-                  onClick={() => setIsDialogOpen(true)}
+                  onClick={() => setIsServiceCreateOpen(true)}
                   variant="link"
                   className="text-gold text-sm mt-2 p-0 h-auto"
                 >
@@ -1390,6 +1439,100 @@ export default function InvoicePage() {
           </CardContent>
         </Card>
       </main>
+
+      {/* Service Create Modal */}
+      <Dialog open={isServiceCreateOpen} onOpenChange={setIsServiceCreateOpen}>
+        <DialogContent className="bg-dark-card border-steel/20 text-white">
+          <DialogHeader>
+            <DialogTitle className="text-white">Create Service</DialogTitle>
+            <DialogDescription className="text-steel">
+              Create a new service with basic details.
+            </DialogDescription>
+          </DialogHeader>
+          <Form {...serviceCreateForm}>
+            <form
+              onSubmit={serviceCreateForm.handleSubmit(onServiceCreateSubmit)}
+              className="space-y-4"
+            >
+              <FormField
+                control={serviceCreateForm.control}
+                name="name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-white">Service Name</FormLabel>
+                    <FormControl>
+                      <Input
+                        {...field}
+                        className="bg-charcoal border-steel/40 text-white"
+                        placeholder="e.g., Men's Haircut"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={serviceCreateForm.control}
+                name="price"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-white">Price ($)</FormLabel>
+                    <FormControl>
+                      <Input
+                        {...field}
+                        type="number"
+                        step="0.01"
+                        className="bg-charcoal border-steel/40 text-white"
+                        placeholder="0.00"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={serviceCreateForm.control}
+                name="description"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-white">Description (Optional)</FormLabel>
+                    <FormControl>
+                      <Textarea
+                        {...field}
+                        className="bg-charcoal border-steel/40 text-white"
+                        placeholder="Service description..."
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <div className="flex space-x-3">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="flex-1 bg-charcoal border-steel/40 text-white hover:bg-steel/20"
+                  onClick={() => setIsServiceCreateOpen(false)}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  className="flex-1 gradient-gold text-charcoal font-semibold"
+                  disabled={createServiceMutation.isPending}
+                >
+                  {createServiceMutation.isPending
+                    ? "Creating..."
+                    : "Create Service"}
+                </Button>
+              </div>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
 
       {/* Service Edit Modal */}
       <Dialog open={isServiceEditOpen} onOpenChange={setIsServiceEditOpen}>
