@@ -255,30 +255,57 @@ export default function Settings() {
 
   // Initialize autocomplete when Google Maps is loaded and input is available
   useEffect(() => {
-    if (isGoogleMapsLoaded && addressInputRef.current && !autocompleteRef.current) {
+    if (isGoogleMapsLoaded && isEditingProfile && addressInputRef.current && !autocompleteRef.current) {
       try {
-        console.log('Initializing Google Places Autocomplete...');
+        console.log('Initializing Google Places Autocomplete for input:', addressInputRef.current);
         
-        // Use standard Google Places Autocomplete
-        const autocomplete = new window.google.maps.places.Autocomplete(
-          addressInputRef.current,
-          {
-            types: ['address'],
-            componentRestrictions: { country: 'US' },
-            fields: ['formatted_address', 'address_components', 'geometry']
-          }
-        );
+        // Ensure the input is visible and ready
+        const inputElement = addressInputRef.current;
+        if (!inputElement || inputElement.offsetParent === null) {
+          console.log('Input element not visible, retrying...');
+          setTimeout(() => {
+            // Retry after modal is fully rendered
+            if (addressInputRef.current && !autocompleteRef.current) {
+              initializeAutocomplete();
+            }
+          }, 500);
+          return;
+        }
 
-        autocomplete.addListener('place_changed', () => {
-          const place = autocomplete.getPlace();
-          console.log('Place selected:', place);
-          if (place.formatted_address) {
-            form.setValue('homeBaseAddress', place.formatted_address);
-          }
-        });
+        initializeAutocomplete();
+        
+        function initializeAutocomplete() {
+          if (!addressInputRef.current || autocompleteRef.current) return;
+          
+          try {
+            console.log('Creating autocomplete instance...');
+            
+            // Use standard Google Places Autocomplete
+            const autocomplete = new window.google.maps.places.Autocomplete(
+              addressInputRef.current,
+              {
+                types: ['address'],
+                componentRestrictions: { country: 'US' },
+                fields: ['formatted_address', 'address_components', 'geometry']
+              }
+            );
 
-        autocompleteRef.current = autocomplete;
-        console.log('Google Places Autocomplete initialized successfully');
+            autocomplete.addListener('place_changed', () => {
+              const place = autocomplete.getPlace();
+              console.log('Place selected:', place);
+              if (place.formatted_address) {
+                form.setValue('homeBaseAddress', place.formatted_address);
+                form.trigger('homeBaseAddress'); // Trigger validation
+              }
+            });
+
+            autocompleteRef.current = autocomplete;
+            console.log('Google Places Autocomplete initialized successfully on input');
+          } catch (error) {
+            console.error('Error in initializeAutocomplete:', error);
+          }
+        }
+        
       } catch (error) {
         console.error('Error initializing Google Places Autocomplete:', error);
       }
@@ -294,7 +321,7 @@ export default function Settings() {
         }
       }
     };
-  }, [isGoogleMapsLoaded, form]);
+  }, [isGoogleMapsLoaded, isEditingProfile, form]);
 
   // Reset form when user data changes
   useEffect(() => {
@@ -621,12 +648,52 @@ export default function Settings() {
                                   autoComplete="off"
                                 />
                               </FormControl>
-                              <p className="text-steel text-xs">
-                                {isGoogleMapsLoaded 
-                                  ? "Google Places autocomplete is active. Start typing to see suggestions."
-                                  : "Starting point for calculating travel time to your first appointment."
-                                }
-                              </p>
+                              <div className="flex items-center justify-between">
+                                <p className="text-steel text-xs">
+                                  {isGoogleMapsLoaded 
+                                    ? "Google Places autocomplete is active. Start typing to see suggestions."
+                                    : "Starting point for calculating travel time to your first appointment."
+                                  }
+                                </p>
+                                {isGoogleMapsLoaded && (
+                                  <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    className="text-xs h-6 px-2"
+                                    onClick={() => {
+                                      console.log('Manual autocomplete test');
+                                      console.log('Google Maps loaded:', !!window.google);
+                                      console.log('Input ref:', addressInputRef.current);
+                                      console.log('Autocomplete ref:', autocompleteRef.current);
+                                      
+                                      if (addressInputRef.current && !autocompleteRef.current) {
+                                        try {
+                                          const autocomplete = new window.google.maps.places.Autocomplete(
+                                            addressInputRef.current,
+                                            {
+                                              types: ['address'],
+                                              componentRestrictions: { country: 'US' }
+                                            }
+                                          );
+                                          autocomplete.addListener('place_changed', () => {
+                                            const place = autocomplete.getPlace();
+                                            if (place.formatted_address) {
+                                              form.setValue('homeBaseAddress', place.formatted_address);
+                                            }
+                                          });
+                                          autocompleteRef.current = autocomplete;
+                                          console.log('Manual autocomplete initialized');
+                                        } catch (error) {
+                                          console.error('Manual init error:', error);
+                                        }
+                                      }
+                                    }}
+                                  >
+                                    Test
+                                  </Button>
+                                )}
+                              </div>
                               <FormMessage />
                             </FormItem>
                           )}
