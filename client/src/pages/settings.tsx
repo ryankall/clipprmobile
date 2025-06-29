@@ -205,48 +205,62 @@ export default function Settings() {
 
 
 
-  // Load Google Maps JavaScript API with Places library
+  // Setup Google Maps Extended Component Library
   useEffect(() => {
-    const loadGoogleMapsAPI = () => {
+    const setupGoogleMapsExtended = async () => {
       const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
       if (!apiKey) {
         console.warn('Google Maps API key not found');
         return;
       }
 
-      // Check if Google Maps is already loaded
-      if (window.google && window.google.maps && window.google.maps.places) {
-        setIsGoogleMapsLoaded(true);
-        return;
+      try {
+        // Update the API loader with the correct key
+        let apiLoader = document.querySelector('gmpx-api-loader');
+        if (!apiLoader) {
+          apiLoader = document.createElement('gmpx-api-loader');
+          document.body.appendChild(apiLoader);
+        }
+        apiLoader.setAttribute('key', apiKey);
+        apiLoader.setAttribute('solution-channel', 'GMP_QB_addressselection_v4_cA');
+
+        // Wait for the extended component library to be available
+        let attempts = 0;
+        const checkForExtendedLibrary = () => {
+          attempts++;
+          
+          if (window.google && window.google.maps && window.google.maps.places) {
+            console.log('Google Maps Extended Component Library ready');
+            setIsGoogleMapsLoaded(true);
+            return;
+          }
+          
+          if (attempts < 50) { // Try for up to 5 seconds
+            setTimeout(checkForExtendedLibrary, 100);
+          } else {
+            console.log('Extended library timeout, falling back to standard API');
+            // Fallback to standard Google Maps API
+            const script = document.createElement('script');
+            script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places&callback=initGoogleMaps`;
+            script.async = true;
+            
+            (window as any).initGoogleMaps = () => {
+              console.log('Fallback Google Maps API loaded');
+              setIsGoogleMapsLoaded(true);
+              delete (window as any).initGoogleMaps;
+            };
+            
+            document.head.appendChild(script);
+          }
+        };
+        
+        checkForExtendedLibrary();
+      } catch (error) {
+        console.error('Error setting up Google Maps:', error);
       }
-
-      // Remove any existing Google Maps scripts to prevent conflicts
-      const existingScripts = document.querySelectorAll('script[src*="maps.googleapis.com"]');
-      existingScripts.forEach(script => script.remove());
-
-      // Wait a moment then load fresh
-      setTimeout(() => {
-        const script = document.createElement('script');
-        script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places&callback=initGoogleMaps`;
-        script.async = true;
-        script.defer = true;
-        
-        // Set up global callback
-        (window as any).initGoogleMaps = () => {
-          console.log('Google Maps API loaded successfully');
-          setIsGoogleMapsLoaded(true);
-          delete (window as any).initGoogleMaps; // Clean up
-        };
-        
-        script.onerror = (error) => {
-          console.error('Failed to load Google Maps API:', error);
-        };
-        
-        document.head.appendChild(script);
-      }, 100);
     };
 
-    loadGoogleMapsAPI();
+    setupGoogleMapsExtended();
   }, []);
 
   // Initialize autocomplete when Google Maps is loaded and input is available
