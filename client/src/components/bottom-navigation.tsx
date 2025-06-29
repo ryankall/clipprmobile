@@ -1,4 +1,4 @@
-import { Home, Calendar, Users, Receipt, MessageCircle, Settings } from "lucide-react";
+import { Home, Calendar, Users, Camera, MessageCircle, Settings } from "lucide-react";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -20,7 +20,6 @@ export function BottomNavigation({ currentPath }: BottomNavigationProps) {
     { path: "/", icon: Home, label: "Home" },
     { path: "/calendar", icon: Calendar, label: "Calendar" },
     { path: "/clients", icon: Users, label: "Clients" },
-    { path: "/invoice", icon: Receipt, label: "Invoices" },
     { 
       path: "/messages", 
       icon: MessageCircle, 

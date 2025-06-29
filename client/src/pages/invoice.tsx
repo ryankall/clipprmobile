@@ -1114,52 +1114,188 @@ export default function InvoicePage() {
           </Card>
         </div>
 
-        {/* Service Templates for Quick Access */}
+        {/* Quick Invoice Templates Creator */}
         <Card className="bg-dark-card border-steel/20">
           <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle className="text-white">Service Templates</CardTitle>
-            <Button
-              onClick={() => setIsServiceCreateOpen(true)}
-              variant="outline"
-              size="sm"
-              className="bg-charcoal border-steel/40 text-gold hover:bg-charcoal/80"
+            <CardTitle className="text-white">Create Quick Templates</CardTitle>
+            <Dialog
+              open={isTemplateDialogOpen}
+              onOpenChange={setIsTemplateDialogOpen}
             >
-              <Plus className="w-4 h-4 mr-2" />
-              Add Service
-            </Button>
+              <DialogTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="bg-charcoal border-steel/40 text-gold hover:bg-charcoal/80"
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  New Template
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="bg-dark-card border-steel/40 text-white max-w-md">
+                <DialogHeader>
+                  <DialogTitle className="text-white">
+                    Create Invoice Template
+                  </DialogTitle>
+                  <DialogDescription className="text-steel">
+                    Create a reusable template for quick invoice generation with
+                    consistent pricing.
+                  </DialogDescription>
+                </DialogHeader>
+                <Form {...templateForm}>
+                  <form
+                    onSubmit={templateForm.handleSubmit(onTemplateSubmit)}
+                    className="space-y-4"
+                  >
+                    <FormField
+                      control={templateForm.control}
+                      name="name"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-white">
+                            Template Name
+                          </FormLabel>
+                          <FormControl>
+                            <Input
+                              {...field}
+                              className="bg-charcoal border-steel/40 text-white"
+                              placeholder="e.g., Premium Haircut"
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={templateForm.control}
+                      name="category"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-white">Category</FormLabel>
+                          <Select onValueChange={field.onChange}>
+                            <FormControl>
+                              <SelectTrigger className="bg-charcoal border-steel/40 text-white">
+                                <SelectValue placeholder="Select category" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent className="bg-charcoal border-steel/40 text-white">
+                              <SelectItem
+                                value="haircut"
+                                className="text-white hover:bg-steel/20"
+                              >
+                                Haircut
+                              </SelectItem>
+                              <SelectItem
+                                value="beard"
+                                className="text-white hover:bg-steel/20"
+                              >
+                                Beard Services
+                              </SelectItem>
+                              <SelectItem
+                                value="combo"
+                                className="text-white hover:bg-steel/20"
+                              >
+                                Combo Package
+                              </SelectItem>
+                              <SelectItem
+                                value="special"
+                                className="text-white hover:bg-steel/20"
+                              >
+                                Special Service
+                              </SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={templateForm.control}
+                      name="amount"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-white">
+                            Default Amount ($)
+                          </FormLabel>
+                          <FormControl>
+                            <Input
+                              {...field}
+                              type="number"
+                              step="0.01"
+                              className="bg-charcoal border-steel/40 text-white"
+                              placeholder="0.00"
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={templateForm.control}
+                      name="description"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-white">
+                            Description (Optional)
+                          </FormLabel>
+                          <FormControl>
+                            <Textarea
+                              {...field}
+                              className="bg-charcoal border-steel/40 text-white"
+                              placeholder="Brief description of the service..."
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <div className="flex space-x-3">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="flex-1 bg-charcoal border-steel/40 text-white hover:bg-steel/20"
+                        onClick={() => setIsTemplateDialogOpen(false)}
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        type="submit"
+                        className="flex-1 gradient-gold text-charcoal font-semibold"
+                        disabled={createTemplateMutation.isPending}
+                      >
+                        {createTemplateMutation.isPending
+                          ? "Creating..."
+                          : "Create Template"}
+                      </Button>
+                    </div>
+                  </form>
+                </Form>
+              </DialogContent>
+            </Dialog>
           </CardHeader>
           <CardContent>
-            <p className="text-steel text-sm mb-4">
-              Quick access to your services for easy invoice creation. Use these templates to speed up your billing process.
+            <p className="text-steel text-sm">
+              Create custom invoice templates for frequently used services.
+              Templates can be quickly selected when creating new invoices,
+              saving you time and ensuring consistent pricing.
             </p>
-            <div className="grid grid-cols-2 gap-3">
-              {services?.slice(0, 6).map((service) => (
-                <Button
-                  key={service.id}
-                  variant="outline"
-                  onClick={() => {
-                    const newService = {
-                      serviceId: service.id,
-                      serviceName: service.name,
-                      price: parseFloat(service.price),
-                      quantity: 1,
-                    };
-                    setSelectedServices([...selectedServices, newService]);
-                    toast({
-                      title: "Service Added",
-                      description: `${service.name} added to invoice`,
-                    });
-                  }}
-                  className="h-16 p-3 bg-charcoal border-steel/40 text-white hover:bg-steel/20 text-left flex flex-col justify-center items-start"
-                >
-                  <div className="font-medium text-sm truncate w-full">
-                    {service.name}
-                  </div>
-                  <div className="text-gold text-xs">
-                    ${parseFloat(service.price).toFixed(2)}
-                  </div>
-                </Button>
-              ))}
+            <div className="grid grid-cols-2 gap-3 mt-4">
+              <div className="bg-charcoal rounded-lg p-3 border border-steel/20">
+                <div className="text-sm font-medium text-white">
+                  Quick Access
+                </div>
+                <div className="text-xs text-steel">One-tap invoicing</div>
+              </div>
+              <div className="bg-charcoal rounded-lg p-3 border border-steel/20">
+                <div className="text-sm font-medium text-white">
+                  Consistent Pricing
+                </div>
+                <div className="text-xs text-steel">Standardized rates</div>
+              </div>
             </div>
           </CardContent>
         </Card>

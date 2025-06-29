@@ -141,7 +141,6 @@ npm run start
 
 ```
 Changelog:
-- June 29, 2025. Streamlined invoice creation system - replaced separate invoice templates with service-based quick templates, implemented automatic calculation system where subtotal and total calculate based on selected services, enhanced tip calculations supporting both percentage and manual entry, removed service amount field from invoice creation for cleaner workflow, and integrated service templates directly into invoice page for one-click service addition
 - June 29, 2025. Enhanced booking system with step-by-step flow - implemented comprehensive 6-step booking process (date/time/services/phone/details/confirmation), smart client recognition by phone number that auto-fills returning customer information, working hours management dialog in calendar page, travel service options with conditional address fields, multi-service selection with custom service capability, client lookup API endpoint, and enhanced invoice template system with descriptions and delete functionality
 Changelog:
 - June 28, 2025. Implemented public booking website system - created shareable booking links for each barber (format: /book/6467891820-clipcutman), public booking page with real-time availability calendar, service selection, client information forms, booking request system that creates messages in barber's inbox, public API endpoints for barber profiles/services/availability, and settings page integration showing shareable booking URL with copy-to-clipboard functionality
