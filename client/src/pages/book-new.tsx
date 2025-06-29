@@ -67,7 +67,7 @@ export default function EnhancedBookingPage() {
 
   // Fetch available time slots for selected date (for step 2)
   const { data: timeSlots, isLoading: slotsLoading } = useQuery<TimeSlot[]>({
-    queryKey: [`/api/public/barber/${barberPhone}/availability`, selectedDate],
+    queryKey: [`/api/public/barber/${barberPhone}/availability?date=${selectedDate}`],
     enabled: !!barberPhone && !!selectedDate && currentStep === 2,
   });
 
