@@ -1,4 +1,11 @@
 import { useState, useRef, useEffect, useCallback } from "react";
+
+// Declare Google Maps types
+declare global {
+  interface Window {
+    google: any;
+  }
+}
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -104,7 +111,10 @@ export default function Settings() {
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [isConnectingStripe, setIsConnectingStripe] = useState(false);
+  const [isGoogleMapsLoaded, setIsGoogleMapsLoaded] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const addressInputRef = useRef<HTMLInputElement>(null);
+  const autocompleteRef = useRef<any>(null);
   const { toast } = useToast();
   const { signOut } = useAuth();
 
@@ -194,6 +204,69 @@ export default function Settings() {
   });
 
 
+
+  // Load Google Maps JavaScript API
+  useEffect(() => {
+    const loadGoogleMapsScript = () => {
+      if (window.google && window.google.maps && window.google.maps.places) {
+        setIsGoogleMapsLoaded(true);
+        return;
+      }
+
+      const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
+      if (!apiKey) {
+        console.warn('Google Maps API key not found');
+        return;
+      }
+
+      const script = document.createElement('script');
+      script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places`;
+      script.async = true;
+      script.defer = true;
+      script.onload = () => {
+        setIsGoogleMapsLoaded(true);
+      };
+      script.onerror = () => {
+        console.error('Failed to load Google Maps API');
+      };
+      
+      document.head.appendChild(script);
+    };
+
+    loadGoogleMapsScript();
+  }, []);
+
+  // Initialize autocomplete when Google Maps is loaded and input is available
+  useEffect(() => {
+    if (isGoogleMapsLoaded && addressInputRef.current && !autocompleteRef.current) {
+      try {
+        const autocomplete = new window.google.maps.places.Autocomplete(
+          addressInputRef.current,
+          {
+            types: ['address'],
+            componentRestrictions: { country: 'US' }
+          }
+        );
+
+        autocomplete.addListener('place_changed', () => {
+          const place = autocomplete.getPlace();
+          if (place.formatted_address) {
+            form.setValue('homeBaseAddress', place.formatted_address);
+          }
+        });
+
+        autocompleteRef.current = autocomplete;
+      } catch (error) {
+        console.error('Error initializing Google Places Autocomplete:', error);
+      }
+    }
+
+    return () => {
+      if (autocompleteRef.current) {
+        window.google?.maps?.event?.clearInstanceListeners(autocompleteRef.current);
+      }
+    };
+  }, [isGoogleMapsLoaded, form]);
 
   // Reset form when user data changes
   useEffect(() => {
@@ -514,12 +587,17 @@ export default function Settings() {
                               <FormControl>
                                 <Input 
                                   {...field}
+                                  ref={addressInputRef}
                                   className="bg-charcoal border-steel/40 text-white"
-                                  placeholder="Your starting location (e.g., 123 Main St, City, State)"
+                                  placeholder="Start typing your address..."
+                                  autoComplete="off"
                                 />
                               </FormControl>
                               <p className="text-steel text-xs">
-                                Starting point for calculating travel time to your first appointment. Enter your full address including city and state.
+                                {isGoogleMapsLoaded 
+                                  ? "Google Places autocomplete is active. Start typing to see suggestions."
+                                  : "Starting point for calculating travel time to your first appointment."
+                                }
                               </p>
                               <FormMessage />
                             </FormItem>
