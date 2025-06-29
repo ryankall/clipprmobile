@@ -141,6 +141,8 @@ npm run start
 
 ```
 Changelog:
+- June 29, 2025. Fixed message display and scrollbar issues - made all textarea scrollbars invisible using scrollbar-hide class, fixed message content going off screen with proper word wrapping and container sizing, enhanced message dialog in messages page with break-words and max-height constraints
+- June 29, 2025. Fixed sign out 404 error - corrected authentication state management in useAuth hook, improved router logic to properly show Auth component for unauthenticated users, fixed redirect path from /auth to / after signout
 - June 29, 2025. Enhanced public booking system with user experience improvements - added 300 character limit with real-time counter for optional messages, included travel information (Yes/No with address) in messages sent to barbers, added SMS confirmation notice on booking success pages informing users that barber will send SMS to confirm appointment, fixed booking request phone number format matching between URL parsing and database storage
 - June 29, 2025. Enhanced create invoice template modal - removed category, amount, and description fields, limited template name to 60 characters with character counter, added multi-select services section with checkboxes showing service prices and descriptions, automatic total calculation from selected services
 - June 29, 2025. Added invoice to navigation bar - positioned right after clients with Receipt icon for easy access

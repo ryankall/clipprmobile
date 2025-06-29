@@ -52,11 +52,15 @@ function Router() {
       {/* Public booking page - accessible without authentication */}
       <Route path="/book/:barberInfo" component={EnhancedBookingPage} />
       
-      {/* Protected routes - require authentication */}
+      {/* Show auth page when not authenticated */}
       {!isAuthenticated ? (
-        <Route component={Auth} />
+        <>
+          <Route path="/" component={Auth} />
+          <Route component={Auth} />
+        </>
       ) : (
         <>
+          {/* Protected routes - require authentication */}
           <Route path="/" component={Dashboard} />
           <Route path="/calendar" component={Calendar} />
           <Route path="/clients" component={Clients} />

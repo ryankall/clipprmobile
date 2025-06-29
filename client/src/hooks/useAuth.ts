@@ -38,7 +38,8 @@ export function useAuth() {
       // Clear token and user data
       localStorage.removeItem("token");
       queryClient.clear();
-      window.location.href = "/auth";
+      // Redirect to root path which will show Auth component for unauthenticated users
+      window.location.href = "/";
     },
   });
 
@@ -46,11 +47,9 @@ export function useAuth() {
     signOutMutation.mutate();
   };
 
-  // Check if user is authenticated
-  const isAuthenticated = !!user && !error;
-
-  // Check if there's a token in localStorage
+  // Check if user is authenticated (user exists and no error, also check token)
   const hasToken = typeof window !== "undefined" && !!localStorage.getItem("token");
+  const isAuthenticated = !!user && !error && hasToken;
 
   return {
     user,
