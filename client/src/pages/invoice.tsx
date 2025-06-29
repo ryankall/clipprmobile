@@ -90,6 +90,7 @@ const serviceCreateSchema = z.object({
   name: z.string().min(1, "Service name is required"),
   description: z.string().optional(),
   price: z.string().min(1, "Price is required"),
+  category: z.string().min(1, "Category is required"),
 });
 
 export default function InvoicePage() {
@@ -167,6 +168,7 @@ export default function InvoicePage() {
       name: "",
       description: "",
       price: "",
+      category: "",
     },
   });
 
@@ -290,7 +292,6 @@ export default function InvoicePage() {
         ...data,
         price: parseFloat(data.price),
         duration: 30, // Default duration
-        category: "Haircuts", // Default category
       });
     },
     onSuccess: () => {
@@ -1487,6 +1488,50 @@ export default function InvoicePage() {
                         placeholder="0.00"
                       />
                     </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={serviceCreateForm.control}
+                name="category"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-white">Category</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger className="bg-charcoal border-steel/40 text-white">
+                          <SelectValue placeholder="Select category" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent className="bg-charcoal border-steel/40 text-white">
+                        <SelectItem
+                          value="Haircuts"
+                          className="text-white hover:bg-steel/20"
+                        >
+                          Haircuts
+                        </SelectItem>
+                        <SelectItem
+                          value="Beard Services"
+                          className="text-white hover:bg-steel/20"
+                        >
+                          Beard Services
+                        </SelectItem>
+                        <SelectItem
+                          value="Combinations"
+                          className="text-white hover:bg-steel/20"
+                        >
+                          Combinations
+                        </SelectItem>
+                        <SelectItem
+                          value="Special Services"
+                          className="text-white hover:bg-steel/20"
+                        >
+                          Special Services
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
                     <FormMessage />
                   </FormItem>
                 )}
