@@ -259,13 +259,10 @@ export default function InvoicePage() {
       id: number;
       service: z.infer<typeof serviceFormSchema>;
     }) => {
-      return apiRequest(`/api/services/${data.id}`, {
-        method: "PATCH",
-        body: JSON.stringify({
-          ...data.service,
-          price: parseFloat(data.service.price),
-          duration: parseInt(data.service.duration),
-        }),
+      return apiRequest("PATCH", `/api/services/${data.id}`, {
+        ...data.service,
+        price: parseFloat(data.service.price),
+        duration: parseInt(data.service.duration),
       });
     },
     onSuccess: () => {
@@ -327,9 +324,7 @@ export default function InvoicePage() {
   // Service delete mutation
   const deleteServiceMutation = useMutation({
     mutationFn: async (serviceId: number) => {
-      return apiRequest(`/api/services/${serviceId}`, {
-        method: "DELETE",
-      });
+      return apiRequest("DELETE", `/api/services/${serviceId}`);
     },
     onSuccess: () => {
       toast({

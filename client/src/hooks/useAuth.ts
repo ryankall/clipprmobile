@@ -32,9 +32,7 @@ export function useAuth() {
   // Sign out mutation
   const signOutMutation = useMutation({
     mutationFn: async () => {
-      return apiRequest("/api/auth/signout", {
-        method: "POST",
-      });
+      return apiRequest("POST", "/api/auth/signout");
     },
     onSuccess: () => {
       // Clear token and user data

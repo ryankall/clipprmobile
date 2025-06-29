@@ -125,10 +125,7 @@ export default function Settings() {
   // Profile update mutation
   const updateProfileMutation = useMutation({
     mutationFn: async (data: ProfileFormData) => {
-      return await apiRequest('/api/user/profile', {
-        method: 'PATCH',
-        body: JSON.stringify(data),
-      });
+      return await apiRequest('PATCH', '/api/user/profile', data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/user/profile'] });
@@ -151,9 +148,7 @@ export default function Settings() {
   // Stripe Connect mutation
   const connectStripeMutation = useMutation({
     mutationFn: async () => {
-      return await apiRequest('/api/stripe/connect', {
-        method: 'POST',
-      });
+      return await apiRequest('POST', '/api/stripe/connect');
     },
     onSuccess: (data: any) => {
       if (data.url) {

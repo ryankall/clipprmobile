@@ -8,7 +8,9 @@ async function throwIfResNotOk(res: Response) {
 }
 
 export async function apiRequest(
+  method: string,
   url: string,
+  data?: any,
   options: RequestInit = {}
 ): Promise<any> {
   const token = localStorage.getItem("token");
@@ -22,11 +24,18 @@ export async function apiRequest(
     headers.Authorization = `Bearer ${token}`;
   }
 
-  const res = await fetch(url, {
-    ...options,
+  const config: RequestInit = {
+    method,
     headers,
     credentials: "include",
-  });
+    ...options,
+  };
+
+  if (data && (method === "POST" || method === "PUT" || method === "PATCH")) {
+    config.body = JSON.stringify(data);
+  }
+
+  const res = await fetch(url, config);
 
   await throwIfResNotOk(res);
   return await res.json();
