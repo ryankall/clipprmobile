@@ -72,10 +72,8 @@ const invoiceFormSchema = insertInvoiceSchema.extend({
 });
 
 const templateFormSchema = z.object({
-  name: z.string().min(1, "Template name is required"),
-  description: z.string().optional(),
-  amount: z.string().min(1, "Amount is required"),
-  category: z.string().min(1, "Category is required"),
+  name: z.string().min(1, "Template name is required").max(60, "Template name must be 60 characters or less"),
+  services: z.array(z.number()).min(1, "At least one service is required"),
 });
 
 const serviceFormSchema = z.object({
@@ -159,9 +157,7 @@ export default function InvoicePage() {
     resolver: zodResolver(templateFormSchema),
     defaultValues: {
       name: "",
-      description: "",
-      amount: "",
-      category: "",
+      services: [],
     },
   });
 
@@ -588,7 +584,19 @@ export default function InvoicePage() {
   };
 
   const onTemplateSubmit = (data: z.infer<typeof templateFormSchema>) => {
-    createTemplateMutation.mutate(data);
+    // Convert selected services to template format
+    const selectedServiceData = services?.filter(s => data.services.includes(s.id)) || [];
+    const totalAmount = selectedServiceData.reduce((sum, service) => sum + parseFloat(service.price || "0"), 0);
+    
+    const templateData = {
+      name: data.name,
+      amount: totalAmount.toFixed(2),
+      category: "template",
+      description: selectedServiceData.map(s => s.name).join(", ")
+    };
+    
+    // Since the backend expects the old format, we need to convert to the old template structure
+    createTemplateMutation.mutate(templateData as any);
   };
 
   const handleQuickInvoice = (serviceType: string, price: string) => {
@@ -1160,8 +1168,12 @@ export default function InvoicePage() {
                               {...field}
                               className="bg-charcoal border-steel/40 text-white"
                               placeholder="e.g., Premium Haircut"
+                              maxLength={60}
                             />
                           </FormControl>
+                          <div className="text-xs text-steel text-right">
+                            {field.value?.length || 0}/60 characters
+                          </div>
                           <FormMessage />
                         </FormItem>
                       )}
@@ -1169,85 +1181,42 @@ export default function InvoicePage() {
 
                     <FormField
                       control={templateForm.control}
-                      name="category"
+                      name="services"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel className="text-white">Category</FormLabel>
-                          <Select onValueChange={field.onChange}>
-                            <FormControl>
-                              <SelectTrigger className="bg-charcoal border-steel/40 text-white">
-                                <SelectValue placeholder="Select category" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent className="bg-charcoal border-steel/40 text-white">
-                              <SelectItem
-                                value="haircut"
-                                className="text-white hover:bg-steel/20"
-                              >
-                                Haircut
-                              </SelectItem>
-                              <SelectItem
-                                value="beard"
-                                className="text-white hover:bg-steel/20"
-                              >
-                                Beard Services
-                              </SelectItem>
-                              <SelectItem
-                                value="combo"
-                                className="text-white hover:bg-steel/20"
-                              >
-                                Combo Package
-                              </SelectItem>
-                              <SelectItem
-                                value="special"
-                                className="text-white hover:bg-steel/20"
-                              >
-                                Special Service
-                              </SelectItem>
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={templateForm.control}
-                      name="amount"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className="text-white">
-                            Default Amount ($)
-                          </FormLabel>
-                          <FormControl>
-                            <Input
-                              {...field}
-                              type="number"
-                              step="0.01"
-                              className="bg-charcoal border-steel/40 text-white"
-                              placeholder="0.00"
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={templateForm.control}
-                      name="description"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className="text-white">
-                            Description (Optional)
-                          </FormLabel>
-                          <FormControl>
-                            <Textarea
-                              {...field}
-                              className="bg-charcoal border-steel/40 text-white"
-                              placeholder="Brief description of the service..."
-                            />
-                          </FormControl>
+                          <FormLabel className="text-white">Services</FormLabel>
+                          <div className="grid grid-cols-1 gap-3 max-h-48 overflow-y-auto border border-steel/20 rounded-lg p-3 bg-charcoal/50">
+                            {services?.map((service) => (
+                              <div key={service.id} className="flex items-center space-x-2">
+                                <input
+                                  type="checkbox"
+                                  id={`template-service-${service.id}`}
+                                  checked={field.value?.includes(service.id) || false}
+                                  onChange={(e) => {
+                                    const currentServices = field.value || [];
+                                    if (e.target.checked) {
+                                      field.onChange([...currentServices, service.id]);
+                                    } else {
+                                      field.onChange(currentServices.filter(id => id !== service.id));
+                                    }
+                                  }}
+                                  className="w-4 h-4 text-gold bg-charcoal border-steel/40 rounded focus:ring-gold"
+                                />
+                                <label
+                                  htmlFor={`template-service-${service.id}`}
+                                  className="flex-1 text-sm text-white cursor-pointer"
+                                >
+                                  <div className="flex justify-between items-center">
+                                    <span>{service.name}</span>
+                                    <span className="text-gold font-medium">${service.price}</span>
+                                  </div>
+                                  {service.description && (
+                                    <div className="text-xs text-steel mt-1">{service.description}</div>
+                                  )}
+                                </label>
+                              </div>
+                            ))}
+                          </div>
                           <FormMessage />
                         </FormItem>
                       )}
