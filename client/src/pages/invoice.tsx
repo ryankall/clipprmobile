@@ -58,9 +58,17 @@ import { useToast } from "@/hooks/use-toast";
 import { z } from "zod";
 import { format } from "date-fns";
 
+const invoiceItemSchema = z.object({
+  serviceId: z.number(),
+  serviceName: z.string(),
+  price: z.number(),
+  quantity: z.number().min(1),
+});
+
 const invoiceFormSchema = insertInvoiceSchema.extend({
   userId: z.number().optional(),
   tipPercentage: z.number().optional(),
+  items: z.array(invoiceItemSchema).optional(),
 });
 
 const templateFormSchema = z.object({
@@ -86,6 +94,12 @@ export default function InvoicePage() {
   const [isServiceEditOpen, setIsServiceEditOpen] = useState(false);
   const [editingService, setEditingService] = useState<Service | null>(null);
   const [savedTemplates, setSavedTemplates] = useState<any[]>([]);
+  const [selectedServices, setSelectedServices] = useState<Array<{
+    serviceId: number;
+    serviceName: string;
+    price: number;
+    quantity: number;
+  }>>([]);
   const { toast } = useToast();
 
   // Parse query params for pre-filled service
@@ -346,6 +360,96 @@ export default function InvoicePage() {
     }
   };
 
+  // Handle default template deletion
+  const handleDeleteDefaultTemplate = (templateType: string) => {
+    if (confirm("Are you sure you want to hide this default template? This action cannot be undone.")) {
+      const hiddenTemplates = JSON.parse(localStorage.getItem('hiddenDefaultTemplates') || '[]');
+      hiddenTemplates.push(templateType);
+      localStorage.setItem('hiddenDefaultTemplates', JSON.stringify(hiddenTemplates));
+      
+      toast({
+        title: "Template Hidden",
+        description: "Default template has been hidden from quick access",
+      });
+      
+      // Force re-render by updating state
+      window.location.reload();
+    }
+  };
+
+  // Add service to invoice
+  const addServiceToInvoice = (service: Service) => {
+    const existingService = selectedServices.find(s => s.serviceId === service.id);
+    const servicePrice = parseFloat(service.price);
+    
+    if (existingService) {
+      // Increase quantity if service already exists
+      setSelectedServices(prev =>
+        prev.map(s =>
+          s.serviceId === service.id
+            ? { ...s, quantity: s.quantity + 1 }
+            : s
+        )
+      );
+    } else {
+      // Add new service
+      setSelectedServices(prev => [
+        ...prev,
+        {
+          serviceId: service.id,
+          serviceName: service.name,
+          price: servicePrice,
+          quantity: 1,
+        }
+      ]);
+    }
+
+    // Update subtotal by recalculating from current state
+    setTimeout(() => {
+      const currentServices = existingService 
+        ? selectedServices.map(s => s.serviceId === service.id ? { ...s, quantity: s.quantity + 1 } : s)
+        : [...selectedServices, { serviceId: service.id, serviceName: service.name, price: servicePrice, quantity: 1 }];
+      
+      const newSubtotal = currentServices.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+      form.setValue("subtotal", newSubtotal.toFixed(2));
+    }, 0);
+  };
+
+  // Remove service from invoice
+  const removeServiceFromInvoice = (serviceId: number) => {
+    setSelectedServices(prev => prev.filter(s => s.serviceId !== serviceId));
+    
+    // Update subtotal
+    const newSubtotal = selectedServices
+      .filter(s => s.serviceId !== serviceId)
+      .reduce((sum, item) => sum + (item.price * item.quantity), 0);
+    
+    form.setValue("subtotal", newSubtotal.toFixed(2));
+  };
+
+  // Update service quantity
+  const updateServiceQuantity = (serviceId: number, quantity: number) => {
+    if (quantity <= 0) {
+      removeServiceFromInvoice(serviceId);
+      return;
+    }
+
+    setSelectedServices(prev =>
+      prev.map(s =>
+        s.serviceId === serviceId
+          ? { ...s, quantity }
+          : s
+      )
+    );
+
+    // Update subtotal
+    const newSubtotal = selectedServices
+      .map(s => s.serviceId === serviceId ? { ...s, quantity } : s)
+      .reduce((sum, item) => sum + (item.price * item.quantity), 0);
+    
+    form.setValue("subtotal", newSubtotal.toFixed(2));
+  };
+
   // Auto-calculate total when subtotal or tip changes
   const watchedSubtotal = form.watch("subtotal");
   const watchedTip = form.watch("tip");
@@ -381,7 +485,15 @@ export default function InvoicePage() {
   }, [prefilledService, services, form]);
 
   const onSubmit = (data: z.infer<typeof invoiceFormSchema>) => {
-    createInvoiceMutation.mutate(data);
+    // Include selected services in the invoice data
+    const invoiceData = {
+      ...data,
+      items: selectedServices,
+      description: selectedServices.length > 0 
+        ? selectedServices.map(item => `${item.serviceName} (${item.quantity}x)`).join(', ')
+        : data.description || '',
+    };
+    createInvoiceMutation.mutate(invoiceData);
   };
 
   const onTemplateSubmit = (data: z.infer<typeof templateFormSchema>) => {
@@ -474,6 +586,93 @@ export default function InvoicePage() {
                       </FormItem>
                     )}
                   />
+
+                  {/* Services Section */}
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <FormLabel className="text-white">Services</FormLabel>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="bg-charcoal border-steel/40 text-gold hover:bg-steel/20"
+                        onClick={() => {
+                          const servicesList = document.getElementById('services-list');
+                          servicesList?.scrollIntoView({ behavior: 'smooth' });
+                        }}
+                      >
+                        <Plus className="w-4 h-4 mr-1" />
+                        Add Service
+                      </Button>
+                    </div>
+
+                    {/* Selected Services */}
+                    {selectedServices.length > 0 && (
+                      <div className="bg-charcoal rounded-lg border border-steel/40 p-3 space-y-2">
+                        {selectedServices.map((item) => (
+                          <div
+                            key={item.serviceId}
+                            className="flex items-center justify-between py-2 border-b border-steel/20 last:border-b-0"
+                          >
+                            <div className="flex-1">
+                              <div className="text-sm font-medium text-white">
+                                {item.serviceName}
+                              </div>
+                              <div className="text-xs text-steel">
+                                ${item.price} × {item.quantity}
+                              </div>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                              <div className="flex items-center space-x-1">
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-6 w-6 p-0 text-steel hover:text-white"
+                                  onClick={() =>
+                                    updateServiceQuantity(item.serviceId, item.quantity - 1)
+                                  }
+                                >
+                                  -
+                                </Button>
+                                <span className="text-sm text-white w-8 text-center">
+                                  {item.quantity}
+                                </span>
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-6 w-6 p-0 text-steel hover:text-white"
+                                  onClick={() =>
+                                    updateServiceQuantity(item.serviceId, item.quantity + 1)
+                                  }
+                                >
+                                  +
+                                </Button>
+                              </div>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                className="h-6 w-6 p-0 text-red-400 hover:bg-red-400/10"
+                                onClick={() => removeServiceFromInvoice(item.serviceId)}
+                              >
+                                <Trash2 className="w-3 h-3" />
+                              </Button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {selectedServices.length === 0 && (
+                      <div className="bg-charcoal rounded-lg border border-steel/40 p-4 text-center">
+                        <div className="text-steel text-sm">
+                          No services selected. Add services from the templates below.
+                        </div>
+                      </div>
+                    )}
+                  </div>
 
                   <FormField
                     control={form.control}
@@ -675,33 +874,69 @@ export default function InvoicePage() {
           <CardContent>
             <div className="grid grid-cols-2 gap-3">
               {/* Default Templates */}
-              <Button
-                variant="outline"
-                className="bg-charcoal border-steel/40 h-auto p-4 text-center touch-target flex flex-col items-center space-y-2 tap-feedback hover:bg-charcoal/80"
+              <div
+                className="relative bg-charcoal border border-steel/40 rounded-lg p-4 text-center touch-target hover:bg-charcoal/80 cursor-pointer"
                 onClick={() => handleQuickInvoice("haircut", "45.00")}
               >
-                <Receipt className="w-5 h-5 text-gold" />
-                <div className="text-sm font-medium">Haircut</div>
-                <div className="text-xs text-steel">$45</div>
-              </Button>
-              <Button
-                variant="outline"
-                className="bg-charcoal border-steel/40 h-auto p-4 text-center touch-target flex flex-col items-center space-y-2 tap-feedback hover:bg-charcoal/80"
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="absolute top-1 right-1 text-red-400 hover:bg-red-400/10 h-6 w-6 p-0"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleDeleteDefaultTemplate("haircut");
+                  }}
+                >
+                  <Trash2 className="w-3 h-3" />
+                </Button>
+                <div className="flex flex-col items-center space-y-2">
+                  <Receipt className="w-5 h-5 text-gold" />
+                  <div className="text-sm font-medium text-white">Haircut</div>
+                  <div className="text-xs text-steel">$45</div>
+                </div>
+              </div>
+              <div
+                className="relative bg-charcoal border border-steel/40 rounded-lg p-4 text-center touch-target hover:bg-charcoal/80 cursor-pointer"
                 onClick={() => handleQuickInvoice("beard", "25.00")}
               >
-                <Receipt className="w-5 h-5 text-gold" />
-                <div className="text-sm font-medium">Beard Trim</div>
-                <div className="text-xs text-steel">$25</div>
-              </Button>
-              <Button
-                variant="outline"
-                className="bg-charcoal border-steel/40 h-auto p-4 text-center touch-target flex flex-col items-center space-y-2 tap-feedback hover:bg-charcoal/80"
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="absolute top-1 right-1 text-red-400 hover:bg-red-400/10 h-6 w-6 p-0"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleDeleteDefaultTemplate("beard");
+                  }}
+                >
+                  <Trash2 className="w-3 h-3" />
+                </Button>
+                <div className="flex flex-col items-center space-y-2">
+                  <Receipt className="w-5 h-5 text-gold" />
+                  <div className="text-sm font-medium text-white">Beard Trim</div>
+                  <div className="text-xs text-steel">$25</div>
+                </div>
+              </div>
+              <div
+                className="relative bg-charcoal border border-steel/40 rounded-lg p-4 text-center touch-target hover:bg-charcoal/80 cursor-pointer"
                 onClick={() => handleQuickInvoice("combo", "65.00")}
               >
-                <Receipt className="w-5 h-5 text-gold" />
-                <div className="text-sm font-medium">Combo</div>
-                <div className="text-xs text-steel">$65</div>
-              </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="absolute top-1 right-1 text-red-400 hover:bg-red-400/10 h-6 w-6 p-0"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleDeleteDefaultTemplate("combo");
+                  }}
+                >
+                  <Trash2 className="w-3 h-3" />
+                </Button>
+                <div className="flex flex-col items-center space-y-2">
+                  <Receipt className="w-5 h-5 text-gold" />
+                  <div className="text-sm font-medium text-white">Combo</div>
+                  <div className="text-xs text-steel">$65</div>
+                </div>
+              </div>
 
               {/* Saved Templates */}
               {savedTemplates.map((template) => (
@@ -962,7 +1197,7 @@ export default function InvoicePage() {
         </Card>
 
         {/* Services Management */}
-        <Card className="bg-dark-card border-steel/20">
+        <Card className="bg-dark-card border-steel/20" id="services-list">
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="text-white">Service Templates</CardTitle>
             <Button
@@ -1033,6 +1268,22 @@ export default function InvoicePage() {
                         )}
                       </div>
                       <div className="flex items-center space-x-2 ml-4">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-gold hover:bg-gold/10 px-2 py-1 text-xs"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            addServiceToInvoice(service);
+                            toast({
+                              title: "Service Added",
+                              description: `${service.name} has been added to the invoice`,
+                            });
+                          }}
+                        >
+                          <Plus className="w-3 h-3 mr-1" />
+                          Add to Invoice
+                        </Button>
                         <Button
                           variant="ghost"
                           size="sm"

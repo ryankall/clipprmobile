@@ -645,14 +645,14 @@ export default function Settings() {
                   <Label className="text-steel text-xs">Your Booking URL</Label>
                   <div className="flex items-center space-x-2 mt-1">
                     <code className="text-gold text-sm bg-charcoal/50 px-2 py-1 rounded flex-1 break-all">
-                      {window.location.origin}/book/{encodeURIComponent(user.phone)}_clipcutman
+                      {window.location.origin}/book/{encodeURIComponent(user.phone)}-clipcutman
                     </code>
                     <Button
                       size="sm"
                       variant="outline"
                       className="bg-charcoal border-steel/40 text-gold hover:bg-charcoal/80 px-3"
                       onClick={() => {
-                        const bookingUrl = `${window.location.origin}/book/${encodeURIComponent(user.phone)}_clipcutman`;
+                        const bookingUrl = `${window.location.origin}/book/${encodeURIComponent(user.phone)}-clipcutman`;
                         navigator.clipboard.writeText(bookingUrl);
                         toast({
                           title: "Copied!",
