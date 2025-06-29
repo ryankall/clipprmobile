@@ -1003,6 +1003,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const startMinutes = startHour * 60 + startMinute;
       const endMinutes = endHour * 60 + endMinute;
       
+      // Skip if invalid time range (start after end)
+      if (startMinutes >= endMinutes) {
+        return res.json([]);
+      }
+      
       for (let minutes = startMinutes; minutes < endMinutes; minutes += 15) {
         const hour = Math.floor(minutes / 60);
         const minute = minutes % 60;

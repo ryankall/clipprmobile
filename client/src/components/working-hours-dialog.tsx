@@ -4,7 +4,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
-import { Clock } from "lucide-react";
+import { Clock, Plus, Minus } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 
@@ -109,9 +109,22 @@ export function WorkingHoursDialog({ currentHours }: WorkingHoursDialogProps) {
   const handleSave = () => {
     // Validate all enabled days have valid time ranges
     const invalidDays: string[] = [];
+    const invalidBreaks: string[] = [];
+    
     Object.entries(workingHours).forEach(([day, hours]) => {
-      if (hours.enabled && !validateTimeRange(hours.start, hours.end)) {
-        invalidDays.push(day.charAt(0).toUpperCase() + day.slice(1));
+      if (hours.enabled) {
+        if (!validateTimeRange(hours.start, hours.end)) {
+          invalidDays.push(day.charAt(0).toUpperCase() + day.slice(1));
+        }
+        
+        // Validate break times
+        if (hours.breaks) {
+          hours.breaks.forEach((breakTime, index) => {
+            if (!validateTimeRange(breakTime.start, breakTime.end)) {
+              invalidBreaks.push(`${day.charAt(0).toUpperCase() + day.slice(1)} - Block ${index + 1}`);
+            }
+          });
+        }
       }
     });
 
@@ -119,6 +132,15 @@ export function WorkingHoursDialog({ currentHours }: WorkingHoursDialogProps) {
       toast({
         title: "Invalid Time Range",
         description: `Start time must be before end time for: ${invalidDays.join(', ')}`,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (invalidBreaks.length > 0) {
+      toast({
+        title: "Invalid Block Time",
+        description: `Block time start must be before end time for: ${invalidBreaks.join(', ')}`,
         variant: "destructive",
       });
       return;
@@ -133,6 +155,41 @@ export function WorkingHoursDialog({ currentHours }: WorkingHoursDialogProps) {
       [day]: {
         ...prev[day],
         [field]: value
+      }
+    }));
+  };
+
+  const addBreakTime = (day: keyof WorkingHours) => {
+    setWorkingHours(prev => ({
+      ...prev,
+      [day]: {
+        ...prev[day],
+        breaks: [
+          ...(prev[day].breaks || []),
+          { start: "12:00", end: "13:00", label: "Lunch Break" }
+        ]
+      }
+    }));
+  };
+
+  const removeBreakTime = (day: keyof WorkingHours, index: number) => {
+    setWorkingHours(prev => ({
+      ...prev,
+      [day]: {
+        ...prev[day],
+        breaks: prev[day].breaks?.filter((_, i) => i !== index) || []
+      }
+    }));
+  };
+
+  const updateBreakTime = (day: keyof WorkingHours, index: number, field: 'start' | 'end' | 'label', value: string) => {
+    setWorkingHours(prev => ({
+      ...prev,
+      [day]: {
+        ...prev[day],
+        breaks: prev[day].breaks?.map((breakTime, i) => 
+          i === index ? { ...breakTime, [field]: value } : breakTime
+        ) || []
       }
     }));
   };
@@ -187,6 +244,66 @@ export function WorkingHoursDialog({ currentHours }: WorkingHoursDialogProps) {
                 </div>
                 {!dayHours.enabled && (
                   <div className="text-steel text-sm ml-6">Closed</div>
+                )}
+                
+                {/* Block Times Section */}
+                {dayHours.enabled && (
+                  <div className="ml-6 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-steel">Block Times</span>
+                      <Button
+                        onClick={() => addBreakTime(dayKey)}
+                        size="sm"
+                        variant="ghost"
+                        className="h-6 px-2 text-xs text-gold hover:text-gold hover:bg-gold/20"
+                      >
+                        <Plus className="w-3 h-3 mr-1" />
+                        Add Block
+                      </Button>
+                    </div>
+                    
+                    {dayHours.breaks && dayHours.breaks.length > 0 && (
+                      <div className="space-y-2">
+                        {dayHours.breaks.map((breakTime, index) => (
+                          <div key={index} className="flex items-center space-x-2 p-2 bg-charcoal/50 rounded-md border border-steel/20">
+                            <div className="flex items-center space-x-1 text-red-400">
+                              <div className="w-3 h-3 rounded-full border border-red-400 flex items-center justify-around">
+                                <div className="w-2 h-0.5 bg-red-400 rotate-45"></div>
+                              </div>
+                            </div>
+                            <Input
+                              type="time"
+                              value={breakTime.start}
+                              onChange={(e) => updateBreakTime(dayKey, index, 'start', e.target.value)}
+                              className="w-20 bg-dark-card border-steel/40 text-white text-xs"
+                            />
+                            <span className="text-steel text-xs">to</span>
+                            <Input
+                              type="time"
+                              value={breakTime.end}
+                              onChange={(e) => updateBreakTime(dayKey, index, 'end', e.target.value)}
+                              className="w-20 bg-dark-card border-steel/40 text-white text-xs"
+                            />
+                            <Input
+                              type="text"
+                              value={breakTime.label}
+                              onChange={(e) => updateBreakTime(dayKey, index, 'label', e.target.value)}
+                              placeholder="Label"
+                              className="flex-1 bg-dark-card border-steel/40 text-white text-xs"
+                            />
+                            <Button
+                              onClick={() => removeBreakTime(dayKey, index)}
+                              size="sm"
+                              variant="ghost"
+                              className="h-6 w-6 p-0 text-red-400 hover:text-red-300 hover:bg-red-400/20"
+                            >
+                              <Minus className="w-3 h-3" />
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 )}
               </div>
             );
