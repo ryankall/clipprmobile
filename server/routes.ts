@@ -398,10 +398,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/services", requireAuth, async (req, res) => {
     try {
       const userId = (req.user as any).id;
+      console.log("Creating service with data:", { ...req.body, userId });
       const serviceData = insertServiceSchema.parse({ ...req.body, userId });
+      console.log("Parsed service data:", serviceData);
       const service = await storage.createService(serviceData);
       res.json(service);
     } catch (error: any) {
+      console.error("Service creation error:", error);
       res.status(500).json({ message: error.message });
     }
   });

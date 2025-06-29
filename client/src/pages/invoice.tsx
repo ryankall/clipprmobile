@@ -290,11 +290,13 @@ export default function InvoicePage() {
   // Service create mutation
   const createServiceMutation = useMutation({
     mutationFn: async (data: z.infer<typeof serviceCreateSchema>) => {
-      return apiRequest("POST", "/api/services", {
+      const payload = {
         ...data,
         price: parseFloat(data.price),
         duration: parseInt(data.duration),
-      });
+      };
+      console.log("Sending service data:", payload);
+      return apiRequest("POST", "/api/services", payload);
     },
     onSuccess: () => {
       toast({
