@@ -299,19 +299,6 @@ export default function Settings() {
   };
 
   const onSubmit = async (data: ProfileFormData) => {
-    // Validate address if provided
-    if (data.homeBaseAddress && data.homeBaseAddress.trim().length > 0) {
-      const isValid = await validateAddress(data.homeBaseAddress);
-      if (!isValid) {
-        toast({
-          title: "Invalid Address",
-          description: "Please enter a valid address that can be found on Google Maps",
-          variant: "destructive",
-        });
-        return;
-      }
-    }
-    
     updateProfileMutation.mutate(data);
   };
 
@@ -532,7 +519,7 @@ export default function Settings() {
                                 />
                               </FormControl>
                               <p className="text-steel text-xs">
-                                Starting point for calculating travel time to your first appointment. Address will be validated when saved.
+                                Starting point for calculating travel time to your first appointment. Enter your full address including city and state.
                               </p>
                               <FormMessage />
                             </FormItem>
