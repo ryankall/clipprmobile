@@ -296,7 +296,14 @@ export default function InvoicePage() {
         duration: parseInt(data.duration),
       };
       console.log("Sending service data:", payload);
-      return apiRequest("POST", "/api/services", payload);
+      try {
+        const result = await apiRequest("POST", "/api/services", payload);
+        console.log("Service creation response:", result);
+        return result;
+      } catch (error) {
+        console.error("API request failed:", error);
+        throw error;
+      }
     },
     onSuccess: () => {
       toast({
@@ -308,6 +315,7 @@ export default function InvoicePage() {
       queryClient.invalidateQueries({ queryKey: ["/api/services"] });
     },
     onError: (error: any) => {
+      console.error("Service creation error:", error);
       toast({
         title: "Error",
         description: error.message || "Failed to create service",
