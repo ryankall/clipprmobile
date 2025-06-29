@@ -195,6 +195,7 @@ export default function InvoicePage() {
       });
       setIsDialogOpen(false);
       form.reset();
+      setSelectedServices([]);
 
       // Navigate to checkout if payment is required
       const invoice = response.data;
@@ -599,10 +600,38 @@ export default function InvoicePage() {
     createTemplateMutation.mutate(templateData as any);
   };
 
-  const handleQuickInvoice = (serviceType: string, price: string) => {
+  const handleQuickInvoice = (serviceType: string, price: string, template?: any) => {
     form.setValue("subtotal", price);
-    const service = services?.find((s) => s.category === serviceType);
-    if (service && clients?.[0]) {
+    form.setValue("total", price);
+    
+    if (template) {
+      // Handle template-based invoice
+      const templateServices = template.description?.split(", ") || [];
+      const matchedServices = services?.filter(s => templateServices.includes(s.name)) || [];
+      
+      if (matchedServices.length > 0) {
+        const serviceItems = matchedServices.map(service => ({
+          serviceId: service.id,
+          serviceName: service.name,
+          price: parseFloat(service.price || "0"),
+          quantity: 1
+        }));
+        setSelectedServices(serviceItems);
+      }
+    } else {
+      // Handle category-based quick invoice (legacy)
+      const service = services?.find((s) => s.category === serviceType);
+      if (service) {
+        setSelectedServices([{
+          serviceId: service.id,
+          serviceName: service.name,
+          price: parseFloat(service.price || "0"),
+          quantity: 1
+        }]);
+      }
+    }
+    
+    if (clients?.[0]) {
       form.setValue("clientId", clients[0].id);
     }
     setIsDialogOpen(true);
@@ -630,7 +659,14 @@ export default function InvoicePage() {
               {id ? "Invoice Details" : "Invoices"}
             </h1>
           </div>
-          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+          <Dialog open={isDialogOpen} onOpenChange={(open) => {
+            setIsDialogOpen(open);
+            if (!open) {
+              // Clear selected services when dialog closes
+              setSelectedServices([]);
+              form.reset();
+            }
+          }}>
             <DialogTrigger asChild>
               <Button
                 size="sm"
@@ -690,19 +726,21 @@ export default function InvoicePage() {
                   <div className="space-y-3">
                     <div className="flex items-center justify-between">
                       <FormLabel className="text-white">Services</FormLabel>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        className="bg-charcoal border-steel/40 text-gold hover:bg-steel/20"
-                        onClick={() => {
-                          const servicesList = document.getElementById('services-list');
-                          servicesList?.scrollIntoView({ behavior: 'smooth' });
-                        }}
-                      >
-                        <Plus className="w-4 h-4 mr-1" />
-                        Add Service
-                      </Button>
+                      {selectedServices.length === 0 && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="bg-charcoal border-steel/40 text-gold hover:bg-steel/20"
+                          onClick={() => {
+                            const servicesList = document.getElementById('services-list');
+                            servicesList?.scrollIntoView({ behavior: 'smooth' });
+                          }}
+                        >
+                          <Plus className="w-4 h-4 mr-1" />
+                          Add Service
+                        </Button>
+                      )}
                     </div>
 
                     {/* Selected Services */}
@@ -1055,7 +1093,7 @@ export default function InvoicePage() {
                 <div
                   key={template.id}
                   className="relative bg-charcoal border border-steel/40 rounded-lg p-4 text-center touch-target hover:bg-charcoal/80 cursor-pointer"
-                  onClick={() => handleQuickInvoice(template.category, template.amount)}
+                  onClick={() => handleQuickInvoice(template.category, template.amount, template)}
                 >
                   <Button
                     variant="ghost"
