@@ -112,6 +112,7 @@ export default function InvoicePage() {
   const [isServiceEditOpen, setIsServiceEditOpen] = useState(false);
   const [isServiceCreateOpen, setIsServiceCreateOpen] = useState(false);
   const [editingService, setEditingService] = useState<Service | null>(null);
+  const [isServiceSelectOpen, setIsServiceSelectOpen] = useState(false);
   const [savedTemplates, setSavedTemplates] = useState<any[]>([]);
   const [hiddenTemplates, setHiddenTemplates] = useState<string[]>([]);
   const [selectedServices, setSelectedServices] = useState<Array<{
@@ -272,20 +273,22 @@ export default function InvoicePage() {
   // Calculate totals when selected services or tip change
   useEffect(() => {
     const subtotal = selectedServices.reduce((sum, service) => sum + (service.price * service.quantity), 0);
-    const tipPercentage = form.watch("tipPercentage") || 0;
+    const tipPercentage = form.watch("tipPercentage");
     const manualTip = parseFloat(form.watch("tip") || "0");
     
     // Calculate tip based on percentage if set, otherwise use manual tip
     let calculatedTip;
-    if (tipPercentage > 0) {
-      calculatedTip = subtotal * tipPercentage / 100;
-      form.setValue("tip", calculatedTip.toFixed(2));
-    } else if (tipPercentage === 0) {
-      // When "No tip" is selected, reset tip to 0
-      calculatedTip = 0;
-      form.setValue("tip", "0.00");
+    if (tipPercentage !== undefined && tipPercentage !== null) {
+      if (tipPercentage > 0) {
+        calculatedTip = subtotal * tipPercentage / 100;
+        form.setValue("tip", calculatedTip.toFixed(2));
+      } else {
+        // When "No tip" (0%) is selected, reset tip to 0
+        calculatedTip = 0;
+        form.setValue("tip", "0.00");
+      }
     } else {
-      // Use manual tip amount
+      // Use manual tip amount when no percentage is set
       calculatedTip = manualTip;
     }
     
@@ -742,8 +745,7 @@ export default function InvoicePage() {
                           size="sm"
                           className="bg-charcoal border-steel/40 text-gold hover:bg-steel/20"
                           onClick={() => {
-                            const servicesList = document.getElementById('services-list');
-                            servicesList?.scrollIntoView({ behavior: 'smooth' });
+                            setIsServiceSelectOpen(true);
                           }}
                         >
                           <Plus className="w-4 h-4 mr-1" />
@@ -918,8 +920,18 @@ export default function InvoicePage() {
                               {...field}
                               type="number"
                               step="0.01"
+                              min="0"
+                              max="999999"
                               className="bg-charcoal border-steel/40 text-white"
                               placeholder="0.00"
+                              value={field.value || ""}
+                              onChange={(e) => {
+                                const value = e.target.value;
+                                // Validate the input to prevent overflow
+                                if (value === "" || (!isNaN(parseFloat(value)) && parseFloat(value) >= 0 && parseFloat(value) <= 999999)) {
+                                  field.onChange(value);
+                                }
+                              }}
                             />
                           </FormControl>
                           <FormMessage />
@@ -1847,6 +1859,46 @@ export default function InvoicePage() {
               </div>
             </form>
           </Form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Service Selection Dialog */}
+      <Dialog open={isServiceSelectOpen} onOpenChange={setIsServiceSelectOpen}>
+        <DialogContent className="bg-dark-card border-steel/20 text-white max-h-[90vh] overflow-y-auto scrollbar-hide">
+          <DialogHeader>
+            <DialogTitle className="text-white">Select Services</DialogTitle>
+            <DialogDescription className="text-steel">
+              Choose services to add to your invoice
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            {services?.map((service) => (
+              <div
+                key={service.id}
+                className="flex items-center justify-between p-3 bg-charcoal rounded-lg border border-steel/40 hover:border-gold/50 cursor-pointer"
+                onClick={() => {
+                  addServiceToInvoice(service);
+                  setIsServiceSelectOpen(false);
+                }}
+              >
+                <div className="flex-1">
+                  <div className="flex justify-between items-center">
+                    <span className="text-white font-medium">{service.name}</span>
+                    <span className="text-gold font-medium">${service.price}</span>
+                  </div>
+                  {service.description && (
+                    <div className="text-xs text-steel mt-1">{service.description}</div>
+                  )}
+                </div>
+                <Plus className="w-4 h-4 text-gold ml-2" />
+              </div>
+            ))}
+            {(!services || services.length === 0) && (
+              <div className="text-center text-steel py-8">
+                No services available. Create services first to add them to invoices.
+              </div>
+            )}
+          </div>
         </DialogContent>
       </Dialog>
 
