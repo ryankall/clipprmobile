@@ -15,10 +15,9 @@ import { Receipt, Plus, ArrowLeft, DollarSign, CreditCard, Smartphone, Banknote,
 import { Link } from "wouter";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { insertInvoiceSchema } from "@shared/schema";
+import { insertInvoiceSchema, type Invoice, type Client, type Service, type AppointmentWithRelations } from "@shared/schema";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import type { Invoice, Client, Service } from "@shared/schema";
 import { z } from "zod";
 import { format } from "date-fns";
 
@@ -66,6 +65,10 @@ export default function InvoicePage() {
 
   const { data: services } = useQuery<Service[]>({
     queryKey: ["/api/services"],
+  });
+
+  const { data: appointments } = useQuery<AppointmentWithRelations[]>({
+    queryKey: ["/api/appointments"],
   });
 
   const form = useForm<z.infer<typeof invoiceFormSchema>>({
@@ -221,8 +224,22 @@ export default function InvoicePage() {
     },
   });
 
+  // Check if service is used in appointments
+  const isServiceInUse = (serviceId: number) => {
+    return appointments?.some(apt => apt.serviceId === serviceId) || false;
+  };
+
   // Handle service edit
   const handleEditService = (service: Service) => {
+    if (isServiceInUse(service.id)) {
+      toast({
+        title: "Cannot Edit Service",
+        description: "This service is referenced in existing appointments. Please complete or cancel those appointments first.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setEditingService(service);
     serviceForm.reset({
       name: service.name,
@@ -236,6 +253,15 @@ export default function InvoicePage() {
 
   // Handle service delete
   const handleDeleteService = (serviceId: number) => {
+    if (isServiceInUse(serviceId)) {
+      toast({
+        title: "Cannot Delete Service",
+        description: "This service is referenced in existing appointments. Please complete or cancel those appointments first.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     if (confirm("Are you sure you want to delete this service? This action cannot be undone.")) {
       deleteServiceMutation.mutate(serviceId);
     }
@@ -741,42 +767,66 @@ export default function InvoicePage() {
           <CardContent>
             {services && services.length > 0 ? (
               <div className="space-y-3">
-                {services.map((service) => (
-                  <div 
-                    key={service.id} 
-                    className="flex items-center justify-between p-3 bg-charcoal rounded-lg border border-steel/20 cursor-pointer hover:border-gold/50 transition-colors"
-                    onClick={() => handleEditService(service)}
-                  >
-                    <div className="flex-1">
-                      <div className="flex items-center justify-between">
-                        <h3 className="font-medium text-white">{service.name}</h3>
-                        <span className="text-gold font-bold">${service.price}</span>
+                {services.map((service) => {
+                  const serviceInUse = isServiceInUse(service.id);
+                  return (
+                    <div 
+                      key={service.id} 
+                      className={`flex items-center justify-between p-3 bg-charcoal rounded-lg border transition-colors ${
+                        serviceInUse 
+                          ? 'border-amber-500/40 cursor-not-allowed' 
+                          : 'border-steel/20 cursor-pointer hover:border-gold/50'
+                      }`}
+                      onClick={() => handleEditService(service)}
+                    >
+                      <div className="flex-1">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <h3 className="font-medium text-white">{service.name}</h3>
+                            {serviceInUse && (
+                              <Badge variant="outline" className="text-xs border-amber-500/40 text-amber-400 bg-amber-500/10">
+                                In Use
+                              </Badge>
+                            )}
+                          </div>
+                          <span className="text-gold font-bold">${service.price}</span>
+                        </div>
+                        {service.description && (
+                          <p className="text-sm text-steel mt-1">{service.description}</p>
+                        )}
+                        <div className="flex items-center gap-2 mt-2">
+                          <Badge variant="outline" className="text-xs border-steel/40 text-steel">
+                            {service.category}
+                          </Badge>
+                          <span className="text-xs text-steel">{service.duration} min</span>
+                        </div>
+                        {serviceInUse && (
+                          <p className="text-xs text-amber-400 mt-1">
+                            Referenced in existing appointments - cannot edit or delete
+                          </p>
+                        )}
                       </div>
-                      {service.description && (
-                        <p className="text-sm text-steel mt-1">{service.description}</p>
-                      )}
-                      <div className="flex items-center gap-2 mt-2">
-                        <Badge variant="outline" className="text-xs border-steel/40 text-steel">
-                          {service.category}
-                        </Badge>
-                        <span className="text-xs text-steel">{service.duration} min</span>
+                      <div className="flex items-center space-x-2 ml-4">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className={`${
+                            serviceInUse 
+                              ? 'text-gray-500 cursor-not-allowed' 
+                              : 'text-red-400 hover:bg-red-400/10'
+                          }`}
+                          disabled={serviceInUse}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteService(service.id);
+                          }}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
                       </div>
                     </div>
-                    <div className="flex items-center space-x-2 ml-4">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="text-red-400 hover:bg-red-400/10"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDeleteService(service.id);
-                        }}
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             ) : (
               <div className="text-center py-8 text-steel">

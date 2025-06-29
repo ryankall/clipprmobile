@@ -406,6 +406,62 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.patch("/api/services/:id", requireAuth, async (req, res) => {
+    try {
+      const serviceId = parseInt(req.params.id);
+      const userId = (req.user as any).id;
+      
+      // Check if service belongs to user
+      const existingService = await storage.getService(serviceId);
+      if (!existingService || existingService.userId !== userId) {
+        return res.status(404).json({ message: "Service not found" });
+      }
+
+      // Check if service is used in existing appointments
+      const appointments = await storage.getAppointmentsByUserId(userId);
+      const serviceInUse = appointments.some(apt => apt.serviceId === serviceId);
+      
+      if (serviceInUse) {
+        return res.status(400).json({ 
+          message: "Cannot edit service that is referenced in existing appointments. Please complete or cancel those appointments first." 
+        });
+      }
+
+      const service = await storage.updateService(serviceId, req.body);
+      res.json(service);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.delete("/api/services/:id", requireAuth, async (req, res) => {
+    try {
+      const serviceId = parseInt(req.params.id);
+      const userId = (req.user as any).id;
+      
+      // Check if service belongs to user
+      const existingService = await storage.getService(serviceId);
+      if (!existingService || existingService.userId !== userId) {
+        return res.status(404).json({ message: "Service not found" });
+      }
+
+      // Check if service is used in existing appointments
+      const appointments = await storage.getAppointmentsByUserId(userId);
+      const serviceInUse = appointments.some(apt => apt.serviceId === serviceId);
+      
+      if (serviceInUse) {
+        return res.status(400).json({ 
+          message: "Cannot delete service that is referenced in existing appointments. Please complete or cancel those appointments first." 
+        });
+      }
+
+      await storage.deleteService(serviceId);
+      res.json({ message: "Service deleted successfully" });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
   // File upload route
   app.post("/api/upload", requireAuth, upload.single('photo'), async (req, res) => {
     try {
