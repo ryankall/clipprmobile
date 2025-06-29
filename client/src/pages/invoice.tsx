@@ -1271,22 +1271,6 @@ export default function InvoicePage() {
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="text-gold hover:bg-gold/10 px-2 py-1 text-xs"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            addServiceToInvoice(service);
-                            toast({
-                              title: "Service Added",
-                              description: `${service.name} has been added to the invoice`,
-                            });
-                          }}
-                        >
-                          <Plus className="w-3 h-3 mr-1" />
-                          Add to Invoice
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
                           className={`${
                             serviceInUse
                               ? "text-gray-500 cursor-not-allowed"
