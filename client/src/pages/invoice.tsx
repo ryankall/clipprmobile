@@ -332,6 +332,20 @@ export default function InvoicePage() {
     }
   };
 
+  // Handle template deletion
+  const handleDeleteTemplate = (templateId: string) => {
+    if (confirm("Are you sure you want to delete this template? This action cannot be undone.")) {
+      const updatedTemplates = savedTemplates.filter(template => template.id !== templateId);
+      setSavedTemplates(updatedTemplates);
+      localStorage.setItem('invoiceTemplates', JSON.stringify(updatedTemplates));
+      
+      toast({
+        title: "Template Deleted",
+        description: "Invoice template has been deleted successfully",
+      });
+    }
+  };
+
   // Auto-calculate total when subtotal or tip changes
   const watchedSubtotal = form.watch("subtotal");
   const watchedTip = form.watch("tip");
@@ -691,18 +705,28 @@ export default function InvoicePage() {
 
               {/* Saved Templates */}
               {savedTemplates.map((template) => (
-                <Button
+                <div
                   key={template.id}
-                  variant="outline"
-                  className="bg-charcoal border-steel/40 h-auto p-4 text-center touch-target flex flex-col items-center space-y-2 tap-feedback hover:bg-charcoal/80"
-                  onClick={() =>
-                    handleQuickInvoice(template.category, template.amount)
-                  }
+                  className="relative bg-charcoal border border-steel/40 rounded-lg p-4 text-center touch-target hover:bg-charcoal/80 cursor-pointer"
+                  onClick={() => handleQuickInvoice(template.category, template.amount)}
                 >
-                  <Receipt className="w-5 h-5 text-gold" />
-                  <div className="text-sm font-medium">{template.name}</div>
-                  <div className="text-xs text-steel">${template.amount}</div>
-                </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="absolute top-1 right-1 text-red-400 hover:bg-red-400/10 h-6 w-6 p-0"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDeleteTemplate(template.id);
+                    }}
+                  >
+                    <Trash2 className="w-3 h-3" />
+                  </Button>
+                  <div className="flex flex-col items-center space-y-2">
+                    <Receipt className="w-5 h-5 text-gold" />
+                    <div className="text-sm font-medium text-white">{template.name}</div>
+                    <div className="text-xs text-steel">${template.amount}</div>
+                  </div>
+                </div>
               ))}
 
               {/* Custom Invoice Button */}
