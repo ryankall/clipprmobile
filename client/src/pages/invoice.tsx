@@ -11,7 +11,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { BottomNavigation } from "@/components/bottom-navigation";
-import { Receipt, Plus, ArrowLeft, DollarSign, CreditCard, Smartphone, Banknote } from "lucide-react";
+import { Receipt, Plus, ArrowLeft, DollarSign, CreditCard, Smartphone, Banknote, Scissors } from "lucide-react";
 import { Link } from "wouter";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -624,6 +624,69 @@ export default function InvoicePage() {
                 <div className="text-xs text-steel">Standardized rates</div>
               </div>
             </div>
+          </CardContent>
+        </Card>
+
+        {/* Services Management */}
+        <Card className="bg-dark-card border-steel/20">
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle className="text-white">Service Templates</CardTitle>
+            <Button 
+              onClick={() => setIsDialogOpen(true)}
+              variant="outline" 
+              size="sm" 
+              className="bg-charcoal border-steel/40 text-gold hover:bg-charcoal/80"
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              Add Service
+            </Button>
+          </CardHeader>
+          <CardContent>
+            {services && services.length > 0 ? (
+              <div className="space-y-3">
+                {services.map((service) => (
+                  <div key={service.id} className="flex items-center justify-between p-3 bg-charcoal rounded-lg border border-steel/20">
+                    <div className="flex-1">
+                      <div className="flex items-center justify-between">
+                        <h3 className="font-medium text-white">{service.name}</h3>
+                        <span className="text-gold font-bold">${service.price}</span>
+                      </div>
+                      {service.description && (
+                        <p className="text-sm text-steel mt-1">{service.description}</p>
+                      )}
+                      <div className="flex items-center gap-2 mt-2">
+                        <Badge variant="outline" className="text-xs border-steel/40 text-steel">
+                          {service.category}
+                        </Badge>
+                        <span className="text-xs text-steel">{service.duration} min</span>
+                      </div>
+                    </div>
+                    <div className="flex items-center space-x-2 ml-4">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-gold hover:bg-gold/10"
+                        onClick={() => handleQuickInvoice(service.category, service.price.toString())}
+                      >
+                        <Receipt className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8 text-steel">
+                <Scissors className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                <p>No services created yet</p>
+                <Button
+                  onClick={() => setIsDialogOpen(true)}
+                  variant="link"
+                  className="text-gold text-sm mt-2 p-0 h-auto"
+                >
+                  Add your first service
+                </Button>
+              </div>
+            )}
           </CardContent>
         </Card>
 
