@@ -8,14 +8,27 @@ import { Clock } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 
+interface BreakTime {
+  start: string;
+  end: string;
+  label: string;
+}
+
+interface DayHours {
+  start: string;
+  end: string;
+  enabled: boolean;
+  breaks?: BreakTime[];
+}
+
 interface WorkingHours {
-  monday: { start: string; end: string; enabled: boolean };
-  tuesday: { start: string; end: string; enabled: boolean };
-  wednesday: { start: string; end: string; enabled: boolean };
-  thursday: { start: string; end: string; enabled: boolean };
-  friday: { start: string; end: string; enabled: boolean };
-  saturday: { start: string; end: string; enabled: boolean };
-  sunday: { start: string; end: string; enabled: boolean };
+  monday: DayHours;
+  tuesday: DayHours;
+  wednesday: DayHours;
+  thursday: DayHours;
+  friday: DayHours;
+  saturday: DayHours;
+  sunday: DayHours;
 }
 
 interface WorkingHoursDialogProps {
@@ -25,13 +38,13 @@ interface WorkingHoursDialogProps {
 export function WorkingHoursDialog({ currentHours }: WorkingHoursDialogProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [workingHours, setWorkingHours] = useState<WorkingHours>({
-    monday: { start: "09:00", end: "18:00", enabled: true },
-    tuesday: { start: "09:00", end: "18:00", enabled: true },
-    wednesday: { start: "09:00", end: "18:00", enabled: true },
-    thursday: { start: "09:00", end: "18:00", enabled: true },
-    friday: { start: "09:00", end: "18:00", enabled: true },
-    saturday: { start: "10:00", end: "16:00", enabled: true },
-    sunday: { start: "10:00", end: "16:00", enabled: false },
+    monday: { start: "09:00", end: "18:00", enabled: true, breaks: [] },
+    tuesday: { start: "09:00", end: "18:00", enabled: true, breaks: [] },
+    wednesday: { start: "09:00", end: "18:00", enabled: true, breaks: [] },
+    thursday: { start: "09:00", end: "18:00", enabled: true, breaks: [] },
+    friday: { start: "09:00", end: "18:00", enabled: true, breaks: [] },
+    saturday: { start: "10:00", end: "16:00", enabled: true, breaks: [] },
+    sunday: { start: "10:00", end: "16:00", enabled: false, breaks: [] },
   });
 
   const { toast } = useToast();

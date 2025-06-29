@@ -896,8 +896,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get barber profile by phone number
   app.get("/api/public/barber/:phone", async (req, res) => {
     try {
-      const phone = req.params.phone;
-      const user = await storage.getUserByPhone(phone);
+      const phoneParam = req.params.phone;
+      // Extract phone number from format like "6467891820-clipcutman"
+      const phoneDigits = phoneParam.split('-')[0];
+      // Convert to formatted phone number like "(646) 789-1820"
+      const formattedPhone = `(${phoneDigits.slice(0,3)}) ${phoneDigits.slice(3,6)}-${phoneDigits.slice(6)}`;
+      
+      const user = await storage.getUserByPhone(formattedPhone);
       
       if (!user) {
         return res.status(404).json({ message: "Barber not found" });
@@ -923,8 +928,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get barber services by phone number
   app.get("/api/public/barber/:phone/services", async (req, res) => {
     try {
-      const phone = req.params.phone;
-      const user = await storage.getUserByPhone(phone);
+      const phoneParam = req.params.phone;
+      const phoneDigits = phoneParam.split('-')[0];
+      const formattedPhone = `(${phoneDigits.slice(0,3)}) ${phoneDigits.slice(3,6)}-${phoneDigits.slice(6)}`;
+      const user = await storage.getUserByPhone(formattedPhone);
       
       if (!user) {
         return res.status(404).json({ message: "Barber not found" });
@@ -952,17 +959,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get available time slots for a date
   app.get("/api/public/barber/:phone/availability", async (req, res) => {
     try {
-      const phone = req.params.phone;
+      const phoneParam = req.params.phone;
+      const phoneDigits = phoneParam.split('-')[0];
+      const formattedPhone = `(${phoneDigits.slice(0,3)}) ${phoneDigits.slice(3,6)}-${phoneDigits.slice(6)}`;
       const date = req.query.date as string;
       
       if (!date) {
         return res.status(400).json({ message: "Date parameter is required" });
       }
 
-      const user = await storage.getUserByPhone(phone);
+      const user = await storage.getUserByPhone(formattedPhone);
       
       if (!user) {
         return res.status(404).json({ message: "Barber not found" });
+      }
+
+      // Get the day of the week
+      const requestDate = new Date(date);
+      const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+      const dayOfWeek = dayNames[requestDate.getDay()];
+
+      // Get working hours for this day
+      const workingHours = user.workingHours as any;
+      const dayHours = workingHours?.[dayOfWeek];
+      
+      if (!dayHours || !dayHours.enabled) {
+        return res.json([]); // Not working this day
       }
 
       // Get existing appointments for the date
@@ -972,18 +994,52 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const appointments = await storage.getAppointmentsByUserId(user.id, startDate, endDate);
       
-      // Generate time slots (9 AM to 6 PM, hourly)
+      // Parse working hours
+      const [startHour, startMinute] = dayHours.start.split(':').map(Number);
+      const [endHour, endMinute] = dayHours.end.split(':').map(Number);
+      
+      // Generate 15-minute time slots
       const timeSlots = [];
-      for (let hour = 9; hour <= 18; hour++) {
-        const timeString = `${hour.toString().padStart(2, '0')}:00`;
+      const startMinutes = startHour * 60 + startMinute;
+      const endMinutes = endHour * 60 + endMinute;
+      
+      for (let minutes = startMinutes; minutes < endMinutes; minutes += 15) {
+        const hour = Math.floor(minutes / 60);
+        const minute = minutes % 60;
+        
+        // Create time string in format HH:MM
+        const timeString = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
+        
+        // Create date object for this time slot
+        const slotDateTime = new Date(requestDate);
+        slotDateTime.setHours(hour, minute, 0, 0);
+        
+        // Check if time slot is booked (any appointment overlaps with this 15-min slot)
         const isBooked = appointments.some(apt => {
-          const aptTime = new Date(apt.scheduledAt);
-          return aptTime.getHours() === hour;
+          const aptStart = new Date(apt.scheduledAt);
+          const aptEnd = new Date(aptStart.getTime() + (apt.service?.duration || 60) * 60000);
+          const slotEnd = new Date(slotDateTime.getTime() + 15 * 60000);
+          
+          // Check for overlap
+          return aptStart < slotEnd && aptEnd > slotDateTime;
         });
+        
+        // Check for break times (if they exist)
+        let isBreakTime = false;
+        if (dayHours.breaks && Array.isArray(dayHours.breaks)) {
+          isBreakTime = dayHours.breaks.some((breakTime: any) => {
+            const [breakStartHour, breakStartMinute] = breakTime.start.split(':').map(Number);
+            const [breakEndHour, breakEndMinute] = breakTime.end.split(':').map(Number);
+            const breakStartMinutes = breakStartHour * 60 + breakStartMinute;
+            const breakEndMinutes = breakEndHour * 60 + breakEndMinute;
+            
+            return minutes >= breakStartMinutes && minutes < breakEndMinutes;
+          });
+        }
         
         timeSlots.push({
           time: timeString,
-          available: !isBooked && hour <= 18, // Don't allow booking past 6 PM
+          available: !isBooked && !isBreakTime,
         });
       }
 
@@ -996,7 +1052,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get client by phone for barber
   app.get("/api/public/barber/:phone/client-lookup", async (req, res) => {
     try {
-      const barberPhone = req.params.phone;
+      const phoneParam = req.params.phone;
+      const phoneDigits = phoneParam.split('-')[0];
+      const barberPhone = `(${phoneDigits.slice(0,3)}) ${phoneDigits.slice(3,6)}-${phoneDigits.slice(6)}`;
       const clientPhone = req.query.phone as string;
       
       if (!clientPhone) {
