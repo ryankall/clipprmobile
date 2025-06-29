@@ -5,17 +5,54 @@ import { useLocation, useParams } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { BottomNavigation } from "@/components/bottom-navigation";
-import { Receipt, Plus, ArrowLeft, DollarSign, CreditCard, Smartphone, Banknote, Scissors, Trash2, Edit } from "lucide-react";
+import {
+  Receipt,
+  Plus,
+  ArrowLeft,
+  DollarSign,
+  CreditCard,
+  Smartphone,
+  Banknote,
+  Scissors,
+  Trash2,
+  Edit,
+} from "lucide-react";
 import { Link } from "wouter";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { insertInvoiceSchema, type Invoice, type Client, type Service, type AppointmentWithRelations } from "@shared/schema";
+import {
+  insertInvoiceSchema,
+  type Invoice,
+  type Client,
+  type Service,
+  type AppointmentWithRelations,
+} from "@shared/schema";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { z } from "zod";
@@ -52,8 +89,8 @@ export default function InvoicePage() {
   const { toast } = useToast();
 
   // Parse query params for pre-filled service
-  const urlParams = new URLSearchParams(location.split('?')[1] || '');
-  const prefilledService = urlParams.get('service');
+  const urlParams = new URLSearchParams(location.split("?")[1] || "");
+  const prefilledService = urlParams.get("service");
 
   const { data: invoices, isLoading: invoicesLoading } = useQuery<Invoice[]>({
     queryKey: ["/api/invoices"],
@@ -115,10 +152,10 @@ export default function InvoicePage() {
       });
       setIsDialogOpen(false);
       form.reset();
-      
+
       // Navigate to checkout if payment is required
       const invoice = response.data;
-      if (invoice.paymentMethod === 'stripe') {
+      if (invoice.paymentMethod === "stripe") {
         window.location.href = `/checkout/${invoice.id}`;
       }
     },
@@ -135,19 +172,24 @@ export default function InvoicePage() {
     mutationFn: async (data: z.infer<typeof templateFormSchema>) => {
       // For now, we'll save templates to localStorage since there's no template table
       // In production, this would save to a database table
-      const existingTemplates = JSON.parse(localStorage.getItem('invoiceTemplates') || '[]');
+      const existingTemplates = JSON.parse(
+        localStorage.getItem("invoiceTemplates") || "[]",
+      );
       const newTemplate = {
         id: Date.now(),
         ...data,
         createdAt: new Date().toISOString(),
       };
       existingTemplates.push(newTemplate);
-      localStorage.setItem('invoiceTemplates', JSON.stringify(existingTemplates));
+      localStorage.setItem(
+        "invoiceTemplates",
+        JSON.stringify(existingTemplates),
+      );
       return newTemplate;
     },
     onSuccess: () => {
       toast({
-        title: "Template Created", 
+        title: "Template Created",
         description: "Invoice template saved successfully",
       });
       setIsTemplateDialogOpen(false);
@@ -166,7 +208,9 @@ export default function InvoicePage() {
 
   // Load templates from localStorage
   const loadTemplates = () => {
-    const templates = JSON.parse(localStorage.getItem('invoiceTemplates') || '[]');
+    const templates = JSON.parse(
+      localStorage.getItem("invoiceTemplates") || "[]",
+    );
     setSavedTemplates(templates);
   };
 
@@ -177,7 +221,10 @@ export default function InvoicePage() {
 
   // Service edit mutation
   const editServiceMutation = useMutation({
-    mutationFn: async (data: { id: number; service: z.infer<typeof serviceFormSchema> }) => {
+    mutationFn: async (data: {
+      id: number;
+      service: z.infer<typeof serviceFormSchema>;
+    }) => {
       return apiRequest(`/api/services/${data.id}`, {
         method: "PATCH",
         body: JSON.stringify({
@@ -231,7 +278,7 @@ export default function InvoicePage() {
 
   // Check if service is used in appointments
   const isServiceInUse = (serviceId: number) => {
-    return appointments?.some(apt => apt.serviceId === serviceId) || false;
+    return appointments?.some((apt) => apt.serviceId === serviceId) || false;
   };
 
   // Handle service edit
@@ -239,7 +286,8 @@ export default function InvoicePage() {
     if (isServiceInUse(service.id)) {
       toast({
         title: "Cannot Edit Service",
-        description: "This service is referenced in existing appointments. Please complete or cancel those appointments first.",
+        description:
+          "This service is referenced in existing appointments. Please complete or cancel those appointments first.",
         variant: "destructive",
       });
       return;
@@ -261,13 +309,18 @@ export default function InvoicePage() {
     if (isServiceInUse(serviceId)) {
       toast({
         title: "Cannot Delete Service",
-        description: "This service is referenced in existing appointments. Please complete or cancel those appointments first.",
+        description:
+          "This service is referenced in existing appointments. Please complete or cancel those appointments first.",
         variant: "destructive",
       });
       return;
     }
 
-    if (confirm("Are you sure you want to delete this service? This action cannot be undone.")) {
+    if (
+      confirm(
+        "Are you sure you want to delete this service? This action cannot be undone.",
+      )
+    ) {
       deleteServiceMutation.mutate(serviceId);
     }
   };
@@ -287,13 +340,13 @@ export default function InvoicePage() {
   useEffect(() => {
     const subtotal = parseFloat(watchedSubtotal) || 0;
     let tip = parseFloat(watchedTip) || 0;
-    
+
     // Calculate tip from percentage if provided
     if (watchedTipPercentage && watchedTipPercentage > 0) {
       tip = subtotal * (watchedTipPercentage / 100);
       form.setValue("tip", tip.toFixed(2));
     }
-    
+
     const total = subtotal + tip;
     form.setValue("total", total.toFixed(2));
   }, [watchedSubtotal, watchedTip, watchedTipPercentage, form]);
@@ -301,11 +354,12 @@ export default function InvoicePage() {
   // Pre-fill form based on service selection
   useEffect(() => {
     if (prefilledService && services) {
-      const service = services.find(s => 
-        s.category === prefilledService || 
-        s.name.toLowerCase().includes(prefilledService.toLowerCase())
+      const service = services.find(
+        (s) =>
+          s.category === prefilledService ||
+          s.name.toLowerCase().includes(prefilledService.toLowerCase()),
       );
-      
+
       if (service) {
         form.setValue("subtotal", service.price);
       }
@@ -322,7 +376,7 @@ export default function InvoicePage() {
 
   const handleQuickInvoice = (serviceType: string, price: string) => {
     form.setValue("subtotal", price);
-    const service = services?.find(s => s.category === serviceType);
+    const service = services?.find((s) => s.category === serviceType);
     if (service && clients?.[0]) {
       form.setValue("clientId", clients[0].id);
     }
@@ -337,7 +391,11 @@ export default function InvoicePage() {
           <div className="flex items-center space-x-3">
             {id ? (
               <Link href="/invoice">
-                <Button variant="ghost" size="sm" className="text-steel hover:text-white p-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-steel hover:text-white p-2"
+                >
                   <ArrowLeft className="w-5 h-5" />
                 </Button>
               </Link>
@@ -349,7 +407,10 @@ export default function InvoicePage() {
           </div>
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogTrigger asChild>
-              <Button size="sm" className="gradient-gold text-charcoal tap-feedback">
+              <Button
+                size="sm"
+                className="gradient-gold text-charcoal tap-feedback"
+              >
                 <Plus className="w-4 h-4 mr-1" />
                 Create
               </Button>
@@ -358,18 +419,26 @@ export default function InvoicePage() {
               <DialogHeader>
                 <DialogTitle className="text-white">Create Invoice</DialogTitle>
                 <DialogDescription className="text-steel">
-                  Create a new invoice for your client with itemized services and payment options.
+                  Create a new invoice for your client with itemized services
+                  and payment options.
                 </DialogDescription>
               </DialogHeader>
               <Form {...form}>
-                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                <form
+                  onSubmit={form.handleSubmit(onSubmit)}
+                  className="space-y-4"
+                >
                   <FormField
                     control={form.control}
                     name="clientId"
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel className="text-white">Client</FormLabel>
-                        <Select onValueChange={(value) => field.onChange(parseInt(value))}>
+                        <Select
+                          onValueChange={(value) =>
+                            field.onChange(parseInt(value))
+                          }
+                        >
                           <FormControl>
                             <SelectTrigger className="bg-charcoal border-steel/40 text-white">
                               <SelectValue placeholder="Select client" />
@@ -377,7 +446,11 @@ export default function InvoicePage() {
                           </FormControl>
                           <SelectContent className="bg-charcoal border-steel/40 text-white">
                             {clients?.map((client) => (
-                              <SelectItem key={client.id} value={client.id.toString()} className="text-white hover:bg-steel/20">
+                              <SelectItem
+                                key={client.id}
+                                value={client.id.toString()}
+                                className="text-white hover:bg-steel/20"
+                              >
                                 {client.name}
                               </SelectItem>
                             ))}
@@ -393,10 +466,12 @@ export default function InvoicePage() {
                     name="subtotal"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="text-white">Service Amount ($)</FormLabel>
+                        <FormLabel className="text-white">
+                          Service Amount ($)
+                        </FormLabel>
                         <FormControl>
-                          <Input 
-                            {...field} 
+                          <Input
+                            {...field}
                             type="number"
                             step="0.01"
                             className="bg-charcoal border-steel/40 text-white"
@@ -415,18 +490,47 @@ export default function InvoicePage() {
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel className="text-white">Tip (%)</FormLabel>
-                          <Select onValueChange={(value) => field.onChange(parseInt(value))}>
+                          <Select
+                            onValueChange={(value) =>
+                              field.onChange(parseInt(value))
+                            }
+                          >
                             <FormControl>
                               <SelectTrigger className="bg-charcoal border-steel/40 text-white">
                                 <SelectValue placeholder="Tip %" />
                               </SelectTrigger>
                             </FormControl>
                             <SelectContent className="bg-charcoal border-steel/40 text-white">
-                              <SelectItem value="0" className="text-white hover:bg-steel/20">No tip</SelectItem>
-                              <SelectItem value="15" className="text-white hover:bg-steel/20">15%</SelectItem>
-                              <SelectItem value="18" className="text-white hover:bg-steel/20">18%</SelectItem>
-                              <SelectItem value="20" className="text-white hover:bg-steel/20">20%</SelectItem>
-                              <SelectItem value="25" className="text-white hover:bg-steel/20">25%</SelectItem>
+                              <SelectItem
+                                value="0"
+                                className="text-white hover:bg-steel/20"
+                              >
+                                No tip
+                              </SelectItem>
+                              <SelectItem
+                                value="15"
+                                className="text-white hover:bg-steel/20"
+                              >
+                                15%
+                              </SelectItem>
+                              <SelectItem
+                                value="18"
+                                className="text-white hover:bg-steel/20"
+                              >
+                                18%
+                              </SelectItem>
+                              <SelectItem
+                                value="20"
+                                className="text-white hover:bg-steel/20"
+                              >
+                                20%
+                              </SelectItem>
+                              <SelectItem
+                                value="25"
+                                className="text-white hover:bg-steel/20"
+                              >
+                                25%
+                              </SelectItem>
                             </SelectContent>
                           </Select>
                           <FormMessage />
@@ -439,10 +543,12 @@ export default function InvoicePage() {
                       name="tip"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel className="text-white">Tip Amount ($)</FormLabel>
+                          <FormLabel className="text-white">
+                            Tip Amount ($)
+                          </FormLabel>
                           <FormControl>
-                            <Input 
-                              {...field} 
+                            <Input
+                              {...field}
                               type="number"
                               step="0.01"
                               className="bg-charcoal border-steel/40 text-white"
@@ -460,10 +566,12 @@ export default function InvoicePage() {
                     name="total"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="text-white">Total Amount ($)</FormLabel>
+                        <FormLabel className="text-white">
+                          Total Amount ($)
+                        </FormLabel>
                         <FormControl>
-                          <Input 
-                            {...field} 
+                          <Input
+                            {...field}
                             type="number"
                             step="0.01"
                             className="bg-charcoal border-steel/40 text-white font-bold text-gold"
@@ -481,7 +589,9 @@ export default function InvoicePage() {
                     name="paymentMethod"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="text-white">Payment Method</FormLabel>
+                        <FormLabel className="text-white">
+                          Payment Method
+                        </FormLabel>
                         <Select onValueChange={field.onChange}>
                           <FormControl>
                             <SelectTrigger className="bg-charcoal border-steel/40 text-white">
@@ -489,9 +599,24 @@ export default function InvoicePage() {
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent className="bg-charcoal border-steel/40 text-white">
-                            <SelectItem value="stripe" className="text-white hover:bg-steel/20">Card Payment</SelectItem>
-                            <SelectItem value="apple_pay" className="text-white hover:bg-steel/20">Apple Pay</SelectItem>
-                            <SelectItem value="cash" className="text-white hover:bg-steel/20">Cash</SelectItem>
+                            <SelectItem
+                              value="stripe"
+                              className="text-white hover:bg-steel/20"
+                            >
+                              Card Payment
+                            </SelectItem>
+                            <SelectItem
+                              value="apple_pay"
+                              className="text-white hover:bg-steel/20"
+                            >
+                              Apple Pay
+                            </SelectItem>
+                            <SelectItem
+                              value="cash"
+                              className="text-white hover:bg-steel/20"
+                            >
+                              Cash
+                            </SelectItem>
                           </SelectContent>
                         </Select>
                         <FormMessage />
@@ -513,7 +638,9 @@ export default function InvoicePage() {
                       className="flex-1 gradient-gold text-charcoal tap-feedback"
                       disabled={createInvoiceMutation.isPending}
                     >
-                      {createInvoiceMutation.isPending ? "Creating..." : "Create Invoice"}
+                      {createInvoiceMutation.isPending
+                        ? "Creating..."
+                        : "Create Invoice"}
                     </Button>
                   </div>
                 </form>
@@ -527,7 +654,9 @@ export default function InvoicePage() {
         {/* Quick Invoice Templates */}
         <Card className="bg-dark-card border-steel/20">
           <CardHeader>
-            <CardTitle className="text-white">Quick Invoice Templates</CardTitle>
+            <CardTitle className="text-white">
+              Quick Invoice Templates
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-2 gap-3">
@@ -566,7 +695,9 @@ export default function InvoicePage() {
                   key={template.id}
                   variant="outline"
                   className="bg-charcoal border-steel/40 h-auto p-4 text-center touch-target flex flex-col items-center space-y-2 tap-feedback hover:bg-charcoal/80"
-                  onClick={() => handleQuickInvoice(template.category, template.amount)}
+                  onClick={() =>
+                    handleQuickInvoice(template.category, template.amount)
+                  }
                 >
                   <Receipt className="w-5 h-5 text-gold" />
                   <div className="text-sm font-medium">{template.name}</div>
@@ -589,29 +720,33 @@ export default function InvoicePage() {
         </Card>
 
         {/* Invoice Stats */}
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-4 gap-4">
           <Card className="bg-dark-card border-steel/20">
-            <CardContent className="p-4 text-center">
-              <div className="text-2xl font-bold text-gold">
+            <CardContent className="p-3 text-center">
+              <div className="text-xl font-bold text-gold">
                 {invoices?.length || 0}
               </div>
               <div className="text-xs text-steel">Total Invoices</div>
             </CardContent>
           </Card>
           <Card className="bg-dark-card border-steel/20">
-            <CardContent className="p-4 text-center">
-              <div className="text-2xl font-bold text-gold">
-                {invoices?.filter(i => i.status === 'paid').length || 0}
+            <CardContent className="p-3 text-center">
+              <div className="text-xl font-bold text-gold">
+                {invoices?.filter((i) => i.status === "paid").length || 0}
               </div>
               <div className="text-xs text-steel">Paid</div>
             </CardContent>
           </Card>
-          <Card className="bg-dark-card border-steel/20">
+          <Card className="bg-dark-card border-steel/20 col-span-2">
             <CardContent className="p-4 text-center">
-              <div className="text-2xl font-bold text-gold">
-                ${invoices?.filter(i => i.status === 'paid').reduce((sum, i) => sum + parseFloat(i.total), 0).toFixed(2) || "0.00"}
+              <div className="text-3xl font-bold text-gold">
+                $
+                {invoices
+                  ?.filter((i) => i.status === "paid")
+                  .reduce((sum, i) => sum + parseFloat(i.total), 0)
+                  .toFixed(2) || "0.00"}
               </div>
-              <div className="text-xs text-steel">Revenue</div>
+              <div className="text-sm text-steel">Revenue</div>
             </CardContent>
           </Card>
         </div>
@@ -620,31 +755,46 @@ export default function InvoicePage() {
         <Card className="bg-dark-card border-steel/20">
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="text-white">Create Quick Templates</CardTitle>
-            <Dialog open={isTemplateDialogOpen} onOpenChange={setIsTemplateDialogOpen}>
+            <Dialog
+              open={isTemplateDialogOpen}
+              onOpenChange={setIsTemplateDialogOpen}
+            >
               <DialogTrigger asChild>
-                <Button variant="outline" size="sm" className="bg-charcoal border-steel/40 text-gold hover:bg-charcoal/80">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="bg-charcoal border-steel/40 text-gold hover:bg-charcoal/80"
+                >
                   <Plus className="w-4 h-4 mr-2" />
                   New Template
                 </Button>
               </DialogTrigger>
               <DialogContent className="bg-dark-card border-steel/40 text-white max-w-md">
                 <DialogHeader>
-                  <DialogTitle className="text-white">Create Invoice Template</DialogTitle>
+                  <DialogTitle className="text-white">
+                    Create Invoice Template
+                  </DialogTitle>
                   <DialogDescription className="text-steel">
-                    Create a reusable template for quick invoice generation with consistent pricing.
+                    Create a reusable template for quick invoice generation with
+                    consistent pricing.
                   </DialogDescription>
                 </DialogHeader>
                 <Form {...templateForm}>
-                  <form onSubmit={templateForm.handleSubmit(onTemplateSubmit)} className="space-y-4">
+                  <form
+                    onSubmit={templateForm.handleSubmit(onTemplateSubmit)}
+                    className="space-y-4"
+                  >
                     <FormField
                       control={templateForm.control}
                       name="name"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel className="text-white">Template Name</FormLabel>
+                          <FormLabel className="text-white">
+                            Template Name
+                          </FormLabel>
                           <FormControl>
-                            <Input 
-                              {...field} 
+                            <Input
+                              {...field}
                               className="bg-charcoal border-steel/40 text-white"
                               placeholder="e.g., Premium Haircut"
                             />
@@ -667,10 +817,30 @@ export default function InvoicePage() {
                               </SelectTrigger>
                             </FormControl>
                             <SelectContent className="bg-charcoal border-steel/40 text-white">
-                              <SelectItem value="haircut" className="text-white hover:bg-steel/20">Haircut</SelectItem>
-                              <SelectItem value="beard" className="text-white hover:bg-steel/20">Beard Services</SelectItem>
-                              <SelectItem value="combo" className="text-white hover:bg-steel/20">Combo Package</SelectItem>
-                              <SelectItem value="special" className="text-white hover:bg-steel/20">Special Service</SelectItem>
+                              <SelectItem
+                                value="haircut"
+                                className="text-white hover:bg-steel/20"
+                              >
+                                Haircut
+                              </SelectItem>
+                              <SelectItem
+                                value="beard"
+                                className="text-white hover:bg-steel/20"
+                              >
+                                Beard Services
+                              </SelectItem>
+                              <SelectItem
+                                value="combo"
+                                className="text-white hover:bg-steel/20"
+                              >
+                                Combo Package
+                              </SelectItem>
+                              <SelectItem
+                                value="special"
+                                className="text-white hover:bg-steel/20"
+                              >
+                                Special Service
+                              </SelectItem>
                             </SelectContent>
                           </Select>
                           <FormMessage />
@@ -683,10 +853,12 @@ export default function InvoicePage() {
                       name="amount"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel className="text-white">Default Amount ($)</FormLabel>
+                          <FormLabel className="text-white">
+                            Default Amount ($)
+                          </FormLabel>
                           <FormControl>
-                            <Input 
-                              {...field} 
+                            <Input
+                              {...field}
                               type="number"
                               step="0.01"
                               className="bg-charcoal border-steel/40 text-white"
@@ -703,10 +875,12 @@ export default function InvoicePage() {
                       name="description"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel className="text-white">Description (Optional)</FormLabel>
+                          <FormLabel className="text-white">
+                            Description (Optional)
+                          </FormLabel>
                           <FormControl>
-                            <Textarea 
-                              {...field} 
+                            <Textarea
+                              {...field}
                               className="bg-charcoal border-steel/40 text-white"
                               placeholder="Brief description of the service..."
                             />
@@ -717,20 +891,22 @@ export default function InvoicePage() {
                     />
 
                     <div className="flex space-x-3">
-                      <Button 
-                        type="button" 
-                        variant="outline" 
+                      <Button
+                        type="button"
+                        variant="outline"
                         className="flex-1 bg-charcoal border-steel/40 text-white hover:bg-steel/20"
                         onClick={() => setIsTemplateDialogOpen(false)}
                       >
                         Cancel
                       </Button>
-                      <Button 
-                        type="submit" 
+                      <Button
+                        type="submit"
                         className="flex-1 gradient-gold text-charcoal font-semibold"
                         disabled={createTemplateMutation.isPending}
                       >
-                        {createTemplateMutation.isPending ? "Creating..." : "Create Template"}
+                        {createTemplateMutation.isPending
+                          ? "Creating..."
+                          : "Create Template"}
                       </Button>
                     </div>
                   </form>
@@ -740,15 +916,21 @@ export default function InvoicePage() {
           </CardHeader>
           <CardContent>
             <p className="text-steel text-sm">
-              Create custom invoice templates for frequently used services. Templates can be quickly selected when creating new invoices, saving you time and ensuring consistent pricing.
+              Create custom invoice templates for frequently used services.
+              Templates can be quickly selected when creating new invoices,
+              saving you time and ensuring consistent pricing.
             </p>
             <div className="grid grid-cols-2 gap-3 mt-4">
               <div className="bg-charcoal rounded-lg p-3 border border-steel/20">
-                <div className="text-sm font-medium text-white">Quick Access</div>
+                <div className="text-sm font-medium text-white">
+                  Quick Access
+                </div>
                 <div className="text-xs text-steel">One-tap invoicing</div>
               </div>
               <div className="bg-charcoal rounded-lg p-3 border border-steel/20">
-                <div className="text-sm font-medium text-white">Consistent Pricing</div>
+                <div className="text-sm font-medium text-white">
+                  Consistent Pricing
+                </div>
                 <div className="text-xs text-steel">Standardized rates</div>
               </div>
             </div>
@@ -759,10 +941,10 @@ export default function InvoicePage() {
         <Card className="bg-dark-card border-steel/20">
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="text-white">Service Templates</CardTitle>
-            <Button 
+            <Button
               onClick={() => setIsDialogOpen(true)}
-              variant="outline" 
-              size="sm" 
+              variant="outline"
+              size="sm"
               className="bg-charcoal border-steel/40 text-gold hover:bg-charcoal/80"
             >
               <Plus className="w-4 h-4 mr-2" />
@@ -775,39 +957,54 @@ export default function InvoicePage() {
                 {services.map((service) => {
                   const serviceInUse = isServiceInUse(service.id);
                   return (
-                    <div 
-                      key={service.id} 
+                    <div
+                      key={service.id}
                       className={`flex items-center justify-between p-3 bg-charcoal rounded-lg border transition-colors ${
-                        serviceInUse 
-                          ? 'border-amber-500/40 cursor-not-allowed' 
-                          : 'border-steel/20 cursor-pointer hover:border-gold/50'
+                        serviceInUse
+                          ? "border-amber-500/40 cursor-not-allowed"
+                          : "border-steel/20 cursor-pointer hover:border-gold/50"
                       }`}
                       onClick={() => handleEditService(service)}
                     >
                       <div className="flex-1">
+                        {serviceInUse && (
+                          <Badge
+                            variant="outline"
+                            className="text-xs border-amber-500/40 text-amber-400 bg-amber-500/10"
+                          >
+                            In Use
+                          </Badge>
+                        )}
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-2">
-                            <h3 className="font-medium text-white">{service.name}</h3>
-                            {serviceInUse && (
-                              <Badge variant="outline" className="text-xs border-amber-500/40 text-amber-400 bg-amber-500/10">
-                                In Use
-                              </Badge>
-                            )}
+                            <h3 className="font-medium text-white">
+                              {service.name}
+                            </h3>
                           </div>
-                          <span className="text-gold font-bold">${service.price}</span>
+                          <span className="text-gold font-bold">
+                            ${service.price}
+                          </span>
                         </div>
                         {service.description && (
-                          <p className="text-sm text-steel mt-1">{service.description}</p>
+                          <p className="text-sm text-steel mt-1">
+                            {service.description}
+                          </p>
                         )}
                         <div className="flex items-center gap-2 mt-2">
-                          <Badge variant="outline" className="text-xs border-steel/40 text-steel">
+                          <Badge
+                            variant="outline"
+                            className="text-xs border-steel/40 text-steel"
+                          >
                             {service.category}
                           </Badge>
-                          <span className="text-xs text-steel">{service.duration} min</span>
+                          <span className="text-xs text-steel">
+                            {service.duration} min
+                          </span>
                         </div>
                         {serviceInUse && (
                           <p className="text-xs text-amber-400 mt-1">
-                            Referenced in existing appointments - cannot edit or delete
+                            Referenced in existing appointments - cannot edit or
+                            delete
                           </p>
                         )}
                       </div>
@@ -816,9 +1013,9 @@ export default function InvoicePage() {
                           variant="ghost"
                           size="sm"
                           className={`${
-                            serviceInUse 
-                              ? 'text-gray-500 cursor-not-allowed' 
-                              : 'text-red-400 hover:bg-red-400/10'
+                            serviceInUse
+                              ? "text-gray-500 cursor-not-allowed"
+                              : "text-red-400 hover:bg-red-400/10"
                           }`}
                           disabled={serviceInUse}
                           onClick={(e) => {
@@ -862,29 +1059,53 @@ export default function InvoicePage() {
             ) : invoices && invoices.length > 0 ? (
               <div className="space-y-3">
                 {invoices.slice(0, 10).map((invoice) => {
-                  const client = clients?.find(c => c.id === invoice.clientId);
+                  const client = clients?.find(
+                    (c) => c.id === invoice.clientId,
+                  );
                   return (
-                    <div key={invoice.id} className="flex items-center justify-between p-3 bg-charcoal rounded-lg">
+                    <div
+                      key={invoice.id}
+                      className="flex items-center justify-between p-3 bg-charcoal rounded-lg"
+                    >
                       <div className="flex items-center space-x-3">
                         <div className="w-10 h-10 bg-steel/20 rounded-full flex items-center justify-center">
-                          {invoice.paymentMethod === 'stripe' && <CreditCard className="w-4 h-4 text-gold" />}
-                          {invoice.paymentMethod === 'apple_pay' && <Smartphone className="w-4 h-4 text-gold" />}
-                          {invoice.paymentMethod === 'cash' && <Banknote className="w-4 h-4 text-gold" />}
-                          {!invoice.paymentMethod && <Receipt className="w-4 h-4 text-gold" />}
+                          {invoice.paymentMethod === "stripe" && (
+                            <CreditCard className="w-4 h-4 text-gold" />
+                          )}
+                          {invoice.paymentMethod === "apple_pay" && (
+                            <Smartphone className="w-4 h-4 text-gold" />
+                          )}
+                          {invoice.paymentMethod === "cash" && (
+                            <Banknote className="w-4 h-4 text-gold" />
+                          )}
+                          {!invoice.paymentMethod && (
+                            <Receipt className="w-4 h-4 text-gold" />
+                          )}
                         </div>
                         <div>
                           <div className="font-medium text-white">
-                            {client?.name || 'Unknown Client'}
+                            {client?.name || "Unknown Client"}
                           </div>
                           <div className="text-sm text-steel">
-                            {format(new Date(invoice.createdAt!), 'MMM d, yyyy • h:mm a')}
+                            {format(
+                              new Date(invoice.createdAt!),
+                              "MMM d, yyyy • h:mm a",
+                            )}
                           </div>
                         </div>
                       </div>
                       <div className="text-right">
-                        <div className="text-gold font-medium">${invoice.total}</div>
-                        <Badge 
-                          variant={invoice.status === 'paid' ? 'default' : invoice.status === 'pending' ? 'secondary' : 'destructive'}
+                        <div className="text-gold font-medium">
+                          ${invoice.total}
+                        </div>
+                        <Badge
+                          variant={
+                            invoice.status === "paid"
+                              ? "default"
+                              : invoice.status === "pending"
+                                ? "secondary"
+                                : "destructive"
+                          }
                           className="text-xs"
                         >
                           {invoice.status}
@@ -921,7 +1142,10 @@ export default function InvoicePage() {
             </DialogDescription>
           </DialogHeader>
           <Form {...serviceForm}>
-            <form onSubmit={serviceForm.handleSubmit(onServiceSubmit)} className="space-y-4">
+            <form
+              onSubmit={serviceForm.handleSubmit(onServiceSubmit)}
+              className="space-y-4"
+            >
               <FormField
                 control={serviceForm.control}
                 name="name"
@@ -929,8 +1153,8 @@ export default function InvoicePage() {
                   <FormItem>
                     <FormLabel className="text-white">Service Name</FormLabel>
                     <FormControl>
-                      <Input 
-                        {...field} 
+                      <Input
+                        {...field}
                         className="bg-charcoal border-steel/40 text-white"
                         placeholder="e.g., Men's Haircut"
                       />
@@ -945,10 +1169,12 @@ export default function InvoicePage() {
                 name="description"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="text-white">Description (Optional)</FormLabel>
+                    <FormLabel className="text-white">
+                      Description (Optional)
+                    </FormLabel>
                     <FormControl>
-                      <Textarea 
-                        {...field} 
+                      <Textarea
+                        {...field}
                         className="bg-charcoal border-steel/40 text-white"
                         placeholder="Service description..."
                       />
@@ -966,8 +1192,8 @@ export default function InvoicePage() {
                     <FormItem>
                       <FormLabel className="text-white">Price ($)</FormLabel>
                       <FormControl>
-                        <Input 
-                          {...field} 
+                        <Input
+                          {...field}
                           type="number"
                           step="0.01"
                           className="bg-charcoal border-steel/40 text-white"
@@ -984,10 +1210,12 @@ export default function InvoicePage() {
                   name="duration"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="text-white">Duration (minutes)</FormLabel>
+                      <FormLabel className="text-white">
+                        Duration (minutes)
+                      </FormLabel>
                       <FormControl>
-                        <Input 
-                          {...field} 
+                        <Input
+                          {...field}
                           type="number"
                           className="bg-charcoal border-steel/40 text-white"
                           placeholder="30"
@@ -1012,10 +1240,30 @@ export default function InvoicePage() {
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent className="bg-charcoal border-steel/40 text-white">
-                        <SelectItem value="Haircuts" className="text-white hover:bg-steel/20">Haircuts</SelectItem>
-                        <SelectItem value="Beard Services" className="text-white hover:bg-steel/20">Beard Services</SelectItem>
-                        <SelectItem value="Combinations" className="text-white hover:bg-steel/20">Combinations</SelectItem>
-                        <SelectItem value="Special" className="text-white hover:bg-steel/20">Special Services</SelectItem>
+                        <SelectItem
+                          value="Haircuts"
+                          className="text-white hover:bg-steel/20"
+                        >
+                          Haircuts
+                        </SelectItem>
+                        <SelectItem
+                          value="Beard Services"
+                          className="text-white hover:bg-steel/20"
+                        >
+                          Beard Services
+                        </SelectItem>
+                        <SelectItem
+                          value="Combinations"
+                          className="text-white hover:bg-steel/20"
+                        >
+                          Combinations
+                        </SelectItem>
+                        <SelectItem
+                          value="Special"
+                          className="text-white hover:bg-steel/20"
+                        >
+                          Special Services
+                        </SelectItem>
                       </SelectContent>
                     </Select>
                     <FormMessage />
@@ -1024,20 +1272,22 @@ export default function InvoicePage() {
               />
 
               <div className="flex space-x-3">
-                <Button 
-                  type="button" 
-                  variant="outline" 
+                <Button
+                  type="button"
+                  variant="outline"
                   className="flex-1 bg-charcoal border-steel/40 text-white hover:bg-steel/20"
                   onClick={() => setIsServiceEditOpen(false)}
                 >
                   Cancel
                 </Button>
-                <Button 
-                  type="submit" 
+                <Button
+                  type="submit"
                   className="flex-1 gradient-gold text-charcoal font-semibold"
                   disabled={editServiceMutation.isPending}
                 >
-                  {editServiceMutation.isPending ? "Updating..." : "Update Service"}
+                  {editServiceMutation.isPending
+                    ? "Updating..."
+                    : "Update Service"}
                 </Button>
               </div>
             </form>
