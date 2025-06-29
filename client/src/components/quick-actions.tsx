@@ -226,7 +226,7 @@ export function QuickActions() {
                 <Textarea
                   value={customMessage}
                   onChange={(e) => setCustomMessage(e.target.value)}
-                  className="bg-charcoal border-steel/40 text-white mt-2"
+                  className="bg-charcoal border-steel/40 text-white mt-2 scrollbar-hide"
                   rows={4}
                   placeholder="Customize your message..."
                 />

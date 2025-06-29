@@ -284,7 +284,7 @@ export default function Messages() {
 
         {/* Message Detail Dialog */}
         <Dialog open={!!selectedMessage} onOpenChange={() => setSelectedMessage(null)}>
-          <DialogContent className="bg-dark-card border-steel/20 text-white max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogContent className="bg-dark-card border-steel/20 text-white max-w-2xl max-h-[80vh] overflow-y-auto scrollbar-hide">
             {selectedMessage && (
               <>
                 <DialogHeader>
@@ -346,8 +346,8 @@ export default function Messages() {
                   {/* Message Content */}
                   <div>
                     <h4 className="font-semibold mb-2">Message:</h4>
-                    <div className="bg-charcoal p-4 rounded-lg">
-                      <p className="whitespace-pre-wrap">{selectedMessage.message}</p>
+                    <div className="bg-charcoal p-4 rounded-lg max-h-[300px] overflow-y-auto scrollbar-hide">
+                      <p className="whitespace-pre-wrap break-words">{selectedMessage.message}</p>
                     </div>
                   </div>
 

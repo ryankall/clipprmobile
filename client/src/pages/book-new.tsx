@@ -639,7 +639,7 @@ export default function EnhancedBookingPage() {
                       setMessage(e.target.value);
                     }
                   }}
-                  className="bg-dark-card border-steel/40 text-white min-h-[100px]"
+                  className="bg-dark-card border-steel/40 text-white min-h-[100px] scrollbar-hide"
                 />
                 <div className="text-right text-sm text-steel">
                   {message.length}/300 characters

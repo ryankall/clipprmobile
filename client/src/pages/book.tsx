@@ -417,7 +417,7 @@ export default function BookingPage() {
                     setMessage(e.target.value);
                   }
                 }}
-                className="bg-charcoal border-steel/40 text-white"
+                className="bg-charcoal border-steel/40 text-white scrollbar-hide"
                 placeholder="Tell us anything you'd like us to know..."
                 rows={3}
               />
