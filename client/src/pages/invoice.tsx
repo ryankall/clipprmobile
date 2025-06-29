@@ -90,6 +90,7 @@ const serviceCreateSchema = z.object({
   name: z.string().min(1, "Service name is required"),
   description: z.string().optional(),
   price: z.string().min(1, "Price is required"),
+  duration: z.string().min(1, "Duration is required"),
   category: z.string().min(1, "Category is required"),
 });
 
@@ -168,6 +169,7 @@ export default function InvoicePage() {
       name: "",
       description: "",
       price: "",
+      duration: "",
       category: "",
     },
   });
@@ -291,7 +293,7 @@ export default function InvoicePage() {
       return apiRequest("POST", "/api/services", {
         ...data,
         price: parseFloat(data.price),
-        duration: 30, // Default duration
+        duration: parseInt(data.duration),
       });
     },
     onSuccess: () => {
@@ -1475,23 +1477,62 @@ export default function InvoicePage() {
 
               <FormField
                 control={serviceCreateForm.control}
-                name="price"
+                name="description"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="text-white">Price ($)</FormLabel>
+                    <FormLabel className="text-white">Description (Optional)</FormLabel>
                     <FormControl>
-                      <Input
+                      <Textarea
                         {...field}
-                        type="number"
-                        step="0.01"
                         className="bg-charcoal border-steel/40 text-white"
-                        placeholder="0.00"
+                        placeholder="Service description..."
                       />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
+
+              <div className="grid grid-cols-2 gap-4">
+                <FormField
+                  control={serviceCreateForm.control}
+                  name="price"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-white">Price ($)</FormLabel>
+                      <FormControl>
+                        <Input
+                          {...field}
+                          type="number"
+                          step="0.01"
+                          className="bg-charcoal border-steel/40 text-white"
+                          placeholder="0.00"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={serviceCreateForm.control}
+                  name="duration"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-white">Duration (minutes)</FormLabel>
+                      <FormControl>
+                        <Input
+                          {...field}
+                          type="number"
+                          className="bg-charcoal border-steel/40 text-white"
+                          placeholder="45"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
 
               <FormField
                 control={serviceCreateForm.control}
@@ -1532,24 +1573,6 @@ export default function InvoicePage() {
                         </SelectItem>
                       </SelectContent>
                     </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={serviceCreateForm.control}
-                name="description"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="text-white">Description (Optional)</FormLabel>
-                    <FormControl>
-                      <Textarea
-                        {...field}
-                        className="bg-charcoal border-steel/40 text-white"
-                        placeholder="Service description..."
-                      />
-                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
