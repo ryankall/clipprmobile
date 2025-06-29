@@ -75,10 +75,7 @@ export default function Auth() {
   // Sign in mutation
   const signInMutation = useMutation({
     mutationFn: async (data: SignInFormData) => {
-      return apiRequest("/api/auth/signin", {
-        method: "POST",
-        body: JSON.stringify(data),
-      });
+      return apiRequest("POST", "/api/auth/signin", data);
     },
     onSuccess: (response) => {
       toast({
@@ -102,10 +99,7 @@ export default function Auth() {
   // Sign up mutation
   const signUpMutation = useMutation({
     mutationFn: async (data: SignUpFormData) => {
-      return apiRequest("/api/auth/signup", {
-        method: "POST",
-        body: JSON.stringify(data),
-      });
+      return apiRequest("POST", "/api/auth/signup", data);
     },
     onSuccess: (response) => {
       toast({
