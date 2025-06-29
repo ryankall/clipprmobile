@@ -859,6 +859,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Google Places autocomplete endpoint
+  app.get("/api/places/autocomplete", requireAuth, async (req, res) => {
+    try {
+      const { input } = req.query;
+      
+      if (!input || typeof input !== 'string') {
+        return res.status(400).json({ message: "Input parameter is required" });
+      }
+
+      const apiKey = process.env.VITE_GOOGLE_MAPS_API_KEY || process.env.GOOGLE_MAPS_API_KEY;
+      if (!apiKey) {
+        return res.status(500).json({ message: "Google Maps API key not configured" });
+      }
+
+      const response = await fetch(
+        `https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${encodeURIComponent(input)}&key=${apiKey}&types=address`
+      );
+      
+      const data = await response.json();
+      
+      if (data.status === 'OK') {
+        res.json({ predictions: data.predictions || [] });
+      } else {
+        res.json({ predictions: [], error: data.status });
+      }
+    } catch (error: any) {
+      console.error('Google Places API error:', error);
+      res.status(500).json({ message: "Failed to fetch address suggestions" });
+    }
+  });
+
   // Communications endpoints
   app.post("/api/communications/send-message", requireAuth, async (req, res) => {
     try {
