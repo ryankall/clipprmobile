@@ -227,7 +227,7 @@ export default function EnhancedBookingPage() {
             <h1 className="text-2xl font-bold text-white mb-4">Request Sent!</h1>
             <p className="text-steel mb-6">
               Your booking request has been sent to {barber.businessName || barber.firstName}.
-              You'll receive a confirmation soon.
+              An SMS will be sent to confirm your appointment once the barber reviews your request.
             </p>
             <div className="space-y-2 text-sm text-steel text-left bg-charcoal rounded-lg p-4">
               <div><strong className="text-white">Date:</strong> {selectedDate}</div>
@@ -630,12 +630,21 @@ export default function EnhancedBookingPage() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <Textarea
-                placeholder="Tell us anything you'd like us to know"
-                value={message}
-                onChange={(e) => setMessage(e.target.value)}
-                className="bg-dark-card border-steel/40 text-white min-h-[100px]"
-              />
+              <div className="space-y-2">
+                <Textarea
+                  placeholder="Tell us anything you'd like us to know"
+                  value={message}
+                  onChange={(e) => {
+                    if (e.target.value.length <= 300) {
+                      setMessage(e.target.value);
+                    }
+                  }}
+                  className="bg-dark-card border-steel/40 text-white min-h-[100px]"
+                />
+                <div className="text-right text-sm text-steel">
+                  {message.length}/300 characters
+                </div>
+              </div>
               
               <div className="bg-charcoal rounded-lg p-4 space-y-2 text-sm">
                 <h3 className="text-white font-medium">Booking Summary</h3>

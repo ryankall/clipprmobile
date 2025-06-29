@@ -189,7 +189,7 @@ export default function BookingPage() {
           <h1 className="text-2xl font-bold mb-2">Request Sent!</h1>
           <p className="text-steel mb-4">
             Your booking request has been sent to {barber.businessName || `${barber.firstName} ${barber.lastName}`}. 
-            You'll receive a confirmation call or text soon.
+            An SMS will be sent to confirm your appointment once the barber reviews your request.
           </p>
           <div className="bg-charcoal p-4 rounded-lg">
             <p className="text-sm text-steel">Requested Services:</p>
@@ -409,14 +409,21 @@ export default function BookingPage() {
             <CardHeader>
               <CardTitle className="text-white">Additional Message (Optional)</CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="space-y-2">
               <Textarea
                 value={message}
-                onChange={(e) => setMessage(e.target.value)}
+                onChange={(e) => {
+                  if (e.target.value.length <= 300) {
+                    setMessage(e.target.value);
+                  }
+                }}
                 className="bg-charcoal border-steel/40 text-white"
                 placeholder="Tell us anything you'd like us to know..."
                 rows={3}
               />
+              <div className="text-right text-sm text-steel">
+                {message.length}/300 characters
+              </div>
             </CardContent>
           </Card>
         )}

@@ -1228,6 +1228,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 💇 Services: ${serviceNames.join(', ')}
 📞 Phone: ${clientPhone}
 ${clientEmail ? `📧 Email: ${clientEmail}` : ''}
+🚗 Travel: ${needsTravel ? `Yes - ${clientAddress || 'Address pending'}` : 'No'}
 ${message ? `💬 Message: ${message}` : ''}
 
 Please contact the client to confirm the appointment.`;
