@@ -49,6 +49,15 @@ export default function EnhancedBookingPage() {
   const [existingClient, setExistingClient] = useState<any>(null);
   const { toast } = useToast();
 
+  // Format time from 24-hour to 12-hour format
+  const formatTime = (time24: string) => {
+    const [hours, minutes] = time24.split(':');
+    const hour = parseInt(hours);
+    const ampm = hour >= 12 ? 'PM' : 'AM';
+    const hour12 = hour % 12 || 12;
+    return `${hour12}:${minutes} ${ampm}`;
+  };
+
   // Parse barber info from URL (format: phone_barbername)
   const barberPhone = barberInfo?.split('_')[0] || '';
   const barberSlug = barberInfo?.split('_').slice(1).join('_') || '';
@@ -347,7 +356,7 @@ export default function EnhancedBookingPage() {
                         }`}
                         onClick={() => setSelectedTime(slot.time)}
                       >
-                        {slot.time}
+                        {formatTime(slot.time)}
                       </Button>
                     ))}
                   </div>
