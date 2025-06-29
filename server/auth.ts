@@ -145,6 +145,14 @@ export function configurePassport() {
 
 // Middleware to check if user is authenticated
 export function requireAuth(req: Request, res: Response, next: NextFunction) {
+  console.log('requireAuth check:', {
+    isAuthenticated: req.isAuthenticated && req.isAuthenticated(),
+    user: req.user?.id,
+    session: !!req.session,
+    method: req.method,
+    url: req.url
+  });
+  
   if (req.isAuthenticated && req.isAuthenticated()) {
     return next();
   }
@@ -157,10 +165,11 @@ export function requireAuth(req: Request, res: Response, next: NextFunction) {
       req.user = { id: decoded.userId } as User;
       return next();
     } catch (error) {
-      // Invalid token
+      console.log('JWT verification failed:', error);
     }
   }
   
+  console.log('Authentication failed for:', req.method, req.url);
   res.status(401).json({ message: 'Authentication required' });
 }
 
