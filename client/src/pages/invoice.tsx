@@ -11,7 +11,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { BottomNavigation } from "@/components/bottom-navigation";
-import { Receipt, Plus, ArrowLeft, DollarSign, CreditCard, Smartphone, Banknote, Scissors } from "lucide-react";
+import { Receipt, Plus, ArrowLeft, DollarSign, CreditCard, Smartphone, Banknote, Scissors, Trash2, Edit } from "lucide-react";
 import { Link } from "wouter";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -34,11 +34,21 @@ const templateFormSchema = z.object({
   category: z.string().min(1, "Category is required"),
 });
 
+const serviceFormSchema = z.object({
+  name: z.string().min(1, "Service name is required"),
+  description: z.string().optional(),
+  price: z.string().min(1, "Price is required"),
+  duration: z.string().min(1, "Duration is required"),
+  category: z.string().min(1, "Category is required"),
+});
+
 export default function InvoicePage() {
   const { id } = useParams<{ id?: string }>();
   const [location] = useLocation();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isTemplateDialogOpen, setIsTemplateDialogOpen] = useState(false);
+  const [isServiceEditOpen, setIsServiceEditOpen] = useState(false);
+  const [editingService, setEditingService] = useState<Service | null>(null);
   const [savedTemplates, setSavedTemplates] = useState<any[]>([]);
   const { toast } = useToast();
 
@@ -75,6 +85,17 @@ export default function InvoicePage() {
       name: "",
       description: "",
       amount: "",
+      category: "",
+    },
+  });
+
+  const serviceForm = useForm<z.infer<typeof serviceFormSchema>>({
+    resolver: zodResolver(serviceFormSchema),
+    defaultValues: {
+      name: "",
+      description: "",
+      price: "",
+      duration: "",
       category: "",
     },
   });
@@ -150,6 +171,82 @@ export default function InvoicePage() {
   useEffect(() => {
     loadTemplates();
   }, []);
+
+  // Service edit mutation
+  const editServiceMutation = useMutation({
+    mutationFn: async (data: { id: number; service: z.infer<typeof serviceFormSchema> }) => {
+      return apiRequest("PATCH", `/api/services/${data.id}`, {
+        ...data.service,
+        price: parseFloat(data.service.price),
+        duration: parseInt(data.service.duration),
+      });
+    },
+    onSuccess: () => {
+      toast({
+        title: "Service Updated",
+        description: "Service has been updated successfully",
+      });
+      setIsServiceEditOpen(false);
+      setEditingService(null);
+      serviceForm.reset();
+      queryClient.invalidateQueries({ queryKey: ["/api/services"] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update service",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Service delete mutation
+  const deleteServiceMutation = useMutation({
+    mutationFn: async (serviceId: number) => {
+      return apiRequest("DELETE", `/api/services/${serviceId}`);
+    },
+    onSuccess: () => {
+      toast({
+        title: "Service Deleted",
+        description: "Service has been deleted successfully",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/services"] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete service",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Handle service edit
+  const handleEditService = (service: Service) => {
+    setEditingService(service);
+    serviceForm.reset({
+      name: service.name,
+      description: service.description || "",
+      price: service.price.toString(),
+      duration: service.duration.toString(),
+      category: service.category,
+    });
+    setIsServiceEditOpen(true);
+  };
+
+  // Handle service delete
+  const handleDeleteService = (serviceId: number) => {
+    if (confirm("Are you sure you want to delete this service? This action cannot be undone.")) {
+      deleteServiceMutation.mutate(serviceId);
+    }
+  };
+
+  // Service form submit
+  const onServiceSubmit = (data: z.infer<typeof serviceFormSchema>) => {
+    if (editingService) {
+      editServiceMutation.mutate({ id: editingService.id, service: data });
+    }
+  };
 
   // Auto-calculate total when subtotal or tip changes
   const watchedSubtotal = form.watch("subtotal");
@@ -645,7 +742,11 @@ export default function InvoicePage() {
             {services && services.length > 0 ? (
               <div className="space-y-3">
                 {services.map((service) => (
-                  <div key={service.id} className="flex items-center justify-between p-3 bg-charcoal rounded-lg border border-steel/20">
+                  <div 
+                    key={service.id} 
+                    className="flex items-center justify-between p-3 bg-charcoal rounded-lg border border-steel/20 cursor-pointer hover:border-gold/50 transition-colors"
+                    onClick={() => handleEditService(service)}
+                  >
                     <div className="flex-1">
                       <div className="flex items-center justify-between">
                         <h3 className="font-medium text-white">{service.name}</h3>
@@ -665,10 +766,13 @@ export default function InvoicePage() {
                       <Button
                         variant="ghost"
                         size="sm"
-                        className="text-gold hover:bg-gold/10"
-                        onClick={() => handleQuickInvoice(service.category, service.price.toString())}
+                        className="text-red-400 hover:bg-red-400/10"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteService(service.id);
+                        }}
                       >
-                        <Receipt className="w-4 h-4" />
+                        <Trash2 className="w-4 h-4" />
                       </Button>
                     </div>
                   </div>
@@ -751,6 +855,140 @@ export default function InvoicePage() {
           </CardContent>
         </Card>
       </main>
+
+      {/* Service Edit Modal */}
+      <Dialog open={isServiceEditOpen} onOpenChange={setIsServiceEditOpen}>
+        <DialogContent className="bg-dark-card border-steel/20 text-white">
+          <DialogHeader>
+            <DialogTitle className="text-white">Edit Service</DialogTitle>
+            <DialogDescription className="text-steel">
+              Update service details including pricing and duration.
+            </DialogDescription>
+          </DialogHeader>
+          <Form {...serviceForm}>
+            <form onSubmit={serviceForm.handleSubmit(onServiceSubmit)} className="space-y-4">
+              <FormField
+                control={serviceForm.control}
+                name="name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-white">Service Name</FormLabel>
+                    <FormControl>
+                      <Input 
+                        {...field} 
+                        className="bg-charcoal border-steel/40 text-white"
+                        placeholder="e.g., Men's Haircut"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={serviceForm.control}
+                name="description"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-white">Description (Optional)</FormLabel>
+                    <FormControl>
+                      <Textarea 
+                        {...field} 
+                        className="bg-charcoal border-steel/40 text-white"
+                        placeholder="Service description..."
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <div className="grid grid-cols-2 gap-4">
+                <FormField
+                  control={serviceForm.control}
+                  name="price"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-white">Price ($)</FormLabel>
+                      <FormControl>
+                        <Input 
+                          {...field} 
+                          type="number"
+                          step="0.01"
+                          className="bg-charcoal border-steel/40 text-white"
+                          placeholder="0.00"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={serviceForm.control}
+                  name="duration"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-white">Duration (minutes)</FormLabel>
+                      <FormControl>
+                        <Input 
+                          {...field} 
+                          type="number"
+                          className="bg-charcoal border-steel/40 text-white"
+                          placeholder="30"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              <FormField
+                control={serviceForm.control}
+                name="category"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-white">Category</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger className="bg-charcoal border-steel/40 text-white">
+                          <SelectValue placeholder="Select category" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent className="bg-charcoal border-steel/40 text-white">
+                        <SelectItem value="Haircuts" className="text-white hover:bg-steel/20">Haircuts</SelectItem>
+                        <SelectItem value="Beard Services" className="text-white hover:bg-steel/20">Beard Services</SelectItem>
+                        <SelectItem value="Combinations" className="text-white hover:bg-steel/20">Combinations</SelectItem>
+                        <SelectItem value="Special" className="text-white hover:bg-steel/20">Special Services</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <div className="flex space-x-3">
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  className="flex-1 bg-charcoal border-steel/40 text-white hover:bg-steel/20"
+                  onClick={() => setIsServiceEditOpen(false)}
+                >
+                  Cancel
+                </Button>
+                <Button 
+                  type="submit" 
+                  className="flex-1 gradient-gold text-charcoal font-semibold"
+                  disabled={editServiceMutation.isPending}
+                >
+                  {editServiceMutation.isPending ? "Updating..." : "Update Service"}
+                </Button>
+              </div>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
 
       <BottomNavigation currentPath="/invoice" />
     </div>
