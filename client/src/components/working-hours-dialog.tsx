@@ -46,9 +46,13 @@ export function WorkingHoursDialog({ currentHours }: WorkingHoursDialogProps) {
 
   const updateWorkingHoursMutation = useMutation({
     mutationFn: async (hours: WorkingHours) => {
-      return apiRequest("PATCH", "/api/user/profile", { workingHours: hours });
+      console.log('Sending working hours update:', hours);
+      const response = await apiRequest("PATCH", "/api/user/profile", { workingHours: hours });
+      console.log('Working hours update response:', response);
+      return response;
     },
     onSuccess: () => {
+      console.log('Working hours update succeeded');
       toast({
         title: "Working Hours Updated",
         description: "Your working hours have been saved successfully",
@@ -57,6 +61,7 @@ export function WorkingHoursDialog({ currentHours }: WorkingHoursDialogProps) {
       setIsOpen(false);
     },
     onError: (error: any) => {
+      console.error('Working hours update error:', error);
       toast({
         title: "Error",
         description: error.message || "Failed to update working hours",
