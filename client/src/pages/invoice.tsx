@@ -115,6 +115,7 @@ export default function InvoicePage() {
   const [isServiceCreateOpen, setIsServiceCreateOpen] = useState(false);
   const [editingService, setEditingService] = useState<Service | null>(null);
   const [savedTemplates, setSavedTemplates] = useState<any[]>([]);
+  const [hiddenTemplates, setHiddenTemplates] = useState<string[]>([]);
   const [selectedServices, setSelectedServices] = useState<Array<{
     serviceId: number;
     serviceName: string;
@@ -260,10 +261,33 @@ export default function InvoicePage() {
     setSavedTemplates(templates);
   };
 
+  const loadHiddenTemplates = () => {
+    const hidden = JSON.parse(localStorage.getItem('hiddenDefaultTemplates') || '[]');
+    setHiddenTemplates(hidden);
+  };
+
   // Load templates on mount
   useEffect(() => {
     loadTemplates();
+    loadHiddenTemplates();
   }, []);
+
+  // Calculate totals when selected services or tip change
+  useEffect(() => {
+    const subtotal = selectedServices.reduce((sum, service) => sum + (service.price * service.quantity), 0);
+    const tipPercentage = form.watch("tipPercentage") || 0;
+    const manualTip = parseFloat(form.watch("tip") || "0");
+    
+    // Calculate tip based on percentage if set
+    const calculatedTip = tipPercentage > 0 ? (subtotal * tipPercentage / 100) : manualTip;
+    const total = subtotal + calculatedTip;
+    
+    form.setValue("subtotal", subtotal.toFixed(2));
+    if (tipPercentage > 0) {
+      form.setValue("tip", calculatedTip.toFixed(2));
+    }
+    form.setValue("total", total.toFixed(2));
+  }, [selectedServices, form.watch("tip"), form.watch("tipPercentage")]);
 
   // Service edit mutation
   const editServiceMutation = useMutation({
@@ -439,8 +463,8 @@ export default function InvoicePage() {
         description: "Default template has been hidden from quick access",
       });
       
-      // Force re-render by updating state
-      window.location.reload();
+      // Update state instead of reloading
+      setHiddenTemplates(hiddenTemplates);
     }
   };
 
@@ -741,27 +765,34 @@ export default function InvoicePage() {
                     )}
                   </div>
 
-                  <FormField
-                    control={form.control}
-                    name="subtotal"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="text-white">
-                          Service Amount ($)
-                        </FormLabel>
-                        <FormControl>
-                          <Input
-                            {...field}
-                            type="number"
-                            step="0.01"
-                            className="bg-charcoal border-steel/40 text-white"
-                            placeholder="0.00"
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
+                  {/* Services Summary */}
+                  <div className="bg-charcoal/50 rounded-lg p-4 border border-steel/20">
+                    <h4 className="text-white text-sm font-medium mb-2">Services Summary</h4>
+                    {selectedServices.length > 0 ? (
+                      <div className="space-y-2">
+                        {selectedServices.map((service, index) => (
+                          <div key={index} className="flex justify-between text-sm">
+                            <span className="text-steel">
+                              {service.serviceName} {service.quantity > 1 && `(${service.quantity}x)`}
+                            </span>
+                            <span className="text-white">
+                              ${(service.price * service.quantity).toFixed(2)}
+                            </span>
+                          </div>
+                        ))}
+                        <div className="border-t border-steel/20 pt-2 mt-2">
+                          <div className="flex justify-between text-sm font-medium">
+                            <span className="text-white">Subtotal</span>
+                            <span className="text-gold">
+                              ${selectedServices.reduce((sum, service) => sum + (service.price * service.quantity), 0).toFixed(2)}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="text-steel text-sm">No services selected</p>
                     )}
-                  />
+                  </div>
 
                   <div className="grid grid-cols-2 gap-4">
                     <FormField
@@ -941,69 +972,75 @@ export default function InvoicePage() {
           <CardContent>
             <div className="grid grid-cols-2 gap-3">
               {/* Default Templates */}
-              <div
-                className="relative bg-charcoal border border-steel/40 rounded-lg p-4 text-center touch-target hover:bg-charcoal/80 cursor-pointer"
-                onClick={() => handleQuickInvoice("haircut", "45.00")}
-              >
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="absolute top-1 right-1 text-red-400 hover:bg-red-400/10 h-6 w-6 p-0"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleDeleteDefaultTemplate("haircut");
-                  }}
+              {!hiddenTemplates.includes("haircut") && (
+                <div
+                  className="relative bg-charcoal border border-steel/40 rounded-lg p-4 text-center touch-target hover:bg-charcoal/80 cursor-pointer"
+                  onClick={() => handleQuickInvoice("haircut", "45.00")}
                 >
-                  <Trash2 className="w-3 h-3" />
-                </Button>
-                <div className="flex flex-col items-center space-y-2">
-                  <Receipt className="w-5 h-5 text-gold" />
-                  <div className="text-sm font-medium text-white">Haircut</div>
-                  <div className="text-xs text-steel">$45</div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="absolute top-1 right-1 text-red-400 hover:bg-red-400/10 h-6 w-6 p-0"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDeleteDefaultTemplate("haircut");
+                    }}
+                  >
+                    <Trash2 className="w-3 h-3" />
+                  </Button>
+                  <div className="flex flex-col items-center space-y-2">
+                    <Receipt className="w-5 h-5 text-gold" />
+                    <div className="text-sm font-medium text-white">Haircut</div>
+                    <div className="text-xs text-steel">$45</div>
+                  </div>
                 </div>
-              </div>
-              <div
-                className="relative bg-charcoal border border-steel/40 rounded-lg p-4 text-center touch-target hover:bg-charcoal/80 cursor-pointer"
-                onClick={() => handleQuickInvoice("beard", "25.00")}
-              >
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="absolute top-1 right-1 text-red-400 hover:bg-red-400/10 h-6 w-6 p-0"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleDeleteDefaultTemplate("beard");
-                  }}
+              )}
+              {!hiddenTemplates.includes("beard") && (
+                <div
+                  className="relative bg-charcoal border border-steel/40 rounded-lg p-4 text-center touch-target hover:bg-charcoal/80 cursor-pointer"
+                  onClick={() => handleQuickInvoice("beard", "25.00")}
                 >
-                  <Trash2 className="w-3 h-3" />
-                </Button>
-                <div className="flex flex-col items-center space-y-2">
-                  <Receipt className="w-5 h-5 text-gold" />
-                  <div className="text-sm font-medium text-white">Beard Trim</div>
-                  <div className="text-xs text-steel">$25</div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="absolute top-1 right-1 text-red-400 hover:bg-red-400/10 h-6 w-6 p-0"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDeleteDefaultTemplate("beard");
+                    }}
+                  >
+                    <Trash2 className="w-3 h-3" />
+                  </Button>
+                  <div className="flex flex-col items-center space-y-2">
+                    <Receipt className="w-5 h-5 text-gold" />
+                    <div className="text-sm font-medium text-white">Beard Trim</div>
+                    <div className="text-xs text-steel">$25</div>
+                  </div>
                 </div>
-              </div>
-              <div
-                className="relative bg-charcoal border border-steel/40 rounded-lg p-4 text-center touch-target hover:bg-charcoal/80 cursor-pointer"
-                onClick={() => handleQuickInvoice("combo", "65.00")}
-              >
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="absolute top-1 right-1 text-red-400 hover:bg-red-400/10 h-6 w-6 p-0"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleDeleteDefaultTemplate("combo");
-                  }}
+              )}
+              {!hiddenTemplates.includes("combo") && (
+                <div
+                  className="relative bg-charcoal border border-steel/40 rounded-lg p-4 text-center touch-target hover:bg-charcoal/80 cursor-pointer"
+                  onClick={() => handleQuickInvoice("combo", "65.00")}
                 >
-                  <Trash2 className="w-3 h-3" />
-                </Button>
-                <div className="flex flex-col items-center space-y-2">
-                  <Receipt className="w-5 h-5 text-gold" />
-                  <div className="text-sm font-medium text-white">Combo</div>
-                  <div className="text-xs text-steel">$65</div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="absolute top-1 right-1 text-red-400 hover:bg-red-400/10 h-6 w-6 p-0"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDeleteDefaultTemplate("combo");
+                    }}
+                  >
+                    <Trash2 className="w-3 h-3" />
+                  </Button>
+                  <div className="flex flex-col items-center space-y-2">
+                    <Receipt className="w-5 h-5 text-gold" />
+                    <div className="text-sm font-medium text-white">Combo</div>
+                    <div className="text-xs text-steel">$65</div>
+                  </div>
                 </div>
-              </div>
+              )}
 
               {/* Saved Templates */}
               {savedTemplates.map((template) => (
