@@ -47,11 +47,19 @@ export function WorkingHoursDialog({ currentHours }: WorkingHoursDialogProps) {
   const updateWorkingHoursMutation = useMutation({
     mutationFn: async (hours: WorkingHours) => {
       console.log('Sending working hours update:', hours);
+      const token = localStorage.getItem("token");
+      
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+      };
+      
+      if (token) {
+        headers.Authorization = `Bearer ${token}`;
+      }
+      
       const response = await fetch("/api/user/profile", {
         method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers,
         credentials: "include",
         body: JSON.stringify({ workingHours: hours }),
       });
