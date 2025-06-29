@@ -290,6 +290,28 @@ export default function Settings() {
               }
             );
 
+            // Fix z-index for dropdown to appear above modal
+            const pacContainer = document.querySelector('.pac-container');
+            if (pacContainer) {
+              (pacContainer as HTMLElement).style.zIndex = '10000';
+            }
+
+            // Listen for when the pac-container is created
+            const observer = new MutationObserver((mutations) => {
+              mutations.forEach((mutation) => {
+                mutation.addedNodes.forEach((node) => {
+                  if (node.nodeType === 1 && (node as Element).classList.contains('pac-container')) {
+                    (node as HTMLElement).style.zIndex = '10000';
+                    (node as HTMLElement).style.position = 'absolute';
+                  }
+                });
+              });
+            });
+            observer.observe(document.body, { childList: true });
+
+            // Store observer reference for cleanup
+            (autocomplete as any).observer = observer;
+
             autocomplete.addListener('place_changed', () => {
               const place = autocomplete.getPlace();
               console.log('Place selected:', place);
@@ -314,6 +336,11 @@ export default function Settings() {
     return () => {
       if (autocompleteRef.current) {
         try {
+          // Clean up observer if it exists
+          if ((autocompleteRef.current as any).observer) {
+            (autocompleteRef.current as any).observer.disconnect();
+          }
+          
           window.google?.maps?.event?.clearInstanceListeners(autocompleteRef.current);
           autocompleteRef.current = null;
         } catch (error) {
@@ -676,14 +703,26 @@ export default function Settings() {
                                               componentRestrictions: { country: 'US' }
                                             }
                                           );
+
+                                          // Fix z-index for dropdown
+                                          setTimeout(() => {
+                                            const pacContainers = document.querySelectorAll('.pac-container');
+                                            pacContainers.forEach(container => {
+                                              (container as HTMLElement).style.zIndex = '10000';
+                                              (container as HTMLElement).style.position = 'absolute';
+                                            });
+                                          }, 100);
+
                                           autocomplete.addListener('place_changed', () => {
                                             const place = autocomplete.getPlace();
+                                            console.log('Place selected from manual test:', place);
                                             if (place.formatted_address) {
                                               form.setValue('homeBaseAddress', place.formatted_address);
+                                              form.trigger('homeBaseAddress');
                                             }
                                           });
                                           autocompleteRef.current = autocomplete;
-                                          console.log('Manual autocomplete initialized');
+                                          console.log('Manual autocomplete initialized with z-index fix');
                                         } catch (error) {
                                           console.error('Manual init error:', error);
                                         }
