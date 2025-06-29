@@ -216,9 +216,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.patch("/api/user/profile", requireAuth, async (req, res) => {
     try {
       const userId = (req.user as any).id;
+      console.log('Updating user profile:', userId, JSON.stringify(req.body, null, 2));
       const user = await storage.updateUser(userId, req.body);
+      console.log('Updated user successfully');
       res.json(user);
     } catch (error: any) {
+      console.error('Error updating user profile:', error);
       res.status(500).json({ message: error.message });
     }
   });
