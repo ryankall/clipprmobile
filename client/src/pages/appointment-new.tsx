@@ -67,6 +67,7 @@ export default function AppointmentNew() {
   const prefilledServices = urlParams.get('services');
   const prefilledAddress = urlParams.get('address');
   const prefilledNotes = urlParams.get('notes');
+  const prefilledScheduledAt = urlParams.get('scheduledAt');
 
   const { data: clients } = useQuery<Client[]>({
     queryKey: ["/api/clients"],
@@ -82,24 +83,41 @@ export default function AppointmentNew() {
     clientPhone ? client.phone === clientPhone : false
   );
 
-  // Parse primary service from URL parameter
-  const parseServiceFromUrl = (servicesParam: string | null): number => {
-    if (!servicesParam || !services) return 0;
+  // Parse all services from URL parameter
+  const parseServicesFromUrl = (servicesParam: string | null): ServiceSelection[] => {
+    if (!servicesParam || !services) return [];
     
     const serviceNames = servicesParam.split(',').map(s => s.trim());
-    const matchedService = services.find(service => service.name === serviceNames[0]);
+    const matchedServices: ServiceSelection[] = [];
     
-    return matchedService?.id || 0;
+    serviceNames.forEach(serviceName => {
+      const matchedService = services.find(service => 
+        service.name.toLowerCase().includes(serviceName.toLowerCase()) ||
+        serviceName.toLowerCase().includes(service.name.toLowerCase())
+      );
+      
+      if (matchedService) {
+        // Check if service already exists in matched services
+        const existingIndex = matchedServices.findIndex(s => s.serviceId === matchedService.id);
+        if (existingIndex >= 0) {
+          matchedServices[existingIndex].quantity += 1;
+        } else {
+          matchedServices.push({ serviceId: matchedService.id, quantity: 1 });
+        }
+      }
+    });
+    
+    return matchedServices;
   };
 
-  const preselectedServiceId = parseServiceFromUrl(prefilledServices);
+  const preselectedServices = parseServicesFromUrl(prefilledServices);
 
   const form = useForm<z.infer<typeof appointmentFormSchema>>({
     resolver: zodResolver(appointmentFormSchema),
     defaultValues: {
       clientId: foundClient?.id || 0,
-      services: preselectedServiceId ? [{ serviceId: preselectedServiceId, quantity: 1 }] : [],
-      scheduledAt: "",
+      services: preselectedServices,
+      scheduledAt: prefilledScheduledAt || "",
       notes: prefilledNotes || "",
       address: prefilledAddress || "",
     },
@@ -107,10 +125,10 @@ export default function AppointmentNew() {
 
   // Initialize service selections from form default values
   useEffect(() => {
-    if (preselectedServiceId && serviceSelections.length === 0) {
-      setServiceSelections([{ serviceId: preselectedServiceId, quantity: 1 }]);
+    if (preselectedServices.length > 0 && serviceSelections.length === 0) {
+      setServiceSelections(preselectedServices);
     }
-  }, [preselectedServiceId, serviceSelections.length]);
+  }, [preselectedServices, serviceSelections.length]);
 
   // Sync serviceSelections with form values
   useEffect(() => {
@@ -206,14 +224,16 @@ export default function AppointmentNew() {
     createAppointmentMutation.mutate(data);
   };
 
-  // Generate default datetime (1 hour from now, rounded to next hour)
+  // Generate default datetime (1 hour from now, rounded to next hour) only if no prefilled value
   useEffect(() => {
-    const now = new Date();
-    const nextHour = new Date(now);
-    nextHour.setHours(now.getHours() + 1, 0, 0, 0);
-    const defaultDateTime = format(nextHour, "yyyy-MM-dd'T'HH:mm");
-    form.setValue("scheduledAt", defaultDateTime);
-  }, [form]);
+    if (!prefilledScheduledAt) {
+      const now = new Date();
+      const nextHour = new Date(now);
+      nextHour.setHours(now.getHours() + 1, 0, 0, 0);
+      const defaultDateTime = format(nextHour, "yyyy-MM-dd'T'HH:mm");
+      form.setValue("scheduledAt", defaultDateTime);
+    }
+  }, [form, prefilledScheduledAt]);
 
   // Watch form values and validate scheduling
   const watchedValues = form.watch();
