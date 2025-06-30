@@ -357,10 +357,11 @@ export default function Settings() {
                   htmlItem.style.backgroundColor = '#2D2D2D !important';
                 });
                 
-                // Add click handler
+                // Add click handler with proper event handling
                 htmlItem.addEventListener('click', (e) => {
                   e.preventDefault();
                   e.stopPropagation();
+                  e.stopImmediatePropagation();
                   
                   console.log(`🖱️ Suggestion ${itemIndex} clicked:`, htmlItem.textContent);
                   
@@ -385,7 +386,9 @@ export default function Settings() {
                     
                     console.log('✅ Address set from clicked suggestion');
                   }
-                });
+                  
+                  return false;
+                }, true); // Use capture phase
               });
               
               console.log('🎨 Applied dark theme styling and click handlers to PAC container');
