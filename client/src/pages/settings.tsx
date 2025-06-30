@@ -1,9 +1,18 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 
-// Declare Google Maps types
+// Declare Google Maps types and web components
 declare global {
   interface Window {
     google: any;
+  }
+  namespace JSX {
+    interface IntrinsicElements {
+      'gmpx-autocomplete': React.DetailedHTMLProps<React.HTMLAttributes<HTMLElement>, HTMLElement> & {
+        id?: string;
+        placeholder?: string;
+        className?: string;
+      };
+    }
   }
 }
 import { useQuery, useMutation } from "@tanstack/react-query";
@@ -576,19 +585,11 @@ export default function Settings() {
                               <FormLabel className="text-white">Home Base Address</FormLabel>
                               <FormControl>
                                 <div className="space-y-2">
-                                  {/* Modern Google Places Autocomplete */}
+                                  {/* Modern Google Places Autocomplete with proper CSS styling */}
                                   <gmpx-autocomplete 
                                     id="address-autocomplete"
                                     placeholder="Start typing your address..."
-                                    style={{
-                                      width: '100%',
-                                      backgroundColor: 'hsl(240 10% 3.9%)',
-                                      border: '1px solid hsl(240 3.7% 15.9%)',
-                                      borderRadius: '6px',
-                                      padding: '8px 12px',
-                                      color: 'hsl(0 0% 98%)',
-                                      fontSize: '14px'
-                                    }}
+                                    className="w-full h-10 px-3 py-2 text-sm bg-charcoal border border-steel/40 rounded-md text-white placeholder:text-steel focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
                                   ></gmpx-autocomplete>
                                   
                                   {/* Hidden input for React Hook Form */}

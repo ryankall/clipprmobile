@@ -242,6 +242,35 @@
   box-shadow: 0 0 0 1px var(--gold) !important;
 }
 
+/* Google Maps Extended Component Library styling */
+gmpx-autocomplete {
+  display: block !important;
+  width: 100% !important;
+  min-height: 40px !important;
+}
+
+gmpx-autocomplete input {
+  width: 100% !important;
+  height: 40px !important;
+  padding: 8px 12px !important;
+  background-color: var(--charcoal) !important;
+  border: 1px solid rgba(113, 123, 137, 0.4) !important;
+  border-radius: 6px !important;
+  color: white !important;
+  font-size: 14px !important;
+  box-shadow: none !important;
+}
+
+gmpx-autocomplete input::placeholder {
+  color: rgba(113, 123, 137, 0.8) !important;
+}
+
+gmpx-autocomplete input:focus {
+  outline: none !important;
+  border-color: var(--gold) !important;
+  box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.2) !important;
+}
+
 /* Specific styling for form inputs in profile edit modal */
 [data-radix-dialog-content] input,
 [data-radix-dialog-content] textarea {
