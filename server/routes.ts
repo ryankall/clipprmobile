@@ -1261,12 +1261,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Get service details
       const services = await storage.getServicesByUserId(user.id);
+      console.log("Available services:", services.map(s => ({ id: s.id, name: s.name })));
+      console.log("Selected service IDs:", selectedServices);
+      
       const requestedServices = services.filter(s => selectedServices.includes(s.id.toString()));
+      console.log("Matched services:", requestedServices.map(s => ({ id: s.id, name: s.name })));
       
       const serviceNames = requestedServices.map(s => s.name);
       if (customService) {
         serviceNames.push(customService);
       }
+      
+      console.log("Final service names for message:", serviceNames);
 
       // Create a message in the barber's inbox
       const messageText = `New booking request from ${clientName}
