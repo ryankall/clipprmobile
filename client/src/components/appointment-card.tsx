@@ -54,9 +54,9 @@ export function AppointmentCard({
         </div>
         <p className="text-sm text-steel mb-1">{appointment.service.name}</p>
         {appointment.address && (
-          <div className="flex items-center mb-2">
-            <MapPin className="w-3 h-3 text-steel mr-1" />
-            <span className="text-xs text-steel truncate">{appointment.address}</span>
+          <div className="flex items-center mb-2 mr-12">
+            <MapPin className="w-3 h-3 text-steel mr-1 flex-shrink-0" />
+            <span className="text-xs text-steel truncate flex-1">{appointment.address}</span>
           </div>
         )}
         <div className="flex justify-start">
