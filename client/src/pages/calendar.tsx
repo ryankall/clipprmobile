@@ -6,7 +6,7 @@ import { Calendar as CalendarIcon, Plus, ChevronLeft, ChevronRight, Settings } f
 import { BottomNavigation } from "@/components/bottom-navigation";
 import { AppointmentCard } from "@/components/appointment-card";
 import { AppointmentDetailsDialog } from "@/components/appointment-details-dialog";
-import { WorkingHoursDialog } from "@/components/working-hours-dialog";
+// import { WorkingHoursDialog } from "@/components/working-hours-dialog";
 import { format, addDays, subDays, startOfWeek, endOfWeek } from "date-fns";
 import { Link } from "wouter";
 import type { AppointmentWithRelations } from "@shared/schema";
