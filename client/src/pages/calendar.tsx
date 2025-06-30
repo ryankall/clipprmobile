@@ -12,16 +12,24 @@ import { Link } from "wouter";
 import type { AppointmentWithRelations } from "@shared/schema";
 
 export default function Calendar() {
+  console.log('Calendar component rendering...');
+  
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [selectedAppointment, setSelectedAppointment] = useState<AppointmentWithRelations | null>(null);
   const [showAppointmentDialog, setShowAppointmentDialog] = useState(false);
   
+  console.log('Selected date state:', selectedDate);
+  
   const startDate = startOfWeek(selectedDate);
   const endDate = endOfWeek(selectedDate);
+  
+  console.log('Week range:', startDate, 'to', endDate);
 
   const { data: appointments, isLoading } = useQuery<AppointmentWithRelations[]>({
     queryKey: ["/api/appointments", startDate.toISOString(), endDate.toISOString()],
   });
+
+  console.log('Appointments query - isLoading:', isLoading, 'data:', appointments);
 
   // Fetch user profile to pass working hours to dialog
   const { data: userProfile } = useQuery({
@@ -75,7 +83,10 @@ export default function Calendar() {
                 variant="ghost"
                 size="sm"
                 className="text-steel hover:text-white tap-feedback"
-                onClick={() => setSelectedDate(subDays(selectedDate, 7))}
+                onClick={() => {
+                  console.log('Previous week clicked');
+                  setSelectedDate(subDays(selectedDate, 7));
+                }}
               >
                 <ChevronLeft className="w-4 h-4" />
               </Button>
@@ -88,7 +99,10 @@ export default function Calendar() {
                 variant="ghost"
                 size="sm"
                 className="text-steel hover:text-white tap-feedback"
-                onClick={() => setSelectedDate(addDays(selectedDate, 7))}
+                onClick={() => {
+                  console.log('Next week clicked');
+                  setSelectedDate(addDays(selectedDate, 7));
+                }}
               >
                 <ChevronRight className="w-4 h-4" />
               </Button>
@@ -114,7 +128,10 @@ export default function Calendar() {
                           ? "text-gold border border-gold/30" 
                           : "text-steel hover:text-white"
                     }`}
-                    onClick={() => setSelectedDate(day)}
+                    onClick={() => {
+                      console.log('Day clicked:', format(day, 'yyyy-MM-dd'), 'Appointments on this day:', dayAppointments.length);
+                      setSelectedDate(day);
+                    }}
                   >
                     <div className="text-xs leading-none">{format(day, 'EEE')}</div>
                     <div className="text-sm font-medium leading-none flex items-center justify-center min-h-[1.25rem]">{format(day, 'd')}</div>
