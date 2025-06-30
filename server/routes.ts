@@ -257,6 +257,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/appointments", requireAuth, async (req, res) => {
     try {
       const userId = (req.user as any).id;
+      console.log('Creating appointment with data:', JSON.stringify(req.body, null, 2));
       
       // Get service details to populate price and duration
       const service = await storage.getService(req.body.serviceId);
@@ -265,20 +266,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Parse the date and validate it's not in the past
-      const appointmentDate = new Date(req.body.date);
+      const appointmentDate = new Date(req.body.scheduledAt);
       const now = new Date();
       
       if (appointmentDate < now) {
         return res.status(400).json({ message: "Cannot schedule appointments in the past" });
       }
 
-      const appointmentData = insertAppointmentSchema.parse({
+      const dataToValidate = {
         ...req.body,
         userId,
         price: service.price,
         duration: service.duration,
-        date: appointmentDate
-      });
+        scheduledAt: appointmentDate
+      };
+      
+      console.log('Data to validate:', JSON.stringify(dataToValidate, null, 2));
+      const appointmentData = insertAppointmentSchema.parse(dataToValidate);
       
       const appointment = await storage.createAppointment(appointmentData);
       
@@ -311,7 +315,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       res.json(appointment);
     } catch (error: any) {
+      console.error('Appointment creation error:', error);
       if (error instanceof z.ZodError) {
+        console.error('Validation errors:', error.errors);
         return res.status(400).json({ 
           message: "Validation error",
           errors: error.errors
