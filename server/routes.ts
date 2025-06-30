@@ -1262,9 +1262,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get service details
       const services = await storage.getServicesByUserId(user.id);
       console.log("Available services:", services.map(s => ({ id: s.id, name: s.name })));
-      console.log("Selected service IDs:", selectedServices);
+      console.log("Selected services:", selectedServices);
       
-      const requestedServices = services.filter(s => selectedServices.includes(s.id.toString()));
+      // Match services by name (since selectedServices contains names, not IDs)
+      const requestedServices = services.filter(s => selectedServices.includes(s.name));
       console.log("Matched services:", requestedServices.map(s => ({ id: s.id, name: s.name })));
       
       const serviceNames = requestedServices.map(s => s.name);
