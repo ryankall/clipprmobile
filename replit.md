@@ -141,6 +141,7 @@ npm run start
 
 ```
 Changelog:
+- June 30, 2025. Simplified home base address input - removed Google Places Autocomplete due to API key authentication issues, replaced with simple manual address entry field with improved placeholder text and user guidance for entering complete addresses including city and state
 - June 29, 2025. Implemented Google Places Autocomplete for home base address field - integrated Google Maps JavaScript API with Places library, added automatic initialization when profile edit modal opens, implemented dark theme styling for dropdown suggestions, fixed z-index positioning for modal compatibility, includes proper cleanup and error handling
 - June 29, 2025. Fixed message display and scrollbar issues - made all textarea scrollbars invisible using scrollbar-hide class, fixed message content going off screen with proper word wrapping and container sizing, enhanced message dialog in messages page with break-words and max-height constraints
 - June 29, 2025. Fixed sign out 404 error - corrected authentication state management in useAuth hook, improved router logic to properly show Auth component for unauthenticated users, fixed redirect path from /auth to / after signout
