@@ -420,16 +420,50 @@ export default function Settings() {
           lastValue = currentValue;
         };
 
-        // Check periodically when dropdown might be open
-        inputElement.addEventListener('focus', () => {
-          console.log('Input focused - monitoring for changes');
-          const interval = setInterval(() => {
-            checkForChanges();
-            // Stop checking if input loses focus or modal closes
-            if (!document.contains(inputElement)) {
-              clearInterval(interval);
+        // Aggressive monitoring for autocomplete selections
+        let monitoringInterval: number | null = null;
+        let lastMonitoredValue = inputElement.value;
+        
+        const startAggressiveMonitoring = () => {
+          if (monitoringInterval) return;
+          
+          console.log('Starting aggressive monitoring for autocomplete');
+          monitoringInterval = window.setInterval(() => {
+            const currentValue = inputElement.value;
+            
+            // Check if value changed and looks like a complete address
+            if (currentValue !== lastMonitoredValue) {
+              console.log('Value change detected:', currentValue);
+              
+              // If it looks like a complete address (has commas and length > 15)
+              if (currentValue.includes(',') && currentValue.length > 15) {
+                console.log('Complete address detected - updating form');
+                updateFormWithAddress(currentValue);
+              }
+              
+              lastMonitoredValue = currentValue;
             }
-          }, 200);
+          }, 50); // Check every 50ms for faster detection
+        };
+        
+        const stopMonitoring = () => {
+          if (monitoringInterval) {
+            clearInterval(monitoringInterval);
+            monitoringInterval = null;
+            console.log('Stopped aggressive monitoring');
+          }
+        };
+        
+        inputElement.addEventListener('focus', () => {
+          console.log('Input focused - starting aggressive monitoring');
+          lastMonitoredValue = inputElement.value;
+          startAggressiveMonitoring();
+        });
+        
+        inputElement.addEventListener('blur', () => {
+          console.log('Input blurred - stopping monitoring after delay');
+          // Delay stopping to catch any final changes
+          setTimeout(stopMonitoring, 300);
         });
 
         autocompleteRef.current = autocomplete;
