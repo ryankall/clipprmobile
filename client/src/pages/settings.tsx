@@ -327,15 +327,17 @@ export default function Settings() {
                 children: element.children.length
               });
               
-              // Force visibility and proper positioning
+              // Force visibility and proper positioning with highest z-index
               element.style.display = 'block !important';
               element.style.visibility = 'visible !important';
               element.style.opacity = '1 !important';
-              element.style.zIndex = '10000 !important';
-              element.style.position = 'absolute !important';
+              element.style.zIndex = '999999 !important';
+              element.style.position = 'fixed !important';
               element.style.backgroundColor = '#2D2D2D !important';
               element.style.border = '1px solid #6B7280 !important';
               element.style.borderRadius = '6px !important';
+              element.style.pointerEvents = 'auto !important';
+              element.style.isolation = 'isolate !important';
               
               // Style the suggestion items and add click handlers
               const items = element.querySelectorAll('.pac-item');

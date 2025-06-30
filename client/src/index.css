@@ -205,11 +205,13 @@
   border: 1px solid #444 !important;
   border-radius: 8px !important;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3) !important;
-  z-index: 10000 !important;
+  z-index: 999999 !important;
   display: block !important;
   visibility: visible !important;
-  position: absolute !important;
+  position: fixed !important;
   opacity: 1 !important;
+  pointer-events: auto !important;
+  isolation: isolate !important;
 }
 
 .pac-item {
@@ -218,6 +220,8 @@
   border-color: #444 !important;
   padding: 8px 12px !important;
   display: block !important;
+  cursor: pointer !important;
+  pointer-events: auto !important;
   visibility: visible !important;
 }
 
