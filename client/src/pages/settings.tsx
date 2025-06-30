@@ -385,6 +385,28 @@ export default function Settings() {
         autocompleteRef.current = autocomplete;
         console.log('✅ Autocomplete setup complete');
 
+        // Add manual click handling for PAC items as backup
+        document.addEventListener('click', (e) => {
+          const target = e.target as HTMLElement;
+          const pacItem = target.closest('.pac-item');
+          if (pacItem) {
+            console.log('🖱️ Manual PAC item click detected');
+            // Extract address text from the clicked suggestion
+            const textContent = pacItem.textContent || '';
+            if (textContent.trim()) {
+              console.log('📍 Manual address selection:', textContent);
+              (addressInput as HTMLInputElement).value = textContent.trim();
+              (addressInput as HTMLInputElement).dispatchEvent(new Event('input', { bubbles: true }));
+              (addressInput as HTMLInputElement).dispatchEvent(new Event('change', { bubbles: true }));
+              
+              // Hide all PAC containers
+              document.querySelectorAll('.pac-container').forEach(container => {
+                (container as HTMLElement).style.display = 'none';
+              });
+            }
+          }
+        });
+
       } catch (error) {
         console.error('❌ Autocomplete error:', error);
       }
@@ -395,7 +417,13 @@ export default function Settings() {
     return () => {
       if (autocompleteRef.current) {
         window.google?.maps?.event?.clearInstanceListeners(autocompleteRef.current);
+        autocompleteRef.current = null;
       }
+      
+      // Clean up any lingering PAC containers
+      document.querySelectorAll('.pac-container').forEach(container => {
+        container.remove();
+      });
     };
   }, [isEditingProfile]);
 
