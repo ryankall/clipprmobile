@@ -218,29 +218,57 @@ export default function Settings() {
     if (isEditingProfile) {
       console.log('=== AUTOCOMPLETE DEBUG START ===');
       console.log('Initializing Google Places Autocomplete...');
-      console.log('window.google exists:', !!window.google);
-      console.log('window.google.maps exists:', !!window.google?.maps);
-      console.log('window.google.maps.places exists:', !!window.google?.maps?.places);
-      console.log('window.google.maps.places.Autocomplete exists:', !!window.google?.maps?.places?.Autocomplete);
-      console.log('window.googleMapsReady:', window.googleMapsReady);
       
       let autocomplete: any = null;
       let retryCount = 0;
-      const maxRetries = 20;
+      const maxRetries = 50; // Increased retries for DOM element
       
-      const initAutocomplete = () => {
-        console.log('=== INIT AUTOCOMPLETE START ===');
-        const input = document.getElementById('address-input') as HTMLInputElement;
-        console.log('Input element found:', !!input);
-        console.log('Input element ID:', input?.id);
-        console.log('Input element type:', input?.type);
-        
-        if (input && window.google?.maps?.places?.Autocomplete) {
-          console.log('✅ Creating Google Places Autocomplete');
+      const waitForElement = (selector: string, timeout = 10000): Promise<HTMLElement> => {
+        return new Promise((resolve, reject) => {
+          const element = document.getElementById(selector);
+          if (element) {
+            console.log('✅ Element found immediately:', selector);
+            resolve(element);
+            return;
+          }
           
-          try {
+          console.log('⏳ Waiting for element:', selector);
+          const observer = new MutationObserver((mutations, obs) => {
+            const element = document.getElementById(selector);
+            if (element) {
+              console.log('✅ Element found via observer:', selector);
+              obs.disconnect();
+              resolve(element);
+            }
+          });
+          
+          observer.observe(document.body, {
+            childList: true,
+            subtree: true
+          });
+          
+          setTimeout(() => {
+            observer.disconnect();
+            reject(new Error(`Element ${selector} not found within ${timeout}ms`));
+          }, timeout);
+        });
+      };
+      
+      const initAutocomplete = async () => {
+        console.log('=== INIT AUTOCOMPLETE START ===');
+        
+        try {
+          // Wait for the input element to be available
+          const input = await waitForElement('address-input');
+          console.log('✅ Input element found:', !!input);
+          console.log('Input element ID:', input?.id);
+          console.log('Input element type:', (input as HTMLInputElement)?.type);
+          
+          if (input && window.google?.maps?.places?.Autocomplete) {
+            console.log('✅ Creating Google Places Autocomplete');
+            
             // Create autocomplete instance
-            autocomplete = new window.google.maps.places.Autocomplete(input, {
+            autocomplete = new window.google.maps.places.Autocomplete(input as HTMLInputElement, {
               types: ['address'],
               componentRestrictions: { country: 'us' }
             });
@@ -269,20 +297,20 @@ export default function Settings() {
             
             console.log('✅ Google Places Autocomplete initialized successfully');
             console.log('=== AUTOCOMPLETE DEBUG END ===');
-          } catch (error) {
-            console.error('❌ Error creating autocomplete:', error);
+          } else {
+            console.log('❌ Prerequisites not met:');
+            console.log('  - Input element:', !!input);
+            console.log('  - window.google:', !!window.google);
+            console.log('  - window.google.maps:', !!window.google?.maps);
+            console.log('  - window.google.maps.places:', !!window.google?.maps?.places);
+            console.log('  - window.google.maps.places.Autocomplete:', !!window.google?.maps?.places?.Autocomplete);
           }
-        } else {
-          console.log('❌ Prerequisites not met:');
-          console.log('  - Input element:', !!input);
-          console.log('  - window.google:', !!window.google);
-          console.log('  - window.google.maps:', !!window.google?.maps);
-          console.log('  - window.google.maps.places:', !!window.google?.maps?.places);
-          console.log('  - window.google.maps.places.Autocomplete:', !!window.google?.maps?.places?.Autocomplete);
+        } catch (error) {
+          console.error('❌ Error waiting for input element or creating autocomplete:', error);
         }
       };
       
-      // Try to initialize autocomplete with retries
+      // Try to initialize autocomplete with retries for Google Maps API
       const tryInitAutocomplete = () => {
         retryCount++;
         console.log(`=== RETRY ATTEMPT ${retryCount}/${maxRetries} ===`);
@@ -292,8 +320,8 @@ export default function Settings() {
           console.log('✅ Google Maps Places API is ready, initializing...');
           initAutocomplete();
         } else if (retryCount < maxRetries) {
-          console.log(`❌ Google Maps Places API not ready, retrying in 500ms... (attempt ${retryCount}/${maxRetries})`);
-          setTimeout(tryInitAutocomplete, 500);
+          console.log(`❌ Google Maps Places API not ready, retrying in 200ms... (attempt ${retryCount}/${maxRetries})`);
+          setTimeout(tryInitAutocomplete, 200);
         } else {
           console.error('❌ Max retries reached, Google Maps API failed to load');
         }
@@ -306,14 +334,15 @@ export default function Settings() {
       
       if (window.googleMapsReady && window.google?.maps?.places) {
         console.log('✅ Google Maps already ready, initializing immediately');
-        initAutocomplete();
+        // Small delay to ensure DOM is ready
+        setTimeout(() => initAutocomplete(), 100);
       } else {
         console.log('❌ Google Maps not ready, setting up event listeners and retries');
         
-        // Wait for Google Maps to load or start trying immediately
+        // Wait for Google Maps to load
         const handleGoogleMapsReady = () => {
           console.log('✅ Google Maps ready event received');
-          tryInitAutocomplete();
+          setTimeout(() => tryInitAutocomplete(), 100);
         };
         
         window.addEventListener('google-maps-ready', handleGoogleMapsReady);
