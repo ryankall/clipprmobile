@@ -417,6 +417,32 @@ export default function Settings() {
             key: event.key,
             value: addressInput.value
           });
+          
+          // Handle Enter and Tab key for suggestion selection
+          if (event.key === 'Enter' || event.key === 'Tab') {
+            const pacContainers = document.querySelectorAll('.pac-container');
+            pacContainers.forEach(container => {
+              const selectedItem = container.querySelector('.pac-item-selected, .pac-item:first-child');
+              if (selectedItem) {
+                event.preventDefault();
+                event.stopPropagation();
+                
+                const suggestionText = selectedItem.textContent?.trim();
+                if (suggestionText) {
+                  console.log('✅ Address selected via keyboard:', suggestionText);
+                  
+                  addressInput.value = suggestionText;
+                  addressInput.dispatchEvent(new Event('input', { bubbles: true }));
+                  
+                  form.setValue('homeBaseAddress', suggestionText);
+                  form.trigger('homeBaseAddress');
+                  
+                  // Hide suggestions
+                  (container as HTMLElement).style.display = 'none';
+                }
+              }
+            });
+          }
         });
 
         // Listen for place selection using Google's native event
