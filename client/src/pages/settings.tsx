@@ -518,7 +518,7 @@ export default function Settings() {
                 (container as HTMLElement).style.display = 'none';
               });
               setIsAutocompleteOpen(false);
-            }, 100);
+            }, 200);
           }
         });
 
@@ -704,10 +704,20 @@ export default function Settings() {
                 Profile & Business Info
               </CardTitle>
               <Dialog open={isEditingProfile} onOpenChange={(open) => {
-              // Prevent closing if autocomplete is active
-              if (!open && isAutocompleteOpen) {
-                console.log('🛡️ Preventing modal close - Google autocomplete active');
-                return;
+              // Always prevent closing if autocomplete has suggestions visible
+              if (!open) {
+                const pacContainers = document.querySelectorAll('.pac-container');
+                const hasVisibleSuggestions = Array.from(pacContainers).some(container => {
+                  const element = container as HTMLElement;
+                  return element.style.display !== 'none' && 
+                         element.children.length > 0 &&
+                         element.offsetHeight > 0;
+                });
+                
+                if (hasVisibleSuggestions || isAutocompleteOpen) {
+                  console.log('🛡️ Preventing modal close - Google autocomplete active');
+                  return;
+                }
               }
               
               setIsEditingProfile(open);
