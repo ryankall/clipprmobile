@@ -292,8 +292,20 @@ export default function Settings() {
         
         // Copy styling and attributes from original input
         placeAutocomplete.className = addressInput.className;
-        placeAutocomplete.style.cssText = addressInput.style.cssText;
         placeAutocomplete.placeholder = "Start typing your address...";
+        
+        // Set essential styles for interaction
+        placeAutocomplete.style.display = 'block';
+        placeAutocomplete.style.width = '100%';
+        placeAutocomplete.style.height = '40px';
+        placeAutocomplete.style.padding = '8px 12px';
+        placeAutocomplete.style.border = '1px solid rgb(115, 115, 115)';
+        placeAutocomplete.style.borderRadius = '6px';
+        placeAutocomplete.style.backgroundColor = 'rgb(45, 45, 45)';
+        placeAutocomplete.style.color = 'white';
+        placeAutocomplete.style.fontSize = '14px';
+        placeAutocomplete.style.cursor = 'text';
+        placeAutocomplete.style.pointerEvents = 'auto';
         
         // Set initial value if exists
         if (addressInput.value) {
@@ -304,7 +316,16 @@ export default function Settings() {
         placeAutocomplete.setAttribute('country', 'us');
         placeAutocomplete.setAttribute('type', 'address');
         
-        console.log('🆕 Created place-autocomplete Web Component');
+        console.log('🆕 Created place-autocomplete Web Component with explicit styling');
+        
+        // Test click detection
+        placeAutocomplete.addEventListener('click', () => {
+          console.log('🖱️ Web Component clicked successfully!');
+        });
+        
+        placeAutocomplete.addEventListener('focus', () => {
+          console.log('🎯 Web Component focused!');
+        });
 
         // Replace the input
         parentElement.replaceChild(placeAutocomplete, addressInput);
