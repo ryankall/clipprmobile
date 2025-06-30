@@ -11,17 +11,26 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { ArrowLeft, Calendar, Clock, User, Scissors, AlertTriangle, CheckCircle } from "lucide-react";
+import { ArrowLeft, Calendar, Clock, User, Scissors, AlertTriangle, CheckCircle, Plus, Minus } from "lucide-react";
 import { Link } from "wouter";
 import { format } from "date-fns";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import type { Client, Service } from "@shared/schema";
 
+// Service selection interface
+interface ServiceSelection {
+  serviceId: number;
+  quantity: number;
+}
+
 // Appointment form schema
 const appointmentFormSchema = z.object({
   clientId: z.number().min(1, "Client is required"),
-  serviceId: z.number().min(1, "Service is required"),
+  services: z.array(z.object({
+    serviceId: z.number(),
+    quantity: z.number().min(1)
+  })).min(1, "At least one service is required"),
   scheduledAt: z.string().min(1, "Date and time is required").refine(
     (dateStr) => {
       const selectedDate = new Date(dateStr);
@@ -41,6 +50,7 @@ const appointmentFormSchema = z.object({
 export default function AppointmentNew() {
   const [, navigate] = useLocation();
   const { toast } = useToast();
+  const [serviceSelections, setServiceSelections] = useState<ServiceSelection[]>([]);
   const [scheduleValidation, setScheduleValidation] = useState<{
     isValidating: boolean;
     isValid?: boolean;
@@ -88,12 +98,24 @@ export default function AppointmentNew() {
     resolver: zodResolver(appointmentFormSchema),
     defaultValues: {
       clientId: foundClient?.id || 0,
-      serviceId: preselectedServiceId,
+      services: preselectedServiceId ? [{ serviceId: preselectedServiceId, quantity: 1 }] : [],
       scheduledAt: "",
       notes: prefilledNotes || "",
       address: prefilledAddress || "",
     },
   });
+
+  // Initialize service selections from form default values
+  useEffect(() => {
+    if (preselectedServiceId && serviceSelections.length === 0) {
+      setServiceSelections([{ serviceId: preselectedServiceId, quantity: 1 }]);
+    }
+  }, [preselectedServiceId, serviceSelections.length]);
+
+  // Sync serviceSelections with form values
+  useEffect(() => {
+    form.setValue("services", serviceSelections);
+  }, [serviceSelections, form]);
 
   const createAppointmentMutation = useMutation({
     mutationFn: async (data: z.infer<typeof appointmentFormSchema>) => {
@@ -101,9 +123,13 @@ export default function AppointmentNew() {
       const localDateTime = new Date(data.scheduledAt);
       const utcDateTime = localDateTime.toISOString();
       
+      // For now, use the first service for appointment creation
+      // TODO: Update backend to support multiple services
+      const primaryService = data.services[0];
+      
       const appointmentData = {
         clientId: data.clientId,
-        serviceId: data.serviceId,
+        serviceId: primaryService.serviceId,
         scheduledAt: utcDateTime,
         notes: data.notes,
         address: data.address
@@ -140,19 +166,19 @@ export default function AppointmentNew() {
   });
 
   // Travel time validation function
-  const validateScheduling = async (scheduledAt: string, clientId: number, serviceId: number) => {
-    if (!scheduledAt || !clientId || !serviceId) return;
+  const validateScheduling = async (scheduledAt: string, clientId: number, selectedServices: ServiceSelection[]) => {
+    if (!scheduledAt || !clientId || !selectedServices.length) return;
 
     const validationClient = clients?.find(c => c.id === clientId);
-    const selectedService = services?.find(s => s.id === serviceId);
+    const primaryService = services?.find(s => s.id === selectedServices[0].serviceId);
     
-    if (!validationClient?.address || !selectedService) return;
+    if (!validationClient?.address || !primaryService) return;
 
     setScheduleValidation({ isValidating: true });
 
     try {
       const scheduledDate = new Date(scheduledAt);
-      const serviceDuration = selectedService.duration || 60;
+      const serviceDuration = primaryService.duration || 60;
       const endTime = new Date(scheduledDate.getTime() + serviceDuration * 60 * 1000);
 
       const response = await apiRequest('POST', '/api/appointments/validate-scheduling', {
@@ -192,16 +218,16 @@ export default function AppointmentNew() {
   // Watch form values and validate scheduling
   const watchedValues = form.watch();
   useEffect(() => {
-    const { scheduledAt, clientId, serviceId } = watchedValues;
-    if (scheduledAt && clientId && serviceId) {
+    const { scheduledAt, clientId, services } = watchedValues;
+    if (scheduledAt && clientId && services && services.length > 0) {
       const timer = setTimeout(() => {
-        validateScheduling(scheduledAt, clientId, serviceId);
+        validateScheduling(scheduledAt, clientId, services);
       }, 500); // Debounce validation
       return () => clearTimeout(timer);
     } else {
       setScheduleValidation({ isValidating: false });
     }
-  }, [watchedValues.scheduledAt, watchedValues.clientId, watchedValues.serviceId]);
+  }, [watchedValues.scheduledAt, watchedValues.clientId, watchedValues.services]);
 
   const currentClient = clients?.find(c => c.id === form.watch("clientId"));
 
@@ -266,40 +292,123 @@ export default function AppointmentNew() {
                 />
 
                 {/* Service Selection */}
-                <FormField
-                  control={form.control}
-                  name="serviceId"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="text-white flex items-center">
-                        <Scissors className="w-4 h-4 mr-2" />
-                        Service
-                      </FormLabel>
-                      <Select onValueChange={(value) => field.onChange(parseInt(value))} value={field.value?.toString()}>
-                        <FormControl>
-                          <SelectTrigger className="bg-charcoal border-steel/40 text-white">
-                            <SelectValue placeholder="Select a service" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent className="bg-charcoal border-steel/40 text-white">
-                          {services?.map((service) => (
-                            <SelectItem 
-                              key={service.id} 
-                              value={service.id.toString()}
-                              className="text-white hover:bg-steel/20"
-                            >
-                              <div className="flex justify-between items-center w-full">
-                                <span>{service.name}</span>
-                                <span className="text-steel ml-2">${service.price}</span>
-                              </div>
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
+                <div className="space-y-4">
+                  <FormLabel className="text-white flex items-center">
+                    <Scissors className="w-4 h-4 mr-2" />
+                    Services
+                  </FormLabel>
+                  
+                  {/* Add Service Dropdown */}
+                  <Select onValueChange={(value) => {
+                    const serviceId = parseInt(value);
+                    const existingIndex = serviceSelections.findIndex(s => s.serviceId === serviceId);
+                    
+                    if (existingIndex >= 0) {
+                      // Increase quantity if service already selected
+                      const newSelections = [...serviceSelections];
+                      newSelections[existingIndex].quantity += 1;
+                      setServiceSelections(newSelections);
+                    } else {
+                      // Add new service
+                      const newSelections = [...serviceSelections, { serviceId, quantity: 1 }];
+                      setServiceSelections(newSelections);
+                    }
+                    
+                    // Update form
+                    form.setValue("services", serviceSelections.length > 0 ? serviceSelections : [{ serviceId, quantity: 1 }]);
+                  }}>
+                    <SelectTrigger className="bg-charcoal border-steel/40 text-white">
+                      <SelectValue placeholder="Add a service" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-charcoal border-steel/40 text-white">
+                      {services?.map((service) => (
+                        <SelectItem 
+                          key={service.id} 
+                          value={service.id.toString()}
+                          className="text-white hover:bg-steel/20"
+                        >
+                          <div className="flex justify-between items-center w-full">
+                            <span>{service.name}</span>
+                            <span className="text-steel ml-2">{service.duration}min</span>
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  
+                  {/* Selected Services List */}
+                  {serviceSelections.length > 0 && (
+                    <div className="space-y-2">
+                      {serviceSelections.map((selection, index) => {
+                        const service = services?.find(s => s.id === selection.serviceId);
+                        if (!service) return null;
+                        
+                        return (
+                          <div key={selection.serviceId} className="flex items-center justify-between bg-charcoal/50 rounded p-3">
+                            <div className="flex-1">
+                              <div className="text-white font-medium">{service.name}</div>
+                              <div className="text-steel text-sm">{service.duration}min each</div>
+                            </div>
+                            
+                            <div className="flex items-center space-x-2">
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                className="h-8 w-8 p-0 border-steel/40 hover:bg-steel/20"
+                                onClick={() => {
+                                  const newSelections = [...serviceSelections];
+                                  if (newSelections[index].quantity > 1) {
+                                    newSelections[index].quantity -= 1;
+                                  } else {
+                                    newSelections.splice(index, 1);
+                                  }
+                                  setServiceSelections(newSelections);
+                                  form.setValue("services", newSelections);
+                                }}
+                              >
+                                <Minus className="h-4 w-4" />
+                              </Button>
+                              
+                              <span className="text-white w-8 text-center">{selection.quantity}</span>
+                              
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                className="h-8 w-8 p-0 border-steel/40 hover:bg-steel/20"
+                                onClick={() => {
+                                  const newSelections = [...serviceSelections];
+                                  newSelections[index].quantity += 1;
+                                  setServiceSelections(newSelections);
+                                  form.setValue("services", newSelections);
+                                }}
+                              >
+                                <Plus className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                      
+                      {/* Total Duration Display */}
+                      <div className="bg-blue-900/20 border-blue-700/30 rounded p-3">
+                        <div className="flex items-center justify-between text-blue-200">
+                          <span className="flex items-center">
+                            <Clock className="w-4 h-4 mr-2" />
+                            Total Duration
+                          </span>
+                          <span className="font-semibold">
+                            {serviceSelections.reduce((total, selection) => {
+                              const service = services?.find(s => s.id === selection.serviceId);
+                              return total + (service?.duration || 0) * selection.quantity;
+                            }, 0)}min
+                          </span>
+                        </div>
+                      </div>
+                    </div>
                   )}
-                />
+                </div>
 
                 {/* Date and Time */}
                 <FormField
