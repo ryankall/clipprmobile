@@ -1280,7 +1280,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
 📅 Date: ${selectedDate}
 ⏰ Time: ${selectedTime}
-💇 Services: ${serviceNames.join(', ')}
+💇 Services: ${serviceNames.join(', ') || 'No services selected'}
 📞 Phone: ${clientPhone}
 ${clientEmail ? `📧 Email: ${clientEmail}` : ''}
 🚗 Travel: ${needsTravel ? `Yes - ${clientAddress || 'Address pending'}` : 'No'}
@@ -1288,18 +1288,27 @@ ${message ? `💬 Message: ${message}` : ''}
 
 Please contact the client to confirm the appointment.`;
 
-      const bookingMessage = await storage.createMessage({
-        userId: user.id,
-        customerName: clientName,
-        customerPhone: clientPhone,
-        customerEmail: clientEmail || undefined,
-        subject: "New Booking Request",
-        message: messageText,
-        status: "unread",
-        priority: "normal",
-        serviceRequested: serviceNames.join(', '),
-        preferredDate: new Date(`${selectedDate}T${selectedTime}:00`),
-      });
+      console.log("Creating message with text:", messageText);
+
+      try {
+        const bookingMessage = await storage.createMessage({
+          userId: user.id,
+          customerName: clientName,
+          customerPhone: clientPhone,
+          customerEmail: clientEmail || undefined,
+          subject: "New Booking Request",
+          message: messageText,
+          status: "unread",
+          priority: "normal",
+          serviceRequested: serviceNames.join(', ') || 'No services selected',
+          preferredDate: new Date(`${selectedDate}T${selectedTime}:00`),
+        });
+        
+        console.log("Message created successfully:", bookingMessage.id);
+      } catch (messageError) {
+        console.error("Error creating message:", messageError);
+        throw messageError;
+      }
 
       res.json({ 
         success: true, 
