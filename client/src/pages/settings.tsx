@@ -268,19 +268,65 @@ export default function Settings() {
       return;
     }
 
-    // Find the address input by name attribute
-    const addressInput = document.querySelector('input[name="homeBaseAddress"]') as HTMLInputElement;
-    console.log('🎯 Address input found:', {
-      exists: !!addressInput,
-      value: addressInput?.value,
-      visible: addressInput?.offsetParent !== null,
-      rect: addressInput?.getBoundingClientRect()
-    });
+    // Find the address input by multiple selectors
+    console.log('🔍 Searching for address input...');
+    
+    // Try different selectors
+    const selectors = [
+      'input[name="homeBaseAddress"]',
+      'input[placeholder*="address"]',
+      'input[placeholder*="Address"]',
+      'input[type="text"]'
+    ];
+    
+    let addressInput: HTMLInputElement | null = null;
+    
+    for (const selector of selectors) {
+      const elements = document.querySelectorAll(selector);
+      console.log(`🔍 Selector "${selector}" found ${elements.length} elements`);
+      
+      elements.forEach((el, index) => {
+        const input = el as HTMLInputElement;
+        console.log(`  Element ${index}:`, {
+          tagName: input.tagName,
+          name: input.name,
+          placeholder: input.placeholder,
+          id: input.id,
+          className: input.className,
+          visible: input.offsetParent !== null
+        });
+      });
+      
+      if (elements.length > 0) {
+        addressInput = elements[0] as HTMLInputElement;
+        console.log(`✅ Using selector: ${selector}`);
+        break;
+      }
+    }
 
     if (!addressInput) {
-      console.log('❌ No address input found');
+      console.log('❌ No address input found with any selector');
+      // List all inputs in the document for debugging
+      const allInputs = document.querySelectorAll('input');
+      console.log('📋 All inputs in document:', allInputs.length);
+      allInputs.forEach((input, index) => {
+        console.log(`  Input ${index}:`, {
+          name: input.name,
+          placeholder: input.placeholder,
+          type: input.type,
+          id: input.id
+        });
+      });
       return;
     }
+
+    console.log('🎯 Final address input selected:', {
+      exists: !!addressInput,
+      name: addressInput.name,
+      placeholder: addressInput.placeholder,
+      value: addressInput.value,
+      visible: addressInput.offsetParent !== null
+    });
 
     console.log('🚀 Initializing Google Places Autocomplete...');
 
