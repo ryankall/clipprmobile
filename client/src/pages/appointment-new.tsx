@@ -141,13 +141,10 @@ export default function AppointmentNew() {
       const localDateTime = new Date(data.scheduledAt);
       const utcDateTime = localDateTime.toISOString();
       
-      // For now, use the first service for appointment creation
-      // TODO: Update backend to support multiple services
-      const primaryService = data.services[0];
-      
+      // Send the full services array to the backend
       const appointmentData = {
         clientId: data.clientId,
-        serviceId: primaryService.serviceId,
+        services: data.services, // Send full services array
         scheduledAt: utcDateTime,
         notes: data.notes,
         address: data.address

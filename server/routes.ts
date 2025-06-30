@@ -259,10 +259,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = (req.user as any).id;
       console.log('Creating appointment with data:', JSON.stringify(req.body, null, 2));
       
-      // Get service details to populate price and duration
-      const service = await storage.getService(req.body.serviceId);
-      if (!service) {
-        return res.status(400).json({ message: "Service not found" });
+      // Handle both old single service format and new multiple services format
+      let services = [];
+      if (req.body.services && Array.isArray(req.body.services)) {
+        // New format with multiple services
+        services = req.body.services;
+      } else if (req.body.serviceId) {
+        // Old format with single service - convert to new format
+        services = [{ serviceId: req.body.serviceId, quantity: 1 }];
+      } else {
+        return res.status(400).json({ message: "Services are required" });
+      }
+
+      if (services.length === 0) {
+        return res.status(400).json({ message: "At least one service is required" });
+      }
+
+      // Get all service details and calculate totals
+      let totalPrice = 0;
+      let totalDuration = 0;
+      const serviceDetails = [];
+
+      for (const serviceSelection of services) {
+        const service = await storage.getService(serviceSelection.serviceId);
+        if (!service) {
+          return res.status(400).json({ message: `Service with ID ${serviceSelection.serviceId} not found` });
+        }
+        
+        const quantity = serviceSelection.quantity || 1;
+        const serviceTotalPrice = parseFloat(service.price) * quantity;
+        const serviceTotalDuration = service.duration * quantity;
+        
+        totalPrice += serviceTotalPrice;
+        totalDuration += serviceTotalDuration;
+        
+        serviceDetails.push({
+          service,
+          quantity,
+          price: serviceTotalPrice.toFixed(2)
+        });
       }
 
       // Parse the datetime and store as UTC
@@ -284,11 +319,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
+      // Use the first service as the primary service for backward compatibility
+      const primaryService = serviceDetails[0].service;
+
       const dataToValidate = {
         ...req.body,
         userId,
-        price: service.price,
-        duration: service.duration,
+        serviceId: primaryService.id, // Keep for backward compatibility
+        price: totalPrice.toFixed(2),
+        duration: totalDuration,
         scheduledAt: appointmentUTC
       };
       
@@ -296,13 +335,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const appointmentData = insertAppointmentSchema.parse(dataToValidate);
       
       const appointment = await storage.createAppointment(appointmentData);
+
+      // Create appointment service records for all selected services
+      for (const serviceDetail of serviceDetails) {
+        await storage.createAppointmentService({
+          appointmentId: appointment.id,
+          serviceId: serviceDetail.service.id,
+          quantity: serviceDetail.quantity,
+          price: serviceDetail.price
+        });
+      }
       
       // Send automatic confirmation message
       try {
         const client = await storage.getClient(appointment.clientId);
         if (client) {
           const appointmentTime = format(new Date(appointment.scheduledAt), "EEEE, MMMM do 'at' h:mm a");
-          const confirmationMessage = `Hi ${client.name}! Your appointment for ${service.name} is confirmed for ${appointmentTime}. Please reply 'YES' to confirm or 'NO' to cancel. Thanks!`;
+          
+          // Create service list for confirmation message
+          let serviceText;
+          if (serviceDetails.length === 1) {
+            serviceText = serviceDetails[0].service.name;
+          } else {
+            const serviceNames = serviceDetails.map(s => s.service.name);
+            serviceText = serviceNames.join(', ');
+          }
+          
+          const confirmationMessage = `Hi ${client.name}! Your appointment for ${serviceText} is confirmed for ${appointmentTime}. Please reply 'YES' to confirm or 'NO' to cancel. Thanks!`;
           
           // Prefer SMS, fallback to email
           const method = client.phone ? 'sms' : 'email';

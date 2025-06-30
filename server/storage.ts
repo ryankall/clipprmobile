@@ -3,6 +3,7 @@ import {
   clients,
   services,
   appointments,
+  appointmentServices,
   invoices,
   galleryPhotos,
   messages,
@@ -14,6 +15,8 @@ import {
   type InsertService,
   type Appointment,
   type InsertAppointment,
+  type AppointmentService,
+  type InsertAppointmentService,
   type Invoice,
   type InsertInvoice,
   type GalleryPhoto,
@@ -59,6 +62,11 @@ export interface IStorage {
   createAppointment(appointment: InsertAppointment): Promise<Appointment>;
   updateAppointment(id: number, appointment: Partial<InsertAppointment>): Promise<Appointment>;
   deleteAppointment(id: number): Promise<void>;
+
+  // Appointment Services
+  createAppointmentService(appointmentService: InsertAppointmentService): Promise<AppointmentService>;
+  getAppointmentServicesByAppointmentId(appointmentId: number): Promise<(AppointmentService & { service: Service })[]>;
+  deleteAppointmentServicesByAppointmentId(appointmentId: number): Promise<void>;
 
   // Invoices
   getInvoicesByUserId(userId: number): Promise<Invoice[]>;
@@ -264,12 +272,14 @@ export class DatabaseStorage implements IStorage {
     for (const appointment of appointmentResults) {
       const client = await db.select().from(clients).where(eq(clients.id, appointment.clientId)).limit(1);
       const service = await db.select().from(services).where(eq(services.id, appointment.serviceId)).limit(1);
+      const appointmentServicesData = await this.getAppointmentServicesByAppointmentId(appointment.id);
       
       if (client[0] && service[0]) {
         results.push({
           ...appointment,
           client: client[0],
           service: service[0],
+          appointmentServices: appointmentServicesData,
         });
       }
     }
@@ -292,6 +302,7 @@ export class DatabaseStorage implements IStorage {
     
     const client = await db.select().from(clients).where(eq(clients.id, appointment[0].clientId)).limit(1);
     const service = await db.select().from(services).where(eq(services.id, appointment[0].serviceId)).limit(1);
+    const appointmentServicesData = await this.getAppointmentServicesByAppointmentId(appointment[0].id);
     
     if (!client[0] || !service[0]) return undefined;
     
@@ -299,6 +310,7 @@ export class DatabaseStorage implements IStorage {
       ...appointment[0],
       client: client[0],
       service: service[0],
+      appointmentServices: appointmentServicesData,
     };
   }
 
@@ -488,6 +500,39 @@ export class DatabaseStorage implements IStorage {
       .from(messages)
       .where(and(eq(messages.userId, userId), eq(messages.status, "unread")));
     return result?.count || 0;
+  }
+
+  // Appointment Services methods
+  async createAppointmentService(appointmentService: InsertAppointmentService): Promise<AppointmentService> {
+    const [newAppointmentService] = await db
+      .insert(appointmentServices)
+      .values(appointmentService)
+      .returning();
+    return newAppointmentService;
+  }
+
+  async getAppointmentServicesByAppointmentId(appointmentId: number): Promise<(AppointmentService & { service: Service })[]> {
+    const result = await db
+      .select({
+        id: appointmentServices.id,
+        appointmentId: appointmentServices.appointmentId,
+        serviceId: appointmentServices.serviceId,
+        quantity: appointmentServices.quantity,
+        price: appointmentServices.price,
+        createdAt: appointmentServices.createdAt,
+        service: services
+      })
+      .from(appointmentServices)
+      .innerJoin(services, eq(appointmentServices.serviceId, services.id))
+      .where(eq(appointmentServices.appointmentId, appointmentId));
+    
+    return result;
+  }
+
+  async deleteAppointmentServicesByAppointmentId(appointmentId: number): Promise<void> {
+    await db
+      .delete(appointmentServices)
+      .where(eq(appointmentServices.appointmentId, appointmentId));
   }
 }
 
