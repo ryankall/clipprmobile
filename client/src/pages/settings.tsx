@@ -253,37 +253,23 @@ export default function Settings() {
     setupGoogleMapsAPI();
   }, []);
 
-  // Simple autocomplete initialization with retry mechanism
+  // Web Component autocomplete initialization  
   useEffect(() => {
-    if (!window.google || !window.google.maps || !isEditingProfile) return;
+    if (!isEditingProfile) return;
 
     let attempts = 0;
     const maxAttempts = 10;
 
-    const initAutocomplete = () => {
+    const initWebComponent = () => {
       attempts++;
-      console.log(`🔍 Attempt ${attempts} - Looking for address input...`);
+      console.log(`🔍 Web Component Attempt ${attempts} - Looking for address input...`);
       
-      const allInputs = document.querySelectorAll('input');
-      console.log(`📋 Found ${allInputs.length} inputs total`);
-      
-      allInputs.forEach((input, i) => {
-        console.log(`Input ${i}:`, {
-          name: input.name,
-          placeholder: input.placeholder,
-          type: input.type
-        });
-      });
-
-      // Look for the address input with various selectors - try most specific first
-      const addressInput = document.querySelector('input[name="homeBaseAddress"]') ||
-                          document.querySelector('input[placeholder*="Start typing your address"]') ||
-                          document.querySelector('input[placeholder*="address"]') ||
-                          document.querySelector('input[placeholder*="Address"]');
+      // Look for the address input
+      const addressInput = document.querySelector('input[name="homeBaseAddress"]') as HTMLInputElement;
 
       if (!addressInput && attempts < maxAttempts) {
         console.log(`⏳ Retrying in 300ms...`);
-        setTimeout(initAutocomplete, 300);
+        setTimeout(initWebComponent, 300);
         return;
       }
 
@@ -292,88 +278,71 @@ export default function Settings() {
         return;
       }
 
-      console.log('✅ Found address input, initializing autocomplete');
-      console.log('🔍 Address input details:', {
-        tagName: (addressInput as HTMLElement).tagName,
-        name: (addressInput as HTMLInputElement).name,
-        placeholder: (addressInput as HTMLInputElement).placeholder,
-        value: (addressInput as HTMLInputElement).value,
-        type: (addressInput as HTMLInputElement).type,
-        readonly: (addressInput as HTMLInputElement).readOnly,
-        disabled: (addressInput as HTMLInputElement).disabled
-      });
-
-      // Test if we can attach a basic event listener
-      (addressInput as HTMLInputElement).addEventListener('click', () => {
-        console.log('🖱️ Address input CLICKED - event listener works!');
-      });
+      console.log('✅ Found address input, replacing with Web Component');
+      
+      const parentElement = addressInput.parentNode;
+      if (!parentElement) {
+        console.error('❌ No parent element found');
+        return;
+      }
 
       try {
-        console.log('🆕 Using modern PlaceAutocompleteElement...');
+        // Create the Web Component
+        const placeAutocomplete = document.createElement('place-autocomplete') as any;
         
-        // Create the modern PlaceAutocompleteElement
-        const placeAutocomplete = new window.google.maps.places.PlaceAutocompleteElement({
-          componentRestrictions: { country: 'us' },
-          types: ['address']
-        });
-
-        // Replace the input with the PlaceAutocompleteElement
-        const parentElement = (addressInput as HTMLElement).parentNode;
-        if (parentElement) {
-          // Copy the styling from the original input
-          const originalInput = addressInput as HTMLInputElement;
-          placeAutocomplete.style.cssText = originalInput.style.cssText;
-          placeAutocomplete.className = originalInput.className;
-          
-          // Set the initial value if exists
-          if (originalInput.value) {
-            placeAutocomplete.value = originalInput.value;
-          }
-
-          // Replace the input
-          parentElement.replaceChild(placeAutocomplete, originalInput);
-          
-          console.log('✅ Replaced input with PlaceAutocompleteElement');
-
-          // Listen for place selection
-          placeAutocomplete.addEventListener('gmp-placeselect', (event: any) => {
-            console.log('🎯 Place selected:', event.place);
-            const place = event.place;
-            
-            if (place.formattedAddress) {
-              console.log('✅ Address selected:', place.formattedAddress);
-              
-              // Update the form value by creating a synthetic input event
-              const syntheticEvent = new Event('input', { bubbles: true });
-              Object.defineProperty(syntheticEvent, 'target', {
-                writable: false,
-                value: { value: place.formattedAddress }
-              });
-              
-              // Trigger form update
-              placeAutocomplete.dispatchEvent(syntheticEvent);
-            }
-          });
-
-          autocompleteRef.current = placeAutocomplete;
-          console.log('✅ Modern PlaceAutocompleteElement setup complete');
-        } else {
-          console.error('❌ Could not find parent element to replace input');
+        // Copy styling and attributes from original input
+        placeAutocomplete.className = addressInput.className;
+        placeAutocomplete.style.cssText = addressInput.style.cssText;
+        placeAutocomplete.placeholder = "Start typing your address...";
+        
+        // Set initial value if exists
+        if (addressInput.value) {
+          placeAutocomplete.value = addressInput.value;
         }
 
+        // Configure the autocomplete
+        placeAutocomplete.setAttribute('country', 'us');
+        placeAutocomplete.setAttribute('type', 'address');
+        
+        console.log('🆕 Created place-autocomplete Web Component');
+
+        // Replace the input
+        parentElement.replaceChild(placeAutocomplete, addressInput);
+        
+        // Listen for place selection using the correct event name
+        placeAutocomplete.addEventListener('placechange', (event: any) => {
+          console.log('🎯 Place changed:', event);
+          const selectedAddress = placeAutocomplete.value;
+          
+          if (selectedAddress) {
+            console.log('✅ Address selected:', selectedAddress);
+            
+            // Update the form using React Hook Form's setValue
+            form.setValue('homeBaseAddress', selectedAddress);
+            
+            // Also trigger validation
+            form.trigger('homeBaseAddress');
+          }
+        });
+
+        autocompleteRef.current = placeAutocomplete;
+        console.log('✅ Web Component autocomplete setup complete');
+
       } catch (error) {
-        console.error('❌ Autocomplete error:', error);
+        console.error('❌ Web Component error:', error);
       }
     };
 
-    initAutocomplete();
+    // Small delay to ensure form is rendered
+    setTimeout(initWebComponent, 100);
 
     return () => {
+      // Cleanup if needed
       if (autocompleteRef.current) {
-        window.google?.maps?.event?.clearInstanceListeners(autocompleteRef.current);
+        console.log('🧹 Cleaning up autocomplete');
       }
     };
-  }, [isEditingProfile]);
+  }, [isEditingProfile, form]);
 
   // Reset form when user data changes
   useEffect(() => {
