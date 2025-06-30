@@ -385,7 +385,6 @@ export default function Settings() {
             }, 200);
           });
         });
-        });
 
         // Also debug focus events
         (addressInput as HTMLInputElement).addEventListener('focus', () => {
