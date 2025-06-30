@@ -381,6 +381,49 @@ export default function Settings() {
           }
         });
 
+        // Add a mutation observer to detect when the input value changes
+        // This catches changes made by clicking on autocomplete suggestions
+        let lastValue = inputElement.value;
+        const inputObserver = new MutationObserver(() => {
+          if (inputElement.value !== lastValue && inputElement.value.length > lastValue.length + 5) {
+            console.log('Input value changed significantly - likely from autocomplete click');
+            console.log('New value:', inputElement.value);
+            
+            // Update the form when the input changes from autocomplete
+            form.setValue('homeBaseAddress', inputElement.value, {
+              shouldValidate: true,
+              shouldDirty: true,
+              shouldTouch: true
+            });
+            form.trigger('homeBaseAddress');
+            
+            lastValue = inputElement.value;
+          }
+        });
+
+        // Also listen for input events that might indicate autocomplete selection
+        inputElement.addEventListener('input', (e) => {
+          const newValue = (e.target as HTMLInputElement).value;
+          if (newValue !== lastValue && newValue.length > lastValue.length + 5) {
+            console.log('Input event detected significant change - likely autocomplete');
+            console.log('New value from input event:', newValue);
+            
+            // Update form value
+            form.setValue('homeBaseAddress', newValue, {
+              shouldValidate: true,
+              shouldDirty: true,
+              shouldTouch: true
+            });
+            form.trigger('homeBaseAddress');
+          }
+          lastValue = newValue;
+        });
+
+        inputObserver.observe(inputElement, { 
+          attributes: true, 
+          attributeFilter: ['value'] 
+        });
+
         autocompleteRef.current = autocomplete;
         console.log('Auto-initialization successful!');
       } catch (error) {
