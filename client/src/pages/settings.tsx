@@ -360,15 +360,20 @@ export default function Settings() {
                 opacity: element.style.opacity,
                 zIndex: element.style.zIndex,
                 children: element.children.length,
-                innerHTML: element.innerHTML.substring(0, 100)
+                innerHTML: element.innerHTML.substring(0, 200),
+                computedDisplay: window.getComputedStyle(element).display,
+                computedVisibility: window.getComputedStyle(element).visibility,
+                offsetHeight: element.offsetHeight,
+                offsetWidth: element.offsetWidth
               });
               
-              // Force visibility
-              element.style.display = 'block';
-              element.style.visibility = 'visible';
-              element.style.opacity = '1';
-              element.style.zIndex = '9999';
-              console.log('🔧 Forced PAC container visible');
+              // Force visibility with !important
+              element.style.setProperty('display', 'block', 'important');
+              element.style.setProperty('visibility', 'visible', 'important');
+              element.style.setProperty('opacity', '1', 'important');
+              element.style.setProperty('z-index', '9999', 'important');
+              element.style.setProperty('position', 'absolute', 'important');
+              console.log('🔧 Forced PAC container visible with !important');
             });
           }, 200);
         });
