@@ -71,6 +71,15 @@ export default function Messages() {
         // Automatically link the message to the existing client and update client info
         const updateClientAndMessage = async () => {
           try {
+            // Parse the message to extract address from travel information
+            let extractedAddress = '';
+            if (selectedMessage.message && selectedMessage.message.includes('🚗 Travel: Yes')) {
+              const travelMatch = selectedMessage.message.match(/🚗 Travel: Yes - (.+?)(?:\n|$)/);
+              if (travelMatch) {
+                extractedAddress = travelMatch[1].trim();
+              }
+            }
+            
             // Update client with latest information from message
             const updateData: any = {};
             if (selectedMessage.customerName && selectedMessage.customerName !== existingClient.name) {
@@ -79,9 +88,13 @@ export default function Messages() {
             if (selectedMessage.customerEmail && selectedMessage.customerEmail !== existingClient.email) {
               updateData.email = selectedMessage.customerEmail;
             }
+            if (extractedAddress && extractedAddress !== existingClient.address) {
+              updateData.address = extractedAddress;
+            }
             
             // Only update if there are changes
             if (Object.keys(updateData).length > 0) {
+              console.log("Updating client with data:", updateData);
               await apiRequest("PATCH", `/api/clients/${existingClient.id}`, updateData);
               toast({
                 title: "Client Updated",
@@ -90,6 +103,7 @@ export default function Messages() {
             }
             
             // Link the message to the existing client
+            console.log("Linking message to client:", existingClient.id);
             await apiRequest("PATCH", `/api/messages/${selectedMessage.id}`, {
               clientId: existingClient.id
             });
@@ -107,13 +121,18 @@ export default function Messages() {
             });
           } catch (error) {
             console.error("Error auto-linking client:", error);
+            toast({
+              title: "Auto-link Error",
+              description: "Could not automatically link message to client",
+              variant: "destructive",
+            });
           }
         };
         
         updateClientAndMessage();
       }
     }
-  }, [selectedMessage, clients, toast]);
+  }, [selectedMessage, clients, toast, queryClient]);
 
   const markAsReadMutation = useMutation({
     mutationFn: async (id: number) => {

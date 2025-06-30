@@ -890,6 +890,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.patch("/api/messages/:id", requireAuth, async (req, res) => {
+    try {
+      const messageId = parseInt(req.params.id);
+      const message = await storage.updateMessage(messageId, req.body);
+      res.json(message);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
   // Google Places autocomplete endpoint
   app.get("/api/places/autocomplete", requireAuth, async (req, res) => {
     try {
