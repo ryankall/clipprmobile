@@ -724,12 +724,14 @@ export default function Settings() {
                               <FormControl>
                                 <Input 
                                   {...field}
-                                  ref={addressInputRef}
+                                  ref={(el) => {
+                                    addressInputRef.current = el;
+                                    field.ref(el);
+                                  }}
                                   className="bg-charcoal border-steel/40 text-white"
                                   placeholder="Start typing your address..."
                                   autoComplete="off"
                                 />
-                                
                               </FormControl>
                               <p className="text-steel text-xs">
                                 Starting point for calculating travel time to your first appointment. Enter your full address including city and state.
