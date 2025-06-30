@@ -269,8 +269,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const appointmentDate = new Date(req.body.scheduledAt);
       const now = new Date();
       
-      if (appointmentDate < now) {
-        return res.status(400).json({ message: "Cannot schedule appointments in the past" });
+      console.log('Appointment date:', appointmentDate.toISOString());
+      console.log('Current server time:', now.toISOString());
+      console.log('Time comparison - appointment is in past?:', appointmentDate < now);
+      
+      // Add a small buffer (1 minute) to account for network delays and clock differences
+      const oneMinuteAgo = new Date(now.getTime() - 60 * 1000);
+      
+      if (appointmentDate < oneMinuteAgo) {
+        return res.status(400).json({ 
+          message: `Cannot schedule appointments in the past. Selected time: ${appointmentDate.toLocaleString()}, Current server time: ${now.toLocaleString()}` 
+        });
       }
 
       const dataToValidate = {
