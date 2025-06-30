@@ -327,39 +327,40 @@ export default function Settings() {
         observer.observe(document.body, { childList: true });
         (autocomplete as any).observer = observer;
 
-        // Add multiple event listeners to catch place selection
+        // Add place_changed listener
         autocomplete.addListener('place_changed', () => {
           console.log('=== PLACE_CHANGED EVENT FIRED ===');
           const place = autocomplete.getPlace();
           console.log('Place object:', place);
-          console.log('Place name:', place.name);
-          console.log('Formatted address:', place.formatted_address);
           
-          if (place.formatted_address && addressInputRef.current) {
-            console.log('Updating form and input with:', place.formatted_address);
-            
-            // Update the input element directly first
-            addressInputRef.current.value = place.formatted_address;
-            
-            // Dispatch input event to ensure React Hook Form detects the change
-            const event = new Event('input', { bubbles: true });
-            addressInputRef.current.dispatchEvent(event);
-            
-            // Update the form value
-            form.setValue('homeBaseAddress', place.formatted_address, {
-              shouldValidate: true,
-              shouldDirty: true,
-              shouldTouch: true
-            });
-            
-            // Trigger form validation
-            form.trigger('homeBaseAddress');
-            
-            console.log('Form value after update:', form.getValues('homeBaseAddress'));
-          } else {
-            console.log('No formatted address or input ref missing');
+          if (place.formatted_address) {
+            console.log('Updating form with:', place.formatted_address);
+            updateFormWithAddress(place.formatted_address);
           }
         });
+
+        // Helper function to update form
+        const updateFormWithAddress = (address: string) => {
+          console.log('Updating form and input with address:', address);
+          
+          if (addressInputRef.current) {
+            addressInputRef.current.value = address;
+            
+            // Create and dispatch input event
+            const inputEvent = new Event('input', { bubbles: true });
+            addressInputRef.current.dispatchEvent(inputEvent);
+          }
+          
+          // Update React Hook Form
+          form.setValue('homeBaseAddress', address, {
+            shouldValidate: true,
+            shouldDirty: true,
+            shouldTouch: true
+          });
+          
+          form.trigger('homeBaseAddress');
+          console.log('Form updated, current value:', form.getValues('homeBaseAddress'));
+        };
 
         // Add debug listener for when dropdown items are selected
         const inputElement = addressInputRef.current;
@@ -381,47 +382,47 @@ export default function Settings() {
           }
         });
 
-        // Add a mutation observer to detect when the input value changes
-        // This catches changes made by clicking on autocomplete suggestions
-        let lastValue = inputElement.value;
-        const inputObserver = new MutationObserver(() => {
-          if (inputElement.value !== lastValue && inputElement.value.length > lastValue.length + 5) {
-            console.log('Input value changed significantly - likely from autocomplete click');
-            console.log('New value:', inputElement.value);
+        // Polling mechanism to detect value changes from autocomplete clicks
+        let lastPolledValue = inputElement.value;
+        const pollForChanges = () => {
+          const currentValue = inputElement.value;
+          if (currentValue !== lastPolledValue) {
+            console.log('Polling detected value change:', currentValue);
+            console.log('Previous value:', lastPolledValue);
             
-            // Update the form when the input changes from autocomplete
-            form.setValue('homeBaseAddress', inputElement.value, {
-              shouldValidate: true,
-              shouldDirty: true,
-              shouldTouch: true
-            });
-            form.trigger('homeBaseAddress');
+            // If it's a significant change (likely from autocomplete)
+            if (currentValue.length > lastPolledValue.length + 3) {
+              console.log('Significant change detected - updating form');
+              updateFormWithAddress(currentValue);
+            }
             
-            lastValue = inputElement.value;
+            lastPolledValue = currentValue;
           }
+        };
+
+        // Poll every 100ms when input is focused
+        let pollInterval: number | null = null;
+        
+        inputElement.addEventListener('focus', () => {
+          console.log('Input focused - starting polling');
+          pollInterval = window.setInterval(pollForChanges, 100);
+        });
+        
+        inputElement.addEventListener('blur', () => {
+          console.log('Input blurred - stopping polling');
+          if (pollInterval) {
+            clearInterval(pollInterval);
+            pollInterval = null;
+          }
+          // Final check on blur
+          pollForChanges();
         });
 
-        // Also listen for input events that might indicate autocomplete selection
+        // Also listen for any input events
         inputElement.addEventListener('input', (e) => {
           const newValue = (e.target as HTMLInputElement).value;
-          if (newValue !== lastValue && newValue.length > lastValue.length + 5) {
-            console.log('Input event detected significant change - likely autocomplete');
-            console.log('New value from input event:', newValue);
-            
-            // Update form value
-            form.setValue('homeBaseAddress', newValue, {
-              shouldValidate: true,
-              shouldDirty: true,
-              shouldTouch: true
-            });
-            form.trigger('homeBaseAddress');
-          }
-          lastValue = newValue;
-        });
-
-        inputObserver.observe(inputElement, { 
-          attributes: true, 
-          attributeFilter: ['value'] 
+          console.log('Input event fired with value:', newValue);
+          lastPolledValue = newValue;
         });
 
         autocompleteRef.current = autocomplete;
