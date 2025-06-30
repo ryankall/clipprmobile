@@ -95,7 +95,8 @@ export default function Messages() {
             // Only update if there are changes
             if (Object.keys(updateData).length > 0) {
               console.log("Updating client with data:", updateData);
-              await apiRequest("PATCH", `/api/clients/${existingClient.id}`, updateData);
+              const updateResponse = await apiRequest("PATCH", `/api/clients/${existingClient.id}`, updateData);
+              console.log("Client update response:", await updateResponse.json());
               toast({
                 title: "Client Updated",
                 description: `Updated ${existingClient.name}'s information from the message`,
@@ -111,9 +112,15 @@ export default function Messages() {
             // Update local state
             setSelectedMessage({ ...selectedMessage, clientId: existingClient.id });
             
-            // Refresh queries
+            // Force refresh of client data
             queryClient.invalidateQueries({ queryKey: ["/api/clients"] });
             queryClient.invalidateQueries({ queryKey: ["/api/messages"] });
+            queryClient.invalidateQueries({ queryKey: ["/api/clients", existingClient.id] });
+            
+            // Wait a moment then refetch to ensure UI updates
+            setTimeout(() => {
+              queryClient.refetchQueries({ queryKey: ["/api/clients"] });
+            }, 500);
             
             toast({
               title: "Message Linked",
