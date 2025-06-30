@@ -214,30 +214,50 @@ export default function Settings() {
   // Initialize modern autocomplete with Extended Component Library
   useEffect(() => {
     if (isEditingProfile) {
+      console.log('Initializing modern autocomplete...');
+      
       // Wait for custom elements to be defined
       customElements.whenDefined('gmpx-autocomplete').then(() => {
-        console.log('Modern autocomplete ready');
+        console.log('gmpx-autocomplete component available');
         
-        const autocompleteElement = document.getElementById('address-autocomplete') as any;
-        if (autocompleteElement) {
-          // Listen for place selection using the modern event
-          autocompleteElement.addEventListener('gmpx-placechange', () => {
-            console.log('=== MODERN PLACE SELECTED ===');
-            const place = autocompleteElement.value;
-            console.log('Selected place:', place);
-            
-            if (place) {
-              // Update form with selected address
-              form.setValue('homeBaseAddress', place, {
-                shouldValidate: true,
-                shouldDirty: true
-              });
-              
-              console.log('Form updated with modern autocomplete:', place);
-            }
-          });
+        const container = document.getElementById('address-autocomplete-container');
+        if (container) {
+          // Clear any existing autocomplete
+          container.innerHTML = '';
           
-          console.log('Modern autocomplete listener attached');
+          // Create the autocomplete element dynamically
+          const autocompleteElement = document.createElement('gmpx-autocomplete') as any;
+          autocompleteElement.id = 'address-autocomplete';
+          autocompleteElement.placeholder = 'Start typing your address...';
+          
+          // Apply styling directly
+          autocompleteElement.style.width = '100%';
+          autocompleteElement.style.display = 'block';
+          
+          // Add to container
+          container.appendChild(autocompleteElement);
+          
+          // Wait a moment for the element to be fully rendered
+          setTimeout(() => {
+            // Listen for place selection using the modern event
+            autocompleteElement.addEventListener('gmpx-placechange', () => {
+              console.log('=== MODERN PLACE SELECTED ===');
+              const place = autocompleteElement.value;
+              console.log('Selected place:', place);
+              
+              if (place) {
+                // Update form with selected address
+                form.setValue('homeBaseAddress', place, {
+                  shouldValidate: true,
+                  shouldDirty: true
+                });
+                
+                console.log('Form updated with modern autocomplete:', place);
+              }
+            });
+            
+            console.log('Modern autocomplete created and listener attached');
+          }, 100);
         }
       }).catch(error => {
         console.error('Error waiting for gmpx-autocomplete:', error);
@@ -585,17 +605,15 @@ export default function Settings() {
                               <FormLabel className="text-white">Home Base Address</FormLabel>
                               <FormControl>
                                 <div className="space-y-2">
-                                  {/* Modern Google Places Autocomplete with proper CSS styling */}
-                                  <gmpx-autocomplete 
-                                    id="address-autocomplete"
-                                    placeholder="Start typing your address..."
-                                    className="w-full h-10 px-3 py-2 text-sm bg-charcoal border border-steel/40 rounded-md text-white placeholder:text-steel focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
-                                  ></gmpx-autocomplete>
+                                  {/* Container for the autocomplete component */}
+                                  <div id="address-autocomplete-container" className="w-full"></div>
                                   
-                                  {/* Hidden input for React Hook Form */}
+                                  {/* Fallback input and React Hook Form binding */}
                                   <Input 
                                     {...field}
-                                    type="hidden"
+                                    className="bg-charcoal border-steel/40 text-white"
+                                    placeholder="Start typing your address..."
+                                    autoComplete="off"
                                   />
                                 </div>
                               </FormControl>
