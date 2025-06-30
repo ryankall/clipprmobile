@@ -51,7 +51,11 @@ export default function Calendar() {
             <h1 className="text-xl font-bold text-white">Calendar</h1>
           </div>
           <div className="flex items-center space-x-2">
-            <WorkingHoursDialog currentHours={userProfile?.workingHours} />
+            {/* TODO: Fix working hours integration */}
+            <Button size="sm" variant="outline" className="bg-charcoal border-steel/40 text-gold">
+              <CalendarIcon className="w-4 h-4 mr-1" />
+              Hours
+            </Button>
             <Link href="/appointments/new">
               <Button size="sm" className="gradient-gold text-charcoal tap-feedback">
                 <Plus className="w-4 h-4 mr-1" />
