@@ -265,20 +265,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Service not found" });
       }
 
-      // Parse the date and validate it's not in the past
+      // Parse the datetime and store as UTC
       const appointmentDate = new Date(req.body.scheduledAt);
-      const now = new Date();
+      const nowUTC = new Date();
       
-      console.log('Appointment date:', appointmentDate.toISOString());
-      console.log('Current server time:', now.toISOString());
-      console.log('Time comparison - appointment is in past?:', appointmentDate < now);
+      console.log('Appointment date (UTC):', appointmentDate.toISOString());
+      console.log('Current server time (UTC):', nowUTC.toISOString());
       
-      // Add a small buffer (1 minute) to account for network delays and clock differences
-      const oneMinuteAgo = new Date(now.getTime() - 60 * 1000);
+      // Convert to UTC for storage and comparison
+      const appointmentUTC = new Date(appointmentDate.toISOString());
       
-      if (appointmentDate < oneMinuteAgo) {
+      // Add a small buffer (2 minutes) to account for network delays and timezone conversion
+      const twoMinutesAgo = new Date(nowUTC.getTime() - 2 * 60 * 1000);
+      
+      if (appointmentUTC < twoMinutesAgo) {
         return res.status(400).json({ 
-          message: `Cannot schedule appointments in the past. Selected time: ${appointmentDate.toLocaleString()}, Current server time: ${now.toLocaleString()}` 
+          message: `Cannot schedule appointments in the past. Please select a future time.` 
         });
       }
 
@@ -287,7 +289,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         userId,
         price: service.price,
         duration: service.duration,
-        scheduledAt: appointmentDate
+        scheduledAt: appointmentUTC
       };
       
       console.log('Data to validate:', JSON.stringify(dataToValidate, null, 2));

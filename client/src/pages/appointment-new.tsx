@@ -73,7 +73,16 @@ export default function AppointmentNew() {
 
   const createAppointmentMutation = useMutation({
     mutationFn: async (data: z.infer<typeof appointmentFormSchema>) => {
-      return apiRequest("POST", "/api/appointments", data);
+      // Convert local time to UTC for backend storage
+      const localDateTime = new Date(data.scheduledAt);
+      const utcDateTime = localDateTime.toISOString();
+      
+      const appointmentData = {
+        ...data,
+        scheduledAt: utcDateTime
+      };
+      
+      return apiRequest("POST", "/api/appointments", appointmentData);
     },
     onSuccess: () => {
       toast({
