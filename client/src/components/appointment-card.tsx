@@ -45,18 +45,18 @@ export function AppointmentCard({
         </AvatarFallback>
       </Avatar>
       
-      <div className="flex-1">
+      <div className="flex-1 min-w-0 pr-2">
         <div className="flex items-center justify-between mb-1">
-          <h4 className="font-medium text-white">{appointment.client.name}</h4>
-          <span className="text-sm text-gold font-medium">
+          <h4 className="font-medium text-white truncate mr-2">{appointment.client.name}</h4>
+          <span className="text-sm text-gold font-medium whitespace-nowrap">
             {format(new Date(appointment.scheduledAt), 'h:mm a')}
           </span>
         </div>
-        <p className="text-sm text-steel mb-1">{appointment.service.name}</p>
+        <p className="text-sm text-steel mb-1 truncate">{appointment.service.name}</p>
         {appointment.address && (
-          <div className="flex items-center mb-2 mr-12">
+          <div className="flex items-center mb-2">
             <MapPin className="w-3 h-3 text-steel mr-1 flex-shrink-0" />
-            <span className="text-xs text-steel truncate flex-1">{appointment.address}</span>
+            <span className="text-xs text-steel truncate">{appointment.address}</span>
           </div>
         )}
         <div className="flex justify-start">
@@ -72,10 +72,10 @@ export function AppointmentCard({
         <Button
           variant="ghost"
           size="sm"
-          className="text-gold touch-target ml-2 tap-feedback"
+          className="text-gold touch-target tap-feedback flex-shrink-0"
           onClick={handleNavigate}
         >
-          <Navigation className="w-5 h-5" />
+          <Navigation className="w-4 h-4" />
         </Button>
       )}
     </div>
