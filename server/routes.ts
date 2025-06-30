@@ -348,6 +348,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.delete("/api/appointments/:id", requireAuth, async (req, res) => {
+    try {
+      const appointmentId = parseInt(req.params.id);
+      await storage.deleteAppointment(appointmentId);
+      res.json({ message: "Appointment deleted successfully" });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
   // Clients routes
   app.get("/api/clients", requireAuth, async (req, res) => {
     try {

@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Calendar as CalendarIcon, Plus, ChevronLeft, ChevronRight, Settings } from "lucide-react";
 import { BottomNavigation } from "@/components/bottom-navigation";
 import { AppointmentCard } from "@/components/appointment-card";
+import { AppointmentDetailsDialog } from "@/components/appointment-details-dialog";
 import { WorkingHoursDialog } from "@/components/working-hours-dialog";
 import { format, addDays, subDays, startOfWeek, endOfWeek } from "date-fns";
 import { Link } from "wouter";
@@ -12,6 +13,8 @@ import type { AppointmentWithRelations } from "@shared/schema";
 
 export default function Calendar() {
   const [selectedDate, setSelectedDate] = useState(new Date());
+  const [selectedAppointment, setSelectedAppointment] = useState<AppointmentWithRelations | null>(null);
+  const [showAppointmentDialog, setShowAppointmentDialog] = useState(false);
   
   const startDate = startOfWeek(selectedDate);
   const endDate = endOfWeek(selectedDate);
@@ -41,78 +44,7 @@ export default function Calendar() {
             <h1 className="text-xl font-bold text-white">Calendar</h1>
           </div>
           <div className="flex items-center space-x-2">
-            <Dialog>
-              <DialogTrigger asChild>
-                <Button size="sm" variant="outline" className="bg-charcoal border-steel/40 text-gold">
-                  <Clock className="w-4 h-4 mr-1" />
-                  Hours
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="bg-charcoal border-steel/20 text-white max-w-md">
-                <DialogHeader>
-                  <DialogTitle className="text-white">Working Hours</DialogTitle>
-                </DialogHeader>
-                <div className="space-y-4 max-h-96 overflow-y-auto">
-                  {Object.entries(workingHours).map(([day, hours]) => (
-                    <div key={day} className="space-y-2">
-                      <div className="flex items-center justify-between">
-                        <Label className="text-white capitalize font-medium">{day}</Label>
-                        <input
-                          type="checkbox"
-                          checked={hours.enabled}
-                          onChange={(e) => {
-                            setWorkingHours(prev => ({
-                              ...prev,
-                              [day]: { ...prev[day], enabled: e.target.checked }
-                            }));
-                          }}
-                          className="w-4 h-4 text-gold bg-charcoal border-steel/40 rounded focus:ring-gold"
-                        />
-                      </div>
-                      {hours.enabled && (
-                        <div className="grid grid-cols-2 gap-2">
-                          <div>
-                            <Label className="text-steel text-xs">Start</Label>
-                            <Input
-                              type="time"
-                              value={hours.start}
-                              onChange={(e) => {
-                                setWorkingHours(prev => ({
-                                  ...prev,
-                                  [day]: { ...prev[day], start: e.target.value }
-                                }));
-                              }}
-                              className="bg-dark-card border-steel/40 text-white"
-                            />
-                          </div>
-                          <div>
-                            <Label className="text-steel text-xs">End</Label>
-                            <Input
-                              type="time"
-                              value={hours.end}
-                              onChange={(e) => {
-                                setWorkingHours(prev => ({
-                                  ...prev,
-                                  [day]: { ...prev[day], end: e.target.value }
-                                }));
-                              }}
-                              className="bg-dark-card border-steel/40 text-white"
-                            />
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                  <Button
-                    onClick={() => updateWorkingHoursMutation.mutate(workingHours)}
-                    disabled={updateWorkingHoursMutation.isPending}
-                    className="w-full gradient-gold text-charcoal"
-                  >
-                    {updateWorkingHoursMutation.isPending ? "Saving..." : "Save Working Hours"}
-                  </Button>
-                </div>
-              </DialogContent>
-            </Dialog>
+            <WorkingHoursDialog currentHours={userProfile?.workingHours} />
             <Link href="/appointments/new">
               <Button size="sm" className="gradient-gold text-charcoal tap-feedback">
                 <Plus className="w-4 h-4 mr-1" />
@@ -206,7 +138,15 @@ export default function Calendar() {
               selectedDateAppointments
                 .sort((a, b) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime())
                 .map((appointment) => (
-                  <AppointmentCard key={appointment.id} appointment={appointment} />
+                  <AppointmentCard 
+                    key={appointment.id} 
+                    appointment={appointment}
+                    showClickable={true}
+                    onClick={() => {
+                      setSelectedAppointment(appointment);
+                      setShowAppointmentDialog(true);
+                    }}
+                  />
                 ))
             ) : (
               <div className="text-center py-8 text-steel">
@@ -254,6 +194,16 @@ export default function Calendar() {
           </CardContent>
         </Card>
       </main>
+
+      {/* Appointment Details Dialog */}
+      <AppointmentDetailsDialog
+        appointment={selectedAppointment}
+        open={showAppointmentDialog}
+        onClose={() => {
+          setShowAppointmentDialog(false);
+          setSelectedAppointment(null);
+        }}
+      />
 
       <BottomNavigation currentPath="/calendar" />
     </div>

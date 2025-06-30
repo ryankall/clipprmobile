@@ -1,25 +1,40 @@
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
 import { Navigation, MapPin } from "lucide-react";
 import { format } from "date-fns";
 import type { AppointmentWithRelations } from "@shared/schema";
 
 interface AppointmentCardProps {
   appointment: AppointmentWithRelations;
+  onClick?: () => void;
+  showClickable?: boolean;
 }
 
-export function AppointmentCard({ appointment }: AppointmentCardProps) {
-  const handleNavigate = () => {
+export function AppointmentCard({ 
+  appointment, 
+  onClick, 
+  showClickable = false 
+}: AppointmentCardProps) {
+  const handleNavigate = (e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent triggering onClick when clicking navigate button
     if (appointment.address) {
-      // In production, integrate with maps application
       const encodedAddress = encodeURIComponent(appointment.address);
       const mapsUrl = `https://maps.google.com/?q=${encodedAddress}`;
       window.open(mapsUrl, '_blank');
     }
   };
 
+  const isConfirmed = appointment.status === "confirmed";
+  const cardClasses = `flex items-center p-3 bg-charcoal rounded-lg border border-steel/20 ${
+    showClickable ? 'cursor-pointer hover:bg-charcoal/80 transition-colors' : ''
+  }`;
+
   return (
-    <div className="flex items-center p-3 bg-charcoal rounded-lg border border-steel/20">
+    <div 
+      className={cardClasses}
+      onClick={showClickable ? onClick : undefined}
+    >
       <Avatar className="h-12 w-12 mr-3">
         <AvatarImage 
           src={appointment.client.photoUrl || undefined} 
@@ -31,17 +46,24 @@ export function AppointmentCard({ appointment }: AppointmentCardProps) {
       </Avatar>
       
       <div className="flex-1">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between mb-1">
           <h4 className="font-medium text-white">{appointment.client.name}</h4>
           <span className="text-sm text-gold font-medium">
             {format(new Date(appointment.scheduledAt), 'h:mm a')}
           </span>
         </div>
-        <p className="text-sm text-steel">{appointment.service.name}</p>
+        <div className="flex items-center justify-between">
+          <p className="text-sm text-steel">{appointment.service.name}</p>
+          <Badge variant={isConfirmed ? "default" : "secondary"} className={`text-xs ${
+            isConfirmed ? "bg-green-700 text-white" : "bg-yellow-700 text-white"
+          }`}>
+            {isConfirmed ? "Confirmed" : "Pending"}
+          </Badge>
+        </div>
         {appointment.address && (
           <div className="flex items-center mt-1">
             <MapPin className="w-3 h-3 text-steel mr-1" />
-            <span className="text-xs text-steel">{appointment.address}</span>
+            <span className="text-xs text-steel truncate">{appointment.address}</span>
           </div>
         )}
       </div>
