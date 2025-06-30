@@ -382,47 +382,54 @@ export default function Settings() {
           }
         });
 
-        // Polling mechanism to detect value changes from autocomplete clicks
-        let lastPolledValue = inputElement.value;
-        const pollForChanges = () => {
-          const currentValue = inputElement.value;
-          if (currentValue !== lastPolledValue) {
-            console.log('Polling detected value change:', currentValue);
-            console.log('Previous value:', lastPolledValue);
+        // Global click listener to catch clicks on autocomplete dropdown
+        const handleGlobalClick = (e: Event) => {
+          const target = e.target as HTMLElement;
+          
+          // Check if click is on a Google Places autocomplete suggestion
+          if (target.closest('.pac-container') || target.classList.contains('pac-item')) {
+            console.log('Click detected on autocomplete suggestion:', target);
             
-            // If it's a significant change (likely from autocomplete)
-            if (currentValue.length > lastPolledValue.length + 3) {
-              console.log('Significant change detected - updating form');
-              updateFormWithAddress(currentValue);
-            }
-            
-            lastPolledValue = currentValue;
+            // Short delay to let Google handle the click first
+            setTimeout(() => {
+              const currentValue = inputElement.value;
+              console.log('Value after autocomplete click:', currentValue);
+              
+              if (currentValue && currentValue.length > 10) {
+                console.log('Updating form with clicked suggestion');
+                updateFormWithAddress(currentValue);
+              }
+            }, 50);
           }
         };
 
-        // Poll every 100ms when input is focused
-        let pollInterval: number | null = null;
-        
-        inputElement.addEventListener('focus', () => {
-          console.log('Input focused - starting polling');
-          pollInterval = window.setInterval(pollForChanges, 100);
-        });
-        
-        inputElement.addEventListener('blur', () => {
-          console.log('Input blurred - stopping polling');
-          if (pollInterval) {
-            clearInterval(pollInterval);
-            pollInterval = null;
-          }
-          // Final check on blur
-          pollForChanges();
-        });
+        // Add global click listener
+        document.addEventListener('click', handleGlobalClick, true);
 
-        // Also listen for any input events
-        inputElement.addEventListener('input', (e) => {
-          const newValue = (e.target as HTMLInputElement).value;
-          console.log('Input event fired with value:', newValue);
-          lastPolledValue = newValue;
+        // Store reference for cleanup
+        (autocomplete as any).globalClickHandler = handleGlobalClick;
+
+        // Backup polling for input value changes
+        let lastValue = inputElement.value;
+        const checkForChanges = () => {
+          const currentValue = inputElement.value;
+          if (currentValue !== lastValue && currentValue.length > lastValue.length + 5) {
+            console.log('Value changed significantly:', currentValue);
+            updateFormWithAddress(currentValue);
+          }
+          lastValue = currentValue;
+        };
+
+        // Check periodically when dropdown might be open
+        inputElement.addEventListener('focus', () => {
+          console.log('Input focused - monitoring for changes');
+          const interval = setInterval(() => {
+            checkForChanges();
+            // Stop checking if input loses focus or modal closes
+            if (!document.contains(inputElement) || !editingProfile) {
+              clearInterval(interval);
+            }
+          }, 200);
         });
 
         autocompleteRef.current = autocomplete;
