@@ -1,20 +1,9 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 
-// Declare Google Maps types and web components
+// Declare Google Maps types
 declare global {
   interface Window {
     google: any;
-    googleMapsReady?: boolean;
-    initGoogleMaps?: () => void;
-  }
-  namespace JSX {
-    interface IntrinsicElements {
-      'gmpx-autocomplete': React.DetailedHTMLProps<React.HTMLAttributes<HTMLElement>, HTMLElement> & {
-        id?: string;
-        placeholder?: string;
-        className?: string;
-      };
-    }
   }
 }
 import { useQuery, useMutation } from "@tanstack/react-query";
@@ -122,7 +111,10 @@ export default function Settings() {
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [isConnectingStripe, setIsConnectingStripe] = useState(false);
+  const [isGoogleMapsLoaded, setIsGoogleMapsLoaded] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const addressInputRef = useRef<HTMLInputElement>(null);
+  const autocompleteRef = useRef<any>(null);
   const { toast } = useToast();
   const { signOut } = useAuth();
 
@@ -213,8 +205,288 @@ export default function Settings() {
 
 
 
-  // Note: Google Places Autocomplete removed due to API key issues
-  // Using manual address entry instead
+  // Setup Google Maps API with Places library
+  useEffect(() => {
+    const setupGoogleMapsAPI = () => {
+      const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
+      if (!apiKey) {
+        console.warn('Google Maps API key not found');
+        return;
+      }
+
+      // Check if already loaded
+      if (window.google && window.google.maps && window.google.maps.places) {
+        console.log('Google Maps API already loaded');
+        setIsGoogleMapsLoaded(true);
+        return;
+      }
+
+      // Clean up any existing scripts to prevent conflicts
+      const existingScripts = document.querySelectorAll('script[src*="maps.googleapis.com"]');
+      const existingLoaders = document.querySelectorAll('gmpx-api-loader');
+      
+      existingScripts.forEach(script => script.remove());
+      existingLoaders.forEach(loader => loader.remove());
+
+      // Create a unique callback name to avoid conflicts
+      const callbackName = `initGoogleMaps_${Date.now()}`;
+      
+      (window as any)[callbackName] = () => {
+        console.log('Google Maps API loaded successfully');
+        setIsGoogleMapsLoaded(true);
+        delete (window as any)[callbackName]; // Clean up callback
+      };
+
+      // Load Google Maps API with Places library
+      const script = document.createElement('script');
+      script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places&callback=${callbackName}`;
+      script.async = true;
+      script.defer = true;
+      script.onerror = () => {
+        console.error('Failed to load Google Maps API');
+        delete (window as any)[callbackName];
+      };
+      
+      document.head.appendChild(script);
+    };
+
+    setupGoogleMapsAPI();
+  }, []);
+
+  // Initialize autocomplete when Google Maps is loaded and input is available
+  useEffect(() => {
+    if (isGoogleMapsLoaded && isEditingProfile) {
+      console.log('Auto-init check:', {
+        googleMapsLoaded: isGoogleMapsLoaded,
+        editingProfile: isEditingProfile,
+        inputRef: !!addressInputRef.current,
+        autocompleteRef: !!autocompleteRef.current
+      });
+
+      // Multiple retry attempts with different delays
+      const retryDelays = [100, 300, 500, 1000];
+      
+      retryDelays.forEach((delay, index) => {
+        setTimeout(() => {
+          if (addressInputRef.current && !autocompleteRef.current) {
+            const inputElement = addressInputRef.current;
+            const isVisible = inputElement.offsetParent !== null;
+            
+            console.log(`Auto-init attempt ${index + 1}:`, {
+              inputExists: !!inputElement,
+              isVisible,
+              hasAutocomplete: !!autocompleteRef.current
+            });
+            
+            if (isVisible) {
+              initializeAutocompleteInstance();
+            }
+          }
+        }, delay);
+      });
+    }
+
+    const initializeAutocompleteInstance = () => {
+      if (!addressInputRef.current || autocompleteRef.current) {
+        console.log('Skipping init - no input or already exists');
+        return;
+      }
+      
+      try {
+        console.log('Auto-initializing Google Places Autocomplete...');
+        
+        const autocomplete = new window.google.maps.places.Autocomplete(
+          addressInputRef.current,
+          {
+            types: ['address'],
+            componentRestrictions: { country: 'US' },
+            fields: ['formatted_address', 'address_components', 'geometry']
+          }
+        );
+
+        // Fix z-index with delay to ensure dropdown is created
+        setTimeout(() => {
+          const pacContainers = document.querySelectorAll('.pac-container');
+          pacContainers.forEach(container => {
+            (container as HTMLElement).style.zIndex = '10000';
+            (container as HTMLElement).style.position = 'absolute';
+          });
+        }, 100);
+
+        // Listen for when new pac-containers are created
+        const observer = new MutationObserver((mutations) => {
+          mutations.forEach((mutation) => {
+            mutation.addedNodes.forEach((node) => {
+              if (node.nodeType === 1 && (node as Element).classList.contains('pac-container')) {
+                (node as HTMLElement).style.zIndex = '10000';
+                (node as HTMLElement).style.position = 'absolute';
+              }
+            });
+          });
+        });
+        observer.observe(document.body, { childList: true });
+        (autocomplete as any).observer = observer;
+
+        // Helper function to update form - similar to Google's fillInAddress
+        const updateFormWithAddress = (address: string) => {
+          console.log('Updating form and input with address:', address);
+          
+          // Update the input element directly
+          if (addressInputRef.current) {
+            addressInputRef.current.value = address;
+          }
+          
+          // Update React Hook Form state
+          form.setValue('homeBaseAddress', address);
+          form.trigger('homeBaseAddress');
+          
+          console.log('Form updated successfully with:', address);
+        };
+
+        // Add place_changed listener - based on Google's example
+        autocomplete.addListener('place_changed', () => {
+          console.log('=== PLACE_CHANGED EVENT FIRED ===');
+          const place = autocomplete.getPlace();
+          
+          // Check if place has geometry (like in Google's example)
+          if (!place.geometry) {
+            console.log('No geometry found for place:', place.name);
+            return;
+          }
+          
+          console.log('Place selected with geometry:', place);
+          console.log('Formatted address:', place.formatted_address);
+          
+          if (place.formatted_address) {
+            updateFormWithAddress(place.formatted_address);
+          }
+        });
+
+        // Add debug listener for when dropdown items are selected
+        const inputElement = addressInputRef.current;
+        inputElement.addEventListener('focus', () => {
+          console.log('Input focused - autocomplete should be active');
+        });
+        
+        inputElement.addEventListener('blur', () => {
+          console.log('Input blurred');
+        });
+        
+        inputElement.addEventListener('keydown', (e) => {
+          console.log('Key pressed:', e.key);
+          if (e.key === 'Enter') {
+            console.log('Enter pressed - checking if place was selected');
+            setTimeout(() => {
+              console.log('Current input value after Enter:', inputElement.value);
+            }, 100);
+          }
+        });
+
+        // Global click listener to catch clicks on autocomplete dropdown
+        const handleGlobalClick = (e: Event) => {
+          const target = e.target as HTMLElement;
+          
+          // Check if click is on a Google Places autocomplete suggestion
+          if (target.closest('.pac-container') || target.classList.contains('pac-item')) {
+            console.log('Click detected on autocomplete suggestion:', target);
+            
+            // Short delay to let Google handle the click first
+            setTimeout(() => {
+              const currentValue = inputElement.value;
+              console.log('Value after autocomplete click:', currentValue);
+              
+              if (currentValue && currentValue.length > 10) {
+                console.log('Updating form with clicked suggestion');
+                updateFormWithAddress(currentValue);
+              }
+            }, 50);
+          }
+        };
+
+        // Add global click listener
+        document.addEventListener('click', handleGlobalClick, true);
+
+        // Store reference for cleanup
+        (autocomplete as any).globalClickHandler = handleGlobalClick;
+
+        // Backup polling for input value changes
+        let lastValue = inputElement.value;
+        const checkForChanges = () => {
+          const currentValue = inputElement.value;
+          if (currentValue !== lastValue && currentValue.length > lastValue.length + 5) {
+            console.log('Value changed significantly:', currentValue);
+            updateFormWithAddress(currentValue);
+          }
+          lastValue = currentValue;
+        };
+
+        // Aggressive monitoring for autocomplete selections
+        let monitoringInterval: number | null = null;
+        let lastMonitoredValue = inputElement.value;
+        
+        const startAggressiveMonitoring = () => {
+          if (monitoringInterval) return;
+          
+          console.log('Starting aggressive monitoring for autocomplete');
+          monitoringInterval = window.setInterval(() => {
+            const currentValue = inputElement.value;
+            
+            // Check if value changed and looks like a complete address
+            if (currentValue !== lastMonitoredValue) {
+              console.log('Value change detected:', currentValue);
+              
+              // If it looks like a complete address (has commas and length > 15)
+              if (currentValue.includes(',') && currentValue.length > 15) {
+                console.log('Complete address detected - updating form');
+                updateFormWithAddress(currentValue);
+              }
+              
+              lastMonitoredValue = currentValue;
+            }
+          }, 50); // Check every 50ms for faster detection
+        };
+        
+        const stopMonitoring = () => {
+          if (monitoringInterval) {
+            clearInterval(monitoringInterval);
+            monitoringInterval = null;
+            console.log('Stopped aggressive monitoring');
+          }
+        };
+        
+        inputElement.addEventListener('focus', () => {
+          console.log('Input focused - starting aggressive monitoring');
+          lastMonitoredValue = inputElement.value;
+          startAggressiveMonitoring();
+        });
+        
+        inputElement.addEventListener('blur', () => {
+          console.log('Input blurred - stopping monitoring after delay');
+          // Delay stopping to catch any final changes
+          setTimeout(stopMonitoring, 300);
+        });
+
+        autocompleteRef.current = autocomplete;
+        console.log('Auto-initialization successful!');
+      } catch (error) {
+        console.error('Auto-initialization error:', error);
+      }
+    };
+
+    return () => {
+      if (autocompleteRef.current) {
+        try {
+          if ((autocompleteRef.current as any).observer) {
+            (autocompleteRef.current as any).observer.disconnect();
+          }
+          window.google?.maps?.event?.clearInstanceListeners(autocompleteRef.current);
+          autocompleteRef.current = null;
+        } catch (error) {
+          console.error('Error cleaning up autocomplete:', error);
+        }
+      }
+    };
+  }, [isGoogleMapsLoaded, isEditingProfile, form]);
 
   // Reset form when user data changes
   useEffect(() => {
@@ -557,8 +829,9 @@ export default function Settings() {
                               <FormControl>
                                 <Input 
                                   {...field}
+                                  ref={addressInputRef}
                                   className="bg-charcoal border-steel/40 text-white"
-                                  placeholder="Enter your full address (e.g., 123 Main St, City, State 12345)"
+                                  placeholder="Start typing your address..."
                                   autoComplete="off"
                                 />
                               </FormControl>
