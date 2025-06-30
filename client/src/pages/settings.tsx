@@ -580,12 +580,12 @@ export default function Settings() {
         homeBaseAddress: (user as any).homeBaseAddress || "",
         defaultGraceTime: (user as any).defaultGraceTime || 5,
       });
-      // Only set previewUrl if user has a photo URL and it's not already set
-      if (user.photoUrl && !previewUrl) {
+      // Only set previewUrl if user has a photo URL and previewUrl is not manually cleared
+      if (user.photoUrl && previewUrl !== null) {
         setPreviewUrl(user.photoUrl);
       }
     }
-  }, [user, form, previewUrl]);
+  }, [user, form]);
 
   const handleFileSelect = (file: File) => {
     // Check file type
@@ -641,11 +641,14 @@ export default function Settings() {
   };
 
   const clearPhoto = () => {
+    console.log('🗑️ Clearing photo');
     setPreviewUrl(null);
     form.setValue('photoUrl', '');
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
+    // Force form to recognize the change
+    form.trigger('photoUrl');
   };
 
   const handleNotificationToggle = (checked: boolean) => {
