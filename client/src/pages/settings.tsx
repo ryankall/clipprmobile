@@ -363,6 +363,9 @@ export default function Settings() {
               element.style.pointerEvents = 'auto !important';
               element.style.isolation = 'isolate !important';
               
+              // Track autocomplete state
+              setIsAutocompleteOpen(true);
+              
               // Add event listeners to container to prevent modal close
               element.addEventListener('click', (e) => {
                 e.preventDefault();
@@ -676,7 +679,18 @@ export default function Settings() {
                 <User className="w-5 h-5 mr-2" />
                 Profile & Business Info
               </CardTitle>
-              <Dialog open={isEditingProfile} onOpenChange={setIsEditingProfile}>
+              <Dialog open={isEditingProfile} onOpenChange={(open) => {
+              // Prevent closing if autocomplete is active
+              if (!open && isAutocompleteOpen) {
+                console.log('🛡️ Preventing modal close - Google autocomplete active');
+                return;
+              }
+              
+              setIsEditingProfile(open);
+              if (!open) {
+                setIsAutocompleteOpen(false);
+              }
+            }}>
                 <DialogTrigger asChild>
                   <Button
                     variant="ghost"
