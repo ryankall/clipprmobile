@@ -28,9 +28,16 @@ export default function Calendar() {
     queryKey: ["/api/user/profile"],
   });
 
-  const selectedDateAppointments = appointments?.filter(apt => 
-    format(new Date(apt.scheduledAt), 'yyyy-MM-dd') === format(selectedDate, 'yyyy-MM-dd')
-  ) || [];
+  const selectedDateAppointments = appointments?.filter(apt => {
+    const aptDate = format(new Date(apt.scheduledAt), 'yyyy-MM-dd');
+    const selDate = format(selectedDate, 'yyyy-MM-dd');
+    console.log('Appointment:', apt.client.name, 'Date:', aptDate, 'Selected:', selDate, 'Match:', aptDate === selDate);
+    return aptDate === selDate;
+  }) || [];
+  
+  console.log('Total appointments:', appointments?.length);
+  console.log('Selected date:', format(selectedDate, 'yyyy-MM-dd'));
+  console.log('Filtered appointments for selected date:', selectedDateAppointments.length);
 
   const weekDays = Array.from({ length: 7 }, (_, i) => addDays(startDate, i));
 
