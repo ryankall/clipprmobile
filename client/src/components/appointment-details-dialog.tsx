@@ -159,6 +159,9 @@ export function AppointmentDetailsDialog({
                 <p className="font-medium text-white">
                   {format(appointmentDate, 'h:mm a')}
                 </p>
+                <p className="text-sm text-steel">
+                  Approx. completion: {format(new Date(appointmentDate.getTime() + appointment.service.duration * 60000), 'h:mm a')}
+                </p>
               </div>
             </div>
 
