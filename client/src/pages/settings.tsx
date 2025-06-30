@@ -221,7 +221,7 @@ export default function Settings() {
       }
       
       // If click is elsewhere and autocomplete is open, close suggestions
-      if (isAutocompleteOpen && !target.closest('#homeBaseAddress')) {
+      if (isAutocompleteOpen && !target.closest('input[name="homeBaseAddress"]') && !target.closest('.pac-container')) {
         console.log('📴 Closing autocomplete suggestions - clicked elsewhere');
         const containers = document.querySelectorAll('.pac-container');
         containers.forEach(container => {
