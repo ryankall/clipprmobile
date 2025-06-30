@@ -387,12 +387,35 @@ export default function Settings() {
     setTimeout(initWebComponent, 100);
 
     return () => {
-      // Cleanup if needed
+      // Cleanup autocomplete and PAC containers
       if (autocompleteRef.current) {
         console.log('🧹 Cleaning up autocomplete');
+        window.google?.maps?.event?.clearInstanceListeners(autocompleteRef.current);
+        autocompleteRef.current = null;
       }
+      
+      // Remove any lingering PAC containers
+      const pacContainers = document.querySelectorAll('.pac-container');
+      pacContainers.forEach(container => {
+        container.remove();
+        console.log('🗑️ Removed PAC container');
+      });
     };
   }, [isEditingProfile, form]);
+
+  // Additional cleanup when modal closes
+  useEffect(() => {
+    if (!isEditingProfile) {
+      // Modal is closing or closed, clean up PAC containers
+      setTimeout(() => {
+        const pacContainers = document.querySelectorAll('.pac-container');
+        pacContainers.forEach(container => {
+          container.remove();
+          console.log('🗑️ Removed PAC container on modal close');
+        });
+      }, 100);
+    }
+  }, [isEditingProfile]);
 
   // Reset form when user data changes
   useEffect(() => {
