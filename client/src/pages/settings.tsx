@@ -255,36 +255,124 @@ export default function Settings() {
 
   // Simple autocomplete initialization - based on your working example
   useEffect(() => {
-    if (!window.google || !window.google.maps || !isEditingProfile) return;
+    console.log('🔍 useEffect triggered:', {
+      hasGoogle: !!window.google,
+      hasGoogleMaps: !!window.google?.maps,
+      hasGooglePlaces: !!window.google?.maps?.places,
+      hasAutocomplete: !!window.google?.maps?.places?.Autocomplete,
+      isEditingProfile
+    });
+
+    if (!window.google || !window.google.maps || !isEditingProfile) {
+      console.log('❌ Early return - missing requirements');
+      return;
+    }
 
     // Find the address input by name attribute
     const addressInput = document.querySelector('input[name="homeBaseAddress"]') as HTMLInputElement;
-    if (!addressInput) return;
-
-    console.log('Initializing Google Places Autocomplete with simple approach...');
-
-    const autocomplete = new window.google.maps.places.Autocomplete(addressInput, {
-      types: ['address'],
-      componentRestrictions: { country: 'us' },
+    console.log('🎯 Address input found:', {
+      exists: !!addressInput,
+      value: addressInput?.value,
+      visible: addressInput?.offsetParent !== null,
+      rect: addressInput?.getBoundingClientRect()
     });
 
-    autocomplete.addListener('place_changed', () => {
-      console.log('=== PLACE_CHANGED EVENT FIRED ===');
-      const place = autocomplete.getPlace();
-      
-      if (place.formatted_address) {
-        console.log('Valid place selected:', place.formatted_address);
-        
-        addressInput.value = place.formatted_address;
-        // Manually trigger input event so React-Hook-Form gets updated
-        addressInput.dispatchEvent(new Event('input', { bubbles: true }));
-        
-        console.log('✅ Address updated via dispatchEvent:', place.formatted_address);
-      }
-    });
+    if (!addressInput) {
+      console.log('❌ No address input found');
+      return;
+    }
 
-    autocompleteRef.current = autocomplete;
-    console.log('Simple autocomplete initialization complete');
+    console.log('🚀 Initializing Google Places Autocomplete...');
+
+    try {
+      const autocomplete = new window.google.maps.places.Autocomplete(addressInput, {
+        types: ['address'],
+        componentRestrictions: { country: 'us' },
+      });
+
+      console.log('✅ Autocomplete instance created:', autocomplete);
+
+      // Add input event listeners for debugging
+      addressInput.addEventListener('input', (e) => {
+        const value = (e.target as HTMLInputElement).value;
+        console.log('📝 Input event:', value);
+        
+        // Force PAC container to show when user types
+        if (value.length > 2) {
+          setTimeout(() => {
+            const pacContainers = document.querySelectorAll('.pac-container');
+            pacContainers.forEach((container) => {
+              const element = container as HTMLElement;
+              element.style.display = 'block';
+              element.style.visibility = 'visible';
+              element.style.opacity = '1';
+              console.log('🔧 Forced PAC container visible');
+            });
+          }, 100);
+        }
+      });
+
+      addressInput.addEventListener('focus', () => {
+        console.log('🎯 Input focused');
+      });
+
+      addressInput.addEventListener('keydown', (e) => {
+        console.log('⌨️ Key pressed:', e.key, 'Value:', addressInput.value);
+      });
+
+      // Check for pac-container creation
+      const checkForSuggestions = () => {
+        const pacContainers = document.querySelectorAll('.pac-container');
+        console.log('📋 PAC containers found:', pacContainers.length);
+        pacContainers.forEach((container, index) => {
+          console.log(`PAC container ${index}:`, {
+            visible: container.clientHeight > 0,
+            children: container.children.length,
+            zIndex: (container as HTMLElement).style.zIndex,
+            display: (container as HTMLElement).style.display
+          });
+        });
+      };
+
+      // Check for suggestions every second for debugging
+      const debugInterval = setInterval(checkForSuggestions, 1000);
+      setTimeout(() => clearInterval(debugInterval), 10000); // Stop after 10 seconds
+
+      autocomplete.addListener('place_changed', () => {
+        console.log('=== PLACE_CHANGED EVENT FIRED ===');
+        const place = autocomplete.getPlace();
+        console.log('📍 Place object:', place);
+        
+        if (place.formatted_address) {
+          console.log('✅ Valid place selected:', place.formatted_address);
+          
+          addressInput.value = place.formatted_address;
+          // Manually trigger input event so React-Hook-Form gets updated
+          addressInput.dispatchEvent(new Event('input', { bubbles: true }));
+          
+          console.log('✅ Address updated via dispatchEvent:', place.formatted_address);
+        } else {
+          console.log('❌ No formatted_address in place object');
+        }
+      });
+
+      autocompleteRef.current = autocomplete;
+      console.log('✅ Autocomplete initialization complete');
+
+      // Test the autocomplete service directly
+      setTimeout(() => {
+        const service = new window.google.maps.places.AutocompleteService();
+        service.getPlacePredictions({
+          input: 'New York',
+          componentRestrictions: { country: 'us' }
+        }, (predictions, status) => {
+          console.log('🧪 Test predictions:', { predictions, status });
+        });
+      }, 1000);
+
+    } catch (error) {
+      console.error('❌ Error creating autocomplete:', error);
+    }
 
     return () => {
       if (autocompleteRef.current) {
