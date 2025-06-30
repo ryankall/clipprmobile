@@ -7,7 +7,7 @@ import { Calendar as CalendarIcon, Plus, ChevronLeft, ChevronRight, Settings, Ma
 import { BottomNavigation } from "@/components/bottom-navigation";
 import { AppointmentCard } from "@/components/appointment-card";
 import { AppointmentDetailsDialog } from "@/components/appointment-details-dialog";
-// import { WorkingHoursDialog } from "@/components/working-hours-dialog";
+import { WorkingHoursDialog } from "@/components/working-hours-dialog";
 import { format, addDays, subDays, startOfWeek, endOfWeek, isToday, isSameDay } from "date-fns";
 import { Link } from "wouter";
 import type { AppointmentWithRelations } from "@shared/schema";
@@ -65,11 +65,7 @@ export default function Calendar() {
             <p className="text-steel text-sm">{format(selectedDate, 'MMMM yyyy')}</p>
           </div>
           <div className="flex space-x-2">
-            {/* TODO: Fix working hours integration */}
-            <Button variant="outline" className="bg-charcoal border-steel/40 text-gold">
-              <CalendarIcon className="w-4 h-4 mr-1" />
-              Hours
-            </Button>
+            <WorkingHoursDialog currentHours={userProfile?.workingHours} />
             <Link href="/settings">
               <Button variant="outline" className="bg-charcoal border-steel/40 text-white hover:border-gold/50">
                 <Settings className="w-4 h-4" />
