@@ -42,6 +42,16 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
     
     <!-- Google Maps JavaScript API with Places Library -->
+    <script>
+      // Global callback function must be defined before the script loads
+      window.initGoogleMaps = function() {
+        console.log('Google Maps API loaded successfully');
+        window.googleMapsReady = true;
+        
+        // Dispatch custom event to notify components
+        window.dispatchEvent(new CustomEvent('google-maps-ready'));
+      };
+    </script>
     <script type="module">
       // Load Google Maps API with Places library
       const apiKey = import.meta?.env?.VITE_GOOGLE_MAPS_API_KEY || 'AIzaSyDzIlMKR9TvPnJPqvlpZPzrfNABHzgKJzQ';
@@ -50,17 +60,7 @@
       // Create script element for Google Maps API
       const script = document.createElement('script');
       script.async = true;
-      script.defer = true;
       script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places&callback=initGoogleMaps`;
-      
-      // Global callback for when Google Maps API is loaded
-      window.initGoogleMaps = function() {
-        console.log('Google Maps API loaded successfully');
-        window.googleMapsReady = true;
-        
-        // Dispatch custom event to notify components
-        window.dispatchEvent(new CustomEvent('google-maps-ready'));
-      };
       
       script.onerror = function() {
         console.error('Failed to load Google Maps API');

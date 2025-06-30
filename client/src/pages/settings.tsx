@@ -253,16 +253,31 @@ export default function Settings() {
         }
       };
       
+      // Try to initialize autocomplete with retries
+      const tryInitAutocomplete = () => {
+        if (window.google?.maps?.places?.Autocomplete) {
+          console.log('Google Maps Places API is ready, initializing...');
+          initAutocomplete();
+        } else {
+          console.log('Google Maps Places API not ready, retrying in 500ms...');
+          setTimeout(tryInitAutocomplete, 500);
+        }
+      };
+      
       // Check if Google Maps is already loaded
       if (window.googleMapsReady && window.google?.maps?.places) {
         initAutocomplete();
       } else {
-        // Wait for Google Maps to load
+        // Wait for Google Maps to load or start trying immediately
         const handleGoogleMapsReady = () => {
-          initAutocomplete();
+          console.log('Google Maps ready event received');
+          tryInitAutocomplete();
         };
         
         window.addEventListener('google-maps-ready', handleGoogleMapsReady);
+        
+        // Also try immediately in case it's already loaded but event missed
+        tryInitAutocomplete();
         
         // Cleanup function
         return () => {
