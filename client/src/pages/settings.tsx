@@ -228,7 +228,7 @@ export default function Settings() {
         console.log('📴 Closing autocomplete suggestions - clicked elsewhere');
         const containers = document.querySelectorAll('.pac-container');
         containers.forEach(container => {
-          (container as HTMLElement).style.display = 'none';
+          container.remove();
         });
         setIsAutocompleteOpen(false);
       }
@@ -399,8 +399,8 @@ export default function Settings() {
                     form.setValue('homeBaseAddress', suggestionText);
                     form.trigger('homeBaseAddress');
                     
-                    // Hide suggestions and reset state
-                    element.style.display = 'none';
+                    // Remove suggestions and reset state
+                    element.remove();
                     setIsAutocompleteOpen(false);
                   }
                   
@@ -514,11 +514,11 @@ export default function Settings() {
             form.setValue('homeBaseAddress', place.formatted_address);
             form.trigger('homeBaseAddress');
             
-            // Hide suggestions after selection and reset autocomplete state
+            // Remove suggestions after selection and reset autocomplete state
             setTimeout(() => {
               const containers = document.querySelectorAll('.pac-container');
               containers.forEach(container => {
-                (container as HTMLElement).style.display = 'none';
+                container.remove();
               });
               setIsAutocompleteOpen(false);
             }, 200);
