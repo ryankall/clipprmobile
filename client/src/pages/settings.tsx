@@ -315,31 +315,11 @@ export default function Settings() {
         });
 
         autocomplete.addListener('place_changed', () => {
-          console.log('=== PLACE_CHANGED EVENT FIRED ===');
           const place = autocomplete.getPlace();
-          console.log('📍 Place object:', place);
-          
           if (place.formatted_address) {
-            console.log('✅ Valid place selected:', place.formatted_address);
-            
-            // Update the input value
             (addressInput as HTMLInputElement).value = place.formatted_address;
-            
-            // Trigger multiple events to ensure React Hook Form detects the change
-            const events = [
-              new Event('input', { bubbles: true }),
-              new Event('change', { bubbles: true }),
-              new InputEvent('input', { bubbles: true, data: place.formatted_address })
-            ];
-            
-            events.forEach(event => {
-              (addressInput as HTMLInputElement).dispatchEvent(event);
-            });
-            
-            console.log('🔄 Dispatched multiple events for React Hook Form');
-            console.log('📝 Final input value:', (addressInput as HTMLInputElement).value);
-          } else {
-            console.log('❌ No formatted_address in place object');
+            (addressInput as HTMLInputElement).dispatchEvent(new Event('input', { bubbles: true }));
+            console.log('✅ Address set:', place.formatted_address);
           }
         });
 
@@ -347,43 +327,30 @@ export default function Settings() {
         (addressInput as HTMLInputElement).addEventListener('input', (e) => {
           const value = (e.target as HTMLInputElement).value;
           console.log('📝 User typed:', value, 'Length:', value.length);
-        });
-
-        // Add multiple event listeners to catch typing
-        ['keyup', 'keydown', 'change', 'paste'].forEach(eventType => {
-          (addressInput as HTMLInputElement).addEventListener(eventType, (e) => {
-            const value = (e.target as HTMLInputElement).value;
-            console.log(`🔤 ${eventType} event:`, value);
+          
+          setTimeout(() => {
+            const pacContainers = document.querySelectorAll('.pac-container');
+            console.log('🔍 PAC containers found:', pacContainers.length);
             
-            setTimeout(() => {
-              const pacContainers = document.querySelectorAll('.pac-container');
-              console.log('🔍 PAC containers found:', pacContainers.length);
-              
-              pacContainers.forEach((container, index) => {
-                const element = container as HTMLElement;
-                console.log(`PAC container ${index}:`, {
-                  display: element.style.display,
-                  visibility: element.style.visibility,
-                  opacity: element.style.opacity,
-                  zIndex: element.style.zIndex,
-                  children: element.children.length,
-                  innerHTML: element.innerHTML.substring(0, 200),
-                  computedDisplay: window.getComputedStyle(element).display,
-                  computedVisibility: window.getComputedStyle(element).visibility,
-                  offsetHeight: element.offsetHeight,
-                  offsetWidth: element.offsetWidth
-                });
-                
-                // Force visibility with !important
-                element.style.setProperty('display', 'block', 'important');
-                element.style.setProperty('visibility', 'visible', 'important');
-                element.style.setProperty('opacity', '1', 'important');
-                element.style.setProperty('z-index', '9999', 'important');
-                element.style.setProperty('position', 'absolute', 'important');
-                console.log('🔧 Forced PAC container visible with !important');
+            pacContainers.forEach((container, index) => {
+              const element = container as HTMLElement;
+              console.log(`PAC container ${index}:`, {
+                display: element.style.display,
+                visibility: element.style.visibility,
+                opacity: element.style.opacity,
+                zIndex: element.style.zIndex,
+                children: element.children.length,
+                innerHTML: element.innerHTML.substring(0, 100)
               });
-            }, 200);
-          });
+              
+              // Force visibility
+              element.style.display = 'block';
+              element.style.visibility = 'visible';
+              element.style.opacity = '1';
+              element.style.zIndex = '9999';
+              console.log('🔧 Forced PAC container visible');
+            });
+          }, 200);
         });
 
         // Also debug focus events
@@ -398,58 +365,6 @@ export default function Settings() {
         autocompleteRef.current = autocomplete;
         console.log('✅ Autocomplete setup complete');
 
-        // Add comprehensive click handling for PAC items
-        const handlePacClick = (e: Event) => {
-          const target = e.target as HTMLElement;
-          console.log('🔍 Click detected on:', {
-            tagName: target.tagName,
-            className: target.className,
-            textContent: target.textContent?.substring(0, 50)
-          });
-          
-          // Check multiple selectors for PAC items
-          const pacItem = target.closest('.pac-item') || 
-                          target.closest('[class*="pac-"]') ||
-                          (target.classList.contains('pac-item') ? target : null);
-          
-          // Also check if clicked element is inside PAC container
-          const pacContainer = target.closest('.pac-container');
-          
-          if (pacItem || pacContainer) {
-            console.log('🖱️ PAC-related click detected:', {
-              pacItem: !!pacItem,
-              pacContainer: !!pacContainer,
-              target: target.className
-            });
-            
-            e.preventDefault();
-            e.stopPropagation();
-            
-            // Get text from clicked element or its PAC container
-            const textElement = pacItem || target;
-            const textContent = textElement.textContent || '';
-            
-            if (textContent.trim()) {
-              console.log('📍 Address selection:', textContent.trim());
-              (addressInput as HTMLInputElement).value = textContent.trim();
-              (addressInput as HTMLInputElement).dispatchEvent(new Event('input', { bubbles: true }));
-              (addressInput as HTMLInputElement).dispatchEvent(new Event('change', { bubbles: true }));
-              
-              // Hide all PAC containers
-              document.querySelectorAll('.pac-container').forEach(container => {
-                (container as HTMLElement).style.display = 'none';
-              });
-            }
-          }
-        };
-
-        // Add both capture and bubble phase listeners
-        document.addEventListener('click', handlePacClick, true); // Capture phase
-        document.addEventListener('click', handlePacClick, false); // Bubble phase
-        
-        // Also monitor for mousedown which might be used by PAC items
-        document.addEventListener('mousedown', handlePacClick, true);
-
       } catch (error) {
         console.error('❌ Autocomplete error:', error);
       }
@@ -460,13 +375,7 @@ export default function Settings() {
     return () => {
       if (autocompleteRef.current) {
         window.google?.maps?.event?.clearInstanceListeners(autocompleteRef.current);
-        autocompleteRef.current = null;
       }
-      
-      // Clean up any lingering PAC containers
-      document.querySelectorAll('.pac-container').forEach(container => {
-        container.remove();
-      });
     };
   }, [isEditingProfile]);
 
