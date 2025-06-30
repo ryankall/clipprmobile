@@ -10,7 +10,7 @@ import { QuickActions } from "@/components/quick-actions";
 import { PendingReservations } from "@/components/pending-reservations";
 import { useAuth } from "@/hooks/useAuth";
 import { Scissors, Slice, Bell, Plus, Calendar, Users, Camera, Settings, X, MessageSquare, CreditCard, User as UserIcon } from "lucide-react";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import { format } from "date-fns";
 import type { DashboardStats, AppointmentWithRelations, GalleryPhoto } from "@shared/schema";
 
@@ -18,6 +18,7 @@ export default function Dashboard() {
   const [showNotifications, setShowNotifications] = useState(false);
   const notificationRef = useRef<HTMLDivElement>(null);
   const { user } = useAuth();
+  const [, navigate] = useLocation();
 
   // Close notifications when clicking outside
   useEffect(() => {
@@ -68,7 +69,10 @@ export default function Dashboard() {
         title: 'Unread Messages',
         message: `You have ${unreadCount} unread message${unreadCount > 1 ? 's' : ''}`,
         icon: MessageSquare,
-        action: () => window.location.href = '/messages',
+        action: () => {
+          setShowNotifications(false);
+          navigate('/messages');
+        },
         type: 'messages'
       });
     }
@@ -80,7 +84,10 @@ export default function Dashboard() {
         title: 'Complete Your Profile',
         message: 'Set up your business name, service area, and bio',
         icon: UserIcon,
-        action: () => window.location.href = '/settings',
+        action: () => {
+          setShowNotifications(false);
+          navigate('/settings');
+        },
         type: 'profile'
       });
     }
@@ -93,7 +100,8 @@ export default function Dashboard() {
         message: 'Set up Stripe to receive payments from clients',
         icon: CreditCard,
         action: () => {
-          window.location.href = '/settings';
+          setShowNotifications(false);
+          navigate('/settings');
           // Scroll to payment section after navigation
           setTimeout(() => {
             const paymentSection = document.querySelector('[data-section="payment"]');
@@ -211,42 +219,7 @@ export default function Dashboard() {
         </div>
       </header>
 
-      {/* Notifications Panel */}
-      {showNotifications && (
-        <div ref={notificationRef} className="absolute top-16 right-4 w-80 bg-charcoal border border-steel/20 rounded-lg shadow-xl z-50 max-h-96 overflow-y-auto">
-          <div className="p-4 border-b border-steel/20 flex justify-between items-center">
-            <h3 className="text-lg font-semibold text-white">Notifications</h3>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setShowNotifications(false)}
-            >
-              <X className="w-4 h-4" />
-            </Button>
-          </div>
-          <div className="p-2">
-            {notifications.length > 0 ? (
-              notifications.map((notification) => (
-                <div
-                  key={notification.id}
-                  className="p-3 hover:bg-steel/10 rounded-lg cursor-pointer transition-colors"
-                >
-                  <div className="flex justify-between items-start mb-1">
-                    <h4 className="text-sm font-medium text-white">{notification.title}</h4>
-                    <span className="text-xs text-steel">{notification.time}</span>
-                  </div>
-                  <p className="text-sm text-steel">{notification.message}</p>
-                </div>
-              ))
-            ) : (
-              <div className="p-6 text-center text-steel">
-                <Bell className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                <p>No new notifications</p>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
+
 
       <main className="p-4 space-y-6">
         {/* Daily Summary Card */}
