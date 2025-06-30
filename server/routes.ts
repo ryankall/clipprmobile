@@ -1431,68 +1431,57 @@ export async function registerRoutes(app: Express): Promise<Server> {
         totalDuration = 60;
       }
 
-      // Check for existing appointments or reservations in this time slot
-      const existingAppointments = await db
-        .select()
-        .from(appointments)
-        .where(
-          and(
-            eq(appointments.userId, user.id),
-            sql`${appointments.scheduledAt} < ${new Date(appointmentDateTime.getTime() + totalDuration * 60000)} AND ${appointments.scheduledAt} + INTERVAL '1 minute' * ${appointments.duration} > ${appointmentDateTime}`
-          )
-        );
-
-      const activeReservations = await storage.getActiveReservationsForTimeSlot(
-        user.id, 
-        appointmentDateTime, 
-        totalDuration
-      );
-
-      if (existingAppointments.length > 0 || activeReservations.length > 0) {
-        return res.status(409).json({ 
-          message: "This time slot is no longer available. Please select a different time." 
-        });
+      // Format the booking request message
+      let requestMessage = `📅 Date: ${selectedDate}\n⏰ Time: ${selectedTime}\n`;
+      
+      // Add services
+      if (selectedServices.length > 0) {
+        const serviceNames = services.filter(s => selectedServices.includes(s.name)).map(s => s.name);
+        requestMessage += `✂️ Services: ${serviceNames.join(', ')}\n`;
+      }
+      
+      if (customService) {
+        requestMessage += `✂️ Custom Service: ${customService}\n`;
+      }
+      
+      // Add travel information
+      if (needsTravel && clientAddress) {
+        requestMessage += `🚗 Travel: Yes - ${clientAddress}\n`;
+      } else {
+        requestMessage += `🚗 Travel: No\n`;
+      }
+      
+      // Add client details
+      requestMessage += `📞 Phone: ${clientPhone}\n`;
+      if (clientEmail) {
+        requestMessage += `📧 Email: ${clientEmail}\n`;
+      }
+      
+      // Add optional message
+      if (message) {
+        requestMessage += `💬 Message: ${message}\n`;
       }
 
-      // Create a 30-minute temporary reservation
-      const expiresAt = new Date(Date.now() + 30 * 60 * 1000); // 30 minutes from now
-      
-      const reservation = await storage.createReservation({
-        userId: user.id,
-        customerName: clientName,
-        customerPhone: clientPhone,
-        customerEmail: clientEmail || undefined,
-        scheduledAt: appointmentDateTime,
-        duration: totalDuration,
-        services: serviceIds,
-        address: needsTravel ? clientAddress : undefined,
-        notes: message || undefined,
-        expiresAt: expiresAt,
-        status: "pending",
-      });
-
-      // Send SMS confirmation request
-      const smsMessage = `Hi ${clientName}! This time is being held for you for 30 minutes. Please confirm by replying YES to keep it. Time: ${format(appointmentDateTime, 'EEEE, MMMM d')} at ${format(appointmentDateTime, 'h:mm a')}`;
-
-      // Create a message for the barber's records
+      // Create a message for the barber to review
       await storage.createMessage({
         userId: user.id,
         customerName: clientName,
         customerPhone: clientPhone,
         customerEmail: clientEmail || undefined,
-        subject: "Reservation Pending Confirmation",
-        message: `Temporary reservation created for ${clientName}. Expires at ${format(expiresAt, 'h:mm a')}. Customer will receive SMS confirmation request.`,
+        subject: "New Booking Request",
+        message: requestMessage,
         status: "unread",
         priority: "normal",
+        serviceRequested: selectedServices.join(', '),
+        preferredDate: appointmentDateTime,
+        notes: message || undefined,
       });
 
-      console.log("Reservation created:", reservation.id, "SMS sent:", smsMessage);
+      console.log("Booking request message created for barber:", user.id);
 
       res.json({ 
         success: true, 
-        message: "Time slot reserved for 30 minutes. SMS confirmation sent to customer.",
-        reservationId: reservation.id,
-        expiresAt: expiresAt.toISOString()
+        message: "Booking request sent successfully. The barber will review and confirm your appointment.",
       });
     } catch (error: any) {
       res.status(500).json({ message: error.message });
@@ -1622,6 +1611,101 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({ 
         success: true, 
         expiredCount: expiredReservations.length 
+      });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Create reservation from message booking (barber action)
+  app.post("/api/reservations", requireAuth, async (req, res) => {
+    try {
+      const userId = (req.user as any).id;
+      const {
+        customerName,
+        customerPhone,
+        customerEmail,
+        scheduledAt,
+        services,
+        address,
+        notes
+      } = req.body;
+
+      // Validate required fields
+      if (!customerName || !customerPhone || !scheduledAt || !services?.length) {
+        return res.status(400).json({ message: "Missing required fields" });
+      }
+
+      // Parse the datetime
+      const appointmentDateTime = new Date(scheduledAt);
+      
+      // Get service details and calculate total duration
+      const userServices = await storage.getServicesByUserId(userId);
+      const requestedServices = userServices.filter(s => services.includes(s.name));
+      
+      let totalDuration = 0;
+      const serviceIds = [];
+      
+      for (const service of requestedServices) {
+        totalDuration += service.duration;
+        serviceIds.push(service.id.toString());
+      }
+      
+      // Default to 60 minutes if no services found
+      if (totalDuration === 0) {
+        totalDuration = 60;
+      }
+
+      // Check for conflicts
+      const existingAppointments = await db
+        .select()
+        .from(appointments)
+        .where(
+          and(
+            eq(appointments.userId, userId),
+            sql`${appointments.scheduledAt} < ${new Date(appointmentDateTime.getTime() + totalDuration * 60000)} AND ${appointments.scheduledAt} + INTERVAL '1 minute' * ${appointments.duration} > ${appointmentDateTime}`
+          )
+        );
+
+      const activeReservations = await storage.getActiveReservationsForTimeSlot(
+        userId, 
+        appointmentDateTime, 
+        totalDuration
+      );
+
+      if (existingAppointments.length > 0 || activeReservations.length > 0) {
+        return res.status(409).json({ 
+          message: "This time slot is no longer available. Please select a different time." 
+        });
+      }
+
+      // Create 30-minute reservation
+      const expiresAt = new Date(Date.now() + 30 * 60 * 1000);
+      
+      const reservation = await storage.createReservation({
+        userId,
+        customerName,
+        customerPhone,
+        customerEmail: customerEmail || undefined,
+        scheduledAt: appointmentDateTime,
+        duration: totalDuration,
+        services: serviceIds,
+        address: address || undefined,
+        notes: notes || undefined,
+        expiresAt: expiresAt,
+        status: "pending",
+      });
+
+      // Send SMS confirmation request
+      const smsMessage = `Hi ${customerName}! This time is being held for you for 30 minutes. Please confirm by replying YES to keep it. Time: ${format(appointmentDateTime, 'EEEE, MMMM d')} at ${format(appointmentDateTime, 'h:mm a')}`;
+
+      console.log(`SMS confirmation sent to ${customerPhone}:`, smsMessage);
+
+      res.json({ 
+        success: true, 
+        message: "Reservation created with SMS confirmation sent",
+        reservationId: reservation.id,
+        expiresAt: expiresAt.toISOString()
       });
     } catch (error: any) {
       res.status(500).json({ message: error.message });

@@ -252,6 +252,76 @@ export default function Messages() {
     return message.customerName && (message.customerPhone || message.customerEmail);
   };
 
+  const handleBookAppointment = async (message: Message) => {
+    try {
+      // Extract appointment details from message
+      const dateMatch = message.message.match(/📅 Date: (\d{4}-\d{2}-\d{2})/);
+      const timeMatch = message.message.match(/⏰ Time: (\d{1,2}:\d{2})/);
+      const servicesMatch = message.message.match(/✂️ Services: (.+?)(?:\n|$)/);
+      const addressMatch = message.message.match(/🚗 Travel: Yes - (.+?)(?:\n|$)/);
+      const customServiceMatch = message.message.match(/✂️ Custom Service: (.+?)(?:\n|$)/);
+      const messageMatch = message.message.match(/💬 Message: (.+?)(?:\n|$)/);
+
+      if (!dateMatch || !timeMatch) {
+        toast({
+          title: "Error",
+          description: "Could not extract date and time from the booking request.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const selectedDate = dateMatch[1];
+      const selectedTime = timeMatch[1];
+      const services = servicesMatch ? servicesMatch[1].split(', ') : [];
+      const address = addressMatch ? addressMatch[1] : "";
+      const customService = customServiceMatch ? customServiceMatch[1] : "";
+      const notes = messageMatch ? messageMatch[1] : "";
+
+      // Create the appointment datetime
+      const appointmentDateTime = new Date(`${selectedDate}T${selectedTime}:00`);
+      
+      // Create reservation with 30-minute hold and SMS confirmation
+      const reservationData = {
+        customerName: message.customerName,
+        customerPhone: message.customerPhone,
+        customerEmail: message.customerEmail,
+        scheduledAt: appointmentDateTime.toISOString(),
+        services,
+        address: address || undefined,
+        notes: notes || undefined,
+      };
+
+      const response = await apiRequest("POST", "/api/reservations", reservationData);
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.message || "Failed to create reservation");
+      }
+
+      // Mark message as read and processed
+      await apiRequest("PATCH", `/api/messages/${message.id}/read`);
+      
+      // Refresh queries
+      queryClient.invalidateQueries({ queryKey: ["/api/messages"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/messages/unread-count"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/reservations/pending"] });
+
+      toast({
+        title: "Reservation Created",
+        description: `30-minute hold created for ${message.customerName}. SMS confirmation sent to customer.`,
+      });
+
+      setSelectedMessage(null);
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to create reservation",
+        variant: "destructive",
+      });
+    }
+  };
+
   const getCreateClientTooltip = (message: Message) => {
     if (!message.customerName) {
       return "Missing customer name";
@@ -541,79 +611,7 @@ export default function Messages() {
                           services = detectedServices.join(', ');
                         }
                         
-                        // Extract address from travel information
-                        const addressMatch = selectedMessage.message.match(/🚗 Travel: Yes - (.+?)(?:\n|$)/);
-                        const address = addressMatch ? addressMatch[1] : "";
-                        
-                        // Extract preferred date and time from message content
-                        let preferredDateTime = "";
-                        let notesText = "";
-                        
-                        // Extract structured date from booking form format
-                        const dateMatch = selectedMessage.message.match(/📅 Date: (\d{4}-\d{2}-\d{2})/);
-                        const timeMatch = selectedMessage.message.match(/⏰ Time: (\d{1,2}:\d{2})/);
-                        
-                        if (dateMatch && timeMatch) {
-                          const dateStr = dateMatch[1]; // YYYY-MM-DD format
-                          const timeStr = timeMatch[1]; // HH:MM format
-                          
-                          // Combine date and time into datetime-local format
-                          preferredDateTime = `${dateStr}T${timeStr}`;
-                        } else {
-                          // Fallback to natural language parsing
-                          const message = selectedMessage.message.toLowerCase();
-                          
-                          // Try to extract date/time from message
-                          if (message.includes('tomorrow')) {
-                            const naturalTimeMatch = message.match(/tomorrow\s+(?:at\s+)?(\d{1,2}:\d{2}(?:\s*[ap]m)?)/i);
-                            if (naturalTimeMatch) {
-                              const tomorrow = new Date();
-                              tomorrow.setDate(tomorrow.getDate() + 1);
-                              let timeStr = naturalTimeMatch[1];
-                              
-                              // Convert 12-hour to 24-hour format if needed
-                              if (timeStr.includes('pm') && !timeStr.startsWith('12')) {
-                                const hour = parseInt(timeStr.split(':')[0]) + 12;
-                                timeStr = timeStr.replace(/\d{1,2}/, hour.toString()).replace(/\s*pm/i, '');
-                              } else if (timeStr.includes('am')) {
-                                timeStr = timeStr.replace(/\s*am/i, '');
-                                if (timeStr.startsWith('12:')) {
-                                  timeStr = timeStr.replace('12:', '00:');
-                                }
-                              }
-                              
-                              const [hours, minutes] = timeStr.split(':');
-                              tomorrow.setHours(parseInt(hours), parseInt(minutes), 0, 0);
-                              preferredDateTime = format(tomorrow, "yyyy-MM-dd'T'HH:mm");
-                            }
-                          }
-                        }
-                        
-                        // Build notes with extracted information
-                        if (selectedMessage.preferredDate) {
-                          notesText += `Preferred date: ${format(new Date(selectedMessage.preferredDate), "MMM d, yyyy")}\n`;
-                        }
-                        
-                        // Add any additional notes from message
-                        const noteMatch = selectedMessage.message.match(/📝 Notes: (.+?)(?:\n|$)/);
-                        if (noteMatch) {
-                          notesText += noteMatch[1];
-                        }
-                        
-                        const params = new URLSearchParams();
-                        if (selectedMessage.clientId) {
-                          params.set('clientId', selectedMessage.clientId.toString());
-                        } else {
-                          params.set('clientName', selectedMessage.customerName);
-                          if (selectedMessage.customerPhone) params.set('phone', selectedMessage.customerPhone);
-                        }
-                        if (selectedMessage.customerEmail) params.set('email', selectedMessage.customerEmail);
-                        if (services) params.set('services', services);
-                        if (address) params.set('address', address);
-                        if (preferredDateTime) params.set('scheduledAt', preferredDateTime);
-                        if (notesText.trim()) params.set('notes', notesText.trim());
-                        
-                        setLocation(`/appointments/new?${params.toString()}`);
+                        handleBookAppointment(selectedMessage);
                       }}
                       className="border-gold/30 text-gold hover:bg-gold/10"
                     >
