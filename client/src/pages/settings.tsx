@@ -315,11 +315,31 @@ export default function Settings() {
         });
 
         autocomplete.addListener('place_changed', () => {
+          console.log('=== PLACE_CHANGED EVENT FIRED ===');
           const place = autocomplete.getPlace();
+          console.log('📍 Place object:', place);
+          
           if (place.formatted_address) {
+            console.log('✅ Valid place selected:', place.formatted_address);
+            
+            // Update the input value
             (addressInput as HTMLInputElement).value = place.formatted_address;
-            (addressInput as HTMLInputElement).dispatchEvent(new Event('input', { bubbles: true }));
-            console.log('✅ Address set:', place.formatted_address);
+            
+            // Trigger multiple events to ensure React Hook Form detects the change
+            const events = [
+              new Event('input', { bubbles: true }),
+              new Event('change', { bubbles: true }),
+              new InputEvent('input', { bubbles: true, data: place.formatted_address })
+            ];
+            
+            events.forEach(event => {
+              (addressInput as HTMLInputElement).dispatchEvent(event);
+            });
+            
+            console.log('🔄 Dispatched multiple events for React Hook Form');
+            console.log('📝 Final input value:', (addressInput as HTMLInputElement).value);
+          } else {
+            console.log('❌ No formatted_address in place object');
           }
         });
 
