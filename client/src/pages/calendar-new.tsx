@@ -6,13 +6,17 @@ import { Badge } from "@/components/ui/badge";
 import { Calendar as CalendarIcon, Plus, ChevronLeft, ChevronRight, Settings, MapPin } from "lucide-react";
 import { BottomNavigation } from "@/components/bottom-navigation";
 import { AppointmentCard } from "@/components/appointment-card";
-import { WorkingHoursDialog } from "@/components/working-hours-dialog";
+import { AppointmentDetailsDialog } from "@/components/appointment-details-dialog";
+// import { WorkingHoursDialog } from "@/components/working-hours-dialog";
 import { format, addDays, subDays, startOfWeek, endOfWeek, isToday, isSameDay } from "date-fns";
 import { Link } from "wouter";
 import type { AppointmentWithRelations } from "@shared/schema";
 
 export default function Calendar() {
+  console.log('Calendar-new component rendering...');
   const [selectedDate, setSelectedDate] = useState(new Date());
+  const [selectedAppointment, setSelectedAppointment] = useState<AppointmentWithRelations | null>(null);
+  const [showAppointmentDialog, setShowAppointmentDialog] = useState(false);
   
   const startDate = startOfWeek(selectedDate);
   const endDate = endOfWeek(selectedDate);
@@ -30,6 +34,10 @@ export default function Calendar() {
   const selectedDateAppointments = appointments?.filter(apt => 
     isSameDay(new Date(apt.scheduledAt), selectedDate)
   ) || [];
+
+  console.log('Selected date:', format(selectedDate, 'yyyy-MM-dd'));
+  console.log('Total appointments loaded:', appointments?.length);
+  console.log('Appointments for selected date:', selectedDateAppointments.length);
 
   const weekDays = Array.from({ length: 7 }, (_, i) => addDays(startDate, i));
   
@@ -57,7 +65,11 @@ export default function Calendar() {
             <p className="text-steel text-sm">{format(selectedDate, 'MMMM yyyy')}</p>
           </div>
           <div className="flex space-x-2">
-            <WorkingHoursDialog currentHours={userProfile?.workingHours} />
+            {/* TODO: Fix working hours integration */}
+            <Button variant="outline" className="bg-charcoal border-steel/40 text-gold">
+              <CalendarIcon className="w-4 h-4 mr-1" />
+              Hours
+            </Button>
             <Link href="/settings">
               <Button variant="outline" className="bg-charcoal border-steel/40 text-white hover:border-gold/50">
                 <Settings className="w-4 h-4" />
@@ -159,9 +171,21 @@ export default function Calendar() {
               </div>
             ) : (
               <div className="space-y-3">
-                {selectedDateAppointments.map((appointment) => (
-                  <AppointmentCard key={appointment.id} appointment={appointment} />
-                ))}
+                {selectedDateAppointments.map((appointment) => {
+                  console.log('Rendering appointment:', appointment.client.name, 'ID:', appointment.id);
+                  return (
+                    <AppointmentCard 
+                      key={appointment.id} 
+                      appointment={appointment}
+                      showClickable={true}
+                      onClick={() => {
+                        console.log('Appointment clicked:', appointment.client.name);
+                        setSelectedAppointment(appointment);
+                        setShowAppointmentDialog(true);
+                      }}
+                    />
+                  );
+                })}
               </div>
             )}
           </CardContent>
@@ -189,6 +213,17 @@ export default function Calendar() {
           </Card>
         </div>
       </main>
+
+      {/* Appointment Details Dialog */}
+      <AppointmentDetailsDialog
+        appointment={selectedAppointment}
+        open={showAppointmentDialog}
+        onClose={() => {
+          console.log('Appointment dialog closed');
+          setShowAppointmentDialog(false);
+          setSelectedAppointment(null);
+        }}
+      />
 
       <BottomNavigation currentPath="/calendar" />
     </div>

@@ -51,6 +51,10 @@ export default function Calendar() {
 
   return (
     <div className="min-h-screen bg-dark-bg text-white pb-20">
+      {/* DEBUG - This should always show if component renders */}
+      <div style={{position: 'fixed', top: '10px', left: '10px', background: 'red', color: 'white', padding: '5px', zIndex: 9999}}>
+        CALENDAR LOADED - {selectedDate.toISOString().split('T')[0]}
+      </div>
       {/* Header */}
       <header className="bg-charcoal p-4 sticky top-0 z-50 border-b border-steel/20">
         <div className="flex items-center justify-between">
