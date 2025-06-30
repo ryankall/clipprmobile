@@ -78,6 +78,15 @@ export const appointments = pgTable("appointments", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+export const appointmentServices = pgTable("appointment_services", {
+  id: serial("id").primaryKey(),
+  appointmentId: integer("appointment_id").notNull().references(() => appointments.id, { onDelete: "cascade" }),
+  serviceId: integer("service_id").notNull().references(() => services.id),
+  quantity: integer("quantity").notNull().default(1),
+  price: decimal("price", { precision: 10, scale: 2 }).notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 export const invoices = pgTable("invoices", {
   id: serial("id").primaryKey(),
   userId: integer("user_id").notNull().references(() => users.id),
@@ -166,8 +175,20 @@ export const appointmentsRelations = relations(appointments, ({ one, many }) => 
     fields: [appointments.serviceId],
     references: [services.id],
   }),
+  appointmentServices: many(appointmentServices),
   invoice: one(invoices),
   galleryPhotos: many(galleryPhotos),
+}));
+
+export const appointmentServicesRelations = relations(appointmentServices, ({ one }) => ({
+  appointment: one(appointments, {
+    fields: [appointmentServices.appointmentId],
+    references: [appointments.id],
+  }),
+  service: one(services, {
+    fields: [appointmentServices.serviceId],
+    references: [services.id],
+  }),
 }));
 
 export const invoicesRelations = relations(invoices, ({ one }) => ({
@@ -235,6 +256,11 @@ export const insertAppointmentSchema = createInsertSchema(appointments).omit({
   reminderSent: true,
 });
 
+export const insertAppointmentServiceSchema = createInsertSchema(appointmentServices).omit({
+  id: true,
+  createdAt: true,
+});
+
 export const insertInvoiceSchema = createInsertSchema(invoices).omit({
   id: true,
   createdAt: true,
@@ -265,6 +291,9 @@ export type Service = typeof services.$inferSelect;
 export type InsertAppointment = z.infer<typeof insertAppointmentSchema>;
 export type Appointment = typeof appointments.$inferSelect;
 
+export type InsertAppointmentService = z.infer<typeof insertAppointmentServiceSchema>;
+export type AppointmentService = typeof appointmentServices.$inferSelect;
+
 export type InsertInvoice = z.infer<typeof insertInvoiceSchema>;
 export type Invoice = typeof invoices.$inferSelect;
 
@@ -278,6 +307,7 @@ export type Message = typeof messages.$inferSelect;
 export type AppointmentWithRelations = Appointment & {
   client: Client;
   service: Service;
+  appointmentServices?: (AppointmentService & { service: Service })[];
 };
 
 export type ClientWithStats = Client & {

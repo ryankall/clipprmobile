@@ -165,20 +165,54 @@ export function AppointmentDetailsDialog({
               </div>
             </div>
 
-            <div className="flex items-center space-x-3">
-              <Scissors className="w-5 h-5 text-gold" />
-              <div>
-                <p className="font-medium text-white">{appointment.service.name}</p>
-                <p className="text-sm text-steel">
-                  {appointment.service.duration} minutes
-                </p>
-              </div>
-            </div>
-
-            <div className="flex items-center space-x-3">
-              <DollarSign className="w-5 h-5 text-gold" />
-              <div>
-                <p className="font-medium text-white">${appointment.service.price}</p>
+            {/* Services Section */}
+            <div className="space-y-3">
+              <div className="flex items-center space-x-3">
+                <Scissors className="w-5 h-5 text-gold" />
+                <div className="flex-1">
+                  <p className="font-medium text-white">Services</p>
+                  {appointment.appointmentServices && appointment.appointmentServices.length > 0 ? (
+                    <div className="space-y-2 mt-2">
+                      {appointment.appointmentServices.map((appointmentService, index) => (
+                        <div key={index} className="bg-charcoal/50 rounded-md p-2 border border-steel/20">
+                          <div className="flex justify-between items-start">
+                            <div className="flex-1">
+                              <p className="text-sm font-medium text-white">{appointmentService.service.name}</p>
+                              <p className="text-xs text-steel">{appointmentService.service.duration} minutes</p>
+                            </div>
+                            <div className="text-right">
+                              <p className="text-sm font-medium text-white">${appointmentService.price}</p>
+                              {appointmentService.quantity > 1 && (
+                                <p className="text-xs text-steel">Qty: {appointmentService.quantity}</p>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                      <div className="flex justify-between items-center pt-2 border-t border-steel/20">
+                        <p className="text-sm font-medium text-white">Total Duration:</p>
+                        <p className="text-sm font-medium text-white">
+                          {appointment.appointmentServices.reduce((total, service) => 
+                            total + (service.service.duration * service.quantity), 0
+                          )} minutes
+                        </p>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <p className="text-sm font-medium text-white">Total Price:</p>
+                        <p className="text-sm font-medium text-gold">
+                          ${appointment.appointmentServices.reduce((total, service) => 
+                            total + (parseFloat(service.price) * service.quantity), 0
+                          ).toFixed(2)}
+                        </p>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="mt-2">
+                      <p className="text-sm text-white">{appointment.service.name}</p>
+                      <p className="text-xs text-steel">{appointment.service.duration} minutes • ${appointment.service.price}</p>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
 
