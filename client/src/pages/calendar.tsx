@@ -137,17 +137,21 @@ export default function Calendar() {
             ) : selectedDateAppointments.length > 0 ? (
               selectedDateAppointments
                 .sort((a, b) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime())
-                .map((appointment) => (
-                  <AppointmentCard 
-                    key={appointment.id} 
-                    appointment={appointment}
-                    showClickable={true}
-                    onClick={() => {
-                      setSelectedAppointment(appointment);
-                      setShowAppointmentDialog(true);
-                    }}
-                  />
-                ))
+                .map((appointment) => {
+                  console.log('Rendering appointment:', appointment.client.name, 'ID:', appointment.id);
+                  return (
+                    <AppointmentCard 
+                      key={appointment.id} 
+                      appointment={appointment}
+                      showClickable={true}
+                      onClick={() => {
+                        console.log('Appointment clicked:', appointment.client.name);
+                        setSelectedAppointment(appointment);
+                        setShowAppointmentDialog(true);
+                      }}
+                    />
+                  );
+                })
             ) : (
               <div className="text-center py-8 text-steel">
                 <CalendarIcon className="w-12 h-12 mx-auto mb-3 opacity-50" />
