@@ -293,6 +293,20 @@ export default function Settings() {
       }
 
       console.log('✅ Found address input, initializing autocomplete');
+      console.log('🔍 Address input details:', {
+        tagName: (addressInput as HTMLElement).tagName,
+        name: (addressInput as HTMLInputElement).name,
+        placeholder: (addressInput as HTMLInputElement).placeholder,
+        value: (addressInput as HTMLInputElement).value,
+        type: (addressInput as HTMLInputElement).type,
+        readonly: (addressInput as HTMLInputElement).readOnly,
+        disabled: (addressInput as HTMLInputElement).disabled
+      });
+
+      // Test if we can attach a basic event listener
+      (addressInput as HTMLInputElement).addEventListener('click', () => {
+        console.log('🖱️ Address input CLICKED - event listener works!');
+      });
 
       try {
         const autocomplete = new window.google.maps.places.Autocomplete(addressInput as HTMLInputElement, {
