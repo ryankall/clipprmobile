@@ -366,21 +366,34 @@ export default function Settings() {
               // Track autocomplete state
               setIsAutocompleteOpen(true);
               
-              // Add event listeners to container to prevent modal close
-              element.addEventListener('click', (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                e.stopImmediatePropagation();
-                console.log('🛡️ PAC container click blocked');
-                return false;
-              }, true);
-              
-              element.addEventListener('mousedown', (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                e.stopImmediatePropagation();
-                return false;
-              }, true);
+              // Add click listener to PAC items for manual selection
+              const pacItems = element.querySelectorAll('.pac-item');
+              pacItems.forEach((item) => {
+                item.addEventListener('click', (e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  e.stopImmediatePropagation();
+                  
+                  const suggestionText = item.textContent?.trim();
+                  if (suggestionText) {
+                    console.log('✅ Address selected via manual click:', suggestionText);
+                    
+                    // Update the input field
+                    addressInput.value = suggestionText;
+                    addressInput.dispatchEvent(new Event('input', { bubbles: true }));
+                    
+                    // Update React Hook Form
+                    form.setValue('homeBaseAddress', suggestionText);
+                    form.trigger('homeBaseAddress');
+                    
+                    // Hide suggestions and reset state
+                    element.style.display = 'none';
+                    setIsAutocompleteOpen(false);
+                  }
+                  
+                  return false;
+                }, true);
+              });
               
               // Style the suggestion items and add click handlers
               const items = element.querySelectorAll('.pac-item');
