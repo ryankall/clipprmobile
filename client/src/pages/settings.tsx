@@ -309,61 +309,57 @@ export default function Settings() {
       });
 
       try {
-        const autocomplete = new window.google.maps.places.Autocomplete(addressInput as HTMLInputElement, {
-          types: ['address'],
+        console.log('🆕 Using modern PlaceAutocompleteElement...');
+        
+        // Create the modern PlaceAutocompleteElement
+        const placeAutocomplete = new window.google.maps.places.PlaceAutocompleteElement({
           componentRestrictions: { country: 'us' },
+          types: ['address']
         });
 
-        autocomplete.addListener('place_changed', () => {
-          const place = autocomplete.getPlace();
-          if (place.formatted_address) {
-            (addressInput as HTMLInputElement).value = place.formatted_address;
-            (addressInput as HTMLInputElement).dispatchEvent(new Event('input', { bubbles: true }));
-            console.log('✅ Address set:', place.formatted_address);
-          }
-        });
-
-        // Force PAC container visibility and debug typing
-        (addressInput as HTMLInputElement).addEventListener('input', (e) => {
-          const value = (e.target as HTMLInputElement).value;
-          console.log('📝 User typed:', value, 'Length:', value.length);
+        // Replace the input with the PlaceAutocompleteElement
+        const parentElement = (addressInput as HTMLElement).parentNode;
+        if (parentElement) {
+          // Copy the styling from the original input
+          const originalInput = addressInput as HTMLInputElement;
+          placeAutocomplete.style.cssText = originalInput.style.cssText;
+          placeAutocomplete.className = originalInput.className;
           
-          setTimeout(() => {
-            const pacContainers = document.querySelectorAll('.pac-container');
-            console.log('🔍 PAC containers found:', pacContainers.length);
+          // Set the initial value if exists
+          if (originalInput.value) {
+            placeAutocomplete.value = originalInput.value;
+          }
+
+          // Replace the input
+          parentElement.replaceChild(placeAutocomplete, originalInput);
+          
+          console.log('✅ Replaced input with PlaceAutocompleteElement');
+
+          // Listen for place selection
+          placeAutocomplete.addEventListener('gmp-placeselect', (event: any) => {
+            console.log('🎯 Place selected:', event.place);
+            const place = event.place;
             
-            pacContainers.forEach((container, index) => {
-              const element = container as HTMLElement;
-              console.log(`PAC container ${index}:`, {
-                display: element.style.display,
-                visibility: element.style.visibility,
-                opacity: element.style.opacity,
-                zIndex: element.style.zIndex,
-                children: element.children.length,
-                innerHTML: element.innerHTML.substring(0, 100)
+            if (place.formattedAddress) {
+              console.log('✅ Address selected:', place.formattedAddress);
+              
+              // Update the form value by creating a synthetic input event
+              const syntheticEvent = new Event('input', { bubbles: true });
+              Object.defineProperty(syntheticEvent, 'target', {
+                writable: false,
+                value: { value: place.formattedAddress }
               });
               
-              // Force visibility
-              element.style.display = 'block';
-              element.style.visibility = 'visible';
-              element.style.opacity = '1';
-              element.style.zIndex = '9999';
-              console.log('🔧 Forced PAC container visible');
-            });
-          }, 200);
-        });
+              // Trigger form update
+              placeAutocomplete.dispatchEvent(syntheticEvent);
+            }
+          });
 
-        // Also debug focus events
-        (addressInput as HTMLInputElement).addEventListener('focus', () => {
-          console.log('🎯 Address input focused');
-        });
-
-        (addressInput as HTMLInputElement).addEventListener('keydown', (e) => {
-          console.log('⌨️ Key pressed:', e.key);
-        });
-
-        autocompleteRef.current = autocomplete;
-        console.log('✅ Autocomplete setup complete');
+          autocompleteRef.current = placeAutocomplete;
+          console.log('✅ Modern PlaceAutocompleteElement setup complete');
+        } else {
+          console.error('❌ Could not find parent element to replace input');
+        }
 
       } catch (error) {
         console.error('❌ Autocomplete error:', error);
