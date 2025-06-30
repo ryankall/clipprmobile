@@ -609,10 +609,14 @@ export default function Settings() {
       return;
     }
 
-    // File is valid, process it
-    const url = URL.createObjectURL(file);
-    setPreviewUrl(url);
-    form.setValue('photoUrl', url);
+    // File is valid, convert to base64 for persistent storage
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const base64 = e.target?.result as string;
+      setPreviewUrl(base64);
+      form.setValue('photoUrl', base64);
+    };
+    reader.readAsDataURL(file);
   };
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
