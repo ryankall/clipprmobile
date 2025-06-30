@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -109,14 +109,17 @@ export function AppointmentDetailsDialog({
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="bg-charcoal border-steel/40 text-white max-w-md">
-        <DialogHeader>
+      <DialogContent className="bg-charcoal border-steel/40 text-white max-w-md max-h-[85vh] flex flex-col">
+        <DialogHeader className="flex-shrink-0">
           <DialogTitle className="text-xl text-white">
             Appointment Details
           </DialogTitle>
+          <DialogDescription className="text-steel">
+            View and manage appointment information
+          </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-6">
+        <div className="flex-1 overflow-y-auto scrollbar-hide space-y-6 pr-2">
           {/* Client Information */}
           <div className="flex items-center space-x-4">
             <Avatar className="h-16 w-16">
