@@ -52,20 +52,20 @@ export function AppointmentCard({
             {format(new Date(appointment.scheduledAt), 'h:mm a')}
           </span>
         </div>
-        <div className="flex items-center justify-between">
-          <p className="text-sm text-steel">{appointment.service.name}</p>
+        <p className="text-sm text-steel mb-1">{appointment.service.name}</p>
+        {appointment.address && (
+          <div className="flex items-center mb-2">
+            <MapPin className="w-3 h-3 text-steel mr-1" />
+            <span className="text-xs text-steel truncate">{appointment.address}</span>
+          </div>
+        )}
+        <div className="flex justify-start">
           <Badge variant={isConfirmed ? "default" : "secondary"} className={`text-xs ${
             isConfirmed ? "bg-green-700 text-white" : "bg-yellow-700 text-white"
           }`}>
             {isConfirmed ? "Confirmed" : "Pending"}
           </Badge>
         </div>
-        {appointment.address && (
-          <div className="flex items-center mt-1">
-            <MapPin className="w-3 h-3 text-steel mr-1" />
-            <span className="text-xs text-steel truncate">{appointment.address}</span>
-          </div>
-        )}
       </div>
       
       {appointment.address && (
