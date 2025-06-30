@@ -385,12 +385,16 @@ export default function Settings() {
         autocompleteRef.current = autocomplete;
         console.log('✅ Autocomplete setup complete');
 
-        // Add manual click handling for PAC items as backup
-        document.addEventListener('click', (e) => {
+        // Add comprehensive click handling for PAC items
+        const handlePacClick = (e: Event) => {
+          console.log('🔍 Click event detected on document');
           const target = e.target as HTMLElement;
           const pacItem = target.closest('.pac-item');
           if (pacItem) {
             console.log('🖱️ Manual PAC item click detected');
+            e.preventDefault();
+            e.stopPropagation();
+            
             // Extract address text from the clicked suggestion
             const textContent = pacItem.textContent || '';
             if (textContent.trim()) {
@@ -405,7 +409,14 @@ export default function Settings() {
               });
             }
           }
-        });
+        };
+
+        // Add both capture and bubble phase listeners
+        document.addEventListener('click', handlePacClick, true); // Capture phase
+        document.addEventListener('click', handlePacClick, false); // Bubble phase
+        
+        // Also monitor for mousedown which might be used by PAC items
+        document.addEventListener('mousedown', handlePacClick, true);
 
       } catch (error) {
         console.error('❌ Autocomplete error:', error);
