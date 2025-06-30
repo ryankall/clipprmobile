@@ -376,6 +376,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = (req.user as any).id;
       const clientData = insertClientSchema.parse({ ...req.body, userId });
+      
+      // Check if a client with this phone number already exists
+      if (clientData.phone) {
+        const clients = await storage.getClientsByUserId(userId);
+        const existingClient = clients.find(c => c.phone === clientData.phone);
+        
+        if (existingClient) {
+          return res.status(409).json({ 
+            message: `Client already exists with this phone number: ${existingClient.name}`,
+            existingClient: existingClient
+          });
+        }
+      }
+      
       const client = await storage.createClient(clientData);
       res.json(client);
     } catch (error: any) {

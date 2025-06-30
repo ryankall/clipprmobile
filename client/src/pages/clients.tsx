@@ -90,10 +90,23 @@ export default function Clients() {
       setIsDialogOpen(false);
       form.reset();
     },
-    onError: (error: any) => {
+    onError: async (error: any) => {
+      let errorMessage = "Failed to add client";
+      
+      if (error.response && error.response.status === 409) {
+        try {
+          const errorData = await error.response.json();
+          errorMessage = errorData.message || "Client with this phone number already exists";
+        } catch {
+          errorMessage = "Client with this phone number already exists";
+        }
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
       toast({
-        title: "Error",
-        description: error.message || "Failed to add client",
+        title: "Client Already Exists",
+        description: errorMessage,
         variant: "destructive",
       });
     },

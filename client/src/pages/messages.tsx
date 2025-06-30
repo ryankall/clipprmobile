@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -25,9 +25,11 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
 import { format, formatDistanceToNow } from "date-fns";
+import type { ClientWithStats } from "@shared/schema";
 
 interface Message {
   id: number;
+  clientId?: number;
   customerName: string;
   customerPhone?: string;
   customerEmail?: string;
@@ -52,6 +54,66 @@ export default function Messages() {
   const { data: messages = [], isLoading } = useQuery<Message[]>({
     queryKey: ["/api/messages"],
   });
+
+  const { data: clients } = useQuery<ClientWithStats[]>({
+    queryKey: ["/api/clients"],
+  });
+
+  // Automatic client detection and linking
+  useEffect(() => {
+    if (selectedMessage && selectedMessage.customerPhone && clients && !selectedMessage.clientId) {
+      // Check if a client with this phone number already exists
+      const existingClient = clients.find(client => 
+        client.phone === selectedMessage.customerPhone
+      );
+      
+      if (existingClient) {
+        // Automatically link the message to the existing client and update client info
+        const updateClientAndMessage = async () => {
+          try {
+            // Update client with latest information from message
+            const updateData: any = {};
+            if (selectedMessage.customerName && selectedMessage.customerName !== existingClient.name) {
+              updateData.name = selectedMessage.customerName;
+            }
+            if (selectedMessage.customerEmail && selectedMessage.customerEmail !== existingClient.email) {
+              updateData.email = selectedMessage.customerEmail;
+            }
+            
+            // Only update if there are changes
+            if (Object.keys(updateData).length > 0) {
+              await apiRequest("PATCH", `/api/clients/${existingClient.id}`, updateData);
+              toast({
+                title: "Client Updated",
+                description: `Updated ${existingClient.name}'s information from the message`,
+              });
+            }
+            
+            // Link the message to the existing client
+            await apiRequest("PATCH", `/api/messages/${selectedMessage.id}`, {
+              clientId: existingClient.id
+            });
+            
+            // Update local state
+            setSelectedMessage({ ...selectedMessage, clientId: existingClient.id });
+            
+            // Refresh queries
+            queryClient.invalidateQueries({ queryKey: ["/api/clients"] });
+            queryClient.invalidateQueries({ queryKey: ["/api/messages"] });
+            
+            toast({
+              title: "Message Linked",
+              description: `Message automatically linked to existing client: ${existingClient.name}`,
+            });
+          } catch (error) {
+            console.error("Error auto-linking client:", error);
+          }
+        };
+        
+        updateClientAndMessage();
+      }
+    }
+  }, [selectedMessage, clients, toast]);
 
   const markAsReadMutation = useMutation({
     mutationFn: async (id: number) => {
@@ -119,6 +181,17 @@ export default function Messages() {
     try {
       const response = await apiRequest("POST", "/api/clients", clientData);
       const clientResponse = await response.json();
+      
+      if (response.status === 409) {
+        // Client already exists
+        toast({
+          title: "Client Already Exists",
+          description: `A client with this phone number already exists: ${clientResponse.existingClient.name}`,
+          variant: "destructive",
+        });
+        return;
+      }
+      
       const newClient = clientResponse;
       
       // Update the message to link it to the new client
@@ -134,10 +207,16 @@ export default function Messages() {
         title: "Client Created",
         description: "New client has been added and linked to this message",
       });
-    } catch (error) {
+    } catch (error: any) {
+      let errorMessage = "Failed to create client. Please try again.";
+      
+      if (error.message && error.message.includes("Client already exists")) {
+        errorMessage = error.message;
+      }
+      
       toast({
         title: "Error",
-        description: "Failed to create client. Please try again.",
+        description: errorMessage,
         variant: "destructive",
       });
     }
