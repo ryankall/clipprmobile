@@ -1290,25 +1290,20 @@ Please contact the client to confirm the appointment.`;
 
       console.log("Creating message with text:", messageText);
 
-      try {
-        const bookingMessage = await storage.createMessage({
-          userId: user.id,
-          customerName: clientName,
-          customerPhone: clientPhone,
-          customerEmail: clientEmail || undefined,
-          subject: "New Booking Request",
-          message: messageText,
-          status: "unread",
-          priority: "normal",
-          serviceRequested: serviceNames.join(', ') || 'No services selected',
-          preferredDate: new Date(`${selectedDate}T${selectedTime}:00`),
-        });
-        
-        console.log("Message created successfully:", bookingMessage.id);
-      } catch (messageError) {
-        console.error("Error creating message:", messageError);
-        throw messageError;
-      }
+      const bookingMessage = await storage.createMessage({
+        userId: user.id,
+        customerName: clientName,
+        customerPhone: clientPhone,
+        customerEmail: clientEmail || undefined,
+        subject: "New Booking Request",
+        message: messageText,
+        status: "unread",
+        priority: "normal",
+        serviceRequested: serviceNames.join(', ') || 'No services selected',
+        preferredDate: new Date(`${selectedDate}T${selectedTime}:00`),
+      });
+      
+      console.log("Message created successfully:", bookingMessage.id);
 
       res.json({ 
         success: true, 
