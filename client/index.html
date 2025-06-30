@@ -41,16 +41,32 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
     
-    <!-- Google Maps Extended Component Library -->
-    <script type="module" src="https://ajax.googleapis.com/ajax/libs/@googlemaps/extended-component-library/0.6.11/index.min.js"></script>
-    
-    <!-- Google Maps API Loader - API key will be set by JavaScript -->
-    <gmpx-api-loader id="gmpx-loader" solution-channel="GMP_QB_addressselection_v1"></gmpx-api-loader>
-    
+    <!-- Google Maps JavaScript API with Places Library -->
     <script type="module">
-      // Set API key from environment variable
+      // Load Google Maps API with Places library
       const apiKey = import.meta?.env?.VITE_GOOGLE_MAPS_API_KEY || 'AIzaSyDzIlMKR9TvPnJPqvlpZPzrfNABHzgKJzQ';
-      document.getElementById('gmpx-loader').setAttribute('key', apiKey);
+      console.log('Loading Google Maps API with key:', apiKey ? 'Key present' : 'No key');
+      
+      // Create script element for Google Maps API
+      const script = document.createElement('script');
+      script.async = true;
+      script.defer = true;
+      script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places&callback=initGoogleMaps`;
+      
+      // Global callback for when Google Maps API is loaded
+      window.initGoogleMaps = function() {
+        console.log('Google Maps API loaded successfully');
+        window.googleMapsReady = true;
+        
+        // Dispatch custom event to notify components
+        window.dispatchEvent(new CustomEvent('google-maps-ready'));
+      };
+      
+      script.onerror = function() {
+        console.error('Failed to load Google Maps API');
+      };
+      
+      document.head.appendChild(script);
     </script>
     
     <!-- PWA Configuration -->

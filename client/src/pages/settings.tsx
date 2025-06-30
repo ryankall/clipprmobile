@@ -4,6 +4,8 @@ import { useState, useRef, useEffect, useCallback } from "react";
 declare global {
   interface Window {
     google: any;
+    googleMapsReady?: boolean;
+    initGoogleMaps?: () => void;
   }
   namespace JSX {
     interface IntrinsicElements {
@@ -211,57 +213,65 @@ export default function Settings() {
 
 
 
-  // Initialize modern autocomplete with Extended Component Library
+  // Initialize Google Places Autocomplete
   useEffect(() => {
     if (isEditingProfile) {
-      console.log('Initializing modern autocomplete...');
+      console.log('Initializing Google Places Autocomplete...');
       
-      // Wait for custom elements to be defined
-      customElements.whenDefined('gmpx-autocomplete').then(() => {
-        console.log('gmpx-autocomplete component available');
-        
-        const container = document.getElementById('address-autocomplete-container');
-        if (container) {
-          // Clear any existing autocomplete
-          container.innerHTML = '';
+      let autocomplete: any = null;
+      
+      const initAutocomplete = () => {
+        const input = document.getElementById('address-input') as HTMLInputElement;
+        if (input && window.google?.maps?.places?.Autocomplete) {
+          console.log('Creating Google Places Autocomplete');
           
-          // Create the autocomplete element dynamically
-          const autocompleteElement = document.createElement('gmpx-autocomplete') as any;
-          autocompleteElement.id = 'address-autocomplete';
-          autocompleteElement.placeholder = 'Start typing your address...';
+          // Create autocomplete instance
+          autocomplete = new window.google.maps.places.Autocomplete(input, {
+            types: ['address'],
+            componentRestrictions: { country: 'us' }
+          });
           
-          // Apply styling directly
-          autocompleteElement.style.width = '100%';
-          autocompleteElement.style.display = 'block';
-          
-          // Add to container
-          container.appendChild(autocompleteElement);
-          
-          // Wait a moment for the element to be fully rendered
-          setTimeout(() => {
-            // Listen for place selection using the modern event
-            autocompleteElement.addEventListener('gmpx-placechange', () => {
-              console.log('=== MODERN PLACE SELECTED ===');
-              const place = autocompleteElement.value;
-              console.log('Selected place:', place);
-              
-              if (place) {
-                // Update form with selected address
-                form.setValue('homeBaseAddress', place, {
-                  shouldValidate: true,
-                  shouldDirty: true
-                });
-                
-                console.log('Form updated with modern autocomplete:', place);
-              }
-            });
+          // Listen for place selection
+          autocomplete.addListener('place_changed', () => {
+            const place = autocomplete.getPlace();
+            console.log('Place selected:', place);
             
-            console.log('Modern autocomplete created and listener attached');
-          }, 100);
+            if (place && place.formatted_address) {
+              // Update form with selected address
+              form.setValue('homeBaseAddress', place.formatted_address, {
+                shouldValidate: true,
+                shouldDirty: true
+              });
+              
+              console.log('Form updated with address:', place.formatted_address);
+            }
+          });
+          
+          console.log('Google Places Autocomplete initialized');
+        } else {
+          console.log('Google Places API not ready yet');
         }
-      }).catch(error => {
-        console.error('Error waiting for gmpx-autocomplete:', error);
-      });
+      };
+      
+      // Check if Google Maps is already loaded
+      if (window.googleMapsReady && window.google?.maps?.places) {
+        initAutocomplete();
+      } else {
+        // Wait for Google Maps to load
+        const handleGoogleMapsReady = () => {
+          initAutocomplete();
+        };
+        
+        window.addEventListener('google-maps-ready', handleGoogleMapsReady);
+        
+        // Cleanup function
+        return () => {
+          window.removeEventListener('google-maps-ready', handleGoogleMapsReady);
+          if (autocomplete) {
+            window.google?.maps?.event?.clearInstanceListeners(autocomplete);
+          }
+        };
+      }
     }
   }, [isEditingProfile, form]);
 
@@ -604,18 +614,13 @@ export default function Settings() {
                             <FormItem>
                               <FormLabel className="text-white">Home Base Address</FormLabel>
                               <FormControl>
-                                <div className="space-y-2">
-                                  {/* Container for the autocomplete component */}
-                                  <div id="address-autocomplete-container" className="w-full"></div>
-                                  
-                                  {/* Fallback input and React Hook Form binding */}
-                                  <Input 
-                                    {...field}
-                                    className="bg-charcoal border-steel/40 text-white"
-                                    placeholder="Start typing your address..."
-                                    autoComplete="off"
-                                  />
-                                </div>
+                                <Input 
+                                  {...field}
+                                  id="address-input"
+                                  className="bg-charcoal border-steel/40 text-white"
+                                  placeholder="Start typing your address..."
+                                  autoComplete="off"
+                                />
                               </FormControl>
                               <p className="text-steel text-xs">
                                 Starting point for calculating travel time to your first appointment. Enter your full address including city and state.
