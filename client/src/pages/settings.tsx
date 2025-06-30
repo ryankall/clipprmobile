@@ -327,40 +327,40 @@ export default function Settings() {
         observer.observe(document.body, { childList: true });
         (autocomplete as any).observer = observer;
 
-        // Add place_changed listener
-        autocomplete.addListener('place_changed', () => {
-          console.log('=== PLACE_CHANGED EVENT FIRED ===');
-          const place = autocomplete.getPlace();
-          console.log('Place object:', place);
-          
-          if (place.formatted_address) {
-            console.log('Updating form with:', place.formatted_address);
-            updateFormWithAddress(place.formatted_address);
-          }
-        });
-
-        // Helper function to update form
+        // Helper function to update form - similar to Google's fillInAddress
         const updateFormWithAddress = (address: string) => {
           console.log('Updating form and input with address:', address);
           
+          // Update the input element directly
           if (addressInputRef.current) {
             addressInputRef.current.value = address;
-            
-            // Create and dispatch input event
-            const inputEvent = new Event('input', { bubbles: true });
-            addressInputRef.current.dispatchEvent(inputEvent);
           }
           
-          // Update React Hook Form
-          form.setValue('homeBaseAddress', address, {
-            shouldValidate: true,
-            shouldDirty: true,
-            shouldTouch: true
-          });
-          
+          // Update React Hook Form state
+          form.setValue('homeBaseAddress', address);
           form.trigger('homeBaseAddress');
-          console.log('Form updated, current value:', form.getValues('homeBaseAddress'));
+          
+          console.log('Form updated successfully with:', address);
         };
+
+        // Add place_changed listener - based on Google's example
+        autocomplete.addListener('place_changed', () => {
+          console.log('=== PLACE_CHANGED EVENT FIRED ===');
+          const place = autocomplete.getPlace();
+          
+          // Check if place has geometry (like in Google's example)
+          if (!place.geometry) {
+            console.log('No geometry found for place:', place.name);
+            return;
+          }
+          
+          console.log('Place selected with geometry:', place);
+          console.log('Formatted address:', place.formatted_address);
+          
+          if (place.formatted_address) {
+            updateFormWithAddress(place.formatted_address);
+          }
+        });
 
         // Add debug listener for when dropdown items are selected
         const inputElement = addressInputRef.current;
@@ -426,7 +426,7 @@ export default function Settings() {
           const interval = setInterval(() => {
             checkForChanges();
             // Stop checking if input loses focus or modal closes
-            if (!document.contains(inputElement) || !editingProfile) {
+            if (!document.contains(inputElement)) {
               clearInterval(interval);
             }
           }, 200);
