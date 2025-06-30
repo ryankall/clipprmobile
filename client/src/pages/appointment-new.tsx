@@ -48,9 +48,15 @@ export default function AppointmentNew() {
     travelInfo?: string;
   }>({ isValidating: false });
   
-  // Get clientId from URL params if provided
+  // Get parameters from URL if provided
   const urlParams = new URLSearchParams(window.location.search);
   const preselectedClientId = urlParams.get('clientId');
+  const clientName = urlParams.get('clientName');
+  const clientPhone = urlParams.get('phone');
+  const clientEmail = urlParams.get('email');
+  const prefilledServices = urlParams.get('services');
+  const prefilledAddress = urlParams.get('address');
+  const prefilledNotes = urlParams.get('notes');
 
   const { data: clients } = useQuery<Client[]>({
     queryKey: ["/api/clients"],
@@ -60,14 +66,32 @@ export default function AppointmentNew() {
     queryKey: ["/api/services"],
   });
 
+  // Find client by ID or phone number
+  const foundClient = clients?.find(client => 
+    preselectedClientId ? client.id === parseInt(preselectedClientId) :
+    clientPhone ? client.phone === clientPhone : false
+  );
+
+  // Parse primary service from URL parameter
+  const parseServiceFromUrl = (servicesParam: string | null): number => {
+    if (!servicesParam || !services) return 0;
+    
+    const serviceNames = servicesParam.split(',').map(s => s.trim());
+    const matchedService = services.find(service => service.name === serviceNames[0]);
+    
+    return matchedService?.id || 0;
+  };
+
+  const preselectedServiceId = parseServiceFromUrl(prefilledServices);
+
   const form = useForm<z.infer<typeof appointmentFormSchema>>({
     resolver: zodResolver(appointmentFormSchema),
     defaultValues: {
-      clientId: preselectedClientId ? parseInt(preselectedClientId) : 0,
-      serviceId: 0,
+      clientId: foundClient?.id || 0,
+      serviceId: preselectedServiceId,
       scheduledAt: "",
-      notes: "",
-      address: "",
+      notes: prefilledNotes || "",
+      address: prefilledAddress || "",
     },
   });
 
@@ -78,8 +102,11 @@ export default function AppointmentNew() {
       const utcDateTime = localDateTime.toISOString();
       
       const appointmentData = {
-        ...data,
-        scheduledAt: utcDateTime
+        clientId: data.clientId,
+        serviceId: data.serviceId,
+        scheduledAt: utcDateTime,
+        notes: data.notes,
+        address: data.address
       };
       
       return apiRequest("POST", "/api/appointments", appointmentData);
@@ -176,7 +203,7 @@ export default function AppointmentNew() {
     }
   }, [watchedValues.scheduledAt, watchedValues.clientId, watchedValues.serviceId]);
 
-  const selectedClient = clients?.find(c => c.id === form.watch("clientId"));
+  const currentClient = clients?.find(c => c.id === form.watch("clientId"));
 
   return (
     <div className="min-h-screen bg-dark-bg text-white pb-20">

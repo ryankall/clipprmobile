@@ -517,7 +517,34 @@ export default function Messages() {
                       variant="outline"
                       size="sm"
                       onClick={() => {
-                        setLocation(`/appointments/new?clientName=${encodeURIComponent(selectedMessage.customerName)}&phone=${encodeURIComponent(selectedMessage.customerPhone || "")}&email=${encodeURIComponent(selectedMessage.customerEmail || "")}`);
+                        // Extract services from message content
+                        const serviceMatch = selectedMessage.message.match(/💇 Services: (.+?)(?:\n|$)/);
+                        const services = serviceMatch ? serviceMatch[1] : "";
+                        
+                        // Extract address from travel information
+                        const addressMatch = selectedMessage.message.match(/🚗 Travel: Yes - (.+?)(?:\n|$)/);
+                        const address = addressMatch ? addressMatch[1] : "";
+                        
+                        // Use clientId if message is linked to client, otherwise use phone/name for lookup
+                        const clientParam = selectedMessage.clientId 
+                          ? `clientId=${selectedMessage.clientId}` 
+                          : `clientName=${encodeURIComponent(selectedMessage.customerName)}&phone=${encodeURIComponent(selectedMessage.customerPhone || "")}`;
+                        
+                        const params = new URLSearchParams();
+                        if (selectedMessage.clientId) {
+                          params.set('clientId', selectedMessage.clientId.toString());
+                        } else {
+                          params.set('clientName', selectedMessage.customerName);
+                          if (selectedMessage.customerPhone) params.set('phone', selectedMessage.customerPhone);
+                        }
+                        if (selectedMessage.customerEmail) params.set('email', selectedMessage.customerEmail);
+                        if (services) params.set('services', services);
+                        if (address) params.set('address', address);
+                        if (selectedMessage.preferredDate) {
+                          params.set('notes', `Preferred date: ${format(new Date(selectedMessage.preferredDate), "MMM d, yyyy")}`);
+                        }
+                        
+                        setLocation(`/appointments/new?${params.toString()}`);
                       }}
                       className="border-gold/30 text-gold hover:bg-gold/10"
                     >
