@@ -327,23 +327,64 @@ export default function Settings() {
           console.log('🎯 Web Component focused!');
         });
 
+        // Add comprehensive input debugging
+        placeAutocomplete.addEventListener('input', (event: any) => {
+          console.log('⌨️ Input event:', {
+            value: event.target.value,
+            length: event.target.value?.length,
+            event: event.type
+          });
+        });
+
+        placeAutocomplete.addEventListener('keydown', (event: any) => {
+          console.log('🔑 Keydown:', {
+            key: event.key,
+            value: placeAutocomplete.value
+          });
+        });
+
+        placeAutocomplete.addEventListener('keyup', (event: any) => {
+          console.log('🔑 Keyup:', {
+            key: event.key,
+            value: placeAutocomplete.value
+          });
+        });
+
+        // Listen for all possible Web Component events
+        const eventTypes = ['placechange', 'gmp-placeselect', 'gmp-placechange', 'change', 'autocomplete'];
+        eventTypes.forEach(eventType => {
+          placeAutocomplete.addEventListener(eventType, (event: any) => {
+            console.log(`🎯 Event "${eventType}" fired:`, event);
+            if (event.place) {
+              console.log('📍 Place object:', event.place);
+            }
+            if (event.target?.value) {
+              console.log('💬 Value:', event.target.value);
+            }
+          });
+        });
+
         // Replace the input
         parentElement.replaceChild(placeAutocomplete, addressInput);
         
-        // Listen for place selection using the correct event name
-        placeAutocomplete.addEventListener('placechange', (event: any) => {
-          console.log('🎯 Place changed:', event);
-          const selectedAddress = placeAutocomplete.value;
-          
-          if (selectedAddress) {
-            console.log('✅ Address selected:', selectedAddress);
-            
-            // Update the form using React Hook Form's setValue
-            form.setValue('homeBaseAddress', selectedAddress);
-            
-            // Also trigger validation
-            form.trigger('homeBaseAddress');
-          }
+        // Monitor for suggestions appearing
+        const checkForSuggestions = () => {
+          const suggestions = document.querySelectorAll('gmp-place-autocomplete, [role="listbox"], .pac-container');
+          console.log(`🔍 Suggestion containers found: ${suggestions.length}`);
+          suggestions.forEach((container, index) => {
+            console.log(`Container ${index}:`, {
+              tagName: container.tagName,
+              visible: (container as HTMLElement).offsetHeight > 0,
+              children: container.children.length
+            });
+          });
+        };
+
+        // Check for suggestions periodically when typing
+        let suggestionInterval: NodeJS.Timeout;
+        placeAutocomplete.addEventListener('input', () => {
+          clearTimeout(suggestionInterval);
+          suggestionInterval = setTimeout(checkForSuggestions, 500);
         });
 
         autocompleteRef.current = placeAutocomplete;
