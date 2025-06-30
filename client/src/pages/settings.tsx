@@ -387,18 +387,37 @@ export default function Settings() {
 
         // Add comprehensive click handling for PAC items
         const handlePacClick = (e: Event) => {
-          console.log('🔍 Click event detected on document');
           const target = e.target as HTMLElement;
-          const pacItem = target.closest('.pac-item');
-          if (pacItem) {
-            console.log('🖱️ Manual PAC item click detected');
+          console.log('🔍 Click detected on:', {
+            tagName: target.tagName,
+            className: target.className,
+            textContent: target.textContent?.substring(0, 50)
+          });
+          
+          // Check multiple selectors for PAC items
+          const pacItem = target.closest('.pac-item') || 
+                          target.closest('[class*="pac-"]') ||
+                          (target.classList.contains('pac-item') ? target : null);
+          
+          // Also check if clicked element is inside PAC container
+          const pacContainer = target.closest('.pac-container');
+          
+          if (pacItem || pacContainer) {
+            console.log('🖱️ PAC-related click detected:', {
+              pacItem: !!pacItem,
+              pacContainer: !!pacContainer,
+              target: target.className
+            });
+            
             e.preventDefault();
             e.stopPropagation();
             
-            // Extract address text from the clicked suggestion
-            const textContent = pacItem.textContent || '';
+            // Get text from clicked element or its PAC container
+            const textElement = pacItem || target;
+            const textContent = textElement.textContent || '';
+            
             if (textContent.trim()) {
-              console.log('📍 Manual address selection:', textContent);
+              console.log('📍 Address selection:', textContent.trim());
               (addressInput as HTMLInputElement).value = textContent.trim();
               (addressInput as HTMLInputElement).dispatchEvent(new Event('input', { bubbles: true }));
               (addressInput as HTMLInputElement).dispatchEvent(new Event('change', { bubbles: true }));
