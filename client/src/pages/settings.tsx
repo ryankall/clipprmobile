@@ -339,6 +339,22 @@ export default function Settings() {
               element.style.pointerEvents = 'auto !important';
               element.style.isolation = 'isolate !important';
               
+              // Add event listeners to container to prevent modal close
+              element.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                e.stopImmediatePropagation();
+                console.log('🛡️ PAC container click blocked');
+                return false;
+              }, true);
+              
+              element.addEventListener('mousedown', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                e.stopImmediatePropagation();
+                return false;
+              }, true);
+              
               // Style the suggestion items and add click handlers
               const items = element.querySelectorAll('.pac-item');
               items.forEach((item, itemIndex) => {
@@ -403,14 +419,14 @@ export default function Settings() {
           });
         });
 
-        // Listen for place selection
+        // Listen for place selection using Google's native event
         autocomplete.addListener('place_changed', () => {
           console.log('🎯 Place changed event fired!');
           const place = autocomplete.getPlace();
           console.log('📍 Place object:', place);
           
           if (place.formatted_address) {
-            console.log('✅ Address selected:', place.formatted_address);
+            console.log('✅ Address selected via Google API:', place.formatted_address);
             
             addressInput.value = place.formatted_address;
             addressInput.dispatchEvent(new Event('input', { bubbles: true }));
@@ -418,6 +434,14 @@ export default function Settings() {
             // Update React Hook Form
             form.setValue('homeBaseAddress', place.formatted_address);
             form.trigger('homeBaseAddress');
+            
+            // Hide suggestions after selection
+            setTimeout(() => {
+              const containers = document.querySelectorAll('.pac-container');
+              containers.forEach(container => {
+                (container as HTMLElement).style.display = 'none';
+              });
+            }, 100);
           }
         });
 
