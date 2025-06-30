@@ -317,32 +317,33 @@ export default function Settings() {
             // Check if Google Places API can make requests
             console.log('🔑 Testing Google Places API status...');
             
-            // Test the autocomplete with a simple query
+            // Test if autocomplete is actually working by manually triggering it
+            console.log('🔍 Testing manual autocomplete trigger...');
+            
+            // Simulate typing in the input to see if suggestions appear
             setTimeout(() => {
-              console.log('🔑 Testing autocomplete predictions...');
-              const service = new window.google.maps.places.AutocompleteService();
-              service.getPlacePredictions({
-                input: 'New York',
-                types: ['address']
-              }, (predictions: any, status: any) => {
-                console.log('🔑 Autocomplete predictions status:', status);
-                console.log('🔑 Status constants:', {
-                  OK: window.google.maps.places.PlacesServiceStatus.OK,
-                  REQUEST_DENIED: window.google.maps.places.PlacesServiceStatus.REQUEST_DENIED,
-                  INVALID_REQUEST: window.google.maps.places.PlacesServiceStatus.INVALID_REQUEST,
-                  OVER_QUERY_LIMIT: window.google.maps.places.PlacesServiceStatus.OVER_QUERY_LIMIT
-                });
+              const testInput = 'New York';
+              input.value = testInput;
+              input.focus();
+              
+              // Trigger input event
+              const inputEvent = new Event('input', { bubbles: true });
+              input.dispatchEvent(inputEvent);
+              
+              console.log('🔍 Simulated typing "New York" - checking for autocomplete dropdown');
+              
+              // Check if any Google autocomplete elements appear
+              setTimeout(() => {
+                const pacContainer = document.querySelector('.pac-container');
+                const pacItems = document.querySelectorAll('.pac-item');
+                console.log('🔍 Autocomplete dropdown found:', !!pacContainer);
+                console.log('🔍 Number of suggestions:', pacItems.length);
                 
-                if (status === window.google.maps.places.PlacesServiceStatus.REQUEST_DENIED) {
-                  console.error('🔑 Autocomplete access denied - API key issue');
-                  console.error('🔑 This is why no suggestions are showing up');
-                } else if (status === window.google.maps.places.PlacesServiceStatus.OK) {
-                  console.log('🔑 Autocomplete working correctly');
-                  console.log('🔑 Predictions received:', predictions?.length || 0);
-                } else {
-                  console.error('🔑 Autocomplete error:', status);
+                if (!pacContainer) {
+                  console.error('🔍 No autocomplete dropdown appeared - this confirms the issue');
+                  console.error('🔍 The autocomplete instance exists but Google is not showing suggestions');
                 }
-              });
+              }, 2000);
             }, 1000);
             
             console.log('✅ Google Places Autocomplete initialized successfully');
