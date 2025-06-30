@@ -518,8 +518,28 @@ export default function Messages() {
                       size="sm"
                       onClick={() => {
                         // Extract services from message content
+                        let services = "";
                         const serviceMatch = selectedMessage.message.match(/💇 Services: (.+?)(?:\n|$)/);
-                        const services = serviceMatch ? serviceMatch[1] : "";
+                        if (serviceMatch && serviceMatch[1].trim()) {
+                          services = serviceMatch[1].trim();
+                        } else {
+                          // If services field is empty, try to extract from message content or use default
+                          // Look for common service keywords in the message
+                          const messageText = selectedMessage.message.toLowerCase();
+                          const detectedServices = [];
+                          
+                          if (messageText.includes('haircut') || messageText.includes('cut')) {
+                            detectedServices.push('Haircut');
+                          }
+                          if (messageText.includes('beard') || messageText.includes('trim')) {
+                            detectedServices.push('Beard Trim');
+                          }
+                          if (messageText.includes('shave')) {
+                            detectedServices.push('Shave');
+                          }
+                          
+                          services = detectedServices.join(', ');
+                        }
                         
                         // Extract address from travel information
                         const addressMatch = selectedMessage.message.match(/🚗 Travel: Yes - (.+?)(?:\n|$)/);
@@ -529,38 +549,43 @@ export default function Messages() {
                         let preferredDateTime = "";
                         let notesText = "";
                         
-                        // Look for various date/time patterns in the message
-                        const datePatterns = [
-                          /(?:tomorrow|today)\s+(?:at\s+)?(\d{1,2}:\d{2}(?:\s*[ap]m)?)/i,
-                          /(\d{1,2}\/\d{1,2}\/\d{4})\s+(?:at\s+)?(\d{1,2}:\d{2}(?:\s*[ap]m)?)/i,
-                          /(?:january|february|march|april|may|june|july|august|september|october|november|december)\s+(\d{1,2})(?:st|nd|rd|th)?\s+(?:at\s+)?(\d{1,2}:\d{2}(?:\s*[ap]m)?)/i,
-                          /(\d{1,2})\s+(?:january|february|march|april|may|june|july|august|september|october|november|december)\s+(?:at\s+)?(\d{1,2}:\d{2}(?:\s*[ap]m)?)/i
-                        ];
+                        // Extract structured date from booking form format
+                        const dateMatch = selectedMessage.message.match(/📅 Date: (\d{4}-\d{2}-\d{2})/);
+                        const timeMatch = selectedMessage.message.match(/⏰ Time: (\d{1,2}:\d{2})/);
                         
-                        const message = selectedMessage.message.toLowerCase();
-                        
-                        // Try to extract date/time from message
-                        if (message.includes('tomorrow')) {
-                          const timeMatch = message.match(/tomorrow\s+(?:at\s+)?(\d{1,2}:\d{2}(?:\s*[ap]m)?)/i);
-                          if (timeMatch) {
-                            const tomorrow = new Date();
-                            tomorrow.setDate(tomorrow.getDate() + 1);
-                            let timeStr = timeMatch[1];
-                            
-                            // Convert 12-hour to 24-hour format if needed
-                            if (timeStr.includes('pm') && !timeStr.startsWith('12')) {
-                              const hour = parseInt(timeStr.split(':')[0]) + 12;
-                              timeStr = timeStr.replace(/\d{1,2}/, hour.toString()).replace(/\s*pm/i, '');
-                            } else if (timeStr.includes('am')) {
-                              timeStr = timeStr.replace(/\s*am/i, '');
-                              if (timeStr.startsWith('12:')) {
-                                timeStr = timeStr.replace('12:', '00:');
+                        if (dateMatch && timeMatch) {
+                          const dateStr = dateMatch[1]; // YYYY-MM-DD format
+                          const timeStr = timeMatch[1]; // HH:MM format
+                          
+                          // Combine date and time into datetime-local format
+                          preferredDateTime = `${dateStr}T${timeStr}`;
+                        } else {
+                          // Fallback to natural language parsing
+                          const message = selectedMessage.message.toLowerCase();
+                          
+                          // Try to extract date/time from message
+                          if (message.includes('tomorrow')) {
+                            const naturalTimeMatch = message.match(/tomorrow\s+(?:at\s+)?(\d{1,2}:\d{2}(?:\s*[ap]m)?)/i);
+                            if (naturalTimeMatch) {
+                              const tomorrow = new Date();
+                              tomorrow.setDate(tomorrow.getDate() + 1);
+                              let timeStr = naturalTimeMatch[1];
+                              
+                              // Convert 12-hour to 24-hour format if needed
+                              if (timeStr.includes('pm') && !timeStr.startsWith('12')) {
+                                const hour = parseInt(timeStr.split(':')[0]) + 12;
+                                timeStr = timeStr.replace(/\d{1,2}/, hour.toString()).replace(/\s*pm/i, '');
+                              } else if (timeStr.includes('am')) {
+                                timeStr = timeStr.replace(/\s*am/i, '');
+                                if (timeStr.startsWith('12:')) {
+                                  timeStr = timeStr.replace('12:', '00:');
+                                }
                               }
+                              
+                              const [hours, minutes] = timeStr.split(':');
+                              tomorrow.setHours(parseInt(hours), parseInt(minutes), 0, 0);
+                              preferredDateTime = format(tomorrow, "yyyy-MM-dd'T'HH:mm");
                             }
-                            
-                            const [hours, minutes] = timeStr.split(':');
-                            tomorrow.setHours(parseInt(hours), parseInt(minutes), 0, 0);
-                            preferredDateTime = format(tomorrow, "yyyy-MM-dd'T'HH:mm");
                           }
                         }
                         
