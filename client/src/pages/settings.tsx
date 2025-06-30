@@ -337,15 +337,56 @@ export default function Settings() {
               element.style.border = '1px solid #6B7280 !important';
               element.style.borderRadius = '6px !important';
               
-              // Style the suggestion items
+              // Style the suggestion items and add click handlers
               const items = element.querySelectorAll('.pac-item');
-              items.forEach(item => {
-                (item as HTMLElement).style.color = 'white !important';
-                (item as HTMLElement).style.backgroundColor = '#2D2D2D !important';
-                (item as HTMLElement).style.padding = '8px 12px !important';
+              items.forEach((item, itemIndex) => {
+                const htmlItem = item as HTMLElement;
+                htmlItem.style.color = 'white !important';
+                htmlItem.style.backgroundColor = '#2D2D2D !important';
+                htmlItem.style.padding = '8px 12px !important';
+                htmlItem.style.cursor = 'pointer !important';
+                
+                // Add hover effect
+                htmlItem.addEventListener('mouseenter', () => {
+                  htmlItem.style.backgroundColor = '#4A4A4A !important';
+                });
+                
+                htmlItem.addEventListener('mouseleave', () => {
+                  htmlItem.style.backgroundColor = '#2D2D2D !important';
+                });
+                
+                // Add click handler
+                htmlItem.addEventListener('click', (e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  
+                  console.log(`🖱️ Suggestion ${itemIndex} clicked:`, htmlItem.textContent);
+                  
+                  // Get the suggestion text
+                  const suggestionText = htmlItem.textContent?.trim();
+                  if (suggestionText) {
+                    console.log('✅ Setting address from suggestion:', suggestionText);
+                    
+                    // Update the input value
+                    addressInput.value = suggestionText;
+                    
+                    // Trigger events to update React Hook Form
+                    addressInput.dispatchEvent(new Event('input', { bubbles: true }));
+                    addressInput.dispatchEvent(new Event('change', { bubbles: true }));
+                    
+                    // Update form directly
+                    form.setValue('homeBaseAddress', suggestionText);
+                    form.trigger('homeBaseAddress');
+                    
+                    // Hide the suggestions
+                    element.style.display = 'none';
+                    
+                    console.log('✅ Address set from clicked suggestion');
+                  }
+                });
               });
               
-              console.log('🎨 Applied dark theme styling to PAC container');
+              console.log('🎨 Applied dark theme styling and click handlers to PAC container');
             });
           }, 200);
         });
