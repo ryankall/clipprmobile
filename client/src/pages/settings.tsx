@@ -112,6 +112,7 @@ export default function Settings() {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [isConnectingStripe, setIsConnectingStripe] = useState(false);
   const [isGoogleMapsLoaded, setIsGoogleMapsLoaded] = useState(false);
+  const [isAutocompleteOpen, setIsAutocompleteOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const addressInputRef = useRef<HTMLInputElement>(null);
   const autocompleteRef = useRef<any>(null);
@@ -203,7 +204,30 @@ export default function Settings() {
     },
   });
 
+  // Global click handler to prevent modal closure on Google autocomplete clicks
+  useEffect(() => {
+    const handleGlobalClick = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+      
+      // Check if click is on Google autocomplete elements
+      if (target.closest('.pac-container') || 
+          target.closest('.pac-item') ||
+          target.classList.contains('pac-item')) {
+        console.log('🛡️ Blocking Google autocomplete click from closing modal');
+        event.preventDefault();
+        event.stopPropagation();
+        event.stopImmediatePropagation();
+        return false;
+      }
+    };
 
+    if (isEditingProfile) {
+      document.addEventListener('click', handleGlobalClick, true);
+      return () => {
+        document.removeEventListener('click', handleGlobalClick, true);
+      };
+    }
+  }, [isEditingProfile]);
 
   // Setup Google Maps API with Places library
   useEffect(() => {
