@@ -1270,6 +1270,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const slotDateTime = new Date(requestDate);
         slotDateTime.setHours(hour, minute, 0, 0);
         
+        // Skip past time slots if the date is today (with 15-minute buffer)
+        const now = new Date();
+        const todayDate = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
+        const requestDateStr = date; // The date parameter passed to the API
+        const isToday = requestDateStr === todayDate;
+        
+        if (isToday && slotDateTime <= new Date(now.getTime() + 15 * 60000)) {
+          continue; // Skip this time slot as it's in the past or too close
+        }
+        
         // Check if time slot is booked (any appointment overlaps with this 15-min slot)
         const isBooked = appointments.some(apt => {
           const aptStart = new Date(apt.scheduledAt);
