@@ -45,27 +45,43 @@
     <script>
       // Global callback function must be defined before the script loads
       window.initGoogleMaps = function() {
-        console.log('Google Maps API loaded successfully');
+        console.log('🗺️ Google Maps API callback triggered');
+        console.log('🗺️ window.google exists:', !!window.google);
+        console.log('🗺️ window.google.maps exists:', !!window.google?.maps);
+        console.log('🗺️ window.google.maps.places exists:', !!window.google?.maps?.places);
+        console.log('🗺️ window.google.maps.places.Autocomplete exists:', !!window.google?.maps?.places?.Autocomplete);
+        
         window.googleMapsReady = true;
         
         // Dispatch custom event to notify components
+        console.log('🗺️ Dispatching google-maps-ready event');
         window.dispatchEvent(new CustomEvent('google-maps-ready'));
+        console.log('🗺️ Google Maps initialization complete');
       };
     </script>
     <script type="module">
       // Load Google Maps API with Places library
       const apiKey = import.meta?.env?.VITE_GOOGLE_MAPS_API_KEY || 'AIzaSyDzIlMKR9TvPnJPqvlpZPzrfNABHzgKJzQ';
-      console.log('Loading Google Maps API with key:', apiKey ? 'Key present' : 'No key');
+      console.log('🗺️ Loading Google Maps API with key:', apiKey ? 'Key present' : 'No key');
+      console.log('🗺️ API Key length:', apiKey ? apiKey.length : 0);
       
       // Create script element for Google Maps API
       const script = document.createElement('script');
       script.async = true;
       script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places&callback=initGoogleMaps`;
       
-      script.onerror = function() {
-        console.error('Failed to load Google Maps API');
+      console.log('🗺️ Script URL:', script.src);
+      
+      script.onload = function() {
+        console.log('🗺️ Google Maps script loaded successfully');
       };
       
+      script.onerror = function(error) {
+        console.error('🗺️ Failed to load Google Maps API:', error);
+        console.error('🗺️ Script src:', script.src);
+      };
+      
+      console.log('🗺️ Adding script to document head');
       document.head.appendChild(script);
     </script>
     

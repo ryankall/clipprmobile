@@ -216,61 +216,103 @@ export default function Settings() {
   // Initialize Google Places Autocomplete
   useEffect(() => {
     if (isEditingProfile) {
+      console.log('=== AUTOCOMPLETE DEBUG START ===');
       console.log('Initializing Google Places Autocomplete...');
+      console.log('window.google exists:', !!window.google);
+      console.log('window.google.maps exists:', !!window.google?.maps);
+      console.log('window.google.maps.places exists:', !!window.google?.maps?.places);
+      console.log('window.google.maps.places.Autocomplete exists:', !!window.google?.maps?.places?.Autocomplete);
+      console.log('window.googleMapsReady:', window.googleMapsReady);
       
       let autocomplete: any = null;
+      let retryCount = 0;
+      const maxRetries = 20;
       
       const initAutocomplete = () => {
+        console.log('=== INIT AUTOCOMPLETE START ===');
         const input = document.getElementById('address-input') as HTMLInputElement;
+        console.log('Input element found:', !!input);
+        console.log('Input element ID:', input?.id);
+        console.log('Input element type:', input?.type);
+        
         if (input && window.google?.maps?.places?.Autocomplete) {
-          console.log('Creating Google Places Autocomplete');
+          console.log('✅ Creating Google Places Autocomplete');
           
-          // Create autocomplete instance
-          autocomplete = new window.google.maps.places.Autocomplete(input, {
-            types: ['address'],
-            componentRestrictions: { country: 'us' }
-          });
-          
-          // Listen for place selection
-          autocomplete.addListener('place_changed', () => {
-            const place = autocomplete.getPlace();
-            console.log('Place selected:', place);
+          try {
+            // Create autocomplete instance
+            autocomplete = new window.google.maps.places.Autocomplete(input, {
+              types: ['address'],
+              componentRestrictions: { country: 'us' }
+            });
             
-            if (place && place.formatted_address) {
-              // Update form with selected address
-              form.setValue('homeBaseAddress', place.formatted_address, {
-                shouldValidate: true,
-                shouldDirty: true
-              });
+            console.log('✅ Autocomplete instance created:', !!autocomplete);
+            
+            // Listen for place selection
+            autocomplete.addListener('place_changed', () => {
+              console.log('=== PLACE CHANGED EVENT ===');
+              const place = autocomplete.getPlace();
+              console.log('Place selected:', place);
+              console.log('Place formatted_address:', place?.formatted_address);
               
-              console.log('Form updated with address:', place.formatted_address);
-            }
-          });
-          
-          console.log('Google Places Autocomplete initialized');
+              if (place && place.formatted_address) {
+                // Update form with selected address
+                form.setValue('homeBaseAddress', place.formatted_address, {
+                  shouldValidate: true,
+                  shouldDirty: true
+                });
+                
+                console.log('✅ Form updated with address:', place.formatted_address);
+              } else {
+                console.log('❌ No formatted_address in place object');
+              }
+            });
+            
+            console.log('✅ Google Places Autocomplete initialized successfully');
+            console.log('=== AUTOCOMPLETE DEBUG END ===');
+          } catch (error) {
+            console.error('❌ Error creating autocomplete:', error);
+          }
         } else {
-          console.log('Google Places API not ready yet');
+          console.log('❌ Prerequisites not met:');
+          console.log('  - Input element:', !!input);
+          console.log('  - window.google:', !!window.google);
+          console.log('  - window.google.maps:', !!window.google?.maps);
+          console.log('  - window.google.maps.places:', !!window.google?.maps?.places);
+          console.log('  - window.google.maps.places.Autocomplete:', !!window.google?.maps?.places?.Autocomplete);
         }
       };
       
       // Try to initialize autocomplete with retries
       const tryInitAutocomplete = () => {
+        retryCount++;
+        console.log(`=== RETRY ATTEMPT ${retryCount}/${maxRetries} ===`);
+        console.log('window.google?.maps?.places?.Autocomplete exists:', !!window.google?.maps?.places?.Autocomplete);
+        
         if (window.google?.maps?.places?.Autocomplete) {
-          console.log('Google Maps Places API is ready, initializing...');
+          console.log('✅ Google Maps Places API is ready, initializing...');
           initAutocomplete();
-        } else {
-          console.log('Google Maps Places API not ready, retrying in 500ms...');
+        } else if (retryCount < maxRetries) {
+          console.log(`❌ Google Maps Places API not ready, retrying in 500ms... (attempt ${retryCount}/${maxRetries})`);
           setTimeout(tryInitAutocomplete, 500);
+        } else {
+          console.error('❌ Max retries reached, Google Maps API failed to load');
         }
       };
       
       // Check if Google Maps is already loaded
+      console.log('=== INITIAL CHECK ===');
+      console.log('window.googleMapsReady:', window.googleMapsReady);
+      console.log('window.google?.maps?.places exists:', !!window.google?.maps?.places);
+      
       if (window.googleMapsReady && window.google?.maps?.places) {
+        console.log('✅ Google Maps already ready, initializing immediately');
         initAutocomplete();
       } else {
+        console.log('❌ Google Maps not ready, setting up event listeners and retries');
+        
         // Wait for Google Maps to load or start trying immediately
         const handleGoogleMapsReady = () => {
-          console.log('Google Maps ready event received');
+          console.log('✅ Google Maps ready event received');
           tryInitAutocomplete();
         };
         
@@ -281,6 +323,7 @@ export default function Settings() {
         
         // Cleanup function
         return () => {
+          console.log('🧹 Cleaning up autocomplete listeners');
           window.removeEventListener('google-maps-ready', handleGoogleMapsReady);
           if (autocomplete) {
             window.google?.maps?.event?.clearInstanceListeners(autocomplete);
