@@ -327,143 +327,38 @@ export default function Settings() {
         observer.observe(document.body, { childList: true });
         (autocomplete as any).observer = observer;
 
-        // Helper function to update form - similar to Google's fillInAddress
-        const updateFormWithAddress = (address: string) => {
-          console.log('Updating form and input with address:', address);
-          
-          // Update the input element directly
-          if (addressInputRef.current) {
-            addressInputRef.current.value = address;
-          }
-          
-          // Update React Hook Form state
-          form.setValue('homeBaseAddress', address);
-          form.trigger('homeBaseAddress');
-          
-          console.log('Form updated successfully with:', address);
-        };
-
-        // Add place_changed listener - based on Google's example
+        // Place changed listener using React Hook Form best practice
         autocomplete.addListener('place_changed', () => {
           console.log('=== PLACE_CHANGED EVENT FIRED ===');
           const place = autocomplete.getPlace();
           
           // Check if place has geometry (like in Google's example)
-          if (!place.geometry) {
-            console.log('No geometry found for place:', place.name);
+          if (!place.geometry || !place.formatted_address) {
+            console.log('Invalid place selection');
             return;
           }
           
-          console.log('Place selected with geometry:', place);
-          console.log('Formatted address:', place.formatted_address);
+          console.log('Valid place selected:', place.formatted_address);
           
-          if (place.formatted_address) {
-            updateFormWithAddress(place.formatted_address);
+          // Update input value
+          if (addressInputRef.current) {
+            addressInputRef.current.value = place.formatted_address;
+            
+            // Manually trigger input event so React-Hook-Form gets updated
+            addressInputRef.current.dispatchEvent(new Event('input', { bubbles: true }));
+            
+            console.log('✅ Address updated via dispatchEvent:', place.formatted_address);
           }
         });
 
-        // Add debug listener for when dropdown items are selected
+        // Basic event listeners for debugging
         const inputElement = addressInputRef.current;
         inputElement.addEventListener('focus', () => {
-          console.log('Input focused - autocomplete should be active');
+          console.log('Input focused - autocomplete active');
         });
         
         inputElement.addEventListener('blur', () => {
           console.log('Input blurred');
-        });
-        
-        inputElement.addEventListener('keydown', (e) => {
-          console.log('Key pressed:', e.key);
-          if (e.key === 'Enter') {
-            console.log('Enter pressed - checking if place was selected');
-            setTimeout(() => {
-              console.log('Current input value after Enter:', inputElement.value);
-            }, 100);
-          }
-        });
-
-        // Global click listener to catch clicks on autocomplete dropdown
-        const handleGlobalClick = (e: Event) => {
-          const target = e.target as HTMLElement;
-          
-          // Check if click is on a Google Places autocomplete suggestion
-          if (target.closest('.pac-container') || target.classList.contains('pac-item')) {
-            console.log('Click detected on autocomplete suggestion:', target);
-            
-            // Short delay to let Google handle the click first
-            setTimeout(() => {
-              const currentValue = inputElement.value;
-              console.log('Value after autocomplete click:', currentValue);
-              
-              if (currentValue && currentValue.length > 10) {
-                console.log('Updating form with clicked suggestion');
-                updateFormWithAddress(currentValue);
-              }
-            }, 50);
-          }
-        };
-
-        // Add global click listener
-        document.addEventListener('click', handleGlobalClick, true);
-
-        // Store reference for cleanup
-        (autocomplete as any).globalClickHandler = handleGlobalClick;
-
-        // Backup polling for input value changes
-        let lastValue = inputElement.value;
-        const checkForChanges = () => {
-          const currentValue = inputElement.value;
-          if (currentValue !== lastValue && currentValue.length > lastValue.length + 5) {
-            console.log('Value changed significantly:', currentValue);
-            updateFormWithAddress(currentValue);
-          }
-          lastValue = currentValue;
-        };
-
-        // Aggressive monitoring for autocomplete selections
-        let monitoringInterval: number | null = null;
-        let lastMonitoredValue = inputElement.value;
-        
-        const startAggressiveMonitoring = () => {
-          if (monitoringInterval) return;
-          
-          console.log('Starting aggressive monitoring for autocomplete');
-          monitoringInterval = window.setInterval(() => {
-            const currentValue = inputElement.value;
-            
-            // Check if value changed and looks like a complete address
-            if (currentValue !== lastMonitoredValue) {
-              console.log('Value change detected:', currentValue);
-              
-              // If it looks like a complete address (has commas and length > 15)
-              if (currentValue.includes(',') && currentValue.length > 15) {
-                console.log('Complete address detected - updating form');
-                updateFormWithAddress(currentValue);
-              }
-              
-              lastMonitoredValue = currentValue;
-            }
-          }, 50); // Check every 50ms for faster detection
-        };
-        
-        const stopMonitoring = () => {
-          if (monitoringInterval) {
-            clearInterval(monitoringInterval);
-            monitoringInterval = null;
-            console.log('Stopped aggressive monitoring');
-          }
-        };
-        
-        inputElement.addEventListener('focus', () => {
-          console.log('Input focused - starting aggressive monitoring');
-          lastMonitoredValue = inputElement.value;
-          startAggressiveMonitoring();
-        });
-        
-        inputElement.addEventListener('blur', () => {
-          console.log('Input blurred - stopping monitoring after delay');
-          // Delay stopping to catch any final changes
-          setTimeout(stopMonitoring, 300);
         });
 
         autocompleteRef.current = autocomplete;
