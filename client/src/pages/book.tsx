@@ -99,10 +99,7 @@ export default function BookingPage() {
 
   const submitBookingMutation = useMutation({
     mutationFn: async (data: BookingRequest) => {
-      return apiRequest("/api/public/booking-request", { 
-        method: "POST",
-        body: JSON.stringify(data) 
-      });
+      return apiRequest("POST", "/api/public/booking-request", data);
     },
     onSuccess: () => {
       setIsSubmitted(true);
@@ -186,10 +183,9 @@ export default function BookingPage() {
       <div className="min-h-screen bg-dark-bg text-white flex items-center justify-center p-4">
         <div className="text-center max-w-md">
           <CheckCircle className="w-16 h-16 text-gold mx-auto mb-4" />
-          <h1 className="text-2xl font-bold mb-2">Request Sent!</h1>
+          <h1 className="text-2xl font-bold mb-2">Time Slot Reserved!</h1>
           <p className="text-steel mb-4">
-            Your booking request has been sent to {barber.businessName || `${barber.firstName} ${barber.lastName}`}. 
-            An SMS will be sent to confirm your appointment once the barber reviews your request.
+            This time slot is being held for you for 30 minutes. You'll receive an SMS shortly asking you to confirm by replying "YES" to keep it. If you don't respond within 30 minutes, the slot will be released for others to book.
           </p>
           <div className="bg-charcoal p-4 rounded-lg">
             <p className="text-sm text-steel">Requested Services:</p>

@@ -7,6 +7,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { BottomNavigation } from "@/components/bottom-navigation";
 import { AppointmentCard } from "@/components/appointment-card";
 import { QuickActions } from "@/components/quick-actions";
+import { PendingReservations } from "@/components/pending-reservations";
 import { useAuth } from "@/hooks/useAuth";
 import { Scissors, Slice, Bell, Plus, Calendar, Users, Camera, Settings, X, MessageSquare, CreditCard, User as UserIcon } from "lucide-react";
 import { Link } from "wouter";
@@ -324,6 +325,9 @@ export default function Dashboard() {
             </div>
           </CardContent>
         </Card>
+
+        {/* Pending Reservations */}
+        <PendingReservations />
 
         {/* Recent Work Gallery */}
         <Card className="bg-dark-card border-steel/20 card-shadow">

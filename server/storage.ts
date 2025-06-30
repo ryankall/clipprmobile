@@ -7,6 +7,7 @@ import {
   invoices,
   galleryPhotos,
   messages,
+  reservations,
   type User,
   type InsertUser,
   type Client,
@@ -23,6 +24,8 @@ import {
   type InsertGalleryPhoto,
   type Message,
   type InsertMessage,
+  type Reservation,
+  type InsertReservation,
   type AppointmentWithRelations,
   type ClientWithStats,
   type DashboardStats,
@@ -87,6 +90,17 @@ export interface IStorage {
   deleteMessage(id: number): Promise<void>;
   markMessageAsRead(id: number): Promise<Message>;
   getUnreadMessageCount(userId: number): Promise<number>;
+
+  // Reservations
+  createReservation(reservation: InsertReservation): Promise<Reservation>;
+  getReservation(id: number): Promise<Reservation | undefined>;
+  getReservationsByUserId(userId: number): Promise<Reservation[]>;
+  updateReservation(id: number, reservation: Partial<InsertReservation>): Promise<Reservation>;
+  deleteReservation(id: number): Promise<void>;
+  expireReservation(id: number): Promise<void>;
+  getActiveReservationsForTimeSlot(userId: number, scheduledAt: Date, duration: number): Promise<Reservation[]>;
+  getExpiredReservations(): Promise<Reservation[]>;
+  confirmReservation(id: number): Promise<Reservation>;
 
   // Dashboard
   getDashboardStats(userId: number): Promise<DashboardStats>;
@@ -386,75 +400,7 @@ export class DatabaseStorage implements IStorage {
     await db.delete(galleryPhotos).where(eq(galleryPhotos.id, id));
   }
 
-  async getDashboardStats(userId: number): Promise<DashboardStats> {
-    const today = new Date();
-    const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-    const endOfDay = new Date(startOfDay);
-    endOfDay.setDate(endOfDay.getDate() + 1);
 
-    const startOfWeek = new Date(today);
-    startOfWeek.setDate(today.getDate() - today.getDay());
-
-    const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-
-    // Get daily stats
-    const [dailyStats] = await db
-      .select({
-        earnings: sql<string>`COALESCE(SUM(${invoices.total}), 0)`,
-        appointments: sql<number>`COUNT(${appointments.id})`,
-      })
-      .from(appointments)
-      .leftJoin(invoices, eq(appointments.id, invoices.appointmentId))
-      .where(
-        and(
-          eq(appointments.userId, userId),
-          gte(appointments.scheduledAt, startOfDay),
-          lte(appointments.scheduledAt, endOfDay)
-        )
-      );
-
-    // Get weekly stats
-    const [weeklyStats] = await db
-      .select({
-        earnings: sql<string>`COALESCE(SUM(${invoices.total}), 0)`,
-      })
-      .from(invoices)
-      .where(
-        and(
-          eq(invoices.userId, userId),
-          gte(invoices.createdAt, startOfWeek)
-        )
-      );
-
-    // Get monthly stats
-    const [monthlyStats] = await db
-      .select({
-        earnings: sql<string>`COALESCE(SUM(${invoices.total}), 0)`,
-      })
-      .from(invoices)
-      .where(
-        and(
-          eq(invoices.userId, userId),
-          gte(invoices.createdAt, startOfMonth)
-        )
-      );
-
-    // Get total clients
-    const [clientStats] = await db
-      .select({
-        totalClients: sql<number>`COUNT(${clients.id})`,
-      })
-      .from(clients)
-      .where(eq(clients.userId, userId));
-
-    return {
-      dailyEarnings: dailyStats?.earnings || "0",
-      appointmentCount: dailyStats?.appointments || 0,
-      weeklyEarnings: weeklyStats?.earnings || "0",
-      monthlyEarnings: monthlyStats?.earnings || "0",
-      totalClients: clientStats?.totalClients || 0,
-    };
-  }
 
   // Messages
   async getMessagesByUserId(userId: number): Promise<Message[]> {
@@ -533,6 +479,150 @@ export class DatabaseStorage implements IStorage {
     await db
       .delete(appointmentServices)
       .where(eq(appointmentServices.appointmentId, appointmentId));
+  }
+
+  // Reservation methods
+  async createReservation(reservation: InsertReservation): Promise<Reservation> {
+    const [newReservation] = await db
+      .insert(reservations)
+      .values(reservation)
+      .returning();
+    return newReservation;
+  }
+
+  async getReservation(id: number): Promise<Reservation | undefined> {
+    const [reservation] = await db.select().from(reservations).where(eq(reservations.id, id));
+    return reservation || undefined;
+  }
+
+  async getReservationsByUserId(userId: number): Promise<Reservation[]> {
+    return await db.select().from(reservations).where(eq(reservations.userId, userId));
+  }
+
+  async updateReservation(id: number, reservationUpdate: Partial<InsertReservation>): Promise<Reservation> {
+    const [updatedReservation] = await db
+      .update(reservations)
+      .set(reservationUpdate)
+      .where(eq(reservations.id, id))
+      .returning();
+    return updatedReservation;
+  }
+
+  async deleteReservation(id: number): Promise<void> {
+    await db.delete(reservations).where(eq(reservations.id, id));
+  }
+
+  async expireReservation(id: number): Promise<void> {
+    await db
+      .update(reservations)
+      .set({ status: "expired" })
+      .where(eq(reservations.id, id));
+  }
+
+  async getActiveReservationsForTimeSlot(userId: number, scheduledAt: Date, duration: number): Promise<Reservation[]> {
+    const endTime = new Date(scheduledAt.getTime() + duration * 60000);
+    
+    return await db
+      .select()
+      .from(reservations)
+      .where(
+        and(
+          eq(reservations.userId, userId),
+          eq(reservations.status, "pending"),
+          gte(reservations.expiresAt, new Date()), // Not expired
+          // Check for time overlap
+          sql`${reservations.scheduledAt} < ${endTime} AND ${reservations.scheduledAt} + INTERVAL '1 minute' * ${reservations.duration} > ${scheduledAt}`
+        )
+      );
+  }
+
+  async getExpiredReservations(): Promise<Reservation[]> {
+    return await db
+      .select()
+      .from(reservations)
+      .where(
+        and(
+          eq(reservations.status, "pending"),
+          lte(reservations.expiresAt, new Date())
+        )
+      );
+  }
+
+  async confirmReservation(id: number): Promise<Reservation> {
+    const [confirmedReservation] = await db
+      .update(reservations)
+      .set({ status: "confirmed" })
+      .where(eq(reservations.id, id))
+      .returning();
+    return confirmedReservation;
+  }
+
+  async getDashboardStats(userId: number): Promise<DashboardStats> {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+
+    const startOfWeek = new Date(today);
+    startOfWeek.setDate(today.getDate() - today.getDay());
+    
+    const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+
+    // Get today's appointments and earnings
+    const todayAppointments = await db
+      .select()
+      .from(appointments)
+      .where(
+        and(
+          eq(appointments.userId, userId),
+          gte(appointments.scheduledAt, today),
+          lte(appointments.scheduledAt, tomorrow)
+        )
+      );
+
+    const dailyEarnings = todayAppointments.reduce((sum, apt) => sum + parseFloat(apt.price), 0);
+
+    // Get weekly earnings
+    const weeklyAppointments = await db
+      .select()
+      .from(appointments)
+      .where(
+        and(
+          eq(appointments.userId, userId),
+          gte(appointments.scheduledAt, startOfWeek),
+          eq(appointments.status, "confirmed")
+        )
+      );
+
+    const weeklyEarnings = weeklyAppointments.reduce((sum, apt) => sum + parseFloat(apt.price), 0);
+
+    // Get monthly earnings
+    const monthlyAppointments = await db
+      .select()
+      .from(appointments)
+      .where(
+        and(
+          eq(appointments.userId, userId),
+          gte(appointments.scheduledAt, startOfMonth),
+          eq(appointments.status, "confirmed")
+        )
+      );
+
+    const monthlyEarnings = monthlyAppointments.reduce((sum, apt) => sum + parseFloat(apt.price), 0);
+
+    // Get total clients count
+    const [clientCount] = await db
+      .select({ count: count() })
+      .from(clients)
+      .where(eq(clients.userId, userId));
+
+    return {
+      dailyEarnings: dailyEarnings.toFixed(2),
+      appointmentCount: todayAppointments.length,
+      weeklyEarnings: weeklyEarnings.toFixed(2),
+      monthlyEarnings: monthlyEarnings.toFixed(2),
+      totalClients: clientCount?.count || 0,
+    };
   }
 }
 

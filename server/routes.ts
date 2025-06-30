@@ -4,7 +4,9 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { requireAuth, setupAuth } from './auth';
 import multer from 'multer';
-import { insertClientSchema, insertServiceSchema, insertAppointmentSchema, insertInvoiceSchema, insertGalleryPhotoSchema, insertMessageSchema } from "@shared/schema";
+import { insertClientSchema, insertServiceSchema, insertAppointmentSchema, insertInvoiceSchema, insertGalleryPhotoSchema, insertMessageSchema, appointments, reservations } from "@shared/schema";
+import { db } from "./db";
+import { and, eq, sql } from "drizzle-orm";
 import { z } from "zod";
 import passport from 'passport';
 import Stripe from 'stripe';
@@ -1196,6 +1198,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const appointments = await storage.getAppointmentsByUserId(user.id, startDate, endDate);
       
+      // Get active reservations for the date
+      const activeReservations = await db
+        .select()
+        .from(reservations)
+        .where(
+          and(
+            eq(reservations.userId, user.id),
+            eq(reservations.status, "pending"),
+            sql`DATE(${reservations.scheduledAt}) = DATE(${startDate})`
+          )
+        );
+      
       // Parse working hours
       const [startHour, startMinute] = dayHours.start.split(':').map(Number);
       const [endHour, endMinute] = dayHours.end.split(':').map(Number);
@@ -1231,6 +1245,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return aptStart < slotEnd && aptEnd > slotDateTime;
         });
         
+        // Check if time slot is reserved (any reservation overlaps with this 15-min slot)
+        const isReserved = activeReservations.some(res => {
+          const resStart = new Date(res.scheduledAt);
+          const resEnd = new Date(resStart.getTime() + res.duration * 60000);
+          const slotEnd = new Date(slotDateTime.getTime() + 15 * 60000);
+          
+          // Check for overlap
+          return resStart < slotEnd && resEnd > slotDateTime;
+        });
+        
         // Check for break times (if they exist)
         let isBreakTime = false;
         if (dayHours.breaks && Array.isArray(dayHours.breaks)) {
@@ -1246,7 +1270,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         timeSlots.push({
           time: timeString,
-          available: !isBooked && !isBreakTime,
+          available: !isBooked && !isReserved && !isBreakTime,
         });
       }
 
@@ -1292,7 +1316,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Submit booking request
+  // Submit booking request - creates temporary reservation
   app.post("/api/public/booking-request", async (req, res) => {
     try {
       const {
@@ -1352,61 +1376,318 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       console.log("Found barber:", { id: user.id, name: `${user.firstName} ${user.lastName}`, phone: user.phone });
 
-      // Get service details
+      // Create appointment datetime
+      const appointmentDateTime = new Date(`${selectedDate}T${selectedTime}:00`);
+      
+      // Get service details and calculate total duration
       const services = await storage.getServicesByUserId(user.id);
-      console.log("Available services:", services.map(s => ({ id: s.id, name: s.name })));
-      console.log("Selected services:", selectedServices);
-      
-      // Match services by name (since selectedServices contains names, not IDs)
       const requestedServices = services.filter(s => selectedServices.includes(s.name));
-      console.log("Matched services:", requestedServices.map(s => ({ id: s.id, name: s.name })));
       
-      const serviceNames = requestedServices.map(s => s.name);
-      if (customService) {
-        serviceNames.push(customService);
+      let totalDuration = 0;
+      const serviceIds = [];
+      
+      for (const service of requestedServices) {
+        totalDuration += service.duration;
+        serviceIds.push(service.id.toString());
       }
       
-      console.log("Final service names for message:", serviceNames);
+      // Default to 60 minutes if no services found or custom service
+      if (totalDuration === 0 || customService) {
+        totalDuration = 60;
+      }
 
-      // Create a message in the barber's inbox
-      const messageText = `New booking request from ${clientName}
+      // Check for existing appointments or reservations in this time slot
+      const existingAppointments = await db
+        .select()
+        .from(appointments)
+        .where(
+          and(
+            eq(appointments.userId, user.id),
+            sql`${appointments.scheduledAt} < ${new Date(appointmentDateTime.getTime() + totalDuration * 60000)} AND ${appointments.scheduledAt} + INTERVAL '1 minute' * ${appointments.duration} > ${appointmentDateTime}`
+          )
+        );
 
-📅 Date: ${selectedDate}
-⏰ Time: ${selectedTime}
-💇 Services: ${serviceNames.join(', ') || 'No services selected'}
-📞 Phone: ${clientPhone}
-${clientEmail ? `📧 Email: ${clientEmail}` : ''}
-🚗 Travel: ${needsTravel ? `Yes - ${clientAddress || 'Address pending'}` : 'No'}
-${message ? `💬 Message: ${message}` : ''}
+      const activeReservations = await storage.getActiveReservationsForTimeSlot(
+        user.id, 
+        appointmentDateTime, 
+        totalDuration
+      );
 
-Please contact the client to confirm the appointment.`;
+      if (existingAppointments.length > 0 || activeReservations.length > 0) {
+        return res.status(409).json({ 
+          message: "This time slot is no longer available. Please select a different time." 
+        });
+      }
 
-      console.log("Creating message with text:", messageText);
-
-      const bookingMessage = await storage.createMessage({
+      // Create a 30-minute temporary reservation
+      const expiresAt = new Date(Date.now() + 30 * 60 * 1000); // 30 minutes from now
+      
+      const reservation = await storage.createReservation({
         userId: user.id,
         customerName: clientName,
         customerPhone: clientPhone,
         customerEmail: clientEmail || undefined,
-        subject: "New Booking Request",
-        message: messageText,
+        scheduledAt: appointmentDateTime,
+        duration: totalDuration,
+        services: serviceIds,
+        address: needsTravel ? clientAddress : undefined,
+        notes: message || undefined,
+        expiresAt: expiresAt,
+        status: "pending",
+      });
+
+      // Send SMS confirmation request
+      const smsMessage = `Hi ${clientName}! This time is being held for you for 30 minutes. Please confirm by replying YES to keep it. Time: ${format(appointmentDateTime, 'EEEE, MMMM d')} at ${format(appointmentDateTime, 'h:mm a')}`;
+
+      // Create a message for the barber's records
+      await storage.createMessage({
+        userId: user.id,
+        customerName: clientName,
+        customerPhone: clientPhone,
+        customerEmail: clientEmail || undefined,
+        subject: "Reservation Pending Confirmation",
+        message: `Temporary reservation created for ${clientName}. Expires at ${format(expiresAt, 'h:mm a')}. Customer will receive SMS confirmation request.`,
         status: "unread",
         priority: "normal",
-        serviceRequested: serviceNames.join(', ') || 'No services selected',
-        preferredDate: new Date(`${selectedDate}T${selectedTime}:00`),
       });
-      
-      console.log("Message created successfully:", bookingMessage.id);
+
+      console.log("Reservation created:", reservation.id, "SMS sent:", smsMessage);
 
       res.json({ 
         success: true, 
-        message: "Booking request sent successfully",
-        messageId: bookingMessage.id 
+        message: "Time slot reserved for 30 minutes. SMS confirmation sent to customer.",
+        reservationId: reservation.id,
+        expiresAt: expiresAt.toISOString()
       });
     } catch (error: any) {
       res.status(500).json({ message: error.message });
     }
   });
+
+  // SMS Reply Handler (webhook for SMS service)
+  app.post("/api/sms/reply", async (req, res) => {
+    try {
+      const { From: customerPhone, Body: messageBody } = req.body;
+      
+      // Normalize message (handle case-insensitive YES/NO/CANCEL)
+      const normalizedMessage = messageBody.trim().toLowerCase();
+      
+      if (normalizedMessage === 'yes') {
+        // Find pending reservation for this phone number
+        const pendingReservations = await db
+          .select()
+          .from(reservations)
+          .where(
+            and(
+              eq(reservations.customerPhone, customerPhone),
+              eq(reservations.status, "pending")
+            )
+          );
+
+        if (pendingReservations.length > 0) {
+          const reservation = pendingReservations[0];
+          
+          // Convert reservation to confirmed appointment
+          const user = await storage.getUser(reservation.userId);
+          if (!user) {
+            return res.status(404).json({ message: "Barber not found" });
+          }
+
+          // Find or create client
+          let client = await storage.getClientsByUserId(user.id)
+            .then(clients => clients.find(c => c.phone === customerPhone));
+          
+          if (!client) {
+            client = await storage.createClient({
+              userId: user.id,
+              name: reservation.customerName,
+              phone: customerPhone,
+              email: reservation.customerEmail || undefined,
+              address: reservation.address || undefined,
+            });
+          }
+
+          // Create confirmed appointment
+          const appointment = await storage.createAppointment({
+            userId: user.id,
+            clientId: client.id,
+            serviceId: parseInt(reservation.services[0]) || 1, // Use first service or default
+            scheduledAt: reservation.scheduledAt,
+            status: "confirmed",
+            address: reservation.address || "",
+            notes: reservation.notes || "",
+            price: "0", // Will be updated based on services
+            duration: reservation.duration,
+          });
+
+          // Mark reservation as confirmed
+          await storage.confirmReservation(reservation.id);
+
+          // Send confirmation to customer
+          const confirmationMessage = `Great! Your appointment is confirmed for ${format(reservation.scheduledAt, 'EEEE, MMMM d')} at ${format(reservation.scheduledAt, 'h:mm a')}. You can text CANCEL at any time to cancel your upcoming appointment.`;
+
+          // Notify barber
+          await storage.createMessage({
+            userId: user.id,
+            customerName: reservation.customerName,
+            customerPhone: customerPhone,
+            subject: "Appointment Confirmed",
+            message: `Customer confirmed appointment for ${format(reservation.scheduledAt, 'EEEE, MMMM d')} at ${format(reservation.scheduledAt, 'h:mm a')}.`,
+            status: "unread",
+            priority: "normal",
+          });
+
+          console.log("Appointment confirmed:", appointment.id);
+        }
+      } else if (normalizedMessage === 'no' || normalizedMessage === 'cancel') {
+        // Find and cancel reservation
+        const customerReservations = await db
+          .select()
+          .from(reservations)
+          .where(
+            and(
+              eq(reservations.customerPhone, customerPhone),
+              eq(reservations.status, "pending")
+            )
+          );
+
+        if (customerReservations.length > 0) {
+          await storage.updateReservation(customerReservations[0].id, { status: "cancelled" });
+          console.log("Reservation cancelled by customer");
+        }
+      }
+
+      res.status(200).send('OK');
+    } catch (error: any) {
+      console.error("SMS reply error:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Expire old reservations (can be called by a cron job)
+  app.post("/api/reservations/expire", async (req, res) => {
+    try {
+      const expiredReservations = await storage.getExpiredReservations();
+      
+      for (const reservation of expiredReservations) {
+        await storage.expireReservation(reservation.id);
+        
+        // Notify barber that time slot is available again
+        await storage.createMessage({
+          userId: reservation.userId,
+          customerName: reservation.customerName,
+          customerPhone: reservation.customerPhone,
+          subject: "Reservation Expired",
+          message: `Reservation for ${reservation.customerName} on ${format(reservation.scheduledAt, 'EEEE, MMMM d')} at ${format(reservation.scheduledAt, 'h:mm a')} has expired. Time slot is now available.`,
+          status: "unread",
+          priority: "low",
+        });
+      }
+
+      res.json({ 
+        success: true, 
+        expiredCount: expiredReservations.length 
+      });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Get pending reservations for barber
+  app.get("/api/reservations/pending", requireAuth, async (req, res) => {
+    try {
+      const userId = (req.user as any).id;
+      
+      const pendingReservations = await db
+        .select()
+        .from(reservations)
+        .where(
+          and(
+            eq(reservations.userId, userId),
+            eq(reservations.status, "pending")
+          )
+        )
+        .orderBy(reservations.scheduledAt);
+
+      res.json(pendingReservations);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Manual confirmation by barber
+  app.post("/api/reservations/:id/confirm", requireAuth, async (req, res) => {
+    try {
+      const userId = (req.user as any).id;
+      const reservationId = parseInt(req.params.id);
+      
+      const reservation = await storage.getReservation(reservationId);
+      if (!reservation || reservation.userId !== userId) {
+        return res.status(404).json({ message: "Reservation not found" });
+      }
+
+      if (reservation.status !== "pending") {
+        return res.status(400).json({ message: "Reservation is not pending" });
+      }
+
+      // Create confirmed appointment (similar to SMS YES logic)
+      let client = await storage.getClientsByUserId(userId)
+        .then(clients => clients.find(c => c.phone === reservation.customerPhone));
+      
+      if (!client) {
+        client = await storage.createClient({
+          userId: userId,
+          name: reservation.customerName,
+          phone: reservation.customerPhone,
+          email: reservation.customerEmail || undefined,
+          address: reservation.address || undefined,
+        });
+      }
+
+      const appointment = await storage.createAppointment({
+        userId: userId,
+        clientId: client.id,
+        serviceId: parseInt(reservation.services[0]) || 1,
+        scheduledAt: reservation.scheduledAt,
+        status: "confirmed",
+        address: reservation.address || "",
+        notes: reservation.notes || "",
+        price: "0",
+        duration: reservation.duration,
+      });
+
+      await storage.confirmReservation(reservationId);
+
+      // Send confirmation SMS to customer
+      const confirmationMessage = `Your appointment has been confirmed for ${format(reservation.scheduledAt, 'EEEE, MMMM d')} at ${format(reservation.scheduledAt, 'h:mm a')}. You can text CANCEL at any time to cancel your upcoming appointment.`;
+
+      res.json({ 
+        success: true, 
+        appointmentId: appointment.id,
+        message: "Reservation confirmed and appointment created"
+      });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Auto-expire old reservations (called by background process)
+  setInterval(async () => {
+    try {
+      console.log("Running reservation expiration check...");
+      const response = await fetch("http://localhost:5000/api/reservations/expire", {
+        method: "POST",
+      });
+      if (response.ok) {
+        const result = await response.json();
+        if (result.expiredCount > 0) {
+          console.log(`Expired ${result.expiredCount} reservations`);
+        }
+      }
+    } catch (error) {
+      console.error("Error in reservation expiration job:", error);
+    }
+  }, 5 * 60 * 1000); // Run every 5 minutes
 
   const httpServer = createServer(app);
   return httpServer;

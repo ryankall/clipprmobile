@@ -114,6 +114,23 @@ export const galleryPhotos = pgTable("gallery_photos", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+export const reservations = pgTable("reservations", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id),
+  customerName: text("customer_name").notNull(),
+  customerPhone: text("customer_phone").notNull(),
+  customerEmail: text("customer_email"),
+  scheduledAt: timestamp("scheduled_at").notNull(),
+  duration: integer("duration").notNull(), // in minutes
+  services: text("services").array().notNull(), // service IDs as strings
+  address: text("address"),
+  notes: text("notes"),
+  status: text("status").notNull().default("pending"), // pending, confirmed, expired, cancelled
+  expiresAt: timestamp("expires_at").notNull(),
+  confirmationSent: boolean("confirmation_sent").default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 export const messages = pgTable("messages", {
   id: serial("id").primaryKey(),
   userId: integer("user_id").notNull().references(() => users.id),
@@ -141,6 +158,7 @@ export const usersRelations = relations(users, ({ many }) => ({
   invoices: many(invoices),
   galleryPhotos: many(galleryPhotos),
   messages: many(messages),
+  reservations: many(reservations),
 }));
 
 export const clientsRelations = relations(clients, ({ one, many }) => ({
@@ -232,6 +250,13 @@ export const messagesRelations = relations(messages, ({ one }) => ({
   }),
 }));
 
+export const reservationsRelations = relations(reservations, ({ one }) => ({
+  user: one(users, {
+    fields: [reservations.userId],
+    references: [users.id],
+  }),
+}));
+
 // Insert schemas
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
@@ -278,6 +303,11 @@ export const insertMessageSchema = createInsertSchema(messages).omit({
   repliedAt: true,
 });
 
+export const insertReservationSchema = createInsertSchema(reservations).omit({
+  id: true,
+  createdAt: true,
+});
+
 // Types
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
@@ -302,6 +332,9 @@ export type GalleryPhoto = typeof galleryPhotos.$inferSelect;
 
 export type InsertMessage = z.infer<typeof insertMessageSchema>;
 export type Message = typeof messages.$inferSelect;
+
+export type InsertReservation = z.infer<typeof insertReservationSchema>;
+export type Reservation = typeof reservations.$inferSelect;
 
 // Extended types for API responses
 export type AppointmentWithRelations = Appointment & {
