@@ -26,10 +26,12 @@ const appointmentFormSchema = z.object({
     (dateStr) => {
       const selectedDate = new Date(dateStr);
       const now = new Date();
-      return selectedDate > now;
+      // Add a 10-minute buffer to avoid timing issues
+      const tenMinutesFromNow = new Date(now.getTime() + 10 * 60 * 1000);
+      return selectedDate >= tenMinutesFromNow;
     },
     {
-      message: "Please select a future date and time"
+      message: "Please select a time at least 10 minutes from now"
     }
   ),
   notes: z.string().optional(),
