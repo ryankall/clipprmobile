@@ -275,11 +275,11 @@ export default function Settings() {
         });
       });
 
-      // Look for the address input with various selectors
-      const addressInput = document.querySelector('input[placeholder*="address"]') ||
-                          document.querySelector('input[placeholder*="Address"]') ||
-                          document.querySelector('input[name="homeBaseAddress"]') ||
-                          document.querySelectorAll('input[type="text"]')[6]; // Try 7th text input as fallback
+      // Look for the address input with various selectors - try most specific first
+      const addressInput = document.querySelector('input[name="homeBaseAddress"]') ||
+                          document.querySelector('input[placeholder*="Start typing your address"]') ||
+                          document.querySelector('input[placeholder*="address"]') ||
+                          document.querySelector('input[placeholder*="Address"]');
 
       if (!addressInput && attempts < maxAttempts) {
         console.log(`⏳ Retrying in 300ms...`);
