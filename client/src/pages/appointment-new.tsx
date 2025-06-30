@@ -117,13 +117,10 @@ export default function AppointmentNew() {
       const serviceDuration = selectedService.duration || 60;
       const endTime = new Date(scheduledDate.getTime() + serviceDuration * 60 * 1000);
 
-      const response = await apiRequest('/api/appointments/validate-scheduling', {
-        method: 'POST',
-        body: JSON.stringify({
-          proposedStart: scheduledDate.toISOString(),
-          proposedEnd: endTime.toISOString(),
-          clientAddress: selectedClient.address
-        }),
+      const response = await apiRequest('POST', '/api/appointments/validate-scheduling', {
+        proposedStart: scheduledDate.toISOString(),
+        proposedEnd: endTime.toISOString(),
+        clientAddress: selectedClient.address
       });
 
       setScheduleValidation({
