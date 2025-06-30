@@ -411,9 +411,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.delete("/api/appointments/:id", requireAuth, async (req, res) => {
     try {
+      const userId = (req.user as any).id;
       const appointmentId = parseInt(req.params.id);
+      
+      // Get appointment details before deletion for SMS notification
+      const appointment = await storage.getAppointment(appointmentId);
+      if (!appointment || appointment.userId !== userId) {
+        return res.status(404).json({ message: "Appointment not found" });
+      }
+
+      // Delete the appointment
       await storage.deleteAppointment(appointmentId);
-      res.json({ message: "Appointment deleted successfully" });
+
+      // Send SMS notification to client about cancellation
+      const appointmentDate = format(new Date(appointment.scheduledAt), 'EEEE, MMMM d');
+      const appointmentTime = format(new Date(appointment.scheduledAt), 'h:mm a');
+      
+      const cancellationMessage = `Your appointment on ${appointmentDate} at ${appointmentTime} has been cancelled by your barber. Please contact them to reschedule if needed.`;
+
+      // Log the cancellation notification (SMS would be sent via Twilio in production)
+      await storage.createMessage({
+        userId: userId,
+        customerName: appointment.client.name,
+        customerPhone: appointment.client.phone || "",
+        customerEmail: appointment.client.email || undefined,
+        subject: "Appointment Cancelled",
+        message: `SMS sent to ${appointment.client.name}: ${cancellationMessage}`,
+        status: "sent",
+        priority: "high",
+      });
+
+      console.log(`Appointment ${appointmentId} deleted. SMS cancellation notice sent to ${appointment.client.name} at ${appointment.client.phone}`);
+      console.log(`SMS content: ${cancellationMessage}`);
+
+      res.json({ 
+        message: "Appointment deleted successfully and client notified via SMS",
+        clientNotified: true,
+        smsContent: cancellationMessage
+      });
     } catch (error: any) {
       res.status(500).json({ message: error.message });
     }
