@@ -143,10 +143,10 @@ export default function AppointmentNew() {
   const validateScheduling = async (scheduledAt: string, clientId: number, serviceId: number) => {
     if (!scheduledAt || !clientId || !serviceId) return;
 
-    const selectedClient = clients?.find(c => c.id === clientId);
+    const validationClient = clients?.find(c => c.id === clientId);
     const selectedService = services?.find(s => s.id === serviceId);
     
-    if (!selectedClient?.address || !selectedService) return;
+    if (!validationClient?.address || !selectedService) return;
 
     setScheduleValidation({ isValidating: true });
 
@@ -158,7 +158,7 @@ export default function AppointmentNew() {
       const response = await apiRequest('POST', '/api/appointments/validate-scheduling', {
         proposedStart: scheduledDate.toISOString(),
         proposedEnd: endTime.toISOString(),
-        clientAddress: selectedClient.address
+        clientAddress: validationClient.address
       });
 
       setScheduleValidation({
@@ -335,7 +335,7 @@ export default function AppointmentNew() {
                           {...field} 
                           value={field.value || ""}
                           className="bg-charcoal border-steel/40 text-white"
-                          placeholder={selectedClient?.address || "Enter appointment address"}
+                          placeholder={currentClient?.address || "Enter appointment address"}
                         />
                       </FormControl>
                       <FormMessage />
