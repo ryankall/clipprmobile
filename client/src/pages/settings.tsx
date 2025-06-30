@@ -309,15 +309,43 @@ export default function Settings() {
           }
         });
 
-        // Force PAC container visibility
-        (addressInput as HTMLInputElement).addEventListener('input', () => {
+        // Force PAC container visibility and debug typing
+        (addressInput as HTMLInputElement).addEventListener('input', (e) => {
+          const value = (e.target as HTMLInputElement).value;
+          console.log('📝 User typed:', value, 'Length:', value.length);
+          
           setTimeout(() => {
-            document.querySelectorAll('.pac-container').forEach(container => {
-              (container as HTMLElement).style.display = 'block';
-              (container as HTMLElement).style.visibility = 'visible';
-              (container as HTMLElement).style.opacity = '1';
+            const pacContainers = document.querySelectorAll('.pac-container');
+            console.log('🔍 PAC containers found:', pacContainers.length);
+            
+            pacContainers.forEach((container, index) => {
+              const element = container as HTMLElement;
+              console.log(`PAC container ${index}:`, {
+                display: element.style.display,
+                visibility: element.style.visibility,
+                opacity: element.style.opacity,
+                zIndex: element.style.zIndex,
+                children: element.children.length,
+                innerHTML: element.innerHTML.substring(0, 100)
+              });
+              
+              // Force visibility
+              element.style.display = 'block';
+              element.style.visibility = 'visible';
+              element.style.opacity = '1';
+              element.style.zIndex = '9999';
+              console.log('🔧 Forced PAC container visible');
             });
-          }, 100);
+          }, 200);
+        });
+
+        // Also debug focus events
+        (addressInput as HTMLInputElement).addEventListener('focus', () => {
+          console.log('🎯 Address input focused');
+        });
+
+        (addressInput as HTMLInputElement).addEventListener('keydown', (e) => {
+          console.log('⌨️ Key pressed:', e.key);
         });
 
         autocompleteRef.current = autocomplete;
