@@ -204,7 +204,7 @@ export default function Settings() {
     },
   });
 
-  // Global click handler to prevent modal closure on Google autocomplete clicks
+  // Global click handler to manage autocomplete behavior
   useEffect(() => {
     const handleGlobalClick = (event: MouseEvent) => {
       const target = event.target as HTMLElement;
@@ -219,6 +219,16 @@ export default function Settings() {
         event.stopImmediatePropagation();
         return false;
       }
+      
+      // If click is elsewhere and autocomplete is open, close suggestions
+      if (isAutocompleteOpen && !target.closest('#homeBaseAddress')) {
+        console.log('📴 Closing autocomplete suggestions - clicked elsewhere');
+        const containers = document.querySelectorAll('.pac-container');
+        containers.forEach(container => {
+          (container as HTMLElement).style.display = 'none';
+        });
+        setIsAutocompleteOpen(false);
+      }
     };
 
     if (isEditingProfile) {
@@ -227,7 +237,7 @@ export default function Settings() {
         document.removeEventListener('click', handleGlobalClick, true);
       };
     }
-  }, [isEditingProfile]);
+  }, [isEditingProfile, isAutocompleteOpen]);
 
   // Setup Google Maps API with Places library
   useEffect(() => {
@@ -501,12 +511,13 @@ export default function Settings() {
             form.setValue('homeBaseAddress', place.formatted_address);
             form.trigger('homeBaseAddress');
             
-            // Hide suggestions after selection
+            // Hide suggestions after selection and reset autocomplete state
             setTimeout(() => {
               const containers = document.querySelectorAll('.pac-container');
               containers.forEach(container => {
                 (container as HTMLElement).style.display = 'none';
               });
+              setIsAutocompleteOpen(false);
             }, 100);
           }
         });
