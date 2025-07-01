@@ -8,7 +8,7 @@ import { BottomNavigation } from "@/components/bottom-navigation";
 import { AppointmentCard } from "@/components/appointment-card";
 import { AppointmentPreview } from "@/components/appointment-preview-simple";
 import { AppointmentDetailsDialog } from "@/components/appointment-details-dialog";
-import { PendingReservations } from "@/components/pending-reservations";
+import { PendingAppointments } from "@/components/pending-appointments";
 import { useAuth } from "@/hooks/useAuth";
 import { Scissors, Slice, Bell, Plus, Calendar, Users, Camera, Settings, X, MessageSquare, CreditCard, User as UserIcon } from "lucide-react";
 import { Link, useLocation } from "wouter";
@@ -536,57 +536,8 @@ export default function Dashboard() {
           </CardContent>
         </Card>
 
-        {/* Pending Reservations */}
-        <PendingReservations 
-          onReservationClick={(reservation) => {
-            // Convert reservation to appointment-like structure for display
-            const tempAppointment = {
-              id: reservation.id,
-              userId: reservation.userId,
-              clientId: 0, // No client ID for reservations
-              serviceId: 0, // No service ID for reservations
-              scheduledAt: new Date(reservation.scheduledAt),
-              duration: reservation.duration,
-              price: "0.00",
-              status: "pending" as const,
-              address: reservation.address || null,
-              notes: reservation.notes || null,
-              reminderSent: false,
-              createdAt: new Date(reservation.createdAt),
-              updatedAt: new Date(reservation.updatedAt),
-              client: {
-                id: 0,
-                userId: reservation.userId,
-                name: reservation.customerName,
-                phone: reservation.customerPhone,
-                email: reservation.customerEmail || null,
-                address: reservation.address || null,
-                photoUrl: null,
-                preferredStyle: null,
-                notes: reservation.notes || null,
-                loyaltyStatus: null,
-                lastVisit: null,
-                totalVisits: null,
-                createdAt: new Date(reservation.createdAt),
-                updatedAt: new Date(reservation.updatedAt),
-              },
-              service: {
-                id: 0,
-                userId: reservation.userId,
-                name: reservation.services.join(", "),
-                price: "0.00",
-                duration: reservation.duration,
-                description: null,
-                category: "other" as const,
-                isActive: true,
-                createdAt: new Date(reservation.createdAt),
-                updatedAt: new Date(reservation.updatedAt),
-              }
-            };
-            setSelectedAppointment(tempAppointment);
-            setIsDetailsDialogOpen(true);
-          }}
-        />
+        {/* Pending Appointments */}
+        <PendingAppointments />
 
         {/* Recent Work Gallery */}
         <Card className="bg-dark-card border-steel/20 card-shadow">

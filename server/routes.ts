@@ -272,6 +272,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get pending appointments awaiting confirmation
+  app.get("/api/appointments/pending", requireAuth, async (req, res) => {
+    try {
+      const userId = (req.user as any).id;
+      const pendingAppointments = await storage.getPendingAppointments(userId);
+      res.json(pendingAppointments);
+    } catch (error: any) {
+      console.error('Pending appointments fetch error:', error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
   app.post("/api/appointments", requireAuth, async (req, res) => {
     try {
       const userId = (req.user as any).id;
@@ -352,46 +364,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log('Data to validate:', JSON.stringify(dataToValidate, null, 2));
       const appointmentData = insertAppointmentSchema.parse(dataToValidate);
       
-      // Get client data first
-      const client = await storage.getClient(appointmentData.clientId);
-      if (!client) {
-        return res.status(400).json({ message: "Client not found" });
-      }
-
-      // Create a reservation instead of direct appointment (expires in 30 minutes)
-      const expiresAt = new Date(Date.now() + 30 * 60 * 1000);
-      const reservation = await storage.createReservation({
+      // Create appointment with pending status (requires SMS confirmation)
+      const appointment = await storage.createAppointment({
+        ...appointmentData,
         userId,
-        customerName: client.name,
-        customerPhone: client.phone || '',
-        customerEmail: client.email || '',
         scheduledAt: appointmentUTC,
         duration: totalDuration,
-        services: services.map((s: any) => s.serviceId.toString()), // Convert to string array
-        address: appointmentData.address || '',
-        notes: appointmentData.notes || '',
-        status: 'pending',
-        expiresAt
+        price: totalPrice.toFixed(2),
+        status: 'pending' // Pending until SMS confirmation
       });
       
       // Send automatic confirmation message
       try {
-        if (client) {
-          const appointmentTime = format(new Date(reservation.scheduledAt), "EEEE, MMMM do 'at' h:mm a");
+        const client = await storage.getClient(appointmentData.clientId);
+        if (client && client.phone) {
+          const appointmentTime = format(new Date(appointment.scheduledAt), "EEEE, MMMM do 'at' h:mm a");
           
           // Create service list for confirmation message
           let serviceText;
-          if (serviceDetails.length === 1) {
-            serviceText = serviceDetails[0].service.name;
+          if (services.length === 1) {
+            serviceText = services[0].name;
           } else {
-            const serviceNames = serviceDetails.map(s => s.service.name);
+            const serviceNames = services.map(s => s.name);
             serviceText = serviceNames.join(', ');
           }
           
           const confirmationMessage = `Hi ${client.name}! Your appointment for ${serviceText} is scheduled for ${appointmentTime}. Please reply 'YES' to confirm or 'NO' to cancel. Thanks!`;
-          
-          // Prefer SMS, fallback to email
-          const method = client.phone ? 'sms' : 'email';
           
           // Create a notification for SMS confirmation needed
           await storage.createNotification({
@@ -399,7 +397,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             type: 'appointment_confirmation_needed',
             title: 'Appointment Confirmation Needed',
             message: `SMS confirmation sent to ${client.name} for appointment on ${appointmentTime}`,
-            appointmentId: null, // No appointment yet, just reservation
+            appointmentId: appointment.id,
             clientName: client.name,
           });
           
@@ -416,11 +414,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
           });
         }
       } catch (confirmationError) {
-        // Don't fail reservation creation if confirmation fails
+        // Don't fail appointment creation if confirmation fails
         console.warn("Failed to send appointment confirmation:", confirmationError);
       }
       
-      res.json(reservation);
+      res.json(appointment);
     } catch (error: any) {
       console.error('Appointment creation error:', error);
       if (error instanceof z.ZodError) {

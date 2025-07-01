@@ -64,6 +64,7 @@ export interface IStorage {
   // Appointments
   getAppointmentsByUserId(userId: number, startDate?: Date, endDate?: Date): Promise<AppointmentWithRelations[]>;
   getTodayAppointments(userId: number): Promise<AppointmentWithRelations[]>;
+  getPendingAppointments(userId: number): Promise<AppointmentWithRelations[]>;
   getAppointment(id: number): Promise<AppointmentWithRelations | undefined>;
   createAppointment(appointment: InsertAppointment): Promise<Appointment>;
   updateAppointment(id: number, appointment: Partial<InsertAppointment>): Promise<Appointment>;
@@ -317,6 +318,31 @@ export class DatabaseStorage implements IStorage {
     endOfDay.setDate(endOfDay.getDate() + 1);
 
     return await this.getAppointmentsByUserId(userId, startOfDay, endOfDay);
+  }
+
+  async getPendingAppointments(userId: number): Promise<AppointmentWithRelations[]> {
+    const results = await db
+      .select({
+        appointment: appointments,
+        client: clients,
+        service: services
+      })
+      .from(appointments)
+      .innerJoin(clients, eq(appointments.clientId, clients.id))
+      .innerJoin(services, eq(appointments.serviceId, services.id))
+      .where(
+        and(
+          eq(appointments.userId, userId),
+          eq(appointments.status, 'pending')
+        )
+      )
+      .orderBy(appointments.scheduledAt);
+
+    return results.map(result => ({
+      ...result.appointment,
+      client: result.client,
+      service: result.service
+    }));
   }
 
   async getAppointment(id: number): Promise<AppointmentWithRelations | undefined> {
