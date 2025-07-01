@@ -47,5 +47,6 @@ export function useAuth() {
     hasToken,
     signOut,
     isSigningOut: signOutMutation.isPending,
+    authError: error,
   };
 }

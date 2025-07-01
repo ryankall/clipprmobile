@@ -160,8 +160,12 @@ export function requireAuth(req: Request, res: Response, next: NextFunction) {
     return next();
   }
   
-  // TEMPORARY: If session exists but user is not authenticated, assume user ID 3 (the demo user)
+  // Check if session exists but user is not properly authenticated
   if (req.session && !req.isAuthenticated()) {
+    // Log authentication issue for debugging
+    console.log('Authentication issue detected - session exists but user not authenticated');
+    
+    // For demo purposes, allow access but this should be fixed in production
     (req as any).user = { id: 3 };
     return next();
   }

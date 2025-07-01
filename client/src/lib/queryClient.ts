@@ -3,6 +3,24 @@ import { QueryClient, QueryFunction } from "@tanstack/react-query";
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
     const text = (await res.text()) || res.statusText;
+    
+    // Handle authentication failures
+    if (res.status === 401) {
+      // Show user-friendly message for authentication issues
+      const isUnauthorized = text.includes('Unauthorized') || text.includes('unauthorized');
+      if (isUnauthorized) {
+        // Clear any stored tokens
+        localStorage.removeItem("token");
+        
+        // Redirect to authentication after a brief delay
+        setTimeout(() => {
+          window.location.href = "/";
+        }, 2000);
+        
+        throw new Error(`Authentication expired. Please sign in again.`);
+      }
+    }
+    
     throw new Error(`${res.status}: ${text}`);
   }
 }
