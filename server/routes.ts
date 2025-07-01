@@ -1665,9 +1665,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
         notes
       } = req.body;
 
+      console.log("Reservation creation request received:", {
+        userId,
+        customerName,
+        customerPhone,
+        customerEmail,
+        scheduledAt,
+        services,
+        address,
+        notes,
+        fullBody: req.body
+      });
+
       // Validate required fields
       if (!customerName || !customerPhone || !scheduledAt || !services?.length) {
-        return res.status(400).json({ message: "Missing required fields" });
+        console.log("Missing required fields:", { 
+          customerName: !!customerName, 
+          customerPhone: !!customerPhone, 
+          scheduledAt: !!scheduledAt, 
+          services: services?.length || 0 
+        });
+        return res.status(400).json({ 
+          message: "Missing required fields", 
+          details: {
+            customerName: !!customerName,
+            customerPhone: !!customerPhone,
+            scheduledAt: !!scheduledAt,
+            services: services?.length || 0
+          }
+        });
       }
 
       // Parse the datetime
