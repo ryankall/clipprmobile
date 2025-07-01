@@ -1569,7 +1569,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const appointment = await storage.createAppointment({
             userId: user.id,
             clientId: client.id,
-            serviceId: parseInt(reservation.services[0]) || 1, // Use first service or default
+            serviceId: (reservation.services && reservation.services.length > 0) 
+              ? parseInt(reservation.services[0]) || 1 
+              : 1, // Use first service or default
             scheduledAt: reservation.scheduledAt,
             status: "confirmed",
             address: reservation.address || "",
@@ -1830,7 +1832,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const appointment = await storage.createAppointment({
         userId: userId,
         clientId: client.id,
-        serviceId: parseInt(reservation.services[0]) || 1,
+        serviceId: (reservation.services && Array.isArray(reservation.services) && reservation.services.length > 0) 
+          ? parseInt(reservation.services[0]) || 1 
+          : 1, // Use first service or default
         scheduledAt: reservation.scheduledAt,
         status: "confirmed",
         address: reservation.address || "",

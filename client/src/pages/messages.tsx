@@ -60,87 +60,21 @@ export default function Messages() {
     queryKey: ["/api/clients"],
   });
 
-  // Automatic client detection and linking
+  // Mark message as read when opened
   useEffect(() => {
-    if (selectedMessage && selectedMessage.customerPhone && clients && !selectedMessage.clientId) {
-      // Check if a client with this phone number already exists
-      const existingClient = clients.find(client => 
-        client.phone === selectedMessage.customerPhone
-      );
-      
-      if (existingClient) {
-        // Automatically link the message to the existing client and update client info
-        const updateClientAndMessage = async () => {
-          try {
-            // Parse the message to extract address from travel information
-            let extractedAddress = '';
-            if (selectedMessage.message && selectedMessage.message.includes('🚗 Travel: Yes')) {
-              const travelMatch = selectedMessage.message.match(/🚗 Travel: Yes - (.+?)(?:\n|$)/);
-              if (travelMatch) {
-                extractedAddress = travelMatch[1].trim();
-              }
-            }
-            
-            // Update client with latest information from message
-            const updateData: any = {};
-            if (selectedMessage.customerName && selectedMessage.customerName !== existingClient.name) {
-              updateData.name = selectedMessage.customerName;
-            }
-            if (selectedMessage.customerEmail && selectedMessage.customerEmail !== existingClient.email) {
-              updateData.email = selectedMessage.customerEmail;
-            }
-            if (extractedAddress && extractedAddress !== existingClient.address) {
-              updateData.address = extractedAddress;
-            }
-            
-            // Only update if there are changes
-            if (Object.keys(updateData).length > 0) {
-              console.log("Updating client with data:", updateData);
-              const updateResponse = await apiRequest("PATCH", `/api/clients/${existingClient.id}`, updateData);
-              console.log("Client update response:", await updateResponse.json());
-              toast({
-                title: "Client Updated",
-                description: `Updated ${existingClient.name}'s information from the message`,
-              });
-            }
-            
-            // Link the message to the existing client
-            console.log("Linking message to client:", existingClient.id);
-            await apiRequest("PATCH", `/api/messages/${selectedMessage.id}`, {
-              clientId: existingClient.id
-            });
-            
-            // Update local state
-            setSelectedMessage({ ...selectedMessage, clientId: existingClient.id });
-            
-            // Force refresh of client data
-            queryClient.invalidateQueries({ queryKey: ["/api/clients"] });
-            queryClient.invalidateQueries({ queryKey: ["/api/messages"] });
-            queryClient.invalidateQueries({ queryKey: ["/api/clients", existingClient.id] });
-            
-            // Wait a moment then refetch to ensure UI updates
-            setTimeout(() => {
-              queryClient.refetchQueries({ queryKey: ["/api/clients"] });
-            }, 500);
-            
-            toast({
-              title: "Message Linked",
-              description: `Message automatically linked to existing client: ${existingClient.name}`,
-            });
-          } catch (error) {
-            console.error("Error auto-linking client:", error);
-            toast({
-              title: "Auto-link Error",
-              description: "Could not automatically link message to client",
-              variant: "destructive",
-            });
-          }
-        };
-        
-        updateClientAndMessage();
-      }
+    if (selectedMessage && selectedMessage.status === "unread") {
+      const markAsRead = async () => {
+        try {
+          await apiRequest("PATCH", `/api/messages/${selectedMessage.id}/read`);
+          queryClient.invalidateQueries({ queryKey: ["/api/messages"] });
+          queryClient.invalidateQueries({ queryKey: ["/api/messages/unread-count"] });
+        } catch (error) {
+          console.error("Error marking message as read:", error);
+        }
+      };
+      markAsRead();
     }
-  }, [selectedMessage, clients, toast, queryClient]);
+  }, [selectedMessage, queryClient]);
 
   const markAsReadMutation = useMutation({
     mutationFn: async (id: number) => {
@@ -207,17 +141,27 @@ export default function Messages() {
     
     try {
       const response = await apiRequest("POST", "/api/clients", clientData);
-      const clientResponse = await response.json();
       
       if (response.status === 409) {
-        // Client already exists
-        toast({
-          title: "Client Already Exists",
-          description: `A client with this phone number already exists: ${clientResponse.existingClient.name}`,
-          variant: "destructive",
-        });
+        // Client already exists - handle the error response
+        try {
+          const errorData = await response.json();
+          toast({
+            title: "Client Already Exists",
+            description: errorData.message || "A client with this phone number already exists",
+            variant: "destructive",
+          });
+        } catch {
+          toast({
+            title: "Client Already Exists",
+            description: "A client with this phone number already exists",
+            variant: "destructive",
+          });
+        }
         return;
       }
+      
+      const clientResponse = await response.json();
       
       const newClient = clientResponse;
       
