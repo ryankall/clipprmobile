@@ -53,6 +53,7 @@ export default function Messages() {
 
   const { data: messages = [], isLoading } = useQuery<Message[]>({
     queryKey: ["/api/messages"],
+    refetchInterval: 10000, // Refresh every 10 seconds
   });
 
   const { data: clients } = useQuery<ClientWithStats[]>({
@@ -352,10 +353,12 @@ export default function Messages() {
     }
   };
 
-  const filteredMessages = messages.filter(message => {
-    if (filter === "all") return true;
-    return message.status === filter;
-  });
+  const filteredMessages = messages
+    .filter(message => {
+      if (filter === "all") return true;
+      return message.status === filter;
+    })
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
   if (isLoading) {
     return (

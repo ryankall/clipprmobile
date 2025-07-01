@@ -231,7 +231,6 @@ export default function Dashboard() {
                               touchAction: 'pan-x',
                             }}
                             onTouchStart={(e) => {
-                              console.log('Touch start detected');
                               const target = e.currentTarget;
                               const startX = e.touches[0].clientX;
                               let currentX = startX;
@@ -244,7 +243,6 @@ export default function Dashboard() {
                                 if (Math.abs(deltaX) > 10) {
                                   isDragging = true;
                                   e.preventDefault();
-                                  console.log('Swiping, deltaX:', deltaX);
                                   
                                   if (deltaX < 0) {
                                     // Swiping left - show red background and translate
@@ -257,11 +255,9 @@ export default function Dashboard() {
                               
                               const onTouchEnd = (e: TouchEvent) => {
                                 const deltaX = currentX - startX;
-                                console.log('Touch end, deltaX:', deltaX, 'isDragging:', isDragging);
                                 
                                 if (isDragging && deltaX < -50) {
                                   // Remove notification if swiped far enough
-                                  console.log('Dismissing notification:', notification.id);
                                   target.style.transform = 'translateX(-100%)';
                                   setTimeout(() => {
                                     setDismissedNotifications(prev => [...prev, notification.id]);
@@ -286,7 +282,6 @@ export default function Dashboard() {
                             }}
                             onMouseDown={(e) => {
                               // Fallback for desktop testing
-                              console.log('Mouse down detected');
                               const target = e.currentTarget;
                               const startX = e.clientX;
                               let currentX = startX;
@@ -299,7 +294,6 @@ export default function Dashboard() {
                                 if (Math.abs(deltaX) > 10) {
                                   isDragging = true;
                                   e.preventDefault();
-                                  console.log('Mouse dragging, deltaX:', deltaX);
                                   
                                   if (deltaX < 0) {
                                     // Swiping left - show red background and translate
@@ -312,11 +306,9 @@ export default function Dashboard() {
                               
                               const onMouseUp = (e: MouseEvent) => {
                                 const deltaX = currentX - startX;
-                                console.log('Mouse up, deltaX:', deltaX, 'isDragging:', isDragging);
                                 
                                 if (isDragging && deltaX < -50) {
                                   // Remove notification if swiped far enough
-                                  console.log('Dismissing notification:', notification.id);
                                   target.style.transform = 'translateX(-100%)';
                                   setTimeout(() => {
                                     setDismissedNotifications(prev => [...prev, notification.id]);
