@@ -122,7 +122,7 @@ export const reservations = pgTable("reservations", {
   customerEmail: text("customer_email"),
   scheduledAt: timestamp("scheduled_at").notNull(),
   duration: integer("duration").notNull(), // in minutes
-  services: text("services").array().notNull(), // service IDs as strings
+  services: text("services").array().default([]), // service IDs as strings
   address: text("address"),
   notes: text("notes"),
   status: text("status").notNull().default("pending"), // pending, confirmed, expired, cancelled
