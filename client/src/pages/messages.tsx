@@ -60,21 +60,72 @@ export default function Messages() {
     queryKey: ["/api/clients"],
   });
 
-  // Mark message as read when opened
+  // Update client info when opening a message
   useEffect(() => {
-    if (selectedMessage && selectedMessage.status === "unread") {
-      const markAsRead = async () => {
-        try {
-          await apiRequest("PATCH", `/api/messages/${selectedMessage.id}/read`);
-          queryClient.invalidateQueries({ queryKey: ["/api/messages"] });
-          queryClient.invalidateQueries({ queryKey: ["/api/messages/unread-count"] });
-        } catch (error) {
-          console.error("Error marking message as read:", error);
-        }
-      };
-      markAsRead();
+    if (selectedMessage && selectedMessage.customerPhone && clients) {
+      // Check if a client with this phone number already exists
+      const existingClient = clients.find(client => 
+        client.phone === selectedMessage.customerPhone
+      );
+      
+      if (existingClient) {
+        // Update client with latest information from message if needed
+        const updateClientInfo = async () => {
+          try {
+            // Parse the message to extract address from travel information
+            let extractedAddress = '';
+            if (selectedMessage.message && selectedMessage.message.includes('🚗 Travel: Yes')) {
+              const travelMatch = selectedMessage.message.match(/🚗 Travel: Yes - (.+?)(?:\n|$)/);
+              if (travelMatch) {
+                extractedAddress = travelMatch[1].trim();
+              }
+            }
+            
+            // Update client with latest information from message
+            const updateData: any = {};
+            if (selectedMessage.customerName && selectedMessage.customerName !== existingClient.name) {
+              updateData.name = selectedMessage.customerName;
+            }
+            if (selectedMessage.customerEmail && selectedMessage.customerEmail !== existingClient.email) {
+              updateData.email = selectedMessage.customerEmail;
+            }
+            if (extractedAddress && extractedAddress !== existingClient.address) {
+              updateData.address = extractedAddress;
+            }
+            
+            // Only update if there are changes
+            if (Object.keys(updateData).length > 0) {
+              await apiRequest("PATCH", `/api/clients/${existingClient.id}`, updateData);
+              queryClient.invalidateQueries({ queryKey: ["/api/clients"] });
+            }
+            
+            // Mark message as read
+            if (selectedMessage.status === "unread") {
+              await apiRequest("PATCH", `/api/messages/${selectedMessage.id}/read`);
+              queryClient.invalidateQueries({ queryKey: ["/api/messages"] });
+              queryClient.invalidateQueries({ queryKey: ["/api/messages/unread-count"] });
+            }
+          } catch (error) {
+            console.error("Error updating client info:", error);
+          }
+        };
+        
+        updateClientInfo();
+      } else if (selectedMessage.status === "unread") {
+        // Just mark as read if no client found
+        const markAsRead = async () => {
+          try {
+            await apiRequest("PATCH", `/api/messages/${selectedMessage.id}/read`);
+            queryClient.invalidateQueries({ queryKey: ["/api/messages"] });
+            queryClient.invalidateQueries({ queryKey: ["/api/messages/unread-count"] });
+          } catch (error) {
+            console.error("Error marking message as read:", error);
+          }
+        };
+        markAsRead();
+      }
     }
-  }, [selectedMessage, queryClient]);
+  }, [selectedMessage, clients, queryClient]);
 
   const markAsReadMutation = useMutation({
     mutationFn: async (id: number) => {
@@ -197,74 +248,55 @@ export default function Messages() {
     return message.customerName && (message.customerPhone || message.customerEmail);
   };
 
-  const handleBookAppointment = async (message: Message) => {
-    try {
-      // Extract appointment details from message
-      const dateMatch = message.message.match(/📅 Date: (\d{4}-\d{2}-\d{2})/);
-      const timeMatch = message.message.match(/⏰ Time: (\d{1,2}:\d{2})/);
-      const servicesMatch = message.message.match(/✂️ Services: (.+?)(?:\n|$)/);
-      const addressMatch = message.message.match(/🚗 Travel: Yes - (.+?)(?:\n|$)/);
-      const customServiceMatch = message.message.match(/✂️ Custom Service: (.+?)(?:\n|$)/);
-      const messageMatch = message.message.match(/💬 Message: (.+?)(?:\n|$)/);
+  const handleBookAppointment = (message: Message) => {
+    // Extract appointment details from message
+    const dateMatch = message.message.match(/📅 Date: (\d{4}-\d{2}-\d{2})/);
+    const timeMatch = message.message.match(/⏰ Time: (\d{1,2}:\d{2})/);
+    const servicesMatch = message.message.match(/✂️ Services: (.+?)(?:\n|$)/);
+    const addressMatch = message.message.match(/🚗 Travel: Yes - (.+?)(?:\n|$)/);
+    const customServiceMatch = message.message.match(/✂️ Custom Service: (.+?)(?:\n|$)/);
+    const messageNotesMatch = message.message.match(/💬 Message: (.+?)(?:\n|$)/);
 
-      if (!dateMatch || !timeMatch) {
-        toast({
-          title: "Error",
-          description: "Could not extract date and time from the booking request.",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      const selectedDate = dateMatch[1];
-      const selectedTime = timeMatch[1];
-      const services = servicesMatch ? servicesMatch[1].split(', ') : [];
-      const address = addressMatch ? addressMatch[1] : "";
-      const customService = customServiceMatch ? customServiceMatch[1] : "";
-      const notes = messageMatch ? messageMatch[1] : "";
-
-      // Create the appointment datetime
-      const appointmentDateTime = new Date(`${selectedDate}T${selectedTime}:00`);
-      
-      // Create reservation with 30-minute hold and SMS confirmation
-      const reservationData = {
-        customerName: message.customerName,
-        customerPhone: message.customerPhone,
-        customerEmail: message.customerEmail,
-        scheduledAt: appointmentDateTime.toISOString(),
-        services,
-        address: address || undefined,
-        notes: notes || undefined,
-      };
-
-      const response = await apiRequest("POST", "/api/reservations", reservationData);
-      const result = await response.json();
-
-      if (!response.ok) {
-        throw new Error(result.message || "Failed to create reservation");
-      }
-
-      // Mark message as read and processed
-      await apiRequest("PATCH", `/api/messages/${message.id}/read`);
-      
-      // Refresh queries
-      queryClient.invalidateQueries({ queryKey: ["/api/messages"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/messages/unread-count"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/reservations/pending"] });
-
-      toast({
-        title: "Reservation Created",
-        description: `30-minute hold created for ${message.customerName}. SMS confirmation sent to customer.`,
-      });
-
-      setSelectedMessage(null);
-    } catch (error: any) {
+    if (!dateMatch || !timeMatch) {
       toast({
         title: "Error",
-        description: error.message || "Failed to create reservation",
+        description: "Could not extract date and time from the booking request.",
         variant: "destructive",
       });
+      return;
     }
+
+    const selectedDate = dateMatch[1];
+    const selectedTime = timeMatch[1];
+    const services = servicesMatch ? servicesMatch[1].split(', ') : [];
+    const address = addressMatch ? addressMatch[1] : "";
+    const customService = customServiceMatch ? customServiceMatch[1] : "";
+    const notes = messageNotesMatch ? messageNotesMatch[1] : "";
+
+    // Find client by phone number
+    const existingClient = clients?.find(client => 
+      client.phone === message.customerPhone
+    );
+
+    // Store the booking information in localStorage for the calendar page
+    const bookingInfo = {
+      clientId: existingClient?.id,
+      clientName: message.customerName,
+      clientPhone: message.customerPhone,
+      clientEmail: message.customerEmail,
+      selectedDate,
+      selectedTime,
+      services,
+      address,
+      customService,
+      notes,
+      messageId: message.id
+    };
+    
+    localStorage.setItem('pendingBooking', JSON.stringify(bookingInfo));
+    
+    // Navigate to calendar page
+    window.location.href = '/calendar';
   };
 
   const getCreateClientTooltip = (message: Message) => {

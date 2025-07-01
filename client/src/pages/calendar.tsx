@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -8,15 +8,61 @@ import { AppointmentCard } from "@/components/appointment-card";
 import { AppointmentDetailsDialog } from "@/components/appointment-details-dialog";
 // import { WorkingHoursDialog } from "@/components/working-hours-dialog";
 import { format, addDays, subDays, startOfWeek, endOfWeek } from "date-fns";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import type { AppointmentWithRelations } from "@shared/schema";
 
 export default function Calendar() {
   console.log('Calendar component rendering...');
   
+  const [, navigate] = useLocation();
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [selectedAppointment, setSelectedAppointment] = useState<AppointmentWithRelations | null>(null);
   const [showAppointmentDialog, setShowAppointmentDialog] = useState(false);
+  
+  // Check for pending booking from messages
+  useEffect(() => {
+    const pendingBooking = localStorage.getItem('pendingBooking');
+    if (pendingBooking) {
+      try {
+        const bookingInfo = JSON.parse(pendingBooking);
+        console.log('Found pending booking:', bookingInfo);
+        
+        // Clear the pending booking data
+        localStorage.removeItem('pendingBooking');
+        
+        // Build URL parameters for the appointment page
+        const params = new URLSearchParams();
+        if (bookingInfo.clientId) {
+          params.set('clientId', bookingInfo.clientId.toString());
+        } else {
+          params.set('clientName', bookingInfo.clientName);
+          params.set('phone', bookingInfo.clientPhone);
+          if (bookingInfo.clientEmail) {
+            params.set('email', bookingInfo.clientEmail);
+          }
+        }
+        if (bookingInfo.services && bookingInfo.services.length > 0) {
+          params.set('services', bookingInfo.services.join(','));
+        }
+        if (bookingInfo.address) {
+          params.set('address', bookingInfo.address);
+        }
+        if (bookingInfo.notes) {
+          params.set('notes', bookingInfo.notes);
+        }
+        if (bookingInfo.selectedDate && bookingInfo.selectedTime) {
+          const scheduledAt = new Date(`${bookingInfo.selectedDate}T${bookingInfo.selectedTime}:00`);
+          params.set('scheduledAt', scheduledAt.toISOString());
+        }
+        
+        // Navigate to appointment creation page with prefilled data
+        navigate(`/appointments/new?${params.toString()}`);
+      } catch (error) {
+        console.error('Error parsing pending booking data:', error);
+        localStorage.removeItem('pendingBooking'); // Clear invalid data
+      }
+    }
+  }, [navigate]);
   
   console.log('Selected date state:', selectedDate);
   
