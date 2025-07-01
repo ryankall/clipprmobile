@@ -76,22 +76,26 @@ export default function Dashboard() {
   // Find next and current appointments
   const now = new Date();
   
-  // Current appointment is happening now (from 2 hours before to end time for demo)
+  // Current appointment is happening now (from 30 minutes before to end time)
   const currentAppointment = todayAppointments?.find(apt => {
     const startTime = new Date(apt.scheduledAt);
     const endTime = new Date(startTime.getTime() + (apt.duration * 60 * 1000));
     const timeDiff = now.getTime() - startTime.getTime();
     const minutesDiff = timeDiff / (1000 * 60);
     
-    // Show as current if we're within 2 hours before start time through the end time
-    // This gives us a wider window for testing purposes
-    return minutesDiff >= -120 && now <= endTime;
+    // Show as current if we're within 30 minutes before start time through the end time
+    return minutesDiff >= -30 && now <= endTime;
   }) || null;
 
-  // Next appointment excludes current appointment
+  // Next appointment is the soonest future appointment (excludes current appointment)
   const upcomingAppointments = todayAppointments?.filter(apt => {
     const startTime = new Date(apt.scheduledAt);
-    return startTime > now && apt.id !== currentAppointment?.id;
+    // Don't show appointments that are current
+    if (currentAppointment && apt.id === currentAppointment.id) {
+      return false;
+    }
+    // Show all future appointments
+    return startTime > now;
   }) || [];
   const nextAppointment = upcomingAppointments.length > 0 ? upcomingAppointments[0] : null;
 
