@@ -1678,7 +1678,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
       // Validate required fields
-      if (!customerName || !customerPhone || !scheduledAt || !services?.length) {
+      if (!customerName || !customerPhone || !scheduledAt) {
         console.log("Missing required fields:", { 
           customerName: !!customerName, 
           customerPhone: !!customerPhone, 
@@ -1701,19 +1701,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Get service details and calculate total duration
       const userServices = await storage.getServicesByUserId(userId);
-      const requestedServices = userServices.filter(s => services.includes(s.name));
-      
-      let totalDuration = 0;
+      let requestedServices = [];
+      let totalDuration = 60; // Default duration
       const serviceIds = [];
       
-      for (const service of requestedServices) {
-        totalDuration += service.duration;
-        serviceIds.push(service.id.toString());
-      }
-      
-      // Default to 60 minutes if no services found
-      if (totalDuration === 0) {
-        totalDuration = 60;
+      if (services && services.length > 0) {
+        requestedServices = userServices.filter(s => services.includes(s.name));
+        
+        totalDuration = 0;
+        for (const service of requestedServices) {
+          totalDuration += service.duration;
+          serviceIds.push(service.id.toString());
+        }
+        
+        // If no matching services found, use default duration
+        if (totalDuration === 0) {
+          totalDuration = 60;
+        }
       }
 
       // Check for conflicts
