@@ -51,7 +51,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const existingUser = await storage.getUserByEmail(email);
       if (existingUser) {
-        return res.status(400).json({ message: "User already exists" });
+        return res.status(400).json({ message: "Email address is already registered" });
+      }
+
+      // Check for existing phone number
+      const existingPhoneUser = await storage.getUserByPhone(phone);
+      if (existingPhoneUser) {
+        return res.status(400).json({ message: "Phone number is already registered" });
       }
 
       const user = await storage.createUser({
@@ -77,6 +83,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         message: "User created successfully"
       });
     } catch (error: any) {
+      // Handle unique constraint violations
+      if (error.code === '23505') {
+        if (error.constraint === 'users_email_unique') {
+          return res.status(400).json({ message: "Email address is already registered" });
+        }
+        if (error.constraint === 'users_phone_unique') {
+          return res.status(400).json({ message: "Phone number is already registered" });
+        }
+      }
+      console.error("Signup error:", error);
       res.status(500).json({ message: error.message });
     }
   });
@@ -499,6 +515,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const client = await storage.createClient(clientData);
       res.json(client);
     } catch (error: any) {
+      // Handle unique constraint violations from database
+      if (error.code === '23505' && error.constraint === 'clients_phone_unique') {
+        return res.status(409).json({ 
+          message: "A client with this phone number already exists"
+        });
+      }
+      console.error("Create client error:", error);
       res.status(500).json({ message: error.message });
     }
   });
