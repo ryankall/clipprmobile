@@ -1783,6 +1783,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = (req.user as any).id;
       
+      console.log(`Fetching pending reservations for user ${userId}`);
+      
       const pendingReservations = await db
         .select()
         .from(reservations)
@@ -1794,8 +1796,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         )
         .orderBy(reservations.scheduledAt);
 
+      console.log(`Found ${pendingReservations.length} pending reservations:`, pendingReservations);
+
       res.json(pendingReservations);
     } catch (error: any) {
+      console.error("Error fetching pending reservations:", error);
       res.status(500).json({ message: error.message });
     }
   });
