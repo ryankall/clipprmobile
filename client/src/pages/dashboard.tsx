@@ -6,7 +6,8 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { BottomNavigation } from "@/components/bottom-navigation";
 import { AppointmentCard } from "@/components/appointment-card";
-import { AppointmentPreview } from "@/components/appointment-preview";
+import { AppointmentPreview } from "@/components/appointment-preview-simple";
+import { AppointmentDetailsDialog } from "@/components/appointment-details-dialog";
 import { PendingReservations } from "@/components/pending-reservations";
 import { useAuth } from "@/hooks/useAuth";
 import { Scissors, Slice, Bell, Plus, Calendar, Users, Camera, Settings, X, MessageSquare, CreditCard, User as UserIcon } from "lucide-react";
@@ -17,6 +18,8 @@ import type { Service } from "@/lib/types";
 
 export default function Dashboard() {
   const [showNotifications, setShowNotifications] = useState(false);
+  const [selectedAppointment, setSelectedAppointment] = useState<AppointmentWithRelations | null>(null);
+  const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false);
   const notificationRef = useRef<HTMLDivElement>(null);
   const { user } = useAuth();
   const [, navigate] = useLocation();
@@ -302,6 +305,10 @@ export default function Dashboard() {
             type="next"
             services={services}
             quickActionMessages={quickActionMessages}
+            onDetailsClick={() => {
+              setSelectedAppointment(nextAppointment);
+              setIsDetailsDialogOpen(true);
+            }}
           />
         )}
 
@@ -311,6 +318,10 @@ export default function Dashboard() {
             appointment={currentAppointment}
             type="current"
             services={services}
+            onDetailsClick={() => {
+              setSelectedAppointment(currentAppointment);
+              setIsDetailsDialogOpen(true);
+            }}
           />
         )}
 
@@ -333,7 +344,15 @@ export default function Dashboard() {
                 </div>
               ) : todayAppointments?.length ? (
                 todayAppointments.map((appointment) => (
-                  <AppointmentCard key={appointment.id} appointment={appointment} />
+                  <AppointmentCard 
+                    key={appointment.id} 
+                    appointment={appointment}
+                    onClick={() => {
+                      setSelectedAppointment(appointment);
+                      setIsDetailsDialogOpen(true);
+                    }}
+                    showClickable={true}
+                  />
                 ))
               ) : (
                 <div className="text-center py-8 text-steel">
@@ -346,7 +365,50 @@ export default function Dashboard() {
         </Card>
 
         {/* Pending Reservations */}
-        <PendingReservations />
+        <PendingReservations 
+          onReservationClick={(reservation) => {
+            // Convert reservation to appointment-like structure for display
+            const tempAppointment = {
+              id: reservation.id,
+              userId: reservation.userId,
+              clientId: 0, // No client ID for reservations
+              serviceId: 0, // No service ID for reservations
+              scheduledAt: reservation.scheduledAt,
+              duration: reservation.duration,
+              price: "0.00",
+              status: "pending" as const,
+              address: reservation.address,
+              notes: reservation.notes,
+              createdAt: reservation.createdAt,
+              updatedAt: reservation.updatedAt,
+              client: {
+                id: 0,
+                userId: reservation.userId,
+                name: reservation.customerName,
+                phone: reservation.customerPhone,
+                email: reservation.customerEmail || "",
+                address: reservation.address || "",
+                notes: reservation.notes || "",
+                createdAt: reservation.createdAt,
+                updatedAt: reservation.updatedAt,
+              },
+              service: {
+                id: 0,
+                userId: reservation.userId,
+                name: reservation.services.join(", "),
+                price: "0.00",
+                duration: reservation.duration,
+                description: "",
+                category: "other" as const,
+                status: "active" as const,
+                createdAt: reservation.createdAt,
+                updatedAt: reservation.updatedAt,
+              }
+            };
+            setSelectedAppointment(tempAppointment);
+            setIsDetailsDialogOpen(true);
+          }}
+        />
 
         {/* Recent Work Gallery */}
         <Card className="bg-dark-card border-steel/20 card-shadow">
@@ -403,6 +465,15 @@ export default function Dashboard() {
       </main>
 
       <BottomNavigation currentPath="/" />
+      
+      <AppointmentDetailsDialog
+        appointment={selectedAppointment}
+        open={isDetailsDialogOpen}
+        onClose={() => {
+          setIsDetailsDialogOpen(false);
+          setSelectedAppointment(null);
+        }}
+      />
     </div>
   );
 }

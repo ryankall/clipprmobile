@@ -25,7 +25,11 @@ interface Reservation {
   updatedAt: string;
 }
 
-export function PendingReservations() {
+interface PendingReservationsProps {
+  onReservationClick?: (reservation: Reservation) => void;
+}
+
+export function PendingReservations({ onReservationClick }: PendingReservationsProps = {}) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -110,7 +114,8 @@ export function PendingReservations() {
           return (
             <div
               key={reservation.id}
-              className="bg-charcoal rounded-lg p-4 space-y-3"
+              className={`bg-charcoal rounded-lg p-4 space-y-3 ${onReservationClick ? 'cursor-pointer hover:bg-charcoal/80 transition-colors' : ''}`}
+              onClick={() => onReservationClick?.(reservation)}
             >
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-2">
@@ -181,7 +186,10 @@ export function PendingReservations() {
               <div className="flex justify-end pt-2">
                 <Button
                   size="sm"
-                  onClick={() => confirmReservationMutation.mutate(reservation.id)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    confirmReservationMutation.mutate(reservation.id);
+                  }}
                   disabled={confirmReservationMutation.isPending}
                   className="bg-gold hover:bg-gold/80 text-dark-bg"
                 >

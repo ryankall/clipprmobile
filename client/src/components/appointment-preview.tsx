@@ -7,6 +7,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+
 import { Phone, MapPin, Clock, XCircle, Receipt, MessageSquare, Scissors } from "lucide-react";
 import { format, differenceInMinutes } from "date-fns";
 import { useForm } from "react-hook-form";
@@ -39,6 +40,7 @@ const invoiceFormSchema = insertInvoiceSchema.extend({
 
 export function AppointmentPreview({ appointment, type, services = [], quickActionMessages }: AppointmentPreviewProps) {
   const [isInvoiceDialogOpen, setIsInvoiceDialogOpen] = useState(false);
+  const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false);
   const { toast } = useToast();
 
   const form = useForm<z.infer<typeof invoiceFormSchema>>({
@@ -178,37 +180,37 @@ export function AppointmentPreview({ appointment, type, services = [], quickActi
   return (
     <Card className="bg-charcoal border-steel">
       <CardContent className="p-4">
-        <div className="flex items-start justify-between mb-3">
-          <div className="flex items-center gap-2">
-            <Badge variant="outline" className="text-gold border-gold">
-              {type === "next" ? "Next" : "Current"}
-            </Badge>
-            <span className="text-white font-medium">
-              {format(new Date(appointment.scheduledAt), 'h:mm a')} – {appointment.client.name}
-            </span>
-          </div>
-          {eta && (
-            <Badge variant="secondary" className="bg-gold text-charcoal">
-              ETA: {eta}
-            </Badge>
-          )}
-        </div>
-
-        <div className="space-y-2 mb-4">
-          <div className="flex items-center gap-2 text-steel">
-            <Scissors className="h-4 w-4" />
-            <span>{appointment.service.name}</span>
-          </div>
-          
-          {appointment.address && (
-            <div className="flex items-center gap-2 text-steel">
-              <MapPin className="h-4 w-4" />
-              <span className="text-sm">{appointment.address}</span>
+          <div className="flex items-start justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <Badge variant="outline" className="text-gold border-gold">
+                {type === "next" ? "Next" : "Current"}
+              </Badge>
+              <span className="text-white font-medium">
+                {format(new Date(appointment.scheduledAt), 'h:mm a')} – {appointment.client.name}
+              </span>
             </div>
-          )}
-        </div>
+            {eta && (
+              <Badge variant="secondary" className="bg-gold text-charcoal">
+                ETA: {eta}
+              </Badge>
+            )}
+          </div>
 
-        <div className="flex gap-2 flex-wrap">
+          <div className="space-y-2 mb-4">
+            <div className="flex items-center gap-2 text-steel">
+              <Scissors className="h-4 w-4" />
+              <span>{appointment.service.name}</span>
+            </div>
+            
+            {appointment.address && (
+              <div className="flex items-center gap-2 text-steel">
+                <MapPin className="h-4 w-4" />
+                <span className="text-sm">{appointment.address}</span>
+              </div>
+            )}
+          </div>
+
+          <div className="flex gap-2 flex-wrap">
           {type === "next" && quickActionMessages && (
             <>
               {quickActionMessages.onMyWay && (
@@ -233,6 +235,15 @@ export function AppointmentPreview({ appointment, type, services = [], quickActi
                   Running Late
                 </Button>
               )}
+              <Button 
+                size="sm" 
+                variant="outline"
+                onClick={handlePhoneCall}
+                className="text-xs"
+              >
+                <Phone className="h-3 w-3 mr-1" />
+                Call
+              </Button>
             </>
           )}
 
@@ -371,8 +382,8 @@ export function AppointmentPreview({ appointment, type, services = [], quickActi
               </Dialog>
             </>
           )}
-        </div>
-      </CardContent>
-    </Card>
+          </div>
+        </CardContent>
+      </Card>
   );
 }
