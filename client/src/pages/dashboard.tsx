@@ -149,17 +149,31 @@ export default function Dashboard() {
     upcomingAppointmentsCount: upcomingAppointments.length
   });
 
-  // TEMPORARY: To demonstrate appointment cards, let's create a test appointment 
-  // that would show as "next" (30 minutes from now)
-  const testNextAppointment = todayAppointments && todayAppointments.length > 0 ? {
-    ...todayAppointments[0], // Use James Wilson's data
-    id: 999, // Temporary ID
-    scheduledAt: new Date(now.getTime() + 30 * 60 * 1000).toISOString(), // 30 minutes from now
-    client: { ...todayAppointments[0].client, name: "Test Next - " + todayAppointments[0].client.name }
-  } : null;
+  // Filter out pending appointments (they shouldn't show in current/next cards)
+  const confirmedAppointments = todayAppointments?.filter(apt => apt.status !== 'pending') || [];
+  
+  // Re-run the current/next logic with confirmed appointments only
+  const confirmedCurrentAppointment = confirmedAppointments.find(apt => {
+    const startTime = new Date(apt.scheduledAt);
+    const endTime = new Date(startTime.getTime() + (apt.duration * 60 * 1000));
+    const timeDiff = now.getTime() - startTime.getTime();
+    const minutesDiff = timeDiff / (1000 * 60);
+    
+    // Show as current if we're within 30 minutes before start time through the end time
+    return minutesDiff >= -30 && now <= endTime;
+  }) || null;
 
-  // Override for testing - remove this once timezone is fixed
-  const displayNextAppointment = testNextAppointment;
+  const confirmedUpcomingAppointments = confirmedAppointments.filter(apt => {
+    const startTime = new Date(apt.scheduledAt);
+    // Don't show appointments that are current
+    if (confirmedCurrentAppointment && apt.id === confirmedCurrentAppointment.id) {
+      return false;
+    }
+    // Show all future appointments
+    return startTime > now;
+  }) || [];
+  
+  const confirmedNextAppointment = confirmedUpcomingAppointments.length > 0 ? confirmedUpcomingAppointments[0] : null;
 
   // Generate smart notifications based on user data
   const generateNotifications = () => {
@@ -476,32 +490,34 @@ export default function Dashboard() {
           </Link>
         </div>
 
-        {/* Next Appointment Preview */}
-        {displayNextAppointment && (
-          <AppointmentPreview
-            appointment={displayNextAppointment}
-            type="next"
-            services={services}
-            quickActionMessages={quickActionMessages}
-            onDetailsClick={() => {
-              setSelectedAppointment(displayNextAppointment);
+        {/* Current Appointment Preview - Always show */}
+        <AppointmentPreview
+          appointment={confirmedCurrentAppointment || undefined}
+          type="current"
+          services={services}
+          onDetailsClick={() => {
+            if (confirmedCurrentAppointment) {
+              setSelectedAppointment(confirmedCurrentAppointment);
               setIsDetailsDialogOpen(true);
-            }}
-          />
-        )}
+            }
+          }}
+        />
 
-        {/* Current Appointment Preview */}
-        {currentAppointment && (
-          <AppointmentPreview
-            appointment={currentAppointment}
-            type="current"
-            services={services}
-            onDetailsClick={() => {
-              setSelectedAppointment(currentAppointment);
+        {/* Next Appointment Preview - Always show */}
+        <AppointmentPreview
+          appointment={confirmedNextAppointment || undefined}
+          type="next"
+          services={services}
+          quickActionMessages={quickActionMessages}
+          onDetailsClick={() => {
+            if (confirmedNextAppointment) {
+              setSelectedAppointment(confirmedNextAppointment);
               setIsDetailsDialogOpen(true);
-            }}
-          />
-        )}
+            }
+          }}
+        />
+
+
 
         {/* Today's Appointments */}
         <Card className="bg-dark-card border-steel/20 card-shadow">

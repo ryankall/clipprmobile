@@ -11,7 +11,7 @@ import { useLocation } from "wouter";
 import type { AppointmentWithRelations, Service } from "@shared/schema";
 
 interface AppointmentPreviewProps {
-  appointment: AppointmentWithRelations;
+  appointment?: AppointmentWithRelations;
   type: "next" | "current";
   services?: Service[];
   quickActionMessages?: {
@@ -31,6 +31,27 @@ export function AppointmentPreview({
 }: AppointmentPreviewProps) {
   const { toast } = useToast();
   const [, setLocation] = useLocation();
+
+  // Handle empty state when no appointment
+  if (!appointment) {
+    return (
+      <Card className="bg-charcoal border-steel">
+        <CardContent className="p-4">
+          <div className="flex items-center justify-between mb-3">
+            <Badge variant="outline" className="text-gold border-gold">
+              {type === "next" ? "Next" : "Current"}
+            </Badge>
+          </div>
+          <div className="text-center py-6">
+            <Scissors className="w-8 h-8 text-steel/50 mx-auto mb-3" />
+            <p className="text-steel">
+              {type === "current" ? "No appointment at this time" : "No upcoming appointment"}
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
 
   const markNoShowMutation = useMutation({
     mutationFn: () => apiRequest("PATCH", `/api/appointments/${appointment.id}`, {
