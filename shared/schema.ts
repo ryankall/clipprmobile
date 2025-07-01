@@ -17,6 +17,7 @@ export const users = pgTable("users", {
   serviceArea: text("service_area"),
   about: text("about"),
   workingHours: json("working_hours").default({}),
+  timezone: text("timezone").default("America/New_York"), // user's timezone for appointment scheduling
   travelTimeBuffer: integer("travel_time_buffer").default(15), // minutes (fallback)
   defaultGraceTime: integer("default_grace_time").default(5), // minutes to add to calculated travel time
   

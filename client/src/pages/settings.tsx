@@ -72,6 +72,7 @@ const profileSchema = z.object({
   about: z.string().optional(),
   photoUrl: z.string().optional(),
   homeBaseAddress: z.string().optional(),
+  timezone: z.string().optional(),
   defaultGraceTime: z.number().min(0).max(60).optional(),
 });
 
@@ -200,6 +201,7 @@ export default function Settings() {
       about: "",
       photoUrl: "",
       homeBaseAddress: "",
+      timezone: "America/New_York",
       defaultGraceTime: 5,
     },
   });
@@ -578,6 +580,7 @@ export default function Settings() {
         about: user.about || "",
         photoUrl: user.photoUrl || "",
         homeBaseAddress: (user as any).homeBaseAddress || "",
+        timezone: (user as any).timezone || "America/New_York",
         defaultGraceTime: (user as any).defaultGraceTime || 5,
       });
       // Only set previewUrl if user has a photo URL and previewUrl is not manually cleared
@@ -944,6 +947,33 @@ export default function Settings() {
                               </FormControl>
                               <p className="text-steel text-xs">
                                 Starting point for calculating travel time to your first appointment. Enter your full address including city and state.
+                              </p>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        
+                        <FormField
+                          control={form.control}
+                          name="timezone"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel className="text-white">Timezone</FormLabel>
+                              <FormControl>
+                                <select 
+                                  {...field}
+                                  className="w-full p-2 bg-charcoal border border-steel/40 text-white rounded-md"
+                                >
+                                  <option value="America/New_York">Eastern Time (ET)</option>
+                                  <option value="America/Chicago">Central Time (CT)</option>
+                                  <option value="America/Denver">Mountain Time (MT)</option>
+                                  <option value="America/Los_Angeles">Pacific Time (PT)</option>
+                                  <option value="America/Anchorage">Alaska Time (AKT)</option>
+                                  <option value="Pacific/Honolulu">Hawaii Time (HST)</option>
+                                </select>
+                              </FormControl>
+                              <p className="text-steel text-xs">
+                                Your local timezone for appointment scheduling and display
                               </p>
                               <FormMessage />
                             </FormItem>
