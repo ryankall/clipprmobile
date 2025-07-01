@@ -278,25 +278,33 @@ export default function Messages() {
       client.phone === message.customerPhone
     );
 
-    // Store the booking information in localStorage for the calendar page
-    const bookingInfo = {
-      clientId: existingClient?.id,
-      clientName: message.customerName,
-      clientPhone: message.customerPhone,
-      clientEmail: message.customerEmail,
-      selectedDate,
-      selectedTime,
-      services,
-      address,
-      customService,
-      notes,
-      messageId: message.id
-    };
+    // Navigate directly to appointments page with prefilled data
+    const params = new URLSearchParams();
+    if (existingClient?.id) {
+      params.set('clientId', existingClient.id.toString());
+    } else {
+      params.set('clientName', message.customerName);
+      params.set('phone', message.customerPhone);
+      if (message.customerEmail) {
+        params.set('email', message.customerEmail);
+      }
+    }
+    if (services && services.length > 0) {
+      params.set('services', services.join(','));
+    }
+    if (address) {
+      params.set('address', address);
+    }
+    if (notes) {
+      params.set('notes', notes);
+    }
+    if (selectedDate && selectedTime) {
+      const scheduledAt = new Date(`${selectedDate}T${selectedTime}:00`);
+      params.set('scheduledAt', scheduledAt.toISOString());
+    }
     
-    localStorage.setItem('pendingBooking', JSON.stringify(bookingInfo));
-    
-    // Navigate to calendar page
-    window.location.href = '/calendar';
+    // Navigate directly to appointment creation page
+    window.location.href = `/appointments/new?${params.toString()}`;
   };
 
   const getCreateClientTooltip = (message: Message) => {
