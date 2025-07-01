@@ -352,23 +352,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log('Data to validate:', JSON.stringify(dataToValidate, null, 2));
       const appointmentData = insertAppointmentSchema.parse(dataToValidate);
       
-      const appointment = await storage.createAppointment(appointmentData);
-
-      // Create appointment service records for all selected services
-      for (const serviceDetail of serviceDetails) {
-        await storage.createAppointmentService({
-          appointmentId: appointment.id,
-          serviceId: serviceDetail.service.id,
-          quantity: serviceDetail.quantity,
-          price: serviceDetail.price
-        });
+      // Get client data first
+      const client = await storage.getClient(appointmentData.clientId);
+      if (!client) {
+        return res.status(400).json({ message: "Client not found" });
       }
+
+      // Create a reservation instead of direct appointment (expires in 30 minutes)
+      const expiresAt = new Date(Date.now() + 30 * 60 * 1000);
+      const reservation = await storage.createReservation({
+        userId,
+        customerName: client.name,
+        customerPhone: client.phone || '',
+        customerEmail: client.email || '',
+        scheduledAt: appointmentUTC,
+        duration: totalDuration,
+        services: services.map((s: any) => s.serviceId.toString()), // Convert to string array
+        address: appointmentData.address || '',
+        notes: appointmentData.notes || '',
+        status: 'pending',
+        expiresAt
+      });
       
       // Send automatic confirmation message
       try {
-        const client = await storage.getClient(appointment.clientId);
         if (client) {
-          const appointmentTime = format(new Date(appointment.scheduledAt), "EEEE, MMMM do 'at' h:mm a");
+          const appointmentTime = format(new Date(reservation.scheduledAt), "EEEE, MMMM do 'at' h:mm a");
           
           // Create service list for confirmation message
           let serviceText;
@@ -390,14 +399,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
             type: 'appointment_confirmation_needed',
             title: 'Appointment Confirmation Needed',
             message: `SMS confirmation sent to ${client.name} for appointment on ${appointmentTime}`,
-            appointmentId: appointment.id,
+            appointmentId: null, // No appointment yet, just reservation
             clientName: client.name,
           });
           
           // Log the confirmation message
           await storage.createMessage({
             userId,
-            clientId: appointment.clientId,
+            clientId: appointmentData.clientId,
             customerName: client.name,
             customerPhone: client.phone || '',
             customerEmail: client.email || '',
@@ -407,11 +416,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
           });
         }
       } catch (confirmationError) {
-        // Don't fail appointment creation if confirmation fails
+        // Don't fail reservation creation if confirmation fails
         console.warn("Failed to send appointment confirmation:", confirmationError);
       }
       
-      res.json(appointment);
+      res.json(reservation);
     } catch (error: any) {
       console.error('Appointment creation error:', error);
       if (error instanceof z.ZodError) {
