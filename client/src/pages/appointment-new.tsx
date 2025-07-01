@@ -26,7 +26,7 @@ interface ServiceSelection {
 
 // Appointment form schema
 const appointmentFormSchema = z.object({
-  clientId: z.number().min(1, "Client is required"),
+  clientId: z.number().min(0, "Client is required"),
   services: z.array(z.object({
     serviceId: z.number(),
     quantity: z.number().min(1)
@@ -123,6 +123,30 @@ export default function AppointmentNew() {
     },
   });
 
+  // Update form when client data becomes available
+  useEffect(() => {
+    if (foundClient) {
+      form.setValue("clientId", foundClient.id);
+    } else if (clientName && !preselectedClientId) {
+      // If we have client name but no existing client, show client selection dropdown
+      form.setValue("clientId", 0);
+    }
+  }, [foundClient, clientName, preselectedClientId, form]);
+
+  // Format and set the scheduled date/time
+  useEffect(() => {
+    if (prefilledScheduledAt) {
+      try {
+        const date = new Date(prefilledScheduledAt);
+        // Convert to local time and format for datetime-local input
+        const localDateTime = format(date, "yyyy-MM-dd'T'HH:mm");
+        form.setValue("scheduledAt", localDateTime);
+      } catch (error) {
+        console.error("Error parsing scheduled date:", error);
+      }
+    }
+  }, [prefilledScheduledAt, form]);
+
   // Initialize service selections from form default values
   useEffect(() => {
     if (preselectedServices.length > 0 && serviceSelections.length === 0) {
@@ -141,9 +165,24 @@ export default function AppointmentNew() {
       const localDateTime = new Date(data.scheduledAt);
       const utcDateTime = localDateTime.toISOString();
       
+      let finalClientId = data.clientId;
+      
+      // If clientId is 0, create a new client first
+      if (data.clientId === 0 && clientName) {
+        const newClientData = {
+          name: clientName,
+          phone: clientPhone || "",
+          email: clientEmail || "",
+        };
+        
+        const clientResponse = await apiRequest("POST", "/api/clients", newClientData);
+        const newClient = await clientResponse.json();
+        finalClientId = newClient.id;
+      }
+      
       // Send the full services array to the backend
       const appointmentData = {
-        clientId: data.clientId,
+        clientId: finalClientId,
         services: data.services, // Send full services array
         scheduledAt: utcDateTime,
         notes: data.notes,
@@ -276,37 +315,52 @@ export default function AppointmentNew() {
             <Form {...form}>
               <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
                 {/* Client Selection */}
-                <FormField
-                  control={form.control}
-                  name="clientId"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="text-white flex items-center">
-                        <User className="w-4 h-4 mr-2" />
-                        Client
-                      </FormLabel>
-                      <Select onValueChange={(value) => field.onChange(parseInt(value))} value={field.value?.toString()}>
-                        <FormControl>
-                          <SelectTrigger className="bg-charcoal border-steel/40 text-white">
-                            <SelectValue placeholder="Select a client" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent className="bg-charcoal border-steel/40 text-white">
-                          {clients?.map((client) => (
-                            <SelectItem 
-                              key={client.id} 
-                              value={client.id.toString()}
-                              className="text-white hover:bg-steel/20"
-                            >
-                              {client.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                {clientName && !foundClient ? (
+                  <div className="space-y-2">
+                    <FormLabel className="text-white flex items-center">
+                      <User className="w-4 h-4 mr-2" />
+                      Client
+                    </FormLabel>
+                    <div className="bg-charcoal border border-steel/40 rounded-md p-3 text-white">
+                      <div className="font-medium">{clientName}</div>
+                      {clientPhone && <div className="text-sm text-steel">{clientPhone}</div>}
+                      {clientEmail && <div className="text-sm text-steel">{clientEmail}</div>}
+                      <div className="text-xs text-gold mt-1">New client - will be created with appointment</div>
+                    </div>
+                  </div>
+                ) : (
+                  <FormField
+                    control={form.control}
+                    name="clientId"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-white flex items-center">
+                          <User className="w-4 h-4 mr-2" />
+                          Client
+                        </FormLabel>
+                        <Select onValueChange={(value) => field.onChange(parseInt(value))} value={field.value?.toString()}>
+                          <FormControl>
+                            <SelectTrigger className="bg-charcoal border-steel/40 text-white">
+                              <SelectValue placeholder="Select a client" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent className="bg-charcoal border-steel/40 text-white">
+                            {clients?.map((client) => (
+                              <SelectItem 
+                                key={client.id} 
+                                value={client.id.toString()}
+                                className="text-white hover:bg-steel/20"
+                              >
+                                {client.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                )}
 
                 {/* Service Selection */}
                 <div className="space-y-4">
