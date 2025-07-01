@@ -69,7 +69,7 @@ export const appointments = pgTable("appointments", {
   clientId: integer("client_id").notNull().references(() => clients.id),
   serviceId: integer("service_id").notNull().references(() => services.id),
   scheduledAt: timestamp("scheduled_at").notNull(),
-  status: text("status").notNull().default("scheduled"), // scheduled, confirmed, in_progress, completed, cancelled
+  status: text("status").notNull().default("pending"), // pending, confirmed, cancelled, completed, no_show
   notes: text("notes"),
   address: text("address"),
   price: decimal("price", { precision: 10, scale: 2 }).notNull(),
@@ -150,6 +150,18 @@ export const messages = pgTable("messages", {
   repliedAt: timestamp("replied_at"),
 });
 
+export const notifications = pgTable("notifications", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id),
+  type: text("type").notNull(), // appointment_confirmed, appointment_cancelled, appointment_expired
+  title: text("title").notNull(),
+  message: text("message").notNull(),
+  appointmentId: integer("appointment_id").references(() => appointments.id),
+  clientName: text("client_name"),
+  isRead: boolean("is_read").default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 // Relations
 export const usersRelations = relations(users, ({ many }) => ({
   clients: many(clients),
@@ -159,6 +171,7 @@ export const usersRelations = relations(users, ({ many }) => ({
   galleryPhotos: many(galleryPhotos),
   messages: many(messages),
   reservations: many(reservations),
+  notifications: many(notifications),
 }));
 
 export const clientsRelations = relations(clients, ({ one, many }) => ({
@@ -257,6 +270,17 @@ export const reservationsRelations = relations(reservations, ({ one }) => ({
   }),
 }));
 
+export const notificationsRelations = relations(notifications, ({ one }) => ({
+  user: one(users, {
+    fields: [notifications.userId],
+    references: [users.id],
+  }),
+  appointment: one(appointments, {
+    fields: [notifications.appointmentId],
+    references: [appointments.id],
+  }),
+}));
+
 // Insert schemas
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
@@ -308,6 +332,11 @@ export const insertReservationSchema = createInsertSchema(reservations).omit({
   createdAt: true,
 });
 
+export const insertNotificationSchema = createInsertSchema(notifications).omit({
+  id: true,
+  createdAt: true,
+});
+
 // Types
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
@@ -335,6 +364,9 @@ export type Message = typeof messages.$inferSelect;
 
 export type InsertReservation = z.infer<typeof insertReservationSchema>;
 export type Reservation = typeof reservations.$inferSelect;
+
+export type InsertNotification = z.infer<typeof insertNotificationSchema>;
+export type Notification = typeof notifications.$inferSelect;
 
 // Extended types for API responses
 export type AppointmentWithRelations = Appointment & {

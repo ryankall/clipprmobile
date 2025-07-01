@@ -32,6 +32,61 @@ export function AppointmentPreview({
   const { toast } = useToast();
   const [, setLocation] = useLocation();
 
+  const markNoShowMutation = useMutation({
+    mutationFn: () => {
+      if (!appointment) throw new Error("No appointment to update");
+      return apiRequest("PATCH", `/api/appointments/${appointment.id}`, {
+        status: "no_show"
+      });
+    },
+    onSuccess: () => {
+      toast({
+        title: "Appointment Updated",
+        description: "Appointment marked as no-show",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/appointments"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/appointments/today"] });
+    },
+  });
+
+  const calculateETA = () => {
+    if (type !== "next" || !appointment) return null;
+    
+    const now = new Date();
+    const appointmentTime = new Date(appointment.scheduledAt);
+    const minutesUntil = differenceInMinutes(appointmentTime, now);
+    
+    if (minutesUntil <= 0) return "Now";
+    if (minutesUntil < 60) return `${minutesUntil}m`;
+    
+    const hours = Math.floor(minutesUntil / 60);
+    const minutes = minutesUntil % 60;
+    return minutes > 0 ? `${hours}h ${minutes}m` : `${hours}h`;
+  };
+
+  const handlePhoneCall = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (appointment?.client.phone) {
+      window.open(`tel:${appointment.client.phone}`, '_self');
+    }
+  };
+
+  const sendQuickActionMessage = (messageType: 'onMyWay' | 'runningLate' | 'confirmation') => {
+    const message = quickActionMessages?.[messageType];
+    if (!message || !appointment?.client.phone || !appointment) return;
+
+    const personalizedMessage = message
+      .replace('{client_name}', appointment.client.name)
+      .replace('{appointment_time}', format(new Date(appointment.scheduledAt), 'h:mm a'))
+      .replace('{service}', appointment.service.name)
+      .replace('{address}', appointment.address || '');
+
+    const smsUrl = `sms:${appointment.client.phone}?body=${encodeURIComponent(personalizedMessage)}`;
+    window.open(smsUrl, '_blank');
+  };
+
+  const eta = calculateETA();
+
   // Handle empty state when no appointment
   if (!appointment) {
     return (
@@ -52,58 +107,6 @@ export function AppointmentPreview({
       </Card>
     );
   }
-
-  const markNoShowMutation = useMutation({
-    mutationFn: () => apiRequest("PATCH", `/api/appointments/${appointment.id}`, {
-      status: "no_show"
-    }),
-    onSuccess: () => {
-      toast({
-        title: "Appointment Updated",
-        description: "Appointment marked as no-show",
-      });
-      queryClient.invalidateQueries({ queryKey: ["/api/appointments"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/appointments/today"] });
-    },
-  });
-
-  const calculateETA = () => {
-    if (type !== "next") return null;
-    
-    const now = new Date();
-    const appointmentTime = new Date(appointment.scheduledAt);
-    const minutesUntil = differenceInMinutes(appointmentTime, now);
-    
-    if (minutesUntil <= 0) return "Now";
-    if (minutesUntil < 60) return `${minutesUntil}m`;
-    
-    const hours = Math.floor(minutesUntil / 60);
-    const minutes = minutesUntil % 60;
-    return minutes > 0 ? `${hours}h ${minutes}m` : `${hours}h`;
-  };
-
-  const handlePhoneCall = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (appointment.client.phone) {
-      window.open(`tel:${appointment.client.phone}`, '_self');
-    }
-  };
-
-  const sendQuickActionMessage = (messageType: 'onMyWay' | 'runningLate' | 'confirmation') => {
-    const message = quickActionMessages?.[messageType];
-    if (!message || !appointment.client.phone) return;
-
-    const personalizedMessage = message
-      .replace('{client_name}', appointment.client.name)
-      .replace('{appointment_time}', format(new Date(appointment.scheduledAt), 'h:mm a'))
-      .replace('{service}', appointment.service.name)
-      .replace('{address}', appointment.address || '');
-
-    const smsUrl = `sms:${appointment.client.phone}?body=${encodeURIComponent(personalizedMessage)}`;
-    window.open(smsUrl, '_blank');
-  };
-
-  const eta = calculateETA();
 
   return (
     <Card 

@@ -90,7 +90,10 @@ export default function Dashboard() {
   });
   
   // Current appointment is happening now (from 30 minutes before to end time)
-  const currentAppointment = todayAppointments?.find(apt => {
+  // Only show confirmed appointments
+  const confirmedAppointments = todayAppointments?.filter(apt => apt.status === 'confirmed') || [];
+  
+  const currentAppointment = confirmedAppointments.find(apt => {
     const startTime = new Date(apt.scheduledAt);
     const endTime = new Date(startTime.getTime() + (apt.duration * 60 * 1000));
     const timeDiff = now.getTime() - startTime.getTime();
@@ -105,6 +108,7 @@ export default function Dashboard() {
       currentTime: now.toISOString(),
       minutesDiff,
       duration: apt.duration,
+      status: apt.status,
       isCurrent: minutesDiff >= -30 && now <= endTime
     });
     
@@ -113,7 +117,7 @@ export default function Dashboard() {
   }) || null;
 
   // Next appointment is the soonest future appointment (excludes current appointment)
-  const upcomingAppointments = todayAppointments?.filter(apt => {
+  const upcomingAppointments = confirmedAppointments.filter(apt => {
     const startTime = new Date(apt.scheduledAt);
     // Don't show appointments that are current
     if (currentAppointment && apt.id === currentAppointment.id) {
@@ -148,32 +152,6 @@ export default function Dashboard() {
     } : null,
     upcomingAppointmentsCount: upcomingAppointments.length
   });
-
-  // Filter out pending appointments (they shouldn't show in current/next cards)
-  const confirmedAppointments = todayAppointments?.filter(apt => apt.status !== 'pending') || [];
-  
-  // Re-run the current/next logic with confirmed appointments only
-  const confirmedCurrentAppointment = confirmedAppointments.find(apt => {
-    const startTime = new Date(apt.scheduledAt);
-    const endTime = new Date(startTime.getTime() + (apt.duration * 60 * 1000));
-    const timeDiff = now.getTime() - startTime.getTime();
-    const minutesDiff = timeDiff / (1000 * 60);
-    
-    // Show as current if we're within 30 minutes before start time through the end time
-    return minutesDiff >= -30 && now <= endTime;
-  }) || null;
-
-  const confirmedUpcomingAppointments = confirmedAppointments.filter(apt => {
-    const startTime = new Date(apt.scheduledAt);
-    // Don't show appointments that are current
-    if (confirmedCurrentAppointment && apt.id === confirmedCurrentAppointment.id) {
-      return false;
-    }
-    // Show all future appointments
-    return startTime > now;
-  }) || [];
-  
-  const confirmedNextAppointment = confirmedUpcomingAppointments.length > 0 ? confirmedUpcomingAppointments[0] : null;
 
   // Generate smart notifications based on user data
   const generateNotifications = () => {
@@ -492,12 +470,12 @@ export default function Dashboard() {
 
         {/* Current Appointment Preview - Always show */}
         <AppointmentPreview
-          appointment={confirmedCurrentAppointment || undefined}
+          appointment={currentAppointment || undefined}
           type="current"
           services={services}
           onDetailsClick={() => {
-            if (confirmedCurrentAppointment) {
-              setSelectedAppointment(confirmedCurrentAppointment);
+            if (currentAppointment) {
+              setSelectedAppointment(currentAppointment);
               setIsDetailsDialogOpen(true);
             }
           }}
@@ -505,13 +483,13 @@ export default function Dashboard() {
 
         {/* Next Appointment Preview - Always show */}
         <AppointmentPreview
-          appointment={confirmedNextAppointment || undefined}
+          appointment={nextAppointment || undefined}
           type="next"
           services={services}
           quickActionMessages={quickActionMessages}
           onDetailsClick={() => {
-            if (confirmedNextAppointment) {
-              setSelectedAppointment(confirmedNextAppointment);
+            if (nextAppointment) {
+              setSelectedAppointment(nextAppointment);
               setIsDetailsDialogOpen(true);
             }
           }}

@@ -8,6 +8,7 @@ import {
   galleryPhotos,
   messages,
   reservations,
+  notifications,
   type User,
   type InsertUser,
   type Client,
@@ -26,6 +27,8 @@ import {
   type InsertMessage,
   type Reservation,
   type InsertReservation,
+  type Notification,
+  type InsertNotification,
   type AppointmentWithRelations,
   type ClientWithStats,
   type DashboardStats,
@@ -101,6 +104,12 @@ export interface IStorage {
   getActiveReservationsForTimeSlot(userId: number, scheduledAt: Date, duration: number): Promise<Reservation[]>;
   getExpiredReservations(): Promise<Reservation[]>;
   confirmReservation(id: number): Promise<Reservation>;
+
+  // Notifications
+  getNotificationsByUserId(userId: number): Promise<Notification[]>;
+  createNotification(notification: InsertNotification): Promise<Notification>;
+  markNotificationAsRead(id: number): Promise<Notification>;
+  getUnreadNotificationCount(userId: number): Promise<number>;
 
   // Dashboard
   getDashboardStats(userId: number): Promise<DashboardStats>;
@@ -623,6 +632,40 @@ export class DatabaseStorage implements IStorage {
       monthlyEarnings: monthlyEarnings.toFixed(2),
       totalClients: clientCount?.count || 0,
     };
+  }
+
+  // Notification methods
+  async getNotificationsByUserId(userId: number): Promise<Notification[]> {
+    return await db
+      .select()
+      .from(notifications)
+      .where(eq(notifications.userId, userId))
+      .orderBy(desc(notifications.createdAt));
+  }
+
+  async createNotification(notification: InsertNotification): Promise<Notification> {
+    const [newNotification] = await db
+      .insert(notifications)
+      .values(notification)
+      .returning();
+    return newNotification;
+  }
+
+  async markNotificationAsRead(id: number): Promise<Notification> {
+    const [updatedNotification] = await db
+      .update(notifications)
+      .set({ isRead: true })
+      .where(eq(notifications.id, id))
+      .returning();
+    return updatedNotification;
+  }
+
+  async getUnreadNotificationCount(userId: number): Promise<number> {
+    const [result] = await db
+      .select({ count: count() })
+      .from(notifications)
+      .where(and(eq(notifications.userId, userId), eq(notifications.isRead, false)));
+    return result?.count || 0;
   }
 }
 

@@ -379,10 +379,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
             serviceText = serviceNames.join(', ');
           }
           
-          const confirmationMessage = `Hi ${client.name}! Your appointment for ${serviceText} is confirmed for ${appointmentTime}. Please reply 'YES' to confirm or 'NO' to cancel. Thanks!`;
+          const confirmationMessage = `Hi ${client.name}! Your appointment for ${serviceText} is scheduled for ${appointmentTime}. Please reply 'YES' to confirm or 'NO' to cancel. Thanks!`;
           
           // Prefer SMS, fallback to email
           const method = client.phone ? 'sms' : 'email';
+          
+          // Create a notification for SMS confirmation needed
+          await storage.createNotification({
+            userId,
+            type: 'appointment_confirmation_needed',
+            title: 'Appointment Confirmation Needed',
+            message: `SMS confirmation sent to ${client.name} for appointment on ${appointmentTime}`,
+            appointmentId: appointment.id,
+            clientName: client.name,
+          });
           
           // Log the confirmation message
           await storage.createMessage({
@@ -391,7 +401,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             customerName: client.name,
             customerPhone: client.phone || '',
             customerEmail: client.email || '',
-            subject: 'Appointment Confirmation',
+            subject: 'Appointment Confirmation Required',
             message: confirmationMessage,
             status: 'sent',
           });
@@ -464,6 +474,82 @@ export async function registerRoutes(app: Express): Promise<Server> {
         message: "Appointment deleted successfully and client notified via SMS",
         clientNotified: true,
         smsContent: cancellationMessage
+      });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Appointment confirmation endpoint
+  app.patch("/api/appointments/:id/confirm", requireAuth, async (req, res) => {
+    try {
+      const userId = (req.user as any).id;
+      const appointmentId = parseInt(req.params.id);
+      
+      // Get the appointment with client details
+      const appointment = await storage.getAppointment(appointmentId);
+      if (!appointment || appointment.userId !== userId) {
+        return res.status(404).json({ message: "Appointment not found" });
+      }
+      
+      if (appointment.status !== 'pending') {
+        return res.status(400).json({ message: "Appointment is not pending confirmation" });
+      }
+      
+      // Update appointment status to confirmed
+      const updatedAppointment = await storage.updateAppointment(appointmentId, { 
+        status: 'confirmed' 
+      });
+      
+      // Create notification for confirmation
+      await storage.createNotification({
+        userId,
+        type: 'appointment_confirmed',
+        title: 'Appointment Confirmed',
+        message: `${appointment.client.name}'s appointment on ${format(new Date(appointment.scheduledAt), "EEEE, MMMM do 'at' h:mm a")} has been confirmed`,
+        appointmentId: appointment.id,
+        clientName: appointment.client.name,
+      });
+      
+      res.json({ 
+        message: "Appointment confirmed successfully",
+        appointment: updatedAppointment 
+      });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Appointment cancellation endpoint (for SMS responses)
+  app.patch("/api/appointments/:id/cancel", requireAuth, async (req, res) => {
+    try {
+      const userId = (req.user as any).id;
+      const appointmentId = parseInt(req.params.id);
+      
+      // Get the appointment with client details
+      const appointment = await storage.getAppointment(appointmentId);
+      if (!appointment || appointment.userId !== userId) {
+        return res.status(404).json({ message: "Appointment not found" });
+      }
+      
+      // Update appointment status to cancelled
+      const updatedAppointment = await storage.updateAppointment(appointmentId, { 
+        status: 'cancelled' 
+      });
+      
+      // Create notification for cancellation
+      await storage.createNotification({
+        userId,
+        type: 'appointment_cancelled',
+        title: 'Appointment Cancelled',
+        message: `${appointment.client.name} cancelled their appointment on ${format(new Date(appointment.scheduledAt), "EEEE, MMMM do 'at' h:mm a")}`,
+        appointmentId: appointment.id,
+        clientName: appointment.client.name,
+      });
+      
+      res.json({ 
+        message: "Appointment cancelled successfully",
+        appointment: updatedAppointment 
       });
     } catch (error: any) {
       res.status(500).json({ message: error.message });
@@ -1025,6 +1111,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const messageId = parseInt(req.params.id);
       const message = await storage.updateMessage(messageId, req.body);
       res.json(message);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Notification routes
+  app.get("/api/notifications", requireAuth, async (req, res) => {
+    try {
+      const userId = (req.user as any).id;
+      const notifications = await storage.getNotificationsByUserId(userId);
+      res.json(notifications);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/notifications/unread-count", requireAuth, async (req, res) => {
+    try {
+      const userId = (req.user as any).id;
+      const count = await storage.getUnreadNotificationCount(userId);
+      res.json({ count });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.patch("/api/notifications/:id/read", requireAuth, async (req, res) => {
+    try {
+      const notificationId = parseInt(req.params.id);
+      const notification = await storage.markNotificationAsRead(notificationId);
+      res.json(notification);
     } catch (error: any) {
       res.status(500).json({ message: error.message });
     }
