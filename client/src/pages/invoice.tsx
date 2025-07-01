@@ -123,9 +123,10 @@ export default function InvoicePage() {
   }>>([]);
   const { toast } = useToast();
 
-  // Parse query params for pre-filled service
+  // Parse query params for pre-filled service and appointment data
   const urlParams = new URLSearchParams(location.split("?")[1] || "");
   const prefilledService = urlParams.get("service");
+  const prefilledAppointment = urlParams.get("prefill");
 
   const { data: invoices, isLoading: invoicesLoading } = useQuery<Invoice[]>({
     queryKey: ["/api/invoices"],
@@ -153,6 +154,45 @@ export default function InvoicePage() {
       paymentMethod: undefined,
     },
   });
+
+  // Handle prefilled appointment data from URL parameters
+  useEffect(() => {
+    if (prefilledAppointment && clients && services) {
+      try {
+        const appointmentData = JSON.parse(prefilledAppointment);
+        
+        // Find the matching client
+        const client = clients.find(c => c.id === appointmentData.clientId);
+        if (client) {
+          form.setValue("clientId", client.id);
+        }
+        
+        // Find or create a matching service for the invoice
+        const matchingService = services.find(s => s.name === appointmentData.serviceName);
+        if (matchingService) {
+          setSelectedServices([{
+            serviceId: matchingService.id,
+            serviceName: matchingService.name,
+            price: parseFloat(matchingService.price),
+            quantity: 1
+          }]);
+          
+          // Set the invoice amounts
+          const servicePrice = parseFloat(matchingService.price);
+          form.setValue("subtotal", servicePrice.toFixed(2));
+          form.setValue("total", servicePrice.toFixed(2));
+        }
+        
+        // Auto-open the create invoice dialog
+        setIsDialogOpen(true);
+        
+        // Clear the URL parameter to prevent re-triggering
+        window.history.replaceState({}, document.title, "/invoice");
+      } catch (error) {
+        console.error("Error parsing prefilled appointment data:", error);
+      }
+    }
+  }, [prefilledAppointment, clients, services, form]);
 
   const templateForm = useForm<z.infer<typeof templateFormSchema>>({
     resolver: zodResolver(templateFormSchema),

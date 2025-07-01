@@ -7,6 +7,7 @@ import { Phone, MapPin, Clock, XCircle, Receipt, MessageSquare, Scissors } from 
 import { format, differenceInMinutes } from "date-fns";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { useLocation } from "wouter";
 import type { AppointmentWithRelations, Service } from "@shared/schema";
 
 interface AppointmentPreviewProps {
@@ -29,6 +30,7 @@ export function AppointmentPreview({
   onDetailsClick 
 }: AppointmentPreviewProps) {
   const { toast } = useToast();
+  const [, setLocation] = useLocation();
 
   const markNoShowMutation = useMutation({
     mutationFn: () => apiRequest("PATCH", `/api/appointments/${appointment.id}`, {
@@ -119,6 +121,17 @@ export function AppointmentPreview({
         </div>
 
         <div className="flex gap-2 flex-wrap">
+          {/* Call button always first */}
+          <Button 
+            size="sm" 
+            variant="outline"
+            onClick={handlePhoneCall}
+            className="text-xs"
+          >
+            <Phone className="h-3 w-3 mr-1" />
+            Call
+          </Button>
+
           {type === "next" && quickActionMessages && (
             <>
               {quickActionMessages.onMyWay && (
@@ -149,18 +162,22 @@ export function AppointmentPreview({
                   Running Late
                 </Button>
               )}
+              {quickActionMessages.confirmation && (
+                <Button 
+                  size="sm" 
+                  variant="outline"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    sendQuickActionMessage('confirmation');
+                  }}
+                  className="text-xs"
+                >
+                  <MessageSquare className="h-3 w-3 mr-1" />
+                  Confirm
+                </Button>
+              )}
             </>
           )}
-          
-          <Button 
-            size="sm" 
-            variant="outline"
-            onClick={handlePhoneCall}
-            className="text-xs"
-          >
-            <Phone className="h-3 w-3 mr-1" />
-            Call
-          </Button>
 
           {type === "current" && (
             <>
@@ -183,11 +200,20 @@ export function AppointmentPreview({
                 className="text-xs bg-gold text-charcoal hover:bg-gold/90"
                 onClick={(e) => {
                   e.stopPropagation();
-                  // TODO: Open invoice modal with prefilled data
-                  toast({
-                    title: "Invoice",
-                    description: "Invoice creation coming soon!",
+                  // Navigate to invoice page with prefilled appointment data
+                  const invoiceData = {
+                    clientId: appointment.client.id,
+                    clientName: appointment.client.name,
+                    appointmentId: appointment.id,
+                    scheduledAt: appointment.scheduledAt,
+                    serviceName: appointment.service.name,
+                    servicePrice: appointment.service.price,
+                    duration: appointment.duration
+                  };
+                  const queryParams = new URLSearchParams({
+                    prefill: JSON.stringify(invoiceData)
                   });
+                  setLocation(`/invoice?${queryParams.toString()}`);
                 }}
               >
                 <Receipt className="h-3 w-3 mr-1" />
