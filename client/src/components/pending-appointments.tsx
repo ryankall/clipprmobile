@@ -31,6 +31,8 @@ export function PendingAppointments({ className }: PendingAppointmentsProps) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/appointments"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/appointments/pending"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/appointments/today"] });
       queryClient.invalidateQueries({ queryKey: ["/api/dashboard"] });
       toast({
         title: "Success",
@@ -57,6 +59,8 @@ export function PendingAppointments({ className }: PendingAppointmentsProps) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/appointments"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/appointments/pending"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/appointments/today"] });
       queryClient.invalidateQueries({ queryKey: ["/api/dashboard"] });
       toast({
         title: "Success",
