@@ -90,8 +90,8 @@ export default function Dashboard() {
   });
   
   // Current appointment is happening now (from 30 minutes before to end time)
-  // Only show confirmed appointments
-  const confirmedAppointments = todayAppointments?.filter(apt => apt.status === 'confirmed') || [];
+  // Show confirmed and scheduled appointments (exclude only pending ones)
+  const confirmedAppointments = todayAppointments?.filter(apt => apt.status !== 'pending') || [];
   
   const currentAppointment = confirmedAppointments.find(apt => {
     const startTime = new Date(apt.scheduledAt);
