@@ -651,6 +651,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const photoData = insertGalleryPhotoSchema.parse({
         userId,
         photoUrl,
+        type: req.body.type || 'portfolio',
         description: req.body.description || '',
         isPublic: req.body.isPublic === 'true',
         clientId: req.body.clientId ? parseInt(req.body.clientId) : null,

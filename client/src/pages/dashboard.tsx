@@ -352,45 +352,7 @@ export default function Dashboard() {
           </CardContent>
         </Card>
 
-        {/* Quick Invoice */}
-        <Card className="bg-dark-card border-steel/20 card-shadow">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-white">Quick Invoice</h3>
-              <Link href="/invoice">
-                <Button variant="link" className="text-gold text-sm font-medium p-0 h-auto">
-                  History
-                </Button>
-              </Link>
-            </div>
-            
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-3">
-                <Link href="/invoice?service=haircut">
-                  <Button variant="outline" className="bg-charcoal border-steel/40 h-auto p-3 text-center touch-target flex flex-col items-center space-y-2 w-full tap-feedback hover:bg-charcoal/80">
-                    <Slice className="w-5 h-5 text-gold" />
-                    <div className="text-sm font-medium">Haircut</div>
-                    <div className="text-xs text-steel">$45</div>
-                  </Button>
-                </Link>
-                <Link href="/invoice?service=combo">
-                  <Button variant="outline" className="bg-charcoal border-steel/40 h-auto p-3 text-center touch-target flex flex-col items-center space-y-2 w-full tap-feedback hover:bg-charcoal/80">
-                    <Scissors className="w-5 h-5 text-gold" />
-                    <div className="text-sm font-medium">Combo</div>
-                    <div className="text-xs text-steel">$65</div>
-                  </Button>
-                </Link>
-              </div>
-              
-              <Link href="/invoice">
-                <Button className="w-full gradient-gold text-charcoal font-semibold touch-target tap-feedback">
-                  <Plus className="w-4 h-4 mr-2" />
-                  Create Custom Invoice
-                </Button>
-              </Link>
-            </div>
-          </CardContent>
-        </Card>
+
 
         {/* Quick Actions for Mobile */}
         <QuickActions />
