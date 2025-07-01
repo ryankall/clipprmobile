@@ -6,13 +6,14 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { BottomNavigation } from "@/components/bottom-navigation";
 import { AppointmentCard } from "@/components/appointment-card";
-import { QuickActions } from "@/components/quick-actions";
+import { AppointmentPreview } from "@/components/appointment-preview";
 import { PendingReservations } from "@/components/pending-reservations";
 import { useAuth } from "@/hooks/useAuth";
 import { Scissors, Slice, Bell, Plus, Calendar, Users, Camera, Settings, X, MessageSquare, CreditCard, User as UserIcon } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { format } from "date-fns";
 import type { DashboardStats, AppointmentWithRelations, GalleryPhoto } from "@shared/schema";
+import type { Service } from "@/lib/types";
 
 export default function Dashboard() {
   const [showNotifications, setShowNotifications] = useState(false);
@@ -52,11 +53,37 @@ export default function Dashboard() {
     refetchInterval: 30000, // Refresh every 30 seconds
   });
 
+  const { data: services } = useQuery<Service[]>({
+    queryKey: ["/api/services"],
+  });
+
   const { data: stripeStatus } = useQuery<{ connected: boolean }>({
     queryKey: ["/api/stripe/status"],
   });
 
   const unreadCount = unreadData?.count || 0;
+
+  // Get quick action messages (mock for now - should come from settings)
+  const quickActionMessages = {
+    onMyWay: "Hi {client_name}, I'm on my way to your {appointment_time} appointment for {service}. See you soon!",
+    runningLate: "Hi {client_name}, I'm running a few minutes late for your {appointment_time} appointment. Will be there shortly!",
+    confirmation: "Hi {client_name}, confirming your appointment for {appointment_time} at {address} for {service}."
+  };
+
+  // Find next and current appointments
+  const now = new Date();
+  const upcomingAppointments = todayAppointments?.filter(apt => new Date(apt.scheduledAt) > now) || [];
+  const nextAppointment = upcomingAppointments.length > 0 ? upcomingAppointments[0] : null;
+  
+  // Current appointment is within 30 minutes of start time and hasn't passed end time
+  const currentAppointment = todayAppointments?.find(apt => {
+    const startTime = new Date(apt.scheduledAt);
+    const endTime = new Date(startTime.getTime() + (apt.duration * 60 * 1000));
+    const timeDiff = now.getTime() - startTime.getTime();
+    const minutesDiff = timeDiff / (1000 * 60);
+    
+    return minutesDiff >= -30 && now < endTime;
+  }) || null;
 
   // Generate smart notifications based on user data
   const generateNotifications = () => {
@@ -268,6 +295,25 @@ export default function Dashboard() {
           </Link>
         </div>
 
+        {/* Next Appointment Preview */}
+        {nextAppointment && (
+          <AppointmentPreview
+            appointment={nextAppointment}
+            type="next"
+            services={services}
+            quickActionMessages={quickActionMessages}
+          />
+        )}
+
+        {/* Current Appointment Preview */}
+        {currentAppointment && (
+          <AppointmentPreview
+            appointment={currentAppointment}
+            type="current"
+            services={services}
+          />
+        )}
+
         {/* Today's Appointments */}
         <Card className="bg-dark-card border-steel/20 card-shadow">
           <CardContent className="p-6">
@@ -354,8 +400,6 @@ export default function Dashboard() {
 
 
 
-        {/* Quick Actions for Mobile */}
-        <QuickActions />
       </main>
 
       <BottomNavigation currentPath="/" />
