@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -37,6 +37,7 @@ export function AppointmentDetailsDialog({
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const dialogContentRef = useRef<HTMLDivElement>(null);
 
   const confirmAppointmentMutation = useMutation({
     mutationFn: async (appointmentId: number) => {
@@ -109,7 +110,7 @@ export function AppointmentDetailsDialog({
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="bg-charcoal border-steel/40 text-white max-w-md max-h-[85vh] flex flex-col">
+      <DialogContent ref={dialogContentRef} className="bg-charcoal border-steel/40 text-white max-w-md max-h-[85vh] flex flex-col overflow-y-auto">
         <DialogHeader className="flex-shrink-0">
           <DialogTitle className="text-xl text-white">
             Appointment Details
@@ -290,7 +291,19 @@ export function AppointmentDetailsDialog({
             
             <Button
               variant="destructive"
-              onClick={() => setShowDeleteConfirm(true)}
+              onClick={() => {
+                setShowDeleteConfirm(true);
+                // Scroll to bottom to show the delete confirmation
+                setTimeout(() => {
+                  if (dialogContentRef.current) {
+                    const scrollContainer = dialogContentRef.current.querySelector('[data-radix-scroll-area-viewport]') || dialogContentRef.current;
+                    scrollContainer.scrollTo({
+                      top: scrollContainer.scrollHeight,
+                      behavior: 'smooth'
+                    });
+                  }
+                }, 100);
+              }}
               disabled={deleteAppointmentMutation.isPending}
               className="px-4"
             >

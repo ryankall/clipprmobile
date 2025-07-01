@@ -121,6 +121,8 @@ export default function InvoicePage() {
     price: number;
     quantity: number;
   }>>([]);
+  const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
+  const [isInvoiceDetailsOpen, setIsInvoiceDetailsOpen] = useState(false);
   const { toast } = useToast();
 
   // Parse query params for pre-filled service and appointment data
@@ -1497,7 +1499,11 @@ export default function InvoicePage() {
                   return (
                     <div
                       key={invoice.id}
-                      className="flex items-center justify-between p-3 bg-charcoal rounded-lg"
+                      onClick={() => {
+                        setSelectedInvoice(invoice);
+                        setIsInvoiceDetailsOpen(true);
+                      }}
+                      className="flex items-center justify-between p-3 bg-charcoal rounded-lg cursor-pointer hover:bg-charcoal/80 transition-colors"
                     >
                       <div className="flex items-center space-x-3">
                         <div className="w-10 h-10 bg-steel/20 rounded-full flex items-center justify-center">
@@ -1939,6 +1945,98 @@ export default function InvoicePage() {
               </div>
             )}
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Invoice Details Dialog */}
+      <Dialog open={isInvoiceDetailsOpen} onOpenChange={setIsInvoiceDetailsOpen}>
+        <DialogContent className="bg-dark-card border-steel/20 text-white max-h-[90vh] overflow-y-auto scrollbar-hide">
+          <DialogHeader>
+            <DialogTitle className="text-white">Invoice Details</DialogTitle>
+            <DialogDescription className="text-steel">
+              Invoice #{selectedInvoice?.id}
+            </DialogDescription>
+          </DialogHeader>
+          {selectedInvoice && (
+            <div className="space-y-4">
+              {/* Client Info */}
+              <div className="p-4 bg-charcoal rounded-lg">
+                <h3 className="text-white font-medium mb-2">Client</h3>
+                <p className="text-steel">
+                  {clients?.find(c => c.id === selectedInvoice.clientId)?.name || 'Unknown Client'}
+                </p>
+              </div>
+
+              {/* Invoice Details */}
+              <div className="p-4 bg-charcoal rounded-lg">
+                <h3 className="text-white font-medium mb-2">Details</h3>
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-steel">Subtotal:</span>
+                    <span className="text-white">${selectedInvoice.subtotal}</span>
+                  </div>
+                  {selectedInvoice.tip && parseFloat(selectedInvoice.tip) > 0 && (
+                    <div className="flex justify-between">
+                      <span className="text-steel">Tip:</span>
+                      <span className="text-white">${selectedInvoice.tip}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between text-base font-medium">
+                    <span className="text-white">Total:</span>
+                    <span className="text-gold">${selectedInvoice.total}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Payment Method */}
+              <div className="p-4 bg-charcoal rounded-lg">
+                <h3 className="text-white font-medium mb-2">Payment Method</h3>
+                <div className="flex items-center space-x-2">
+                  {selectedInvoice.paymentMethod === 'stripe' && (
+                    <>
+                      <CreditCard className="w-4 h-4 text-gold" />
+                      <span className="text-steel">Card Payment</span>
+                    </>
+                  )}
+                  {selectedInvoice.paymentMethod === 'apple_pay' && (
+                    <>
+                      <Smartphone className="w-4 h-4 text-gold" />
+                      <span className="text-steel">Apple Pay</span>
+                    </>
+                  )}
+                  {selectedInvoice.paymentMethod === 'cash' && (
+                    <>
+                      <DollarSign className="w-4 h-4 text-gold" />
+                      <span className="text-steel">Cash</span>
+                    </>
+                  )}
+                </div>
+              </div>
+
+              {/* Status */}
+              <div className="p-4 bg-charcoal rounded-lg">
+                <h3 className="text-white font-medium mb-2">Status</h3>
+                <Badge 
+                  variant={selectedInvoice.status === 'paid' ? 'default' : 'destructive'}
+                  className={
+                    selectedInvoice.status === 'paid' 
+                      ? 'bg-green-500/20 text-green-400 border-green-500/30' 
+                      : 'bg-red-500/20 text-red-400 border-red-500/30'
+                  }
+                >
+                  {selectedInvoice.status === 'paid' ? 'Paid' : 'Pending'}
+                </Badge>
+              </div>
+
+              {/* Date */}
+              <div className="p-4 bg-charcoal rounded-lg">
+                <h3 className="text-white font-medium mb-2">Created</h3>
+                <p className="text-steel">
+                  {selectedInvoice.createdAt ? format(new Date(selectedInvoice.createdAt), 'MMM d, yyyy h:mm a') : 'Unknown'}
+                </p>
+              </div>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
 

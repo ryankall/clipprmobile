@@ -20,6 +20,7 @@ export default function Dashboard() {
   const [showNotifications, setShowNotifications] = useState(false);
   const [selectedAppointment, setSelectedAppointment] = useState<AppointmentWithRelations | null>(null);
   const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false);
+  const [dismissedNotifications, setDismissedNotifications] = useState<string[]>([]);
   const notificationRef = useRef<HTMLDivElement>(null);
   const { user } = useAuth();
   const [, navigate] = useLocation();
@@ -158,7 +159,9 @@ export default function Dashboard() {
     return notifications;
   };
 
-  const notifications = generateNotifications();
+  const notifications = generateNotifications().filter(notification => 
+    !dismissedNotifications.includes(notification.id)
+  );
 
   if (statsLoading) {
     return (
@@ -219,13 +222,65 @@ export default function Dashboard() {
                         All caught up! No new notifications.
                       </div>
                     ) : (
-                      notifications.map((notification) => {
+                      notifications.map((notification, index) => {
                         const IconComponent = notification.icon;
                         return (
                           <div
                             key={notification.id}
-                            onClick={notification.action}
-                            className="p-3 hover:bg-steel/10 cursor-pointer border-b border-steel/10 last:border-b-0 transition-colors"
+                            style={{
+                              touchAction: 'pan-x',
+                            }}
+                            onTouchStart={(e) => {
+                              const target = e.currentTarget;
+                              const startX = e.touches[0].clientX;
+                              let currentX = startX;
+                              let isDragging = false;
+                              
+                              const onTouchMove = (e: TouchEvent) => {
+                                currentX = e.touches[0].clientX;
+                                const deltaX = currentX - startX;
+                                
+                                if (Math.abs(deltaX) > 10) {
+                                  isDragging = true;
+                                  e.preventDefault();
+                                  
+                                  if (deltaX < 0) {
+                                    // Swiping left - show red background and translate
+                                    const translateX = Math.max(deltaX, -100);
+                                    target.style.transform = `translateX(${translateX}px)`;
+                                    target.style.backgroundColor = deltaX < -50 ? 'rgba(239, 68, 68, 0.2)' : 'rgba(239, 68, 68, 0.1)';
+                                  }
+                                }
+                              };
+                              
+                              const onTouchEnd = (e: TouchEvent) => {
+                                const deltaX = currentX - startX;
+                                
+                                if (isDragging && deltaX < -50) {
+                                  // Remove notification if swiped far enough
+                                  target.style.transform = 'translateX(-100%)';
+                                  setTimeout(() => {
+                                    setDismissedNotifications(prev => [...prev, notification.id]);
+                                  }, 200);
+                                } else {
+                                  // Snap back
+                                  target.style.transform = 'translateX(0)';
+                                  target.style.backgroundColor = '';
+                                  
+                                  // If it was a tap (not a drag), trigger the action
+                                  if (!isDragging) {
+                                    notification.action?.();
+                                  }
+                                }
+                                
+                                document.removeEventListener('touchmove', onTouchMove);
+                                document.removeEventListener('touchend', onTouchEnd);
+                              };
+                              
+                              document.addEventListener('touchmove', onTouchMove, { passive: false });
+                              document.addEventListener('touchend', onTouchEnd);
+                            }}
+                            className="relative overflow-hidden border-b border-steel/10 last:border-b-0 p-3 hover:bg-steel/10 cursor-pointer transition-all duration-200"
                           >
                             <div className="flex items-start space-x-3">
                               <div className="flex-shrink-0 mt-0.5">
