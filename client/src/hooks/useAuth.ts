@@ -1,17 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
-
-interface User {
-  id: number;
-  email: string;
-  firstName: string;
-  lastName: string;
-  phone: string;
-  businessName?: string;
-  photoUrl?: string;
-  serviceArea?: string;
-  about?: string;
-}
+import type { User } from "@shared/schema";
 
 interface AuthResponse {
   user: User;
@@ -23,7 +12,7 @@ export function useAuth() {
   const queryClient = useQueryClient();
 
   // Get current user
-  const { data: user, isLoading, error } = useQuery({
+  const { data: user, isLoading, error } = useQuery<User>({
     queryKey: ["/api/auth/me"],
     retry: false,
     staleTime: 5 * 60 * 1000, // 5 minutes

@@ -13,7 +13,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { Scissors, Slice, Bell, Plus, Calendar, Users, Camera, Settings, X, MessageSquare, CreditCard, User as UserIcon } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { format } from "date-fns";
-import type { DashboardStats, AppointmentWithRelations, GalleryPhoto } from "@shared/schema";
+import type { DashboardStats, AppointmentWithRelations, GalleryPhoto, User } from "@shared/schema";
 import type { Service } from "@/lib/types";
 
 export default function Dashboard() {
@@ -75,18 +75,25 @@ export default function Dashboard() {
 
   // Find next and current appointments
   const now = new Date();
-  const upcomingAppointments = todayAppointments?.filter(apt => new Date(apt.scheduledAt) > now) || [];
-  const nextAppointment = upcomingAppointments.length > 0 ? upcomingAppointments[0] : null;
   
-  // Current appointment is within 30 minutes of start time and hasn't passed end time
+  // Current appointment is happening now (from 2 hours before to end time for demo)
   const currentAppointment = todayAppointments?.find(apt => {
     const startTime = new Date(apt.scheduledAt);
     const endTime = new Date(startTime.getTime() + (apt.duration * 60 * 1000));
     const timeDiff = now.getTime() - startTime.getTime();
     const minutesDiff = timeDiff / (1000 * 60);
     
-    return minutesDiff >= -30 && now < endTime;
+    // Show as current if we're within 2 hours before start time through the end time
+    // This gives us a wider window for testing purposes
+    return minutesDiff >= -120 && now <= endTime;
   }) || null;
+
+  // Next appointment excludes current appointment
+  const upcomingAppointments = todayAppointments?.filter(apt => {
+    const startTime = new Date(apt.scheduledAt);
+    return startTime > now && apt.id !== currentAppointment?.id;
+  }) || [];
+  const nextAppointment = upcomingAppointments.length > 0 ? upcomingAppointments[0] : null;
 
   // Generate smart notifications based on user data
   const generateNotifications = () => {
@@ -239,7 +246,7 @@ export default function Dashboard() {
             </div>
             <Link href="/settings" className="touch-target">
               <Avatar className="w-8 h-8">
-                <AvatarImage src={user?.photoUrl || undefined} alt={`${user?.firstName} ${user?.lastName}`} />
+                <AvatarImage src={user?.photoUrl || undefined} alt={`${user?.firstName} ${user?.lastName}` || user?.email || "User"} />
                 <AvatarFallback className="bg-gold text-charcoal text-sm font-medium">
                   {user?.firstName?.[0]}{user?.lastName?.[0]}
                 </AvatarFallback>
