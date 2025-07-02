@@ -79,7 +79,7 @@ export default function Dashboard() {
   
 
   
-  // Current appointment is happening now (from 30 minutes before to end time)
+  // Current appointment is happening now (from 10 minutes before to end time)
   // Show only confirmed appointments (exclude pending, cancelled, no show)
   const confirmedAppointments = todayAppointments?.filter(apt => apt.status === 'confirmed') || [];
   
@@ -89,10 +89,8 @@ export default function Dashboard() {
     const timeDiff = now.getTime() - startTime.getTime();
     const minutesDiff = timeDiff / (1000 * 60);
     
-
-    
-    // Show as current if we're within 30 minutes before start time through the end time
-    return minutesDiff >= -30 && now <= endTime;
+    // Show as current if we're within 10 minutes before start time through the end time
+    return minutesDiff >= -10 && now <= endTime;
   }) || null;
 
   // Next appointment is the soonest future appointment (excludes current appointment)
