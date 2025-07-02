@@ -382,12 +382,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         new Date(appointmentEnd.getTime() + 24 * 60 * 60 * 1000)     // 24 hours after
       );
       
-      // Filter to confirmed appointments only (pending can be cancelled)
-      const confirmedAppointments = existingAppointments.filter(apt => 
+      // Filter to only appointments that block time slots (exclude cancelled, expired, no_show)
+      const blockingAppointments = existingAppointments.filter(apt => 
         apt.status === 'confirmed' || apt.status === 'pending'
       );
       
-      console.log('Existing confirmed/pending appointments:', confirmedAppointments.map(apt => ({
+      console.log('Existing confirmed/pending appointments:', blockingAppointments.map(apt => ({
         id: apt.id,
         clientName: apt.client.name,
         scheduledAt: apt.scheduledAt,
@@ -397,7 +397,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       })));
       
       // Check for overlaps
-      const overlappingAppointments = confirmedAppointments.filter(existingApt => {
+      const overlappingAppointments = blockingAppointments.filter(existingApt => {
         const existingStart = new Date(existingApt.scheduledAt);
         const existingEnd = new Date(existingStart.getTime() + existingApt.duration * 60 * 1000);
         

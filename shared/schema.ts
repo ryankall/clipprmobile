@@ -70,7 +70,7 @@ export const appointments = pgTable("appointments", {
   clientId: integer("client_id").notNull().references(() => clients.id),
   serviceId: integer("service_id").notNull().references(() => services.id),
   scheduledAt: timestamp("scheduled_at").notNull(),
-  status: text("status").notNull().default("pending"), // pending, confirmed, cancelled, completed, no_show
+  status: text("status").notNull().default("pending"), // pending, confirmed, cancelled, expired, no_show
   notes: text("notes"),
   address: text("address"),
   price: decimal("price", { precision: 10, scale: 2 }).notNull(),

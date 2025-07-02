@@ -26,12 +26,16 @@ This document outlines all the booking and appointment workflows in the Clippr a
    - Client selects date and time from available slots
    - Client fills out contact information
 
-2. **Booking request creation**
+2. **Time slot temporarily locked**
+   - System soft-locks slot for 30 minutes on client booking request page
+   - Slot marked as "held" to prevent duplicate requests
+
+3. **Booking request creation**
    - System creates a message in barber's inbox
    - Message contains: client name, phone, email, requested services, date/time, notes
    - Message type: "booking_request"
 
-3. **Barber notification**
+4. **Barber notification**
    - Message appears in barber's messages page
    - Unread count increases
    - Barber can view details and choose to book or decline
@@ -61,9 +65,11 @@ This document outlines all the booking and appointment workflows in the Clippr a
 
 3. **Appointment creation** (Modified workflow needed)
    - Creates appointment with "pending" status
-   - Creates 30-minute reservation
-   - Sends SMS confirmation request to client
-   - Appointment appears in "Pending Reservations" card only
+   - Slot is locked
+   - Shows in "Pending Confirmations"
+   - Auto-expiry timer started (30 min)
+
+4. **SMS sent to client for confirmation**
 
 ### Current Status: ✅ Partially implemented (needs SMS confirmation)
 - Client lookup/creation working
@@ -84,9 +90,8 @@ This document outlines all the booking and appointment workflows in the Clippr a
 
 2. **Appointment creation** (Modified workflow needed)
    - Creates appointment with "pending" status
-   - Creates 30-minute reservation  
+   - Auto-expires if no reply in 30 mins 
    - Sends SMS confirmation request to client
-   - Appointment appears in "Pending Reservations" card only
 
 ### Current Status: ✅ Partially implemented (needs SMS confirmation)
 - Manual creation form working
@@ -109,15 +114,18 @@ This document outlines all the booking and appointment workflows in the Clippr a
    - Moves from "Pending Reservations" to "Current/Next" cards
    - Bell notification for barber
    - Message sent to barber: "[Client] confirmed their appointment"
+   - SMS to client: "You're confirmed! See you at [Appointment Time]."
 
 3. **Client cancels (NO)**
    - Appointment deleted from system
    - Bell notification for barber
    - Message sent to barber: "[Client] cancelled their appointment"
+   - SMS to client: "Your appointment has been canceled. You're welcome to rebook any time!"
 
 4. **Timeout (30 minutes no response)**
    - Appointment automatically deleted
    - Bell notification for barber
+   - Slot becomes available
    - Message sent to barber: "[Client] appointment expired (no response)"
 
 ### Current Status: 🔄 To be implemented
@@ -139,7 +147,7 @@ This document outlines all the booking and appointment workflows in the Clippr a
    - Message sent to barber: "[Client] cancelled their [Service] appointment on [Date]"
 
 3. **Confirmation to client**
-   - SMS reply: "Your appointment has been cancelled. Thanks!"
+   - SMS reply: "Your appointment has been cancelled. Thanks, and feel free to rebook!"
 
 ### Current Status: 🔄 To be implemented
 
@@ -150,32 +158,35 @@ This document outlines all the booking and appointment workflows in the Clippr a
 **Current Implementation**: Comprehensive status-based appointment system
 
 ### Appointment Statuses:
-- **pending**: Appointment created but not yet confirmed
-- **confirmed**: Appointment confirmed and ready to show in dashboard
-- **cancelled**: Appointment cancelled, no longer affects scheduling
-- **no show**: Client didn't show up for appointment
+| Status | Meaning | Affects Availability | Should Auto-Delete? |
+|--------|---------|---------------------|-------------------|
+| **pending** | Awaiting client confirmation | ✅ Blocks time slot | No |
+| **confirmed** | Client confirmed | ✅ Blocks time slot | No |
+| **cancelled** | Client or barber cancelled | ❌ Frees slot | ✅ Yes (after 1-2 hours) |
+| **expired** | No confirmation within hold window | ❌ Frees slot | ✅ Yes (after 1 hour) |
+| **no_show** | Client missed without canceling | ❌ Frees slot (logged) | ❌ No (keep for history) |
 
 ### Dashboard Behavior:
 1. **Current/Next appointment cards**: Only show appointments with "confirmed" status
 2. **Pending confirmations card**: Shows only appointments with "pending" status  
-3. **Cancelled appointments**: Do not appear in any dashboard cards
+3. **Cancelled/expired appointments**: Do not appear in any dashboard cards
+4. **No show appointments**: Do not appear in dashboard cards but kept in database
 
 ### Calendar Behavior:
-1. **All appointments visible**: Shows pending, confirmed, cancelled, and no show appointments
+1. **All appointments visible**: Shows pending, confirmed, cancelled, expired, and no show appointments
 2. **Visual distinction**: Different styling for different statuses
-3. **Deletion allowed**: Cancelled appointments can be safely deleted
+3. **Deletion allowed**: Cancelled and expired appointments can be safely deleted
+4. **No show appointments**: Hidden from main calendar view but accessible in history
 
 ### Overlap Detection:
-1. **Ignores cancelled appointments**: Cancelled appointments don't block new bookings
+1. **Ignores non-blocking statuses**: Cancelled, expired, and no show appointments don't block new bookings
 2. **Considers pending and confirmed**: Both pending and confirmed appointments prevent overlaps
 3. **Detailed conflict reporting**: Shows specific conflicting appointments with times
 
-### Testing Results:
-- ✅ Only confirmed appointments appear in current/next cards
-- ✅ Cancelled pending appointments disappear from pending confirmations card
-- ✅ Cancelled appointments don't affect scheduling overlap detection
-- ✅ Calendar shows all appointment statuses for complete visibility
-- ✅ Appointment deletion works correctly with foreign key constraints
+### Auto-Cleanup Rules:
+1. **Expired appointments**: Auto-delete after 1 hour to prevent calendar clutter
+2. **Cancelled appointments**: Auto-delete after 1-2 hours (optional delay for reschedules)
+3. **No show appointments**: Keep in database for client history and reports
 
 ---
 
