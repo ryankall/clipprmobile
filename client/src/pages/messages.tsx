@@ -295,7 +295,7 @@ export default function Messages() {
     });
 
     // Navigate to appointment creation page with prefilled data
-    setLocation(`/appointment-new?${params.toString()}`);
+    setLocation(`/appointments/new?${params.toString()}`);
     setSelectedMessage(null);
   };
 
