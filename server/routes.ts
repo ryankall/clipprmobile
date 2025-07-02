@@ -1588,6 +1588,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const appointments = await storage.getAppointmentsByUserId(user.id, startDate, endDate);
       
+
+      
       // Get active reservations for the date
       const activeReservations = await db
         .select()
@@ -1653,10 +1655,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Check if time slot is booked (any appointment overlaps with this 15-min slot)
         const isBooked = appointments.some(apt => {
           const aptStart = new Date(apt.scheduledAt);
-          const aptEnd = new Date(aptStart.getTime() + (apt.service?.duration || 60) * 60000);
+          const aptEnd = new Date(aptStart.getTime() + apt.duration * 60000); // Use appointment's duration field
           const slotEnd = new Date(slotDateTime.getTime() + 15 * 60000);
           
-          // Check for overlap
+          // Check for overlap: appointment and time slot overlap if:
+          // - appointment starts before slot ends AND
+          // - appointment ends after slot starts
           return aptStart < slotEnd && aptEnd > slotDateTime;
         });
         
