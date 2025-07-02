@@ -24,6 +24,13 @@ export function PendingAppointments({ className }: PendingAppointmentsProps) {
     refetchInterval: 30000, // Refresh every 30 seconds
   });
 
+  // Debug logging
+  console.log('PendingAppointments component:', {
+    isLoading,
+    pendingAppointments,
+    count: pendingAppointments?.length || 0
+  });
+
   const confirmMutation = useMutation({
     mutationFn: async (appointmentId: number) => {
       return apiRequest("PATCH", `/api/appointments/${appointmentId}`, {
