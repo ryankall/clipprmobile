@@ -8,6 +8,7 @@ import { format, differenceInMinutes } from "date-fns";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
+import { getServiceNamesDisplay } from "@/lib/appointmentUtils";
 import type { AppointmentWithRelations, Service } from "@shared/schema";
 
 interface AppointmentPreviewProps {
@@ -78,7 +79,7 @@ export function AppointmentPreview({
     const personalizedMessage = message
       .replace('{client_name}', appointment.client.name)
       .replace('{appointment_time}', format(new Date(appointment.scheduledAt), 'h:mm a'))
-      .replace('{service}', appointment.service.name)
+      .replace('{service}', getServiceNamesDisplay(appointment, 100))
       .replace('{address}', appointment.address || '');
 
     const smsUrl = `sms:${appointment.client.phone}?body=${encodeURIComponent(personalizedMessage)}`;
@@ -133,7 +134,7 @@ export function AppointmentPreview({
         <div className="space-y-2 mb-4">
           <div className="flex items-center gap-2 text-steel">
             <Scissors className="h-4 w-4" />
-            <span>{appointment.service.name}</span>
+            <span>{getServiceNamesDisplay(appointment, 40)}</span>
           </div>
           
           {appointment.address && (
@@ -230,8 +231,8 @@ export function AppointmentPreview({
                     clientName: appointment.client.name,
                     appointmentId: appointment.id,
                     scheduledAt: appointment.scheduledAt,
-                    serviceName: appointment.service.name,
-                    servicePrice: appointment.service.price,
+                    serviceName: getServiceNamesDisplay(appointment, 200),
+                    servicePrice: appointment.price,
                     duration: appointment.duration
                   };
                   const queryParams = new URLSearchParams({

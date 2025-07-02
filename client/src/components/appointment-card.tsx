@@ -3,6 +3,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Navigation, MapPin } from "lucide-react";
 import { format } from "date-fns";
+import { getServiceNamesDisplay } from "@/lib/appointmentUtils";
 import type { AppointmentWithRelations } from "@shared/schema";
 
 interface AppointmentCardProps {
@@ -52,7 +53,7 @@ export function AppointmentCard({
             {format(new Date(appointment.scheduledAt), 'h:mm a')}
           </span>
         </div>
-        <p className="text-sm text-steel mb-1 truncate">{appointment.service.name}</p>
+        <p className="text-sm text-steel mb-1 truncate">{getServiceNamesDisplay(appointment, 35)}</p>
         {appointment.address && (
           <div className="flex items-center mb-2">
             <MapPin className="w-3 h-3 text-steel mr-1 flex-shrink-0" />

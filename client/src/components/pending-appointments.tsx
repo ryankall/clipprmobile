@@ -7,6 +7,7 @@ import { Clock, CheckCircle, XCircle, Phone, MapPin, User } from "lucide-react";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
+import { getServiceNamesDisplay } from "@/lib/appointmentUtils";
 import type { AppointmentWithRelations } from "@shared/schema";
 
 interface PendingAppointmentsProps {
@@ -173,7 +174,7 @@ export function PendingAppointments({ className }: PendingAppointmentsProps) {
 
             <div className="space-y-2">
               <div className="text-sm">
-                <span className="font-medium">Service:</span> {appointment.service.name}
+                <span className="font-medium">Service:</span> {getServiceNamesDisplay(appointment, 50)}
               </div>
               <div className="text-sm">
                 <span className="font-medium">Duration:</span> {appointment.duration} minutes
