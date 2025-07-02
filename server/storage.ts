@@ -388,7 +388,32 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteAppointment(id: number): Promise<void> {
-    await db.delete(appointments).where(eq(appointments.id, id));
+    // Use a transaction to ensure all deletions succeed or fail together
+    await db.transaction(async (tx) => {
+      console.log('Deleting appointment with ID:', id);
+      
+      // First, nullify notification references to this appointment
+      await tx.update(notifications)
+        .set({ appointmentId: null })
+        .where(eq(notifications.appointmentId, id));
+      console.log('Nullified notification references for appointment:', id);
+      
+      // Delete appointment services (these should cascade)
+      await tx.delete(appointmentServices).where(eq(appointmentServices.appointmentId, id));
+      console.log('Deleted appointment services for appointment:', id);
+      
+      // Delete related gallery photos
+      await tx.delete(galleryPhotos).where(eq(galleryPhotos.appointmentId, id));
+      console.log('Deleted gallery photos for appointment:', id);
+      
+      // Delete related invoices
+      await tx.delete(invoices).where(eq(invoices.appointmentId, id));
+      console.log('Deleted invoices for appointment:', id);
+      
+      // Finally delete the appointment
+      await tx.delete(appointments).where(eq(appointments.id, id));
+      console.log('Successfully deleted appointment:', id);
+    });
   }
 
   async getInvoicesByUserId(userId: number): Promise<Invoice[]> {
