@@ -1523,10 +1523,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Barber not found" });
       }
 
-      // Get the day of the week
+      // Get the day of the week in user's timezone
+      const userTimezone = user.timezone || 'America/New_York';
       const requestDate = new Date(date);
+      
+      // Get the correct day of week for the requested date  
       const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
-      const dayOfWeek = dayNames[requestDate.getDay()];
+      
+      // Parse date correctly to avoid timezone issues
+      const [year, month, day] = date.split('-').map(Number);
+      const localDate = new Date(year, month - 1, day); // month is 0-indexed
+      const dayOfWeek = dayNames[localDate.getDay()];
 
       // Get working hours for this day
       const workingHours = user.workingHours as any;
@@ -1581,13 +1588,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
         slotDateTime.setHours(hour, minute, 0, 0);
         
         // Skip past time slots if the date is today (with 15-minute buffer)
+        // Use user's timezone for accurate comparison
+        const userTimezone = user.timezone || 'America/New_York';
         const now = new Date();
-        const todayDate = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
-        const requestDateStr = date; // The date parameter passed to the API
-        const isToday = requestDateStr === todayDate;
         
-        if (isToday && slotDateTime <= new Date(now.getTime() + 15 * 60000)) {
-          continue; // Skip this time slot as it's in the past or too close
+        // Get current date and time in user's timezone
+        const nowInUserTZ = new Date(now.toLocaleString("en-US", {timeZone: userTimezone}));
+        const todayInUserTZ = nowInUserTZ.toISOString().split('T')[0]; // YYYY-MM-DD format
+        const requestDateStr = date; // The date parameter passed to the API
+        const isToday = requestDateStr === todayInUserTZ;
+        
+
+        
+        if (isToday) {
+          // Create current time in user timezone with 15-minute buffer
+          const currentHour = nowInUserTZ.getHours();
+          const currentMinute = nowInUserTZ.getMinutes();
+          const currentTotalMinutes = currentHour * 60 + currentMinute + 15; // Add 15-minute buffer
+          
+          // Skip slots that are in the past or too close to current time
+          if (minutes < currentTotalMinutes) {
+            continue;
+          }
         }
         
         // Check if time slot is booked (any appointment overlaps with this 15-min slot)

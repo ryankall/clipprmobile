@@ -77,17 +77,7 @@ export default function Dashboard() {
   // Find next and current appointments
   const now = new Date();
   
-  console.log('Dashboard - Processing appointments:', {
-    currentTime: now.toISOString(),
-    todayAppointmentsCount: todayAppointments?.length || 0,
-    todayAppointments: todayAppointments?.map(apt => ({
-      id: apt.id,
-      clientName: apt.client.name,
-      scheduledAt: apt.scheduledAt,
-      duration: apt.duration,
-      status: apt.status
-    }))
-  });
+
   
   // Current appointment is happening now (from 30 minutes before to end time)
   // Show only confirmed appointments (exclude pending, cancelled, no show)
@@ -99,18 +89,7 @@ export default function Dashboard() {
     const timeDiff = now.getTime() - startTime.getTime();
     const minutesDiff = timeDiff / (1000 * 60);
     
-    console.log('Dashboard - Checking appointment for current:', {
-      clientName: apt.client.name,
-      appointmentId: apt.id,
-      scheduledAt: apt.scheduledAt,
-      startTime: startTime.toISOString(),
-      endTime: endTime.toISOString(),
-      currentTime: now.toISOString(),
-      minutesDiff,
-      duration: apt.duration,
-      status: apt.status,
-      isCurrent: minutesDiff >= -30 && now <= endTime
-    });
+
     
     // Show as current if we're within 30 minutes before start time through the end time
     return minutesDiff >= -30 && now <= endTime;
@@ -124,34 +103,14 @@ export default function Dashboard() {
       return false;
     }
     
-    console.log('Dashboard - Checking appointment for next:', {
-      clientName: apt.client.name,
-      appointmentId: apt.id,
-      scheduledAt: apt.scheduledAt,
-      startTime: startTime.toISOString(),
-      currentTime: now.toISOString(),
-      isFuture: startTime > now,
-      isCurrentAppointment: currentAppointment?.id === apt.id
-    });
+
     
     // Show all future appointments
     return startTime > now;
   }) || [];
   const nextAppointment = upcomingAppointments.length > 0 ? upcomingAppointments[0] : null;
   
-  console.log('Dashboard - Final appointment results:', {
-    currentAppointment: currentAppointment ? {
-      id: currentAppointment.id,
-      clientName: currentAppointment.client.name,
-      scheduledAt: currentAppointment.scheduledAt
-    } : null,
-    nextAppointment: nextAppointment ? {
-      id: nextAppointment.id,
-      clientName: nextAppointment.client.name,
-      scheduledAt: nextAppointment.scheduledAt
-    } : null,
-    upcomingAppointmentsCount: upcomingAppointments.length
-  });
+
 
   // Generate smart notifications based on user data
   const generateNotifications = () => {
