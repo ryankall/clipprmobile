@@ -338,11 +338,19 @@ export class DatabaseStorage implements IStorage {
       )
       .orderBy(appointments.scheduledAt);
 
-    return results.map(result => ({
-      ...result.appointment,
-      client: result.client,
-      service: result.service
-    }));
+    // Load appointment services for each appointment
+    const finalResults: AppointmentWithRelations[] = [];
+    for (const result of results) {
+      const appointmentServicesData = await this.getAppointmentServicesByAppointmentId(result.appointment.id);
+      finalResults.push({
+        ...result.appointment,
+        client: result.client,
+        service: result.service,
+        appointmentServices: appointmentServicesData,
+      });
+    }
+
+    return finalResults;
   }
 
   async getAppointment(id: number): Promise<AppointmentWithRelations | undefined> {

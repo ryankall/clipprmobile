@@ -449,6 +449,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
         status: 'pending' // Pending until SMS confirmation
       });
       
+      console.log(`✅ Appointment created successfully with ID: ${appointment.id}`);
+      
+      // Create appointment services records for each service
+      console.log(`Creating ${serviceDetails.length} appointment services for appointment ${appointment.id}`);
+      for (const serviceDetail of serviceDetails) {
+        try {
+          console.log(`Creating appointment service: appointmentId=${appointment.id}, serviceId=${serviceDetail.service.id}, quantity=${serviceDetail.quantity}, price=${serviceDetail.price}`);
+          await storage.createAppointmentService({
+            appointmentId: appointment.id,
+            serviceId: serviceDetail.service.id,
+            quantity: serviceDetail.quantity,
+            price: serviceDetail.price
+          });
+          console.log(`✅ Appointment service created successfully`);
+        } catch (serviceError) {
+          console.error(`❌ Failed to create appointment service:`, serviceError);
+          throw serviceError; // Re-throw to fail the entire appointment creation
+        }
+      }
+      
       // Send automatic confirmation message
       try {
         const client = await storage.getClient(appointmentData.clientId);
