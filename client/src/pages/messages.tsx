@@ -25,7 +25,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
 import { format, formatDistanceToNow } from "date-fns";
-import type { ClientWithStats } from "@shared/schema";
+import type { ClientWithStats, Service } from "@shared/schema";
 
 interface Message {
   id: number;
@@ -58,6 +58,10 @@ export default function Messages() {
 
   const { data: clients } = useQuery<ClientWithStats[]>({
     queryKey: ["/api/clients"],
+  });
+
+  const { data: services } = useQuery<Service[]>({
+    queryKey: ["/api/services"],
   });
 
   // Update client info when opening a message
@@ -248,6 +252,72 @@ export default function Messages() {
     return message.customerName && (message.customerPhone || message.customerEmail);
   };
 
+  const bookAppointmentMutation = useMutation({
+    mutationFn: async (data: {
+      message: Message;
+      clientId?: number;
+      services: any[];
+      scheduledAt: string;
+      address?: string;
+      notes?: string;
+    }) => {
+      let finalClientId = data.clientId;
+      
+      // If no existing client, create one first
+      if (!finalClientId) {
+        const newClientData = {
+          name: data.message.customerName,
+          phone: data.message.customerPhone || "",
+          email: data.message.customerEmail || "",
+        };
+        
+        const clientResponse = await apiRequest("POST", "/api/clients", newClientData);
+        const newClient = await clientResponse.json();
+        finalClientId = newClient.id;
+      }
+      
+      // Create appointment with pending status
+      const appointmentData = {
+        clientId: finalClientId,
+        services: data.services,
+        scheduledAt: data.scheduledAt,
+        notes: data.notes,
+        address: data.address
+      };
+      
+      return apiRequest("POST", "/api/appointments", appointmentData);
+    },
+    onSuccess: () => {
+      toast({
+        title: "Appointment Booked",
+        description: "Appointment created successfully and SMS confirmation sent to client.",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/appointments"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/appointments/today"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/appointments/pending"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/dashboard"] });
+      setSelectedMessage(null);
+    },
+    onError: async (error: any) => {
+      let errorMessage = "Failed to create appointment";
+      
+      if (error.response) {
+        try {
+          const errorData = await error.response.json();
+          errorMessage = errorData.message || errorMessage;
+        } catch {
+          // If parsing fails, use default message
+        }
+      }
+      
+      toast({
+        title: "Booking Failed",
+        description: errorMessage,
+        variant: "destructive",
+      });
+    },
+  });
+
   const handleBookAppointment = (message: Message) => {
     // Extract appointment details from message
     const dateMatch = message.message.match(/📅 Date: (\d{4}-\d{2}-\d{2})/);
@@ -268,7 +338,7 @@ export default function Messages() {
 
     const selectedDate = dateMatch[1];
     const selectedTime = timeMatch[1];
-    const services = servicesMatch ? servicesMatch[1].split(', ') : [];
+    const serviceNames = servicesMatch ? servicesMatch[1].split(', ') : [];
     const address = addressMatch ? addressMatch[1] : "";
     const customService = customServiceMatch ? customServiceMatch[1] : "";
     const notes = messageNotesMatch ? messageNotesMatch[1] : "";
@@ -278,33 +348,29 @@ export default function Messages() {
       client.phone === message.customerPhone
     );
 
-    // Navigate directly to appointments page with prefilled data
-    const params = new URLSearchParams();
-    if (existingClient?.id) {
-      params.set('clientId', existingClient.id.toString());
-    } else {
-      params.set('clientName', message.customerName);
-      params.set('phone', message.customerPhone);
-      if (message.customerEmail) {
-        params.set('email', message.customerEmail);
-      }
-    }
-    if (services && services.length > 0) {
-      params.set('services', services.join(','));
-    }
-    if (address) {
-      params.set('address', address);
-    }
-    if (notes) {
-      params.set('notes', notes);
-    }
-    if (selectedDate && selectedTime) {
-      const scheduledAt = new Date(`${selectedDate}T${selectedTime}:00`);
-      params.set('scheduledAt', scheduledAt.toISOString());
-    }
+    // Map service names to service objects with quantities
+    const serviceSelections = serviceNames.map(serviceName => {
+      const service = services?.find(s => s.name === serviceName);
+      return {
+        serviceId: service?.id || 0,
+        serviceName: serviceName,
+        quantity: 1,
+        price: service?.price || "0.00",
+        duration: service?.duration || 60
+      };
+    }).filter(s => s.serviceId > 0);
+
+    // Create appointment directly
+    const scheduledAt = new Date(`${selectedDate}T${selectedTime}:00`).toISOString();
     
-    // Navigate directly to appointment creation page
-    window.location.href = `/appointments/new?${params.toString()}`;
+    bookAppointmentMutation.mutate({
+      message,
+      clientId: existingClient?.id,
+      services: serviceSelections,
+      scheduledAt,
+      address: address || undefined,
+      notes: notes || undefined
+    });
   };
 
   const getCreateClientTooltip = (message: Message) => {
@@ -573,37 +639,21 @@ export default function Messages() {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => {
-                        // Extract services from message content
-                        let services = "";
-                        const serviceMatch = selectedMessage.message.match(/💇 Services: (.+?)(?:\n|$)/);
-                        if (serviceMatch && serviceMatch[1].trim()) {
-                          services = serviceMatch[1].trim();
-                        } else {
-                          // If services field is empty, try to extract from message content or use default
-                          // Look for common service keywords in the message
-                          const messageText = selectedMessage.message.toLowerCase();
-                          const detectedServices = [];
-                          
-                          if (messageText.includes('haircut') || messageText.includes('cut')) {
-                            detectedServices.push('Haircut');
-                          }
-                          if (messageText.includes('beard') || messageText.includes('trim')) {
-                            detectedServices.push('Beard Trim');
-                          }
-                          if (messageText.includes('shave')) {
-                            detectedServices.push('Shave');
-                          }
-                          
-                          services = detectedServices.join(', ');
-                        }
-                        
-                        handleBookAppointment(selectedMessage);
-                      }}
-                      className="border-gold/30 text-gold hover:bg-gold/10"
+                      onClick={() => handleBookAppointment(selectedMessage)}
+                      disabled={bookAppointmentMutation.isPending}
+                      className="border-gold/30 text-gold hover:bg-gold/10 disabled:opacity-50"
                     >
-                      <Calendar className="w-4 h-4 mr-2" />
-                      Book Appointment
+                      {bookAppointmentMutation.isPending ? (
+                        <>
+                          <div className="w-4 h-4 mr-2 border-2 border-gold border-t-transparent rounded-full animate-spin" />
+                          Booking...
+                        </>
+                      ) : (
+                        <>
+                          <Calendar className="w-4 h-4 mr-2" />
+                          Book Appointment
+                        </>
+                      )}
                     </Button>
 
                     <Button
