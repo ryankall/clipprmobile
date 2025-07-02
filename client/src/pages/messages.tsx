@@ -25,7 +25,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
 import { format, formatDistanceToNow } from "date-fns";
-import type { ClientWithStats, Service } from "@shared/schema";
+import type { ClientWithStats } from "@shared/schema";
 
 interface Message {
   id: number;
@@ -58,10 +58,6 @@ export default function Messages() {
 
   const { data: clients } = useQuery<ClientWithStats[]>({
     queryKey: ["/api/clients"],
-  });
-
-  const { data: services } = useQuery<Service[]>({
-    queryKey: ["/api/services"],
   });
 
   // Update client info when opening a message
@@ -252,8 +248,6 @@ export default function Messages() {
     return message.customerName && (message.customerPhone || message.customerEmail);
   };
 
-
-
   const handleBookAppointment = (message: Message) => {
     // Extract appointment details from message
     const dateMatch = message.message.match(/📅 Date: (\d{4}-\d{2}-\d{2})/);
@@ -274,29 +268,43 @@ export default function Messages() {
 
     const selectedDate = dateMatch[1];
     const selectedTime = timeMatch[1];
-    const serviceNames = servicesMatch ? servicesMatch[1].split(', ') : [];
+    const services = servicesMatch ? servicesMatch[1].split(', ') : [];
     const address = addressMatch ? addressMatch[1] : "";
     const customService = customServiceMatch ? customServiceMatch[1] : "";
     const notes = messageNotesMatch ? messageNotesMatch[1] : "";
 
-    // Create URL parameters for prefilling the appointment form
-    const params = new URLSearchParams({
-      clientName: message.customerName,
-      clientPhone: message.customerPhone || '',
-      clientEmail: message.customerEmail || '',
-      date: selectedDate,
-      time: selectedTime,
-      services: serviceNames.join(','),
-      address: address,
-      customService: customService,
-      notes: notes,
-      fromMessage: 'true',
-      messageId: message.id.toString()
-    });
+    // Find client by phone number
+    const existingClient = clients?.find(client => 
+      client.phone === message.customerPhone
+    );
 
-    // Navigate to appointment creation page with prefilled data
-    setLocation(`/appointments/new?${params.toString()}`);
-    setSelectedMessage(null);
+    // Navigate directly to appointments page with prefilled data
+    const params = new URLSearchParams();
+    if (existingClient?.id) {
+      params.set('clientId', existingClient.id.toString());
+    } else {
+      params.set('clientName', message.customerName);
+      params.set('phone', message.customerPhone);
+      if (message.customerEmail) {
+        params.set('email', message.customerEmail);
+      }
+    }
+    if (services && services.length > 0) {
+      params.set('services', services.join(','));
+    }
+    if (address) {
+      params.set('address', address);
+    }
+    if (notes) {
+      params.set('notes', notes);
+    }
+    if (selectedDate && selectedTime) {
+      const scheduledAt = new Date(`${selectedDate}T${selectedTime}:00`);
+      params.set('scheduledAt', scheduledAt.toISOString());
+    }
+    
+    // Navigate directly to appointment creation page
+    window.location.href = `/appointments/new?${params.toString()}`;
   };
 
   const getCreateClientTooltip = (message: Message) => {
@@ -565,7 +573,33 @@ export default function Messages() {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => handleBookAppointment(selectedMessage)}
+                      onClick={() => {
+                        // Extract services from message content
+                        let services = "";
+                        const serviceMatch = selectedMessage.message.match(/💇 Services: (.+?)(?:\n|$)/);
+                        if (serviceMatch && serviceMatch[1].trim()) {
+                          services = serviceMatch[1].trim();
+                        } else {
+                          // If services field is empty, try to extract from message content or use default
+                          // Look for common service keywords in the message
+                          const messageText = selectedMessage.message.toLowerCase();
+                          const detectedServices = [];
+                          
+                          if (messageText.includes('haircut') || messageText.includes('cut')) {
+                            detectedServices.push('Haircut');
+                          }
+                          if (messageText.includes('beard') || messageText.includes('trim')) {
+                            detectedServices.push('Beard Trim');
+                          }
+                          if (messageText.includes('shave')) {
+                            detectedServices.push('Shave');
+                          }
+                          
+                          services = detectedServices.join(', ');
+                        }
+                        
+                        handleBookAppointment(selectedMessage);
+                      }}
                       className="border-gold/30 text-gold hover:bg-gold/10"
                     >
                       <Calendar className="w-4 h-4 mr-2" />

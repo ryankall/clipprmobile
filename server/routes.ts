@@ -4,7 +4,7 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { requireAuth, setupAuth } from './auth';
 import multer from 'multer';
-import { insertClientSchema, insertServiceSchema, insertAppointmentSchema, insertInvoiceSchema, insertGalleryPhotoSchema, insertMessageSchema, appointments, reservations, clients } from "@shared/schema";
+import { insertClientSchema, insertServiceSchema, insertAppointmentSchema, insertInvoiceSchema, insertGalleryPhotoSchema, insertMessageSchema, appointments, reservations } from "@shared/schema";
 import { db } from "./db";
 import { and, eq, sql } from "drizzle-orm";
 import { z } from "zod";
@@ -1932,10 +1932,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Expire old reservations and pending appointments (can be called by a cron job)
+  // Expire old reservations (can be called by a cron job)
   app.post("/api/reservations/expire", async (req, res) => {
     try {
-      // Expire old reservations
       const expiredReservations = await storage.getExpiredReservations();
       
       for (const reservation of expiredReservations) {
@@ -1953,54 +1952,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      // Expire pending appointments older than 30 minutes
-      const expiredAppointments = await db
-        .select({
-          id: appointments.id,
-          userId: appointments.userId,
-          clientId: appointments.clientId,
-          scheduledAt: appointments.scheduledAt,
-          createdAt: appointments.createdAt
-        })
-        .from(appointments)
-        .where(
-          and(
-            eq(appointments.status, 'pending'),
-            sql`${appointments.createdAt} < NOW() - INTERVAL '30 minutes'`
-          )
-        );
-
-      console.log(`Found ${expiredAppointments.length} expired pending appointments`);
-
-      for (const appointment of expiredAppointments) {
-        // Update appointment status to expired
-        await storage.updateAppointment(appointment.id, { status: 'expired' });
-        
-        // Get client info for notification
-        const client = await storage.getClient(appointment.clientId);
-        if (client) {
-          // Notify barber that appointment expired
-          await storage.createMessage({
-            userId: appointment.userId,
-            customerName: client.name,
-            customerPhone: client.phone,
-            subject: "Appointment Expired",
-            message: `Pending appointment for ${client.name} on ${format(appointment.scheduledAt, 'EEEE, MMMM d')} at ${format(appointment.scheduledAt, 'h:mm a')} expired due to no confirmation. Time slot is now available.`,
-            status: "unread",
-            priority: "low",
-          });
-          
-          console.log(`Expired appointment ID ${appointment.id} for client ${client.name}`);
-        }
-      }
-
       res.json({ 
         success: true, 
-        expiredReservationCount: expiredReservations.length,
-        expiredAppointmentCount: expiredAppointments.length
+        expiredCount: expiredReservations.length 
       });
     } catch (error: any) {
-      console.error("Expiration error:", error);
       res.status(500).json({ message: error.message });
     }
   });

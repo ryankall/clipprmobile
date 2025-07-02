@@ -24,8 +24,8 @@ interface ServiceSelection {
   quantity: number;
 }
 
-// Appointment form schema - dynamic validation based on context
-const createAppointmentFormSchema = (fromMessage: boolean) => z.object({
+// Appointment form schema
+const appointmentFormSchema = z.object({
   clientId: z.number().min(0, "Client is required"),
   services: z.array(z.object({
     serviceId: z.number(),
@@ -35,20 +35,12 @@ const createAppointmentFormSchema = (fromMessage: boolean) => z.object({
     (dateStr) => {
       const selectedDate = new Date(dateStr);
       const now = new Date();
-      
-      // If booking from message, allow past times as they can be adjusted
-      if (fromMessage) {
-        return true;
-      }
-      
-      // For direct bookings, require 10-minute buffer
+      // Add a 10-minute buffer to avoid timing issues
       const tenMinutesFromNow = new Date(now.getTime() + 10 * 60 * 1000);
       return selectedDate >= tenMinutesFromNow;
     },
     {
-      message: fromMessage 
-        ? "Please adjust the time if needed" 
-        : "Please select a time at least 10 minutes from now"
+      message: "Please select a time at least 10 minutes from now"
     }
   ),
   notes: z.string().optional(),
@@ -70,19 +62,12 @@ export default function AppointmentNew() {
   const urlParams = new URLSearchParams(window.location.search);
   const preselectedClientId = urlParams.get('clientId');
   const clientName = urlParams.get('clientName');
-  const clientPhone = urlParams.get('clientPhone') || urlParams.get('phone');
-  const clientEmail = urlParams.get('clientEmail') || urlParams.get('email');
+  const clientPhone = urlParams.get('phone');
+  const clientEmail = urlParams.get('email');
   const prefilledServices = urlParams.get('services');
   const prefilledAddress = urlParams.get('address');
   const prefilledNotes = urlParams.get('notes');
   const prefilledScheduledAt = urlParams.get('scheduledAt');
-  
-  // Additional parameters from message booking
-  const fromMessage = urlParams.get('fromMessage') === 'true';
-  const messageId = urlParams.get('messageId');
-  const prefilledDate = urlParams.get('date');
-  const prefilledTime = urlParams.get('time');
-  const customService = urlParams.get('customService');
 
   const { data: clients } = useQuery<Client[]>({
     queryKey: ["/api/clients"],
@@ -127,24 +112,12 @@ export default function AppointmentNew() {
 
   const preselectedServices = parseServicesFromUrl(prefilledServices);
 
-  // Combine date and time from message parameters if available
-  const getScheduledAt = () => {
-    if (prefilledScheduledAt) return prefilledScheduledAt;
-    if (prefilledDate && prefilledTime) {
-      return `${prefilledDate}T${prefilledTime}`;
-    }
-    return "";
-  };
-
-  const appointmentFormSchema = createAppointmentFormSchema(fromMessage);
-  type AppointmentFormType = z.infer<ReturnType<typeof createAppointmentFormSchema>>;
-  
-  const form = useForm<AppointmentFormType>({
+  const form = useForm<z.infer<typeof appointmentFormSchema>>({
     resolver: zodResolver(appointmentFormSchema),
     defaultValues: {
       clientId: foundClient?.id || 0,
       services: preselectedServices,
-      scheduledAt: getScheduledAt(),
+      scheduledAt: prefilledScheduledAt || "",
       notes: prefilledNotes || "",
       address: prefilledAddress || "",
     },
@@ -187,7 +160,7 @@ export default function AppointmentNew() {
   }, [serviceSelections, form]);
 
   const createAppointmentMutation = useMutation({
-    mutationFn: async (data: AppointmentFormType) => {
+    mutationFn: async (data: z.infer<typeof appointmentFormSchema>) => {
       // Convert local time to UTC for backend storage
       const localDateTime = new Date(data.scheduledAt);
       const utcDateTime = localDateTime.toISOString();
@@ -283,7 +256,7 @@ export default function AppointmentNew() {
     }
   };
 
-  const handleSubmit = (data: AppointmentFormType) => {
+  const handleSubmit = (data: z.infer<typeof appointmentFormSchema>) => {
     createAppointmentMutation.mutate(data);
   };
 
@@ -339,20 +312,6 @@ export default function AppointmentNew() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {fromMessage && (
-              <Alert className="mb-6 bg-blue-500/10 border-blue-500/30">
-                <Calendar className="h-4 w-4" />
-                <AlertDescription className="text-blue-300">
-                  Booking request from message. Review the details below and create the appointment when ready.
-                  {customService && (
-                    <div className="mt-2">
-                      <strong>Custom Service:</strong> {customService}
-                    </div>
-                  )}
-                </AlertDescription>
-              </Alert>
-            )}
-            
             <Form {...form}>
               <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
                 {/* Client Selection */}
