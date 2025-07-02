@@ -62,12 +62,19 @@ export default function AppointmentNew() {
   const urlParams = new URLSearchParams(window.location.search);
   const preselectedClientId = urlParams.get('clientId');
   const clientName = urlParams.get('clientName');
-  const clientPhone = urlParams.get('phone');
-  const clientEmail = urlParams.get('email');
+  const clientPhone = urlParams.get('clientPhone') || urlParams.get('phone');
+  const clientEmail = urlParams.get('clientEmail') || urlParams.get('email');
   const prefilledServices = urlParams.get('services');
   const prefilledAddress = urlParams.get('address');
   const prefilledNotes = urlParams.get('notes');
   const prefilledScheduledAt = urlParams.get('scheduledAt');
+  
+  // Additional parameters from message booking
+  const fromMessage = urlParams.get('fromMessage') === 'true';
+  const messageId = urlParams.get('messageId');
+  const prefilledDate = urlParams.get('date');
+  const prefilledTime = urlParams.get('time');
+  const customService = urlParams.get('customService');
 
   const { data: clients } = useQuery<Client[]>({
     queryKey: ["/api/clients"],
@@ -112,12 +119,21 @@ export default function AppointmentNew() {
 
   const preselectedServices = parseServicesFromUrl(prefilledServices);
 
+  // Combine date and time from message parameters if available
+  const getScheduledAt = () => {
+    if (prefilledScheduledAt) return prefilledScheduledAt;
+    if (prefilledDate && prefilledTime) {
+      return `${prefilledDate}T${prefilledTime}`;
+    }
+    return "";
+  };
+
   const form = useForm<z.infer<typeof appointmentFormSchema>>({
     resolver: zodResolver(appointmentFormSchema),
     defaultValues: {
       clientId: foundClient?.id || 0,
       services: preselectedServices,
-      scheduledAt: prefilledScheduledAt || "",
+      scheduledAt: getScheduledAt(),
       notes: prefilledNotes || "",
       address: prefilledAddress || "",
     },
@@ -312,6 +328,20 @@ export default function AppointmentNew() {
             </CardTitle>
           </CardHeader>
           <CardContent>
+            {fromMessage && (
+              <Alert className="mb-6 bg-blue-500/10 border-blue-500/30">
+                <Calendar className="h-4 w-4" />
+                <AlertDescription className="text-blue-300">
+                  Booking request from message. Review the details below and create the appointment when ready.
+                  {customService && (
+                    <div className="mt-2">
+                      <strong>Custom Service:</strong> {customService}
+                    </div>
+                  )}
+                </AlertDescription>
+              </Alert>
+            )}
+            
             <Form {...form}>
               <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
                 {/* Client Selection */}

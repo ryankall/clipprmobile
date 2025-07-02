@@ -252,71 +252,7 @@ export default function Messages() {
     return message.customerName && (message.customerPhone || message.customerEmail);
   };
 
-  const bookAppointmentMutation = useMutation({
-    mutationFn: async (data: {
-      message: Message;
-      clientId?: number;
-      services: any[];
-      scheduledAt: string;
-      address?: string;
-      notes?: string;
-    }) => {
-      let finalClientId = data.clientId;
-      
-      // If no existing client, create one first
-      if (!finalClientId) {
-        const newClientData = {
-          name: data.message.customerName,
-          phone: data.message.customerPhone || "",
-          email: data.message.customerEmail || "",
-        };
-        
-        const clientResponse = await apiRequest("POST", "/api/clients", newClientData);
-        const newClient = await clientResponse.json();
-        finalClientId = newClient.id;
-      }
-      
-      // Create appointment with pending status
-      const appointmentData = {
-        clientId: finalClientId,
-        services: data.services,
-        scheduledAt: data.scheduledAt,
-        notes: data.notes,
-        address: data.address
-      };
-      
-      return apiRequest("POST", "/api/appointments", appointmentData);
-    },
-    onSuccess: () => {
-      toast({
-        title: "Appointment Booked",
-        description: "Appointment created successfully and SMS confirmation sent to client.",
-      });
-      queryClient.invalidateQueries({ queryKey: ["/api/appointments"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/appointments/today"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/appointments/pending"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/dashboard"] });
-      setSelectedMessage(null);
-    },
-    onError: async (error: any) => {
-      let errorMessage = "Failed to create appointment";
-      
-      if (error.response) {
-        try {
-          const errorData = await error.response.json();
-          errorMessage = errorData.message || errorMessage;
-        } catch {
-          // If parsing fails, use default message
-        }
-      }
-      
-      toast({
-        title: "Booking Failed",
-        description: errorMessage,
-        variant: "destructive",
-      });
-    },
-  });
+
 
   const handleBookAppointment = (message: Message) => {
     // Extract appointment details from message
@@ -343,34 +279,24 @@ export default function Messages() {
     const customService = customServiceMatch ? customServiceMatch[1] : "";
     const notes = messageNotesMatch ? messageNotesMatch[1] : "";
 
-    // Find client by phone number
-    const existingClient = clients?.find(client => 
-      client.phone === message.customerPhone
-    );
-
-    // Map service names to service objects with quantities
-    const serviceSelections = serviceNames.map(serviceName => {
-      const service = services?.find(s => s.name === serviceName);
-      return {
-        serviceId: service?.id || 0,
-        serviceName: serviceName,
-        quantity: 1,
-        price: service?.price || "0.00",
-        duration: service?.duration || 60
-      };
-    }).filter(s => s.serviceId > 0);
-
-    // Create appointment directly
-    const scheduledAt = new Date(`${selectedDate}T${selectedTime}:00`).toISOString();
-    
-    bookAppointmentMutation.mutate({
-      message,
-      clientId: existingClient?.id,
-      services: serviceSelections,
-      scheduledAt,
-      address: address || undefined,
-      notes: notes || undefined
+    // Create URL parameters for prefilling the appointment form
+    const params = new URLSearchParams({
+      clientName: message.customerName,
+      clientPhone: message.customerPhone || '',
+      clientEmail: message.customerEmail || '',
+      date: selectedDate,
+      time: selectedTime,
+      services: serviceNames.join(','),
+      address: address,
+      customService: customService,
+      notes: notes,
+      fromMessage: 'true',
+      messageId: message.id.toString()
     });
+
+    // Navigate to appointment creation page with prefilled data
+    setLocation(`/appointment-new?${params.toString()}`);
+    setSelectedMessage(null);
   };
 
   const getCreateClientTooltip = (message: Message) => {
@@ -640,20 +566,10 @@ export default function Messages() {
                       variant="outline"
                       size="sm"
                       onClick={() => handleBookAppointment(selectedMessage)}
-                      disabled={bookAppointmentMutation.isPending}
-                      className="border-gold/30 text-gold hover:bg-gold/10 disabled:opacity-50"
+                      className="border-gold/30 text-gold hover:bg-gold/10"
                     >
-                      {bookAppointmentMutation.isPending ? (
-                        <>
-                          <div className="w-4 h-4 mr-2 border-2 border-gold border-t-transparent rounded-full animate-spin" />
-                          Booking...
-                        </>
-                      ) : (
-                        <>
-                          <Calendar className="w-4 h-4 mr-2" />
-                          Book Appointment
-                        </>
-                      )}
+                      <Calendar className="w-4 h-4 mr-2" />
+                      Book Appointment
                     </Button>
 
                     <Button
