@@ -364,6 +364,81 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log('Data to validate:', JSON.stringify(dataToValidate, null, 2));
       const appointmentData = insertAppointmentSchema.parse(dataToValidate);
       
+      // OVERLAP DETECTION: Check for overlapping appointments
+      const appointmentStart = new Date(appointmentUTC);
+      const appointmentEnd = new Date(appointmentStart.getTime() + totalDuration * 60 * 1000);
+      
+      console.log('=== OVERLAP DETECTION ===');
+      console.log('New appointment window:', {
+        start: appointmentStart.toISOString(),
+        end: appointmentEnd.toISOString(),
+        duration: totalDuration + ' minutes'
+      });
+      
+      // Get existing appointments for this user around the same time
+      const existingAppointments = await storage.getAppointmentsByUserId(
+        userId, 
+        new Date(appointmentStart.getTime() - 24 * 60 * 60 * 1000), // 24 hours before
+        new Date(appointmentEnd.getTime() + 24 * 60 * 60 * 1000)     // 24 hours after
+      );
+      
+      // Filter to confirmed appointments only (pending can be cancelled)
+      const confirmedAppointments = existingAppointments.filter(apt => 
+        apt.status === 'confirmed' || apt.status === 'pending'
+      );
+      
+      console.log('Existing confirmed/pending appointments:', confirmedAppointments.map(apt => ({
+        id: apt.id,
+        clientName: apt.client.name,
+        scheduledAt: apt.scheduledAt,
+        duration: apt.duration,
+        status: apt.status,
+        endTime: new Date(new Date(apt.scheduledAt).getTime() + apt.duration * 60 * 1000).toISOString()
+      })));
+      
+      // Check for overlaps
+      const overlappingAppointments = confirmedAppointments.filter(existingApt => {
+        const existingStart = new Date(existingApt.scheduledAt);
+        const existingEnd = new Date(existingStart.getTime() + existingApt.duration * 60 * 1000);
+        
+        // Check if appointments overlap
+        const overlap = (appointmentStart < existingEnd && appointmentEnd > existingStart);
+        
+        if (overlap) {
+          console.log('OVERLAP DETECTED with appointment:', {
+            existingId: existingApt.id,
+            existingClient: existingApt.client.name,
+            existingStart: existingStart.toISOString(),
+            existingEnd: existingEnd.toISOString(),
+            newStart: appointmentStart.toISOString(),
+            newEnd: appointmentEnd.toISOString()
+          });
+        }
+        
+        return overlap;
+      });
+      
+      if (overlappingAppointments.length > 0) {
+        const conflictDetails = overlappingAppointments.map(apt => {
+          const start = new Date(apt.scheduledAt);
+          const end = new Date(start.getTime() + apt.duration * 60 * 1000);
+          return `${apt.client.name} (${format(start, 'h:mm a')} - ${format(end, 'h:mm a')})`;
+        }).join(', ');
+        
+        console.log('BLOCKING APPOINTMENT CREATION due to overlap with:', conflictDetails);
+        return res.status(409).json({ 
+          message: `Time slot conflicts with existing appointment(s): ${conflictDetails}. Please choose a different time.`,
+          conflicts: overlappingAppointments.map(apt => ({
+            id: apt.id,
+            clientName: apt.client.name,
+            startTime: apt.scheduledAt,
+            duration: apt.duration
+          }))
+        });
+      }
+      
+      console.log('✅ NO OVERLAPS DETECTED - Proceeding with appointment creation');
+      
       // Create appointment with pending status (requires SMS confirmation)
       const appointment = await storage.createAppointment({
         ...appointmentData,
@@ -382,10 +457,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           
           // Create service list for confirmation message
           let serviceText;
-          if (services.length === 1) {
-            serviceText = services[0].name;
+          if (serviceDetails.length === 1) {
+            serviceText = serviceDetails[0].service.name;
           } else {
-            const serviceNames = services.map(s => s.name);
+            const serviceNames = serviceDetails.map(sd => sd.service.name);
             serviceText = serviceNames.join(', ');
           }
           
@@ -434,10 +509,97 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.patch("/api/appointments/:id", requireAuth, async (req, res) => {
     try {
+      const userId = (req.user as any).id;
       const appointmentId = parseInt(req.params.id);
+      
+      console.log('=== APPOINTMENT UPDATE ===');
+      console.log('Appointment ID:', appointmentId);
+      console.log('User ID:', userId);
+      console.log('Update data:', JSON.stringify(req.body, null, 2));
+      
+      // Get current appointment details
+      const currentAppointment = await storage.getAppointment(appointmentId);
+      if (!currentAppointment || currentAppointment.userId !== userId) {
+        console.log('❌ Appointment not found or unauthorized');
+        return res.status(404).json({ message: "Appointment not found" });
+      }
+      
+      console.log('Current appointment status:', currentAppointment.status);
+      console.log('Client:', currentAppointment.client.name);
+      console.log('Scheduled at:', currentAppointment.scheduledAt);
+      console.log('Duration:', currentAppointment.duration, 'minutes');
+      
+      // If confirming appointment, check for overlaps again
+      if (req.body.status === 'confirmed' && currentAppointment.status === 'pending') {
+        console.log('🔄 CONFIRMING PENDING APPOINTMENT - Running overlap check');
+        
+        const appointmentStart = new Date(currentAppointment.scheduledAt);
+        const appointmentEnd = new Date(appointmentStart.getTime() + currentAppointment.duration * 60 * 1000);
+        
+        // Get existing confirmed appointments (excluding this pending one)
+        const existingAppointments = await storage.getAppointmentsByUserId(
+          userId, 
+          new Date(appointmentStart.getTime() - 24 * 60 * 60 * 1000),
+          new Date(appointmentEnd.getTime() + 24 * 60 * 60 * 1000)
+        );
+        
+        const confirmedAppointments = existingAppointments.filter(apt => 
+          apt.status === 'confirmed' && apt.id !== appointmentId
+        );
+        
+        console.log('Checking against confirmed appointments:', confirmedAppointments.map(apt => ({
+          id: apt.id,
+          client: apt.client.name,
+          start: apt.scheduledAt,
+          duration: apt.duration
+        })));
+        
+        // Check for overlaps with confirmed appointments
+        const overlappingAppointments = confirmedAppointments.filter(existingApt => {
+          const existingStart = new Date(existingApt.scheduledAt);
+          const existingEnd = new Date(existingStart.getTime() + existingApt.duration * 60 * 1000);
+          
+          const overlap = (appointmentStart < existingEnd && appointmentEnd > existingStart);
+          
+          if (overlap) {
+            console.log('⚠️  OVERLAP with confirmed appointment:', {
+              existingId: existingApt.id,
+              existingClient: existingApt.client.name,
+              thisStart: appointmentStart.toISOString(),
+              thisEnd: appointmentEnd.toISOString(),
+              existingStart: existingStart.toISOString(),
+              existingEnd: existingEnd.toISOString()
+            });
+          }
+          
+          return overlap;
+        });
+        
+        if (overlappingAppointments.length > 0) {
+          console.log('❌ BLOCKING CONFIRMATION due to overlap');
+          const conflictDetails = overlappingAppointments.map(apt => {
+            const start = new Date(apt.scheduledAt);
+            const end = new Date(start.getTime() + apt.duration * 60 * 1000);
+            return `${apt.client.name} (${format(start, 'h:mm a')} - ${format(end, 'h:mm a')})`;
+          }).join(', ');
+          
+          return res.status(409).json({ 
+            message: `Cannot confirm: Time slot now conflicts with ${conflictDetails}. Please reschedule.`,
+            conflicts: overlappingAppointments
+          });
+        }
+        
+        console.log('✅ No overlaps found - proceeding with confirmation');
+      }
+      
       const appointment = await storage.updateAppointment(appointmentId, req.body);
+      
+      console.log('✅ Appointment updated successfully');
+      console.log('New status:', appointment.status);
+      
       res.json(appointment);
     } catch (error: any) {
+      console.error('❌ Error updating appointment:', error);
       res.status(500).json({ message: error.message });
     }
   });
