@@ -514,8 +514,8 @@ export default function Dashboard() {
                 <div className="flex justify-center py-4">
                   <div className="animate-spin w-6 h-6 border-2 border-gold border-t-transparent rounded-full" />
                 </div>
-              ) : todayAppointments?.length ? (
-                todayAppointments.map((appointment) => (
+              ) : confirmedAppointments?.length ? (
+                confirmedAppointments.map((appointment) => (
                   <AppointmentCard 
                     key={appointment.id} 
                     appointment={appointment}
@@ -529,7 +529,7 @@ export default function Dashboard() {
               ) : (
                 <div className="text-center py-8 text-steel">
                   <Calendar className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                  <p>No appointments scheduled for today</p>
+                  <p>No confirmed appointments scheduled for today</p>
                 </div>
               )}
             </div>
