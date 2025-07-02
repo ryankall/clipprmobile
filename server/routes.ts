@@ -1285,6 +1285,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.delete("/api/messages/:id", requireAuth, async (req, res) => {
+    try {
+      const messageId = parseInt(req.params.id);
+      const userId = (req.user as any).id;
+      
+      // Verify message belongs to user
+      const message = await storage.getMessage(messageId);
+      if (!message || message.userId !== userId) {
+        return res.status(404).json({ message: "Message not found" });
+      }
+      
+      await storage.deleteMessage(messageId);
+      res.json({ message: "Message deleted successfully" });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
   // Notification routes
   app.get("/api/notifications", requireAuth, async (req, res) => {
     try {
