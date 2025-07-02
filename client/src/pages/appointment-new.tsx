@@ -24,8 +24,8 @@ interface ServiceSelection {
   quantity: number;
 }
 
-// Appointment form schema
-const appointmentFormSchema = z.object({
+// Appointment form schema - dynamic validation based on context
+const createAppointmentFormSchema = (fromMessage: boolean) => z.object({
   clientId: z.number().min(0, "Client is required"),
   services: z.array(z.object({
     serviceId: z.number(),
@@ -35,12 +35,20 @@ const appointmentFormSchema = z.object({
     (dateStr) => {
       const selectedDate = new Date(dateStr);
       const now = new Date();
-      // Add a 10-minute buffer to avoid timing issues
+      
+      // If booking from message, allow past times as they can be adjusted
+      if (fromMessage) {
+        return true;
+      }
+      
+      // For direct bookings, require 10-minute buffer
       const tenMinutesFromNow = new Date(now.getTime() + 10 * 60 * 1000);
       return selectedDate >= tenMinutesFromNow;
     },
     {
-      message: "Please select a time at least 10 minutes from now"
+      message: fromMessage 
+        ? "Please adjust the time if needed" 
+        : "Please select a time at least 10 minutes from now"
     }
   ),
   notes: z.string().optional(),
@@ -128,7 +136,10 @@ export default function AppointmentNew() {
     return "";
   };
 
-  const form = useForm<z.infer<typeof appointmentFormSchema>>({
+  const appointmentFormSchema = createAppointmentFormSchema(fromMessage);
+  type AppointmentFormType = z.infer<ReturnType<typeof createAppointmentFormSchema>>;
+  
+  const form = useForm<AppointmentFormType>({
     resolver: zodResolver(appointmentFormSchema),
     defaultValues: {
       clientId: foundClient?.id || 0,
@@ -176,7 +187,7 @@ export default function AppointmentNew() {
   }, [serviceSelections, form]);
 
   const createAppointmentMutation = useMutation({
-    mutationFn: async (data: z.infer<typeof appointmentFormSchema>) => {
+    mutationFn: async (data: AppointmentFormType) => {
       // Convert local time to UTC for backend storage
       const localDateTime = new Date(data.scheduledAt);
       const utcDateTime = localDateTime.toISOString();
@@ -272,7 +283,7 @@ export default function AppointmentNew() {
     }
   };
 
-  const handleSubmit = (data: z.infer<typeof appointmentFormSchema>) => {
+  const handleSubmit = (data: AppointmentFormType) => {
     createAppointmentMutation.mutate(data);
   };
 
