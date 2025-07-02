@@ -6,6 +6,10 @@ This document outlines all the booking and appointment workflows in the Clippr a
 ## Current Workflow Status
 - ✅ Public client booking workflow (implemented)
 - ✅ Direct barber appointment creation (implemented)
+- ✅ Appointment status system (pending/confirmed/cancelled/no show)
+- ✅ Dashboard filtering (only confirmed appointments in current/next cards)
+- ✅ Overlap detection system (ignores cancelled appointments)
+- ✅ Appointment deletion with SMS cancellation notifications
 - 🔄 SMS confirmation workflow (to be implemented)
 - 🔄 Pending appointment with SMS confirmation (to be implemented)
 - 🔄 Client SMS cancellation workflow (to be implemented)
@@ -138,6 +142,40 @@ This document outlines all the booking and appointment workflows in the Clippr a
    - SMS reply: "Your appointment has been cancelled. Thanks!"
 
 ### Current Status: 🔄 To be implemented
+
+---
+
+## Workflow 6: Appointment Status Management (✅ Implemented)
+
+**Current Implementation**: Comprehensive status-based appointment system
+
+### Appointment Statuses:
+- **pending**: Appointment created but not yet confirmed
+- **confirmed**: Appointment confirmed and ready to show in dashboard
+- **cancelled**: Appointment cancelled, no longer affects scheduling
+- **no show**: Client didn't show up for appointment
+
+### Dashboard Behavior:
+1. **Current/Next appointment cards**: Only show appointments with "confirmed" status
+2. **Pending confirmations card**: Shows only appointments with "pending" status  
+3. **Cancelled appointments**: Do not appear in any dashboard cards
+
+### Calendar Behavior:
+1. **All appointments visible**: Shows pending, confirmed, cancelled, and no show appointments
+2. **Visual distinction**: Different styling for different statuses
+3. **Deletion allowed**: Cancelled appointments can be safely deleted
+
+### Overlap Detection:
+1. **Ignores cancelled appointments**: Cancelled appointments don't block new bookings
+2. **Considers pending and confirmed**: Both pending and confirmed appointments prevent overlaps
+3. **Detailed conflict reporting**: Shows specific conflicting appointments with times
+
+### Testing Results:
+- ✅ Only confirmed appointments appear in current/next cards
+- ✅ Cancelled pending appointments disappear from pending confirmations card
+- ✅ Cancelled appointments don't affect scheduling overlap detection
+- ✅ Calendar shows all appointment statuses for complete visibility
+- ✅ Appointment deletion works correctly with foreign key constraints
 
 ---
 
