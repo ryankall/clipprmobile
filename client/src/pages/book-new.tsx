@@ -85,10 +85,10 @@ export default function EnhancedBookingPage() {
     enabled: !!barberPhone,
   });
 
-  // Fetch available time slots for selected date (for step 2)
+  // Fetch available time slots for selected date (for step 5)
   const { data: timeSlots, isLoading: slotsLoading } = useQuery<TimeSlot[]>({
     queryKey: [`/api/public/barber/${barberPhone}/availability?date=${selectedDate}`],
-    enabled: !!barberPhone && !!selectedDate && currentStep === 2,
+    enabled: !!barberPhone && !!selectedDate && currentStep === 5,
   });
 
   // Client lookup by phone
@@ -291,28 +291,20 @@ export default function EnhancedBookingPage() {
 
       <main className="max-w-md mx-auto p-4 space-y-6">
         {/* Step Navigation */}
-        <div className="flex justify-center space-x-1 py-4">
-          {[
-            { num: 1, label: 'Phone' },
-            { num: 2, label: 'Info' },
-            { num: 3, label: 'Services' },
-            { num: 4, label: 'Date' },
-            { num: 5, label: 'Time' },
-            { num: 6, label: 'Review' }
-          ].map((step) => (
-            <Button
-              key={step.num}
-              variant="ghost"
-              size="sm"
-              onClick={() => setCurrentStep(step.num)}
-              className={`px-2 py-1 text-xs ${
-                step.num === currentStep 
-                  ? 'bg-gold text-charcoal' 
-                  : 'text-steel hover:text-white hover:bg-charcoal'
-              }`}
-            >
-              {step.num}. {step.label}
-            </Button>
+        <div className="flex justify-center space-x-2 py-4">
+          {[1, 2, 3, 4, 5, 6].map((step) => (
+            <div
+              key={step}
+              className={`
+                w-3 h-3 rounded-full transition-colors
+                ${currentStep === step
+                  ? 'bg-gold' 
+                  : currentStep > step
+                  ? 'bg-steel/60'
+                  : 'bg-steel/20'
+                }
+              `}
+            />
           ))}
         </div>
 
@@ -621,7 +613,7 @@ export default function EnhancedBookingPage() {
                   <p className="text-steel text-sm">
                     Available times for {selectedDate}
                   </p>
-                  {timeSlots?.length > 0 ? (
+                  {timeSlots && timeSlots.length > 0 ? (
                     <div className="grid grid-cols-2 gap-2 max-h-64 overflow-y-auto">
                       {timeSlots.map((slot) => (
                         <Button
