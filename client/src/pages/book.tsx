@@ -360,14 +360,13 @@ export default function BookingPage() {
                 <div className="animate-spin w-6 h-6 border-2 border-gold border-t-transparent rounded-full" />
               </div>
             ) : services && services.length > 0 ? (
-              <div className={`space-y-3 ${!selectedTime ? 'opacity-50 pointer-events-none' : ''}`}>
+              <div className="space-y-3">
                 {services.map((service) => (
                   <div key={service.id} className="flex items-center space-x-3 p-3 bg-charcoal rounded-lg">
                     <Checkbox
                       checked={selectedServices.includes(service.id.toString())}
                       onCheckedChange={() => handleServiceToggle(service.id.toString())}
                       className="border-steel/40"
-                      disabled={!selectedTime}
                     />
                     <div className="flex-1">
                       <div className="flex items-center justify-between">
@@ -403,7 +402,6 @@ export default function BookingPage() {
                     checked={showCustomService}
                     onCheckedChange={(checked) => setShowCustomService(checked === true)}
                     className="border-steel/40"
-                    disabled={!selectedTime}
                   />
                   <span className="text-white font-medium">Custom Service</span>
                 </div>
@@ -414,7 +412,6 @@ export default function BookingPage() {
                     onChange={(e) => setCustomService(e.target.value)}
                     className="bg-charcoal border-steel/40 text-white mt-3"
                     placeholder="Describe your custom service request..."
-                    disabled={!selectedTime}
                   />
                 )}
               </div>
