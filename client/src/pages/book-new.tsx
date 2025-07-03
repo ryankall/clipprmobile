@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
-import { Calendar, Clock, MapPin, Phone, Mail, User as UserIcon, Scissors, CheckCircle, ChevronLeft, ChevronRight, ArrowLeft, User } from "lucide-react";
+import { Calendar, Clock, MapPin, Phone, Mail, User as UserIcon, Scissors, CheckCircle, ChevronLeft, ChevronRight, ArrowLeft, User, Loader2 } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -45,7 +45,7 @@ interface TimeSlot {
 
 export default function EnhancedBookingPage() {
   const { barberInfo } = useParams<{ barberInfo: string }>();
-  const [currentStep, setCurrentStep] = useState(5); // Start with service selection
+  const [currentStep, setCurrentStep] = useState(4); // Start with services selection
   const [selectedDate, setSelectedDate] = useState('');
   const [selectedTime, setSelectedTime] = useState('');
   const [selectedServices, setSelectedServices] = useState<string[]>([]);
@@ -294,10 +294,10 @@ export default function EnhancedBookingPage() {
         <div className="flex justify-center space-x-1 py-4">
           {[
             { num: 1, label: 'Phone' },
-            { num: 2, label: 'Info' },
-            { num: 3, label: 'Date' },
-            { num: 4, label: 'Time' },
-            { num: 5, label: 'Services' },
+            { num: 2, label: 'Time' },
+            { num: 3, label: 'Info' },
+            { num: 4, label: 'Services' },
+            { num: 5, label: 'Date' },
             { num: 6, label: 'Review' }
           ].map((step) => (
             <Button
@@ -350,14 +350,14 @@ export default function EnhancedBookingPage() {
           </Card>
         )}
 
-        {/* Step 2: Personal Information */}
+        {/* Step 2: Time Selection */}
         {currentStep === 2 && (
           <Card className="bg-dark-card border-steel/20">
             <CardHeader>
               <CardTitle className="text-white flex items-center justify-between">
                 <div className="flex items-center">
-                  <User className="w-5 h-5 mr-2 text-gold" />
-                  Personal Information
+                  <Clock className="w-5 h-5 mr-2 text-gold" />
+                  Select Available Time
                 </div>
                 <Button variant="ghost" size="sm" onClick={handleBack} className="text-steel hover:text-white">
                   <ArrowLeft className="w-4 h-4" />
@@ -365,87 +365,24 @@ export default function EnhancedBookingPage() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="clientName" className="text-white">Full Name *</Label>
-                <Input
-                  id="clientName"
-                  value={clientName}
-                  onChange={(e) => setClientName(e.target.value)}
-                  className="bg-charcoal border-steel/40 text-white"
-                  placeholder="Enter your full name"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="clientEmail" className="text-white">Email (Optional)</Label>
-                <Input
-                  id="clientEmail"
-                  type="email"
-                  value={clientEmail}
-                  onChange={(e) => setClientEmail(e.target.value)}
-                  className="bg-charcoal border-steel/40 text-white"
-                  placeholder="your@email.com"
-                />
-              </div>
-
-              <div className="space-y-3">
-                <Label className="text-white">Do you need travel service? *</Label>
-                <div className="grid grid-cols-2 gap-3">
-                  <Button
-                    type="button"
-                    variant={needsTravel === true ? "default" : "outline"}
-                    className={needsTravel === true 
-                      ? 'bg-gold text-charcoal' 
-                      : 'bg-charcoal border-steel/40 text-white hover:border-gold/50'
-                    }
-                    onClick={() => setNeedsTravel(true)}
-                  >
-                    Yes, come to me
-                  </Button>
-                  <Button
-                    type="button"
-                    variant={needsTravel === false ? "default" : "outline"}
-                    className={needsTravel === false 
-                      ? 'bg-gold text-charcoal' 
-                      : 'bg-charcoal border-steel/40 text-white hover:border-gold/50'
-                    }
-                    onClick={() => setNeedsTravel(false)}
-                  >
-                    I'll come to you
-                  </Button>
-                </div>
-              </div>
-
-              {needsTravel && (
-                <div className="space-y-2">
-                  <Label htmlFor="clientAddress" className="text-white">Your Address *</Label>
-                  <Input
-                    id="clientAddress"
-                    value={clientAddress}
-                    onChange={(e) => setClientAddress(e.target.value)}
-                    className="bg-charcoal border-steel/40 text-white"
-                    placeholder="123 Main St, City, State"
-                  />
-                </div>
-              )}
-
-              {clientName && needsTravel !== null && (!needsTravel || clientAddress) && (
-                <Button onClick={handleNext} className="w-full gradient-gold text-charcoal">
-                  Continue to Date Selection
+              <div className="text-center py-8">
+                <p className="text-steel">Time selection will be available after selecting services and date.</p>
+                <Button onClick={() => setCurrentStep(4)} className="mt-4 gradient-gold text-charcoal">
+                  Go to Services
                 </Button>
-              )}
+              </div>
             </CardContent>
           </Card>
         )}
 
-        {/* Step 3: Date Selection */}
+        {/* Step 3: Personal Information */}
         {currentStep === 3 && (
           <Card className="bg-dark-card border-steel/20">
             <CardHeader>
               <CardTitle className="text-white flex items-center justify-between">
                 <div className="flex items-center">
-                  <Scissors className="w-5 h-5 mr-2 text-gold" />
-                  Select Services
+                  <User className="w-5 h-5 mr-2 text-gold" />
+                  Personal Information
                 </div>
                 <Button variant="ghost" size="sm" onClick={handleBack} className="text-steel hover:text-white">
                   <ArrowLeft className="w-4 h-4" />
