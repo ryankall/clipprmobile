@@ -54,6 +54,21 @@ server/test/
 
 ### 1. New Critical Business Logic Tests (Latest)
 
+#### Booking Message Travel Information Tests
+**File**: `__tests__/bookingMessage.test.ts`
+**Purpose**: Validates travel information display and calculations in booking request messages
+
+**Tests Covered**:
+- ✅ Travel: No scenarios (2 tests) - Validates "Travel: No" when travel declined or address missing
+- ✅ Travel: Yes scenarios (4 tests) - Tests travel time calculation from home base or previous appointment
+- ✅ Email display (2 tests) - Ensures full email addresses without truncation (fixes chicken@gmail.com issue)
+- ✅ Transportation modes (2 tests) - Validates driving/walking/cycling/transit mode handling
+- ✅ Mapbox API integration for real travel time calculations
+- ✅ Previous appointment location detection for accurate origin
+- ✅ Graceful error handling when travel calculation fails
+
+**Business Impact**: Ensures booking messages include accurate travel information and proper email display for barber review.
+
 #### Pending Slot Locking Tests
 **File**: `client/src/test/pendingSlotLocking.test.ts`
 **Purpose**: Validates the critical bug fix for pending appointment slot blocking
