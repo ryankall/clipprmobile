@@ -1,34 +1,20 @@
+// Test setup configuration
+import { beforeAll, afterAll, beforeEach, afterEach } from 'vitest';
 import '@testing-library/jest-dom';
-import { beforeAll, afterEach, afterAll, vi } from 'vitest';
-import { cleanup } from '@testing-library/react';
 
-// Set up global mocks
-Object.defineProperty(window, 'matchMedia', {
-  writable: true,
-  value: vi.fn().mockImplementation(query => ({
-    matches: false,
-    media: query,
-    onchange: null,
-    addListener: vi.fn(),
-    removeListener: vi.fn(),
-    addEventListener: vi.fn(),
-    removeEventListener: vi.fn(),
-    dispatchEvent: vi.fn(),
-  })),
+// Setup global test environment
+beforeAll(() => {
+  // Global test setup
 });
 
-// Mock window.location
-Object.defineProperty(window, 'location', {
-  value: {
-    href: 'http://localhost:3000',
-    origin: 'http://localhost:3000',
-    search: '',
-    pathname: '/',
-  },
-  writable: true,
+afterAll(() => {
+  // Global test cleanup
 });
 
-// Clean up after each test
+beforeEach(() => {
+  // Reset state before each test
+});
+
 afterEach(() => {
-  cleanup();
+  // Cleanup after each test
 });
