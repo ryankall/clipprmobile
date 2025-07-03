@@ -296,8 +296,8 @@ export default function EnhancedBookingPage() {
             { num: 1, label: 'Phone' },
             { num: 2, label: 'Info' },
             { num: 3, label: 'Services' },
-            { num: 4, label: 'Time' },
-            { num: 5, label: 'Date' },
+            { num: 4, label: 'Date' },
+            { num: 5, label: 'Time' },
             { num: 6, label: 'Review' }
           ].map((step) => (
             <Button
@@ -553,8 +553,56 @@ export default function EnhancedBookingPage() {
           </Card>
         )}
 
-        {/* Step 4: Time Selection */}
+        {/* Step 4: Date Selection */}
         {currentStep === 4 && (
+          <Card className="bg-dark-card border-steel/20">
+            <CardHeader>
+              <CardTitle className="text-white flex items-center justify-between">
+                <div className="flex items-center">
+                  <Calendar className="w-5 h-5 mr-2 text-gold" />
+                  Select Date
+                </div>
+                <Button variant="ghost" size="sm" onClick={handleBack} className="text-steel hover:text-white">
+                  <ArrowLeft className="w-4 h-4" />
+                </Button>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-2 gap-2">
+                {Array.from({ length: 14 }, (_, i) => {
+                  const date = addDays(startOfDay(new Date()), i);
+                  const dateStr = format(date, 'yyyy-MM-dd');
+                  const displayStr = isToday(date) ? 'Today' : isTomorrow(date) ? 'Tomorrow' : format(date, 'EEE MMM d');
+                  
+                  return (
+                    <Button
+                      key={dateStr}
+                      variant={selectedDate === dateStr ? "default" : "outline"}
+                      className={
+                        selectedDate === dateStr
+                          ? 'bg-gold text-charcoal h-16 flex flex-col'
+                          : 'bg-charcoal border-steel/40 text-white hover:border-gold/50 h-16 flex flex-col'
+                      }
+                      onClick={() => setSelectedDate(dateStr)}
+                    >
+                      <span className="text-xs">{displayStr}</span>
+                      <span className="text-xs opacity-70">{format(date, 'yyyy-MM-dd')}</span>
+                    </Button>
+                  );
+                })}
+              </div>
+              
+              {selectedDate && (
+                <Button onClick={handleNext} className="w-full gradient-gold text-charcoal">
+                  Continue to Time Selection
+                </Button>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Step 5: Time Selection */}
+        {currentStep === 5 && (
           <Card className="bg-dark-card border-steel/20">
             <CardHeader>
               <CardTitle className="text-white flex items-center justify-between">
@@ -568,104 +616,49 @@ export default function EnhancedBookingPage() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="text-center py-8">
-                <p className="text-steel">Time selection will be available after selecting a date.</p>
-                <Button onClick={() => setCurrentStep(5)} className="mt-4 gradient-gold text-charcoal">
-                  Go to Date Selection
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Step 5: Client Information */}
-        {currentStep === 5 && (
-          <Card className="bg-dark-card border-steel/20">
-            <CardHeader>
-              <CardTitle className="text-white flex items-center justify-between">
-                <div className="flex items-center">
-                  <UserIcon className="w-5 h-5 mr-2 text-gold" />
-                  Client Information
+              {selectedDate ? (
+                <>
+                  <p className="text-steel text-sm">
+                    Available times for {selectedDate}
+                  </p>
+                  {timeSlots?.length > 0 ? (
+                    <div className="grid grid-cols-2 gap-2 max-h-64 overflow-y-auto">
+                      {timeSlots.map((slot) => (
+                        <Button
+                          key={slot.time}
+                          variant={selectedTime === slot.time ? "default" : "outline"}
+                          disabled={!slot.available}
+                          className={
+                            selectedTime === slot.time
+                              ? 'bg-gold text-charcoal'
+                              : slot.available
+                              ? 'bg-charcoal border-steel/40 text-white hover:border-gold/50'
+                              : 'bg-steel/10 border-steel/20 text-steel/50 cursor-not-allowed'
+                          }
+                          onClick={() => setSelectedTime(slot.time)}
+                        >
+                          {slot.time}
+                        </Button>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-8">
+                      <p className="text-steel">Loading available times...</p>
+                    </div>
+                  )}
+                  {selectedTime && (
+                    <Button onClick={handleNext} className="w-full gradient-gold text-charcoal">
+                      Continue to Review
+                    </Button>
+                  )}
+                </>
+              ) : (
+                <div className="text-center py-8">
+                  <p className="text-steel">Please select a date first to see available times.</p>
+                  <Button onClick={() => setCurrentStep(4)} className="mt-4 gradient-gold text-charcoal">
+                    Go to Date Selection
+                  </Button>
                 </div>
-                <Button variant="ghost" size="sm" onClick={handleBack} className="text-steel hover:text-white">
-                  <ArrowLeft className="w-4 h-4" />
-                </Button>
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <label className="text-white font-medium">Name (required)</label>
-                <Input
-                  placeholder="Your full name"
-                  value={clientName}
-                  onChange={(e) => setClientName(e.target.value)}
-                  className="mt-1 bg-dark-card border-steel/40 text-white"
-                />
-              </div>
-              
-              <div>
-                <label className="text-white font-medium">Phone (required)</label>
-                <Input
-                  type="tel"
-                  value={clientPhone}
-                  disabled
-                  className="mt-1 bg-steel/10 border-steel/20 text-steel"
-                />
-              </div>
-              
-              <div>
-                <label className="text-steel">Email (optional)</label>
-                <Input
-                  type="email"
-                  placeholder="your@email.com"
-                  value={clientEmail}
-                  onChange={(e) => setClientEmail(e.target.value)}
-                  className="mt-1 bg-dark-card border-steel/40 text-white"
-                />
-              </div>
-              
-              <div>
-                <label className="text-white font-medium">Do you wish for {barber.firstName} to travel to you? (required)</label>
-                <div className="mt-2 space-y-2">
-                  <label className="flex items-center space-x-2 cursor-pointer">
-                    <input
-                      type="radio"
-                      name="travel"
-                      checked={needsTravel === true}
-                      onChange={() => setNeedsTravel(true)}
-                      className="w-4 h-4 text-gold"
-                    />
-                    <span className="text-white">Yes, travel to me</span>
-                  </label>
-                  <label className="flex items-center space-x-2 cursor-pointer">
-                    <input
-                      type="radio"
-                      name="travel"
-                      checked={needsTravel === false}
-                      onChange={() => setNeedsTravel(false)}
-                      className="w-4 h-4 text-gold"
-                    />
-                    <span className="text-white">No, I'll come to {barber.firstName}</span>
-                  </label>
-                </div>
-              </div>
-              
-              {needsTravel && (
-                <div>
-                  <label className="text-white font-medium">Address (required for travel)</label>
-                  <Input
-                    placeholder="Your full address"
-                    value={clientAddress}
-                    onChange={(e) => setClientAddress(e.target.value)}
-                    className="mt-1 bg-dark-card border-steel/40 text-white"
-                  />
-                </div>
-              )}
-              
-              {clientName && needsTravel !== null && (!needsTravel || clientAddress) && (
-                <Button onClick={handleNext} className="w-full gradient-gold text-charcoal">
-                  Continue to Final Step
-                </Button>
               )}
             </CardContent>
           </Card>
