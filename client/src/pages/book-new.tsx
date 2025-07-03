@@ -45,7 +45,7 @@ interface TimeSlot {
 
 export default function EnhancedBookingPage() {
   const { barberInfo } = useParams<{ barberInfo: string }>();
-  const [currentStep, setCurrentStep] = useState(4); // Start with services selection
+  const [currentStep, setCurrentStep] = useState(1); // Start with phone entry
   const [selectedDate, setSelectedDate] = useState('');
   const [selectedTime, setSelectedTime] = useState('');
   const [selectedServices, setSelectedServices] = useState<string[]>([]);
@@ -382,7 +382,106 @@ export default function EnhancedBookingPage() {
               <CardTitle className="text-white flex items-center justify-between">
                 <div className="flex items-center">
                   <User className="w-5 h-5 mr-2 text-gold" />
-                  Personal Information
+                  Client Information
+                </div>
+                <Button variant="ghost" size="sm" onClick={handleBack} className="text-steel hover:text-white">
+                  <ArrowLeft className="w-4 h-4" />
+                </Button>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="clientName" className="text-white">Name (required)</Label>
+                <Input
+                  id="clientName"
+                  value={clientName}
+                  onChange={(e) => setClientName(e.target.value)}
+                  className="bg-charcoal border-steel/40 text-white"
+                  placeholder="Your full name"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="clientPhone" className="text-white">Phone (required)</Label>
+                <Input
+                  id="clientPhone"
+                  value={clientPhone}
+                  onChange={(e) => setClientPhone(formatPhoneNumber(e.target.value))}
+                  className="bg-charcoal border-steel/40 text-white"
+                  placeholder="(888) 888-8888"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="clientEmail" className="text-white">Email (optional)</Label>
+                <Input
+                  id="clientEmail"
+                  type="email"
+                  value={clientEmail}
+                  onChange={(e) => setClientEmail(e.target.value)}
+                  className="bg-charcoal border-steel/40 text-white"
+                  placeholder="your@email.com"
+                />
+              </div>
+
+              <div className="space-y-3">
+                <Label className="text-white">Do you wish for ryan to travel to you? (required)</Label>
+                <div className="space-y-2">
+                  <label className="flex items-center space-x-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="travelOption"
+                      value="yes"
+                      checked={needsTravel === true}
+                      onChange={() => setNeedsTravel(true)}
+                      className="w-4 h-4 text-gold"
+                    />
+                    <span className="text-white">Yes, travel to me</span>
+                  </label>
+                  <label className="flex items-center space-x-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="travelOption"
+                      value="no"
+                      checked={needsTravel === false}
+                      onChange={() => setNeedsTravel(false)}
+                      className="w-4 h-4 text-gold"
+                    />
+                    <span className="text-white">No, I'll come to ryan</span>
+                  </label>
+                </div>
+              </div>
+
+              {needsTravel && (
+                <div className="space-y-2">
+                  <Label htmlFor="clientAddress" className="text-white">Your Address *</Label>
+                  <Input
+                    id="clientAddress"
+                    value={clientAddress}
+                    onChange={(e) => setClientAddress(e.target.value)}
+                    className="bg-charcoal border-steel/40 text-white"
+                    placeholder="123 Main St, City, State"
+                  />
+                </div>
+              )}
+
+              {clientName && clientPhone && needsTravel !== null && (!needsTravel || clientAddress) && (
+                <Button onClick={handleNext} className="w-full gradient-gold text-charcoal">
+                  Continue to Available Time
+                </Button>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Step 4: Services */}
+        {currentStep === 4 && (
+          <Card className="bg-dark-card border-steel/20">
+            <CardHeader>
+              <CardTitle className="text-white flex items-center justify-between">
+                <div className="flex items-center">
+                  <Scissors className="w-5 h-5 mr-2 text-gold" />
+                  Select Services
                 </div>
                 <Button variant="ghost" size="sm" onClick={handleBack} className="text-steel hover:text-white">
                   <ArrowLeft className="w-4 h-4" />
@@ -470,57 +569,10 @@ export default function EnhancedBookingPage() {
                   
                   {(selectedServices.length > 0 || customService) && (
                     <Button onClick={handleNext} className="w-full gradient-gold text-charcoal">
-                      Continue to Contact Info
+                      Continue to Date Selection
                     </Button>
                   )}
                 </>
-              )}
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Step 4: Phone Number Entry */}
-        {currentStep === 4 && (
-          <Card className="bg-dark-card border-steel/20">
-            <CardHeader>
-              <CardTitle className="text-white flex items-center justify-between">
-                <div className="flex items-center">
-                  <Phone className="w-5 h-5 mr-2 text-gold" />
-                  Your Phone Number
-                </div>
-                <Button variant="ghost" size="sm" onClick={handleBack} className="text-steel hover:text-white">
-                  <ArrowLeft className="w-4 h-4" />
-                </Button>
-              </CardTitle>
-              <p className="text-steel text-sm">We'll use this to check if you're an existing client</p>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <Input
-                type="tel"
-                placeholder="(555) 123-4567"
-                value={clientPhone}
-                onChange={(e) => setClientPhone(e.target.value)}
-                className="bg-dark-card border-steel/40 text-white text-center text-lg"
-              />
-              
-              {checkClientMutation.isPending && (
-                <div className="text-center">
-                  <div className="w-4 h-4 border-2 border-gold border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
-                  <p className="text-steel text-sm">Checking client information...</p>
-                </div>
-              )}
-              
-              {existingClient && (
-                <div className="bg-gold/10 border border-gold/30 rounded-lg p-3">
-                  <p className="text-gold text-sm font-medium">Welcome back, {existingClient.name}!</p>
-                  <p className="text-steel text-xs">We found your information in our system.</p>
-                </div>
-              )}
-              
-              {clientPhone.length >= 10 && (
-                <Button onClick={handleNext} className="w-full gradient-gold text-charcoal">
-                  Continue to Details
-                </Button>
               )}
             </CardContent>
           </Card>
