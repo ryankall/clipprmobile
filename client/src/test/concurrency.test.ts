@@ -113,6 +113,10 @@ describe('Concurrency & Race Conditions', () => {
     });
 
     it('should handle barber cancellation during client confirmation', async () => {
+      // Reset global counters for clean test
+      smsConfirmationCounter = 0;
+      barberCancellationCounter = 0;
+      
       const appointment = {
         id: 456,
         status: 'pending',
@@ -336,21 +340,21 @@ async function attemptBooking(timeSlot: any, clientRequest: any) {
 }
 
 function createMockDbWithLocking() {
-  let lockCount = 0;
+  let lockAcquired = false;
   
   return {
     acquireLock: async (resource: string) => {
-      lockCount++;
-      // First call succeeds, subsequent calls should fail with proper error
-      if (lockCount > 1) {
+      // Simulate race condition: only first call gets the lock
+      if (lockAcquired) {
         throw new Error('time slot conflict');
       }
+      lockAcquired = true;
       return true;
     },
     releaseLock: () => {
-      // Keep lock count to maintain deterministic behavior
+      // Don't reset lock state to maintain test determinism
     },
-    isLocked: () => lockCount > 0
+    isLocked: () => lockAcquired
   };
 }
 
@@ -370,6 +374,7 @@ async function bookWithDbLocking(db: any, timeSlot: any, client: any) {
     return booking;
   } catch (error) {
     db.releaseLock();
+    // Re-throw the error to be caught by Promise.allSettled
     throw error;
   }
 }
@@ -566,8 +571,9 @@ async function createBooking(timeSlot: any, client: any) {
 }
 
 async function checkConflicts(timeSlot: any) {
-  // Simulate conflict detection
-  return Math.random() > 0.7 ? [{ id: 1, conflict: true }] : [];
+  // Deterministic conflict detection for database locking test
+  // Return empty array for no conflicts (lock handles the race condition)
+  return [];
 }
 
 async function getAppointment(id: number) {
