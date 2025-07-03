@@ -45,7 +45,7 @@ interface TimeSlot {
 
 export default function EnhancedBookingPage() {
   const { barberInfo } = useParams<{ barberInfo: string }>();
-  const [currentStep, setCurrentStep] = useState(1);
+  const [currentStep, setCurrentStep] = useState(5); // Start with service selection
   const [selectedDate, setSelectedDate] = useState('');
   const [selectedTime, setSelectedTime] = useState('');
   const [selectedServices, setSelectedServices] = useState<string[]>([]);
@@ -79,10 +79,10 @@ export default function EnhancedBookingPage() {
     enabled: !!barberPhone,
   });
 
-  // Fetch barber services (for step 3)
+  // Fetch barber services (always available)
   const { data: services, isLoading: servicesLoading } = useQuery<Service[]>({
     queryKey: [`/api/public/barber/${barberPhone}/services`],
-    enabled: !!barberPhone && currentStep >= 3,
+    enabled: !!barberPhone,
   });
 
   // Fetch available time slots for selected date (for step 2)
@@ -153,31 +153,44 @@ export default function EnhancedBookingPage() {
   });
 
   const handleNext = () => {
-    if (currentStep === 1 && !clientPhone) {
-      toast({ title: "Please enter your phone number", variant: "destructive" });
-      return;
-    }
-    if (currentStep === 2 && (!clientName || needsTravel === null)) {
-      toast({ title: "Please complete all required fields", variant: "destructive" });
-      return;
-    }
-    if (currentStep === 2 && needsTravel && !clientAddress) {
-      toast({ title: "Please enter your address for travel service", variant: "destructive" });
-      return;
-    }
-    if (currentStep === 3 && !selectedDate) {
-      toast({ title: "Please select a date", variant: "destructive" });
-      return;
-    }
-    if (currentStep === 4 && !selectedTime) {
-      toast({ title: "Please select a time", variant: "destructive" });
-      return;
-    }
-    if (currentStep === 5 && selectedServices.length === 0 && !customService) {
-      toast({ title: "Please select at least one service", variant: "destructive" });
+    // Only validate when trying to complete the final booking
+    if (currentStep === 6) {
+      if (!clientPhone) {
+        toast({ title: "Please enter your phone number", variant: "destructive" });
+        setCurrentStep(1);
+        return;
+      }
+      if (!clientName || needsTravel === null) {
+        toast({ title: "Please complete all required fields", variant: "destructive" });
+        setCurrentStep(2);
+        return;
+      }
+      if (needsTravel && !clientAddress) {
+        toast({ title: "Please enter your address for travel service", variant: "destructive" });
+        setCurrentStep(2);
+        return;
+      }
+      if (!selectedDate) {
+        toast({ title: "Please select a date", variant: "destructive" });
+        setCurrentStep(3);
+        return;
+      }
+      if (!selectedTime) {
+        toast({ title: "Please select a time", variant: "destructive" });
+        setCurrentStep(4);
+        return;
+      }
+      if (selectedServices.length === 0 && !customService) {
+        toast({ title: "Please select at least one service", variant: "destructive" });
+        setCurrentStep(5);
+        return;
+      }
+      // Submit the booking if all validations pass
+      handleSubmit();
       return;
     }
 
+    // Allow navigation between steps without validation
     if (currentStep < 6) {
       setCurrentStep(currentStep + 1);
     }
@@ -277,15 +290,29 @@ export default function EnhancedBookingPage() {
       </header>
 
       <main className="max-w-md mx-auto p-4 space-y-6">
-        {/* Progress Dots */}
-        <div className="flex justify-center space-x-2 py-4">
-          {[1, 2, 3, 4, 5, 6].map((step) => (
-            <div
-              key={step}
-              className={`w-3 h-3 rounded-full ${
-                step <= currentStep ? 'bg-gold' : 'bg-steel/30'
+        {/* Step Navigation */}
+        <div className="flex justify-center space-x-1 py-4">
+          {[
+            { num: 1, label: 'Phone' },
+            { num: 2, label: 'Info' },
+            { num: 3, label: 'Date' },
+            { num: 4, label: 'Time' },
+            { num: 5, label: 'Services' },
+            { num: 6, label: 'Review' }
+          ].map((step) => (
+            <Button
+              key={step.num}
+              variant="ghost"
+              size="sm"
+              onClick={() => setCurrentStep(step.num)}
+              className={`px-2 py-1 text-xs ${
+                step.num === currentStep 
+                  ? 'bg-gold text-charcoal' 
+                  : 'text-steel hover:text-white hover:bg-charcoal'
               }`}
-            />
+            >
+              {step.num}. {step.label}
+            </Button>
           ))}
         </div>
 
