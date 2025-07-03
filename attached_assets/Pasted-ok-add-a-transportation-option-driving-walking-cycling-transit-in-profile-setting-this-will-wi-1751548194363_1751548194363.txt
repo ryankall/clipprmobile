@@ -1,0 +1,67 @@
+ok add a transportation option, driving, walking, cycling, transit  in profile setting. this will with travel calculation default is driving add unit test for this
+
+On the shared link page, change the order -> ask for phone number first then have them fill out there info -> then choose a date -> then choose available time 
+
+if travel is yes and address(use mapbox to autocompete address) is not empty or null, calculate the travel time, then use the travel to block out time before the appointment starts. add unit test for this
+
+if barber has profile setting set to transit do this instead since mapbox does not have transit mode:
+if (travelMode === 'transit') {
+  const drivingEstimate = await getMapboxTime('driving');
+  return drivingEstimate * 1.5 + Profile_buffer; // estimated transit time
+}
+
+
+use Mapbox Directions API to calculate travel time
+
+
+Unit Test Scenarios
+Create tests for a utility like getAvailableTimeSlots() or isTimeSlotAvailable()
+
+🔹 Test Setup
+const homeBase = "123 Main St, NY";
+const clientAddressA = "789 Oak St, NY";
+const clientAddressB = "456 Pine St, NJ";
+
+const serviceDuration = 45; // in minutes
+const prepBuffer = 5;       // minutes
+✅ Test Case 1: First Appointment of the Day
+
+// 9:00 AM appointment at 20min away = depart home by 8:40
+expect(
+  getDepartureTime("09:00", 20)
+).toEqual("08:40");
+✅ Test Case 2: Second Appointment Too Close
+
+// First ends at 11:00 AM
+// Travel = 40 min, buffer = 5
+// New appt must start >= 11:45
+const result = isTimeSlotAvailable("11:15", 45, { endTime: "11:00" }, clientAddressB, 40, 5);
+expect(result).toBe(false);
+✅ Test Case 3: Second Appointment Acceptable
+
+// New appointment starts at 12:00 PM
+const result = isTimeSlotAvailable("12:00", 30, { endTime: "11:00" }, clientAddressB, 40, 5);
+expect(result).toBe(true);
+✅ Test Case 4: Changing Appointment Location Affects Availability
+
+// clientAddressA = 15 min from previous appt
+const resultA = isTimeSlotAvailable("11:20", 30, { endTime: "11:00" }, clientAddressA, 15, 5);
+// clientAddressB = 40 min from previous appt
+const resultB = isTimeSlotAvailable("11:20", 30, { endTime: "11:00" }, clientAddressB, 40, 5);
+
+expect(resultA).toBe(true);
+expect(resultB).toBe(false);
+
+
+
+
+
+
+In calendar page, schedule appointment modal: add travel time, is located in the message which will be new variable in the prefill of schedule appointment when booking appointment button is clicked, add unit test for this 
+On the home screen "Pending confirmations" card change "Duration" to "Service Duration". The right under that add Travel Time:  travel time
+
+
+update unit_test.md
+
+
+

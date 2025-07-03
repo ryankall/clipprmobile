@@ -20,6 +20,7 @@ export const users = pgTable("users", {
   timezone: text("timezone").default("America/New_York"), // user's timezone for appointment scheduling
   travelTimeBuffer: integer("travel_time_buffer").default(15), // minutes (fallback)
   defaultGraceTime: integer("default_grace_time").default(5), // minutes to add to calculated travel time
+  transportationMode: text("transportation_mode").default("driving"), // driving, walking, cycling, transit
   
   // OAuth fields
   googleId: text("google_id"),

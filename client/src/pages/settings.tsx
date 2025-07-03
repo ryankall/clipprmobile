@@ -13,6 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { BottomNavigation } from "@/components/bottom-navigation";
@@ -74,6 +75,7 @@ const profileSchema = z.object({
   homeBaseAddress: z.string().optional(),
   timezone: z.string().optional(),
   defaultGraceTime: z.number().min(0).max(60).optional(),
+  transportationMode: z.enum(['driving', 'walking', 'cycling', 'transit']).optional(),
 });
 
 type ProfileFormData = z.infer<typeof profileSchema>;
@@ -582,6 +584,7 @@ export default function Settings() {
         homeBaseAddress: (user as any).homeBaseAddress || "",
         timezone: (user as any).timezone || "America/New_York",
         defaultGraceTime: (user as any).defaultGraceTime || 5,
+        transportationMode: (user as any).transportationMode || "driving",
       });
       // Only set previewUrl if user has a photo URL and previewUrl is not manually cleared
       if (user.photoUrl && previewUrl !== null) {
@@ -999,6 +1002,41 @@ export default function Settings() {
                               </FormControl>
                               <p className="text-steel text-xs">
                                 Extra time added to travel estimates for parking, elevators, etc.
+                              </p>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        
+                        <FormField
+                          control={form.control}
+                          name="transportationMode"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel className="text-white">Transportation Mode</FormLabel>
+                              <Select onValueChange={field.onChange} value={field.value}>
+                                <FormControl>
+                                  <SelectTrigger className="bg-charcoal border-steel/40 text-white">
+                                    <SelectValue placeholder="Select transportation mode" />
+                                  </SelectTrigger>
+                                </FormControl>
+                                <SelectContent className="bg-charcoal border-steel/40">
+                                  <SelectItem value="driving" className="text-white hover:bg-steel/20">
+                                    🚗 Driving
+                                  </SelectItem>
+                                  <SelectItem value="walking" className="text-white hover:bg-steel/20">
+                                    🚶 Walking
+                                  </SelectItem>
+                                  <SelectItem value="cycling" className="text-white hover:bg-steel/20">
+                                    🚴 Cycling
+                                  </SelectItem>
+                                  <SelectItem value="transit" className="text-white hover:bg-steel/20">
+                                    🚌 Public Transit
+                                  </SelectItem>
+                                </SelectContent>
+                              </Select>
+                              <p className="text-steel text-xs">
+                                Your preferred transportation method for calculating travel times between appointments
                               </p>
                               <FormMessage />
                             </FormItem>
