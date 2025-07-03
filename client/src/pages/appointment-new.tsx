@@ -188,17 +188,12 @@ export default function AppointmentNew() {
     form.setValue("services", serviceSelections);
   }, [serviceSelections, form]);
 
-  // Calculate travel time when address or scheduled time changes
+  // Calculate travel time only on prefill (initial load)
   useEffect(() => {
-    const address = form.watch("address");
-    const scheduledAt = form.watch("scheduledAt");
-    
-    if (address && scheduledAt) {
-      calculateTravelTime(address, scheduledAt);
-    } else {
-      setTravelTime(0);
+    if (prefilledAddress && prefilledScheduledAt && !travelTime) {
+      calculateTravelTime(prefilledAddress, prefilledScheduledAt);
     }
-  }, [form.watch("address"), form.watch("scheduledAt")]);
+  }, [prefilledAddress, prefilledScheduledAt]);
 
   const createAppointmentMutation = useMutation({
     mutationFn: async (data: z.infer<typeof appointmentFormSchema>) => {
@@ -208,17 +203,51 @@ export default function AppointmentNew() {
       
       let finalClientId = data.clientId;
       
-      // If clientId is 0, create a new client first
+      // If clientId is 0, create a new client first or find existing one
       if (data.clientId === 0 && clientName) {
-        const newClientData = {
-          name: clientName,
-          phone: clientPhone || "",
-          email: clientEmail || "",
-        };
-        
-        const clientResponse = await apiRequest("POST", "/api/clients", newClientData);
-        const newClient = await clientResponse.json();
-        finalClientId = newClient.id;
+        // First try to find existing client by phone number
+        if (clientPhone) {
+          const existingClient = clients?.find(client => client.phone === clientPhone);
+          if (existingClient) {
+            finalClientId = existingClient.id;
+          } else {
+            // Create new client if none found
+            try {
+              const newClientData = {
+                name: clientName,
+                phone: clientPhone || "",
+                email: clientEmail || "",
+              };
+              
+              const clientResponse = await apiRequest("POST", "/api/clients", newClientData);
+              const newClient = await clientResponse.json();
+              finalClientId = newClient.id;
+            } catch (error: any) {
+              // If client creation fails due to duplicate phone, try to find the existing client
+              if (error.message?.includes("already exists")) {
+                const existingClient = clients?.find(client => client.phone === clientPhone);
+                if (existingClient) {
+                  finalClientId = existingClient.id;
+                } else {
+                  throw error;
+                }
+              } else {
+                throw error;
+              }
+            }
+          }
+        } else {
+          // No phone number provided, create client without phone
+          const newClientData = {
+            name: clientName,
+            phone: "",
+            email: clientEmail || "",
+          };
+          
+          const clientResponse = await apiRequest("POST", "/api/clients", newClientData);
+          const newClient = await clientResponse.json();
+          finalClientId = newClient.id;
+        }
       }
       
       // Send the full services array to the backend
