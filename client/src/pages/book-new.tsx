@@ -294,9 +294,9 @@ export default function EnhancedBookingPage() {
         <div className="flex justify-center space-x-1 py-4">
           {[
             { num: 1, label: 'Phone' },
-            { num: 2, label: 'Time' },
-            { num: 3, label: 'Info' },
-            { num: 4, label: 'Services' },
+            { num: 2, label: 'Info' },
+            { num: 3, label: 'Services' },
+            { num: 4, label: 'Time' },
             { num: 5, label: 'Date' },
             { num: 6, label: 'Review' }
           ].map((step) => (
@@ -350,33 +350,8 @@ export default function EnhancedBookingPage() {
           </Card>
         )}
 
-        {/* Step 2: Time Selection */}
+        {/* Step 2: Client Information */}
         {currentStep === 2 && (
-          <Card className="bg-dark-card border-steel/20">
-            <CardHeader>
-              <CardTitle className="text-white flex items-center justify-between">
-                <div className="flex items-center">
-                  <Clock className="w-5 h-5 mr-2 text-gold" />
-                  Select Available Time
-                </div>
-                <Button variant="ghost" size="sm" onClick={handleBack} className="text-steel hover:text-white">
-                  <ArrowLeft className="w-4 h-4" />
-                </Button>
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="text-center py-8">
-                <p className="text-steel">Time selection will be available after selecting services and date.</p>
-                <Button onClick={() => setCurrentStep(4)} className="mt-4 gradient-gold text-charcoal">
-                  Go to Services
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Step 3: Personal Information */}
-        {currentStep === 3 && (
           <Card className="bg-dark-card border-steel/20">
             <CardHeader>
               <CardTitle className="text-white flex items-center justify-between">
@@ -467,15 +442,15 @@ export default function EnhancedBookingPage() {
 
               {clientName && clientPhone && needsTravel !== null && (!needsTravel || clientAddress) && (
                 <Button onClick={handleNext} className="w-full gradient-gold text-charcoal">
-                  Continue to Available Time
+                  Continue to Services
                 </Button>
               )}
             </CardContent>
           </Card>
         )}
 
-        {/* Step 4: Services */}
-        {currentStep === 4 && (
+        {/* Step 3: Services */}
+        {currentStep === 3 && (
           <Card className="bg-dark-card border-steel/20">
             <CardHeader>
               <CardTitle className="text-white flex items-center justify-between">
@@ -569,11 +544,36 @@ export default function EnhancedBookingPage() {
                   
                   {(selectedServices.length > 0 || customService) && (
                     <Button onClick={handleNext} className="w-full gradient-gold text-charcoal">
-                      Continue to Date Selection
+                      Continue to Available Time
                     </Button>
                   )}
                 </>
               )}
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Step 4: Time Selection */}
+        {currentStep === 4 && (
+          <Card className="bg-dark-card border-steel/20">
+            <CardHeader>
+              <CardTitle className="text-white flex items-center justify-between">
+                <div className="flex items-center">
+                  <Clock className="w-5 h-5 mr-2 text-gold" />
+                  Select Available Time
+                </div>
+                <Button variant="ghost" size="sm" onClick={handleBack} className="text-steel hover:text-white">
+                  <ArrowLeft className="w-4 h-4" />
+                </Button>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="text-center py-8">
+                <p className="text-steel">Time selection will be available after selecting a date.</p>
+                <Button onClick={() => setCurrentStep(5)} className="mt-4 gradient-gold text-charcoal">
+                  Go to Date Selection
+                </Button>
+              </div>
             </CardContent>
           </Card>
         )}
