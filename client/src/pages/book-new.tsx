@@ -629,7 +629,7 @@ export default function EnhancedBookingPage() {
                           }
                           onClick={() => setSelectedTime(slot.time)}
                         >
-                          {slot.time}
+                          {formatTime(slot.time)}
                         </Button>
                       ))}
                     </div>
