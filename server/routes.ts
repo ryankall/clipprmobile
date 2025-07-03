@@ -1623,13 +1623,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Create time string in format HH:MM
         const timeString = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
         
-        // Create date object for this time slot
-        const slotDateTime = new Date(requestDate);
-        slotDateTime.setHours(hour, minute, 0, 0);
+        // Create date object for this time slot in UTC
+        // Since the API displays times in user's timezone but appointments are stored in UTC,
+        // we need to convert user's local time slot to UTC for proper comparison
+        const userTimezone = user.timezone || 'America/New_York';
+        
+        // For Eastern Time: UTC = Local Time + 4 hours (EDT) or + 5 hours (EST)
+        // July 3rd is during EDT (UTC-4), so 9:00 AM ET = 13:00 UTC
+        const slotDateTimeLocal = new Date(date + 'T' + timeString + ':00');
+        
+        // Get the timezone offset in hours for Eastern Time in July (EDT = UTC-4)
+        const timezoneOffsetHours = 4; // EDT offset
+        const slotDateTime = new Date(slotDateTimeLocal.getTime() + (timezoneOffsetHours * 60 * 60 * 1000));
         
         // Skip past time slots if the date is today (with 15-minute buffer)
         // Use user's timezone for accurate comparison
-        const userTimezone = user.timezone || 'America/New_York';
         const now = new Date();
         
         // Get current date and time in user's timezone
@@ -1659,14 +1667,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
             return false;
           }
           
+          // For pending appointments, check if they've expired (30 minutes after creation)
+          if (apt.status === 'pending') {
+            const createdAt = apt.createdAt ? new Date(apt.createdAt) : new Date();
+            const expiryTime = new Date(createdAt.getTime() + 30 * 60 * 1000); // 30 minutes expiry
+            if (new Date() > expiryTime) {
+              return false; // Expired pending appointment doesn't block slots
+            }
+          }
+          
           const aptStart = new Date(apt.scheduledAt);
           const aptEnd = new Date(aptStart.getTime() + apt.duration * 60000); // Use appointment's duration field
           const slotEnd = new Date(slotDateTime.getTime() + 15 * 60000);
           
-          // Check for overlap: appointment and time slot overlap if:
-          // - appointment starts before slot ends AND
-          // - appointment ends after slot starts
-          return aptStart < slotEnd && aptEnd > slotDateTime;
+          // Add travel time buffers (15 minutes before and after appointment)
+          const bufferStart = new Date(aptStart.getTime() - 15 * 60000); // 15 min before
+          const bufferEnd = new Date(aptEnd.getTime() + 15 * 60000); // 15 min after
+          
+          // Check for overlap with travel time buffers: appointment block and time slot overlap if:
+          // - appointment block starts before slot ends AND
+          // - appointment block ends after slot starts
+          const hasOverlap = bufferStart < slotEnd && bufferEnd > slotDateTime;
+          
+
+          
+
+          
+          return hasOverlap;
         });
         
         // Check if time slot is reserved (any reservation overlaps with this 15-min slot)

@@ -277,6 +277,7 @@ export class DatabaseStorage implements IStorage {
       .where(eq(appointments.userId, userId));
 
     if (startDate && endDate) {
+      console.log(`[DB QUERY] Getting appointments for user ${userId} between ${startDate.toISOString()} and ${endDate.toISOString()}`);
       appointmentQuery = db
         .select()
         .from(appointments)
@@ -290,6 +291,10 @@ export class DatabaseStorage implements IStorage {
     }
 
     const appointmentResults = await appointmentQuery.orderBy(appointments.scheduledAt);
+    console.log(`[DB QUERY] Found ${appointmentResults.length} appointments for user ${userId}`);
+    appointmentResults.forEach(apt => {
+      console.log(`[DB QUERY] Appointment ${apt.id}: ${apt.scheduledAt}, Status: ${apt.status}, Duration: ${apt.duration}`);
+    });
     
     // Then get related data
     const results: AppointmentWithRelations[] = [];
