@@ -1139,8 +1139,66 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Travel time and scheduling routes
   app.post("/api/travel-time/calculate", requireAuth, async (req, res) => {
     try {
-      const { origin, destination } = req.body;
+      const { origin, destination, clientAddress, appointmentTime } = req.body;
       
+      // Handle appointment-based travel time calculation
+      if (clientAddress && appointmentTime) {
+        const userId = req.user.id;
+        
+        // Get user info for home base address and transportation mode
+        const user = await storage.getUser(userId);
+        if (!user) {
+          return res.json({ success: false, travelTime: 0 });
+        }
+        
+        // Get appointments for the day to find previous appointment location
+        const appointmentStart = new Date(appointmentTime);
+        const dayStart = new Date(appointmentStart);
+        dayStart.setHours(0, 0, 0, 0);
+        const dayEnd = new Date(appointmentStart);
+        dayEnd.setHours(23, 59, 59, 999);
+        
+        const dayAppointments = await storage.getAppointmentsByUserId(userId, dayStart, dayEnd);
+        const confirmedAppointments = dayAppointments.filter(apt => 
+          apt.status === 'confirmed' && new Date(apt.scheduledAt) < appointmentStart
+        );
+        
+        let originAddress = user.homeBaseAddress || user.address || '';
+        
+        // If there's a previous appointment, use its location
+        if (confirmedAppointments.length > 0) {
+          const lastAppointment = confirmedAppointments
+            .sort((a, b) => new Date(b.scheduledAt).getTime() - new Date(a.scheduledAt).getTime())[0];
+          
+          if (lastAppointment.address) {
+            originAddress = lastAppointment.address;
+          }
+        }
+        
+        if (!originAddress || !process.env.MAPBOX_ACCESS_TOKEN) {
+          return res.json({ success: false, travelTime: 0 });
+        }
+        
+        const { mapboxService } = await import('./mapboxService');
+        const travelResult = await mapboxService.calculateTravelTime(
+          originAddress,
+          clientAddress,
+          user.transportationMode as 'driving' | 'walking' | 'cycling' | 'transit' || 'driving'
+        );
+        
+        if (travelResult.status === 'OK') {
+          return res.json({ 
+            success: true, 
+            travelTime: travelResult.duration,
+            origin: originAddress,
+            destination: clientAddress
+          });
+        } else {
+          return res.json({ success: false, travelTime: 0 });
+        }
+      }
+      
+      // Handle direct origin/destination travel time calculation
       if (!origin || !destination) {
         return res.status(400).json({ message: "Origin and destination are required" });
       }

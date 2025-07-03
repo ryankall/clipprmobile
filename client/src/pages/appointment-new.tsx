@@ -11,7 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { ArrowLeft, Calendar, Clock, User, Scissors, AlertTriangle, CheckCircle, Plus, Minus } from "lucide-react";
+import { ArrowLeft, Calendar, Clock, User, Scissors, AlertTriangle, CheckCircle, Plus, Minus, MapPin, Car } from "lucide-react";
 import { Link } from "wouter";
 import { format } from "date-fns";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -57,6 +57,35 @@ export default function AppointmentNew() {
     message?: string;
     travelInfo?: string;
   }>({ isValidating: false });
+  const [travelTime, setTravelTime] = useState<number>(0);
+  const [travelTimeLoading, setTravelTimeLoading] = useState(false);
+  
+  // Calculate travel time for appointments with addresses
+  const calculateTravelTime = async (address: string, scheduledAt: string) => {
+    if (!address || !scheduledAt) {
+      setTravelTime(0);
+      return;
+    }
+    
+    setTravelTimeLoading(true);
+    try {
+      const response = await apiRequest('POST', '/api/travel-time/calculate', {
+        clientAddress: address,
+        appointmentTime: scheduledAt,
+      });
+      
+      if (response.success && response.travelTime) {
+        setTravelTime(response.travelTime);
+      } else {
+        setTravelTime(0);
+      }
+    } catch (error) {
+      console.error('Failed to calculate travel time:', error);
+      setTravelTime(0);
+    } finally {
+      setTravelTimeLoading(false);
+    }
+  };
   
   // Get parameters from URL if provided
   const urlParams = new URLSearchParams(window.location.search);
@@ -158,6 +187,18 @@ export default function AppointmentNew() {
   useEffect(() => {
     form.setValue("services", serviceSelections);
   }, [serviceSelections, form]);
+
+  // Calculate travel time when address or scheduled time changes
+  useEffect(() => {
+    const address = form.watch("address");
+    const scheduledAt = form.watch("scheduledAt");
+    
+    if (address && scheduledAt) {
+      calculateTravelTime(address, scheduledAt);
+    } else {
+      setTravelTime(0);
+    }
+  }, [form.watch("address"), form.watch("scheduledAt")]);
 
   const createAppointmentMutation = useMutation({
     mutationFn: async (data: z.infer<typeof appointmentFormSchema>) => {
@@ -464,17 +505,47 @@ export default function AppointmentNew() {
                       
                       {/* Total Duration Display */}
                       <div className="bg-blue-900/20 border-blue-700/30 rounded p-3">
-                        <div className="flex items-center justify-between text-blue-200">
-                          <span className="flex items-center">
-                            <Clock className="w-4 h-4 mr-2" />
-                            Total Duration
-                          </span>
-                          <span className="font-semibold">
-                            {serviceSelections.reduce((total, selection) => {
-                              const service = services?.find(s => s.id === selection.serviceId);
-                              return total + (service?.duration || 0) * selection.quantity;
-                            }, 0)}min
-                          </span>
+                        <div className="space-y-2">
+                          {/* Service Duration */}
+                          <div className="flex items-center justify-between text-blue-200">
+                            <span className="flex items-center">
+                              <Scissors className="w-4 h-4 mr-2" />
+                              Service Duration
+                            </span>
+                            <span className="font-semibold">
+                              {serviceSelections.reduce((total, selection) => {
+                                const service = services?.find(s => s.id === selection.serviceId);
+                                return total + (service?.duration || 0) * selection.quantity;
+                              }, 0)}min
+                            </span>
+                          </div>
+                          
+                          {/* Travel Time */}
+                          {(form.watch("address") || travelTime > 0) && (
+                            <div className="flex items-center justify-between text-blue-200">
+                              <span className="flex items-center">
+                                <Car className="w-4 h-4 mr-2" />
+                                Travel Time
+                              </span>
+                              <span className="font-semibold">
+                                {travelTimeLoading ? "Calculating..." : `${travelTime}min`}
+                              </span>
+                            </div>
+                          )}
+                          
+                          {/* Total Duration */}
+                          <div className="flex items-center justify-between text-blue-200 pt-2 border-t border-blue-700/30">
+                            <span className="flex items-center">
+                              <Clock className="w-4 h-4 mr-2" />
+                              Total Duration
+                            </span>
+                            <span className="font-semibold">
+                              {serviceSelections.reduce((total, selection) => {
+                                const service = services?.find(s => s.id === selection.serviceId);
+                                return total + (service?.duration || 0) * selection.quantity;
+                              }, 0) + travelTime}min
+                            </span>
+                          </div>
                         </div>
                       </div>
                     </div>
