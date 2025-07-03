@@ -358,7 +358,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         serviceId: primaryService.id, // Keep for backward compatibility
         price: totalPrice.toFixed(2),
         duration: totalDuration,
-        scheduledAt: appointmentUTC
+        scheduledAt: appointmentUTC,
+        travelTime: req.body.travelTime || 0
       };
       
       console.log('Data to validate:', JSON.stringify(dataToValidate, null, 2));
@@ -366,13 +367,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // OVERLAP DETECTION: Check for overlapping appointments
       const appointmentStart = new Date(appointmentUTC);
-      const appointmentEnd = new Date(appointmentStart.getTime() + totalDuration * 60 * 1000);
+      const travelTime = req.body.travelTime || 0;
+      // Include travel time in overlap calculation only when travel is enabled
+      const totalCalendarDuration = totalDuration + travelTime;
+      const appointmentEnd = new Date(appointmentStart.getTime() + totalCalendarDuration * 60 * 1000);
       
       console.log('=== OVERLAP DETECTION ===');
       console.log('New appointment window:', {
         start: appointmentStart.toISOString(),
         end: appointmentEnd.toISOString(),
-        duration: totalDuration + ' minutes'
+        serviceDuration: totalDuration + ' minutes',
+        travelTime: travelTime + ' minutes',
+        totalCalendarDuration: totalCalendarDuration + ' minutes'
       });
       
       // Get existing appointments for this user around the same time

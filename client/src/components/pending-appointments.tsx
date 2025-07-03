@@ -261,31 +261,40 @@ export function PendingAppointments({ className }: PendingAppointmentsProps) {
                     </div>
                   )}
                   {/* Travel Time Information */}
-                  {travelInfo && appointment.address && (
+                  {(travelInfo || (appointment as any).travelTime > 0) && appointment.address && (
                     <div className="bg-blue-50/50 border border-blue-200 rounded-lg p-3 mt-2">
                       <div className="flex items-center gap-2 text-sm font-medium text-blue-800 mb-2">
-                        {getTransportIcon(travelInfo.travelMode)}
+                        {getTransportIcon(travelInfo?.travelMode || 'driving')}
                         Travel Information
                       </div>
                       <div className="space-y-1 text-sm text-blue-700">
                         <div className="flex justify-between">
                           <span>Travel Time:</span>
-                          <span className="font-medium">{travelInfo.travelTime} minutes</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span>Distance:</span>
-                          <span className="font-medium">{travelInfo.distance}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span>Departure Time:</span>
-                          <span className={`font-medium ${shouldShowTravelWarning ? 'text-red-600' : ''}`}>
-                            {format(travelInfo.departureTime, "h:mm a")}
+                          <span className="font-medium">
+                            {(appointment as any).travelTime > 0 
+                              ? `${(appointment as any).travelTime} minutes (stored)` 
+                              : `${travelInfo?.travelTime} minutes (calculated)`
+                            }
                           </span>
                         </div>
-                        <div className="flex justify-between">
-                          <span>Mode:</span>
-                          <span className="font-medium capitalize">{travelInfo.travelMode}</span>
-                        </div>
+                        {travelInfo && (
+                          <>
+                            <div className="flex justify-between">
+                              <span>Distance:</span>
+                              <span className="font-medium">{travelInfo.distance}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span>Departure Time:</span>
+                              <span className={`font-medium ${shouldShowTravelWarning ? 'text-red-600' : ''}`}>
+                                {format(travelInfo.departureTime, "h:mm a")}
+                              </span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span>Mode:</span>
+                              <span className="font-medium capitalize">{travelInfo.travelMode}</span>
+                            </div>
+                          </>
+                        )}
                       </div>
                     </div>
                   )}

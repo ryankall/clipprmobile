@@ -322,7 +322,23 @@ export class DatabaseStorage implements IStorage {
     const endOfDay = new Date(startOfDay);
     endOfDay.setDate(endOfDay.getDate() + 1);
 
-    return await this.getAppointmentsByUserId(userId, startOfDay, endOfDay);
+    console.log(`[DB QUERY] Getting today's appointments for user ${userId}`);
+    console.log(`[DB QUERY] Date range: ${startOfDay.toISOString()} to ${endOfDay.toISOString()}`);
+
+    // Get all today's appointments and filter out cancelled ones
+    const allTodayAppointments = await this.getAppointmentsByUserId(userId, startOfDay, endOfDay);
+    
+    // Filter to only include confirmed and pending appointments
+    const results = allTodayAppointments.filter(apt => 
+      apt.status === 'confirmed' || apt.status === 'pending'
+    );
+
+    console.log(`[DB QUERY] Found ${results.length} active appointments for today`);
+    results.forEach(result => {
+      console.log(`[DB QUERY] Appointment ${result.id}: ${result.client.name}, Status: ${result.status}, Time: ${result.scheduledAt}`);
+    });
+
+    return results;
   }
 
   async getPendingAppointments(userId: number): Promise<AppointmentWithRelations[]> {

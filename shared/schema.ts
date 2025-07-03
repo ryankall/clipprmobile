@@ -76,6 +76,7 @@ export const appointments = pgTable("appointments", {
   address: text("address"),
   price: decimal("price", { precision: 10, scale: 2 }).notNull(),
   duration: integer("duration").notNull(),
+  travelTime: integer("travel_time").default(0), // travel time in minutes
   reminderSent: boolean("reminder_sent").default(false),
   createdAt: timestamp("created_at").defaultNow(),
 });

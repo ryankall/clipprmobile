@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Switch } from "@/components/ui/switch";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { ArrowLeft, Calendar, Clock, User, Scissors, AlertTriangle, CheckCircle, Plus, Minus, MapPin, Car } from "lucide-react";
 import { Link } from "wouter";
@@ -45,6 +46,7 @@ const appointmentFormSchema = z.object({
   ),
   notes: z.string().optional(),
   address: z.string().optional(),
+  includeTravel: z.boolean().default(false),
 });
 
 export default function AppointmentNew() {
@@ -149,6 +151,7 @@ export default function AppointmentNew() {
       scheduledAt: prefilledScheduledAt || "",
       notes: prefilledNotes || "",
       address: prefilledAddress || "",
+      includeTravel: !!prefilledAddress, // Enable travel if address is prefilled
     },
   });
 
@@ -256,7 +259,8 @@ export default function AppointmentNew() {
         services: data.services, // Send full services array
         scheduledAt: utcDateTime,
         notes: data.notes,
-        address: data.address
+        address: data.includeTravel ? data.address : "", // Only send address if travel is enabled
+        travelTime: data.includeTravel ? travelTime : 0 // Include travel time only if travel is enabled
       };
       
       return apiRequest("POST", "/api/appointments", appointmentData);
@@ -549,8 +553,8 @@ export default function AppointmentNew() {
                             </span>
                           </div>
                           
-                          {/* Travel Time */}
-                          {(form.watch("address") || travelTime > 0) && (
+                          {/* Travel Time - only show when travel is enabled */}
+                          {form.watch("includeTravel") && (form.watch("address") || travelTime > 0) && (
                             <div className="flex items-center justify-between text-blue-200">
                               <span className="flex items-center">
                                 <Car className="w-4 h-4 mr-2" />
@@ -572,7 +576,7 @@ export default function AppointmentNew() {
                               {serviceSelections.reduce((total, selection) => {
                                 const service = services?.find(s => s.id === selection.serviceId);
                                 return total + (service?.duration || 0) * selection.quantity;
-                              }, 0) + travelTime}min
+                              }, 0) + (form.watch("includeTravel") ? travelTime : 0)}min
                             </span>
                           </div>
                         </div>
@@ -604,24 +608,61 @@ export default function AppointmentNew() {
                 />
 
                 {/* Address (optional) */}
+                {/* Travel Toggle */}
                 <FormField
                   control={form.control}
-                  name="address"
+                  name="includeTravel"
                   render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="text-white">Address (Optional)</FormLabel>
+                    <FormItem className="flex items-center justify-between bg-charcoal/50 rounded p-3">
+                      <div className="flex items-center space-x-2">
+                        <MapPin className="w-4 h-4 text-steel" />
+                        <FormLabel className="text-white cursor-pointer">Travel to client location?</FormLabel>
+                      </div>
                       <FormControl>
-                        <Input 
-                          {...field} 
-                          value={field.value || ""}
-                          className="bg-charcoal border-steel/40 text-white"
-                          placeholder={currentClient?.address || "Enter appointment address"}
+                        <Switch
+                          checked={field.value}
+                          onCheckedChange={(checked) => {
+                            field.onChange(checked);
+                            // Clear address if travel is disabled
+                            if (!checked) {
+                              form.setValue("address", "");
+                              setTravelTime(0);
+                            }
+                          }}
                         />
                       </FormControl>
-                      <FormMessage />
                     </FormItem>
                   )}
                 />
+
+                {/* Address Field (only shown when travel is enabled) */}
+                {form.watch("includeTravel") && (
+                  <FormField
+                    control={form.control}
+                    name="address"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-white">Client Address</FormLabel>
+                        <FormControl>
+                          <Input 
+                            {...field} 
+                            value={field.value || ""}
+                            className="bg-charcoal border-steel/40 text-white"
+                            placeholder={currentClient?.address || "Enter client address"}
+                            onChange={(e) => {
+                              field.onChange(e.target.value);
+                              // Calculate travel time when address changes and client is selected
+                              if (e.target.value && form.watch("clientId") && form.watch("scheduledAt")) {
+                                calculateTravelTime(e.target.value, form.watch("scheduledAt"));
+                              }
+                            }}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                )}
 
                 {/* Schedule Validation Feedback */}
                 {(scheduleValidation.isValidating || scheduleValidation.isValid !== undefined) && (
