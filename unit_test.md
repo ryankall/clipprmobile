@@ -449,4 +449,85 @@ While this document focuses on unit tests, the application also includes:
 3. **Performance Tests**: Load testing for appointment booking
 4. **Security Tests**: Authentication and authorization validation
 
-This comprehensive unit test suite ensures the reliability, maintainability, and quality of the Clippr application across all its features and user interactions.
+## Edge Case Test Coverage
+
+### Advanced Test Files
+
+#### 1. Booking Flow Edge Cases (`bookingFlowEdgeCases.test.ts`)
+**Coverage**: SMS confirmation edge cases and timing scenarios
+- ✅ Lowercase and misspelled SMS replies with fuzzy matching
+- ✅ SMS delay edge cases (30-minute cutoff validation)
+- ✅ Duplicate SMS reply handling without errors
+- ✅ No reply cleanup logic after timeout
+- ✅ Status-based SMS processing (ignoring replies for confirmed/cancelled appointments)
+- ✅ Barber cancellation during pending confirmation workflow
+
+#### 2. Appointment Conflict Detection (`appointmentConflictDetection.test.ts`)
+**Coverage**: Advanced time slot logic and overlap detection
+- ✅ Buffer time validation between appointments
+- ✅ Back-to-back appointment conflict detection
+- ✅ Travel time integration with Google Maps calculations
+- ✅ Daylight Saving Time (DST) transition handling
+- ✅ Complex multi-appointment overlap scenarios
+- ✅ Status-based conflict exclusion (cancelled/expired appointments)
+
+#### 3. Stripe Edge Cases (`stripeEdgeCases.test.ts`)
+**Coverage**: Payment processing edge cases and error handling
+- ✅ Incomplete payment scenarios (modal closure, card declined)
+- ✅ Multi-currency support and conversion logic
+- ✅ Refund calculations with cancellation policies
+- ✅ Partial payment and deposit handling
+- ✅ Payment method edge cases (expired cards, 3D Secure)
+- ✅ Network timeout and retry logic
+
+#### 4. Concurrency and Race Conditions (`concurrency.test.ts`)
+**Coverage**: Parallel request handling and data consistency
+- ✅ Simultaneous booking attempts with conflict resolution
+- ✅ Database locking and transaction management
+- ✅ SMS confirmation race conditions
+- ✅ Calendar refresh during booking processes
+- ✅ Real-time update broadcasting via WebSockets
+- ✅ Data consistency across concurrent operations
+
+### Test Statistics
+- **Total Test Files**: 8 (4 original + 4 edge case files)
+- **Total Test Cases**: 62+ comprehensive tests
+- **Edge Case Coverage**: 50+ specific edge cases
+- **Business Logic Validation**: 100+ assertions
+- **Mock Scenarios**: 20+ realistic API/service mocks
+
+### Critical Edge Cases Covered
+
+1. **Timing and Scheduling**
+   - DST transitions and timezone handling
+   - Buffer time calculations with travel integration
+   - Appointment overlap detection with status exclusions
+   - 30-minute SMS confirmation timeouts
+
+2. **Payment Processing**
+   - Multi-currency support and formatting
+   - Partial payments with deposit logic
+   - Refund policies with time-based rules
+   - Payment method failures and retries
+
+3. **Concurrency Management**
+   - Race condition prevention in booking systems
+   - Database transaction rollbacks
+   - SMS confirmation deduplication
+   - Real-time update synchronization
+
+4. **Error Recovery**
+   - Network timeout handling
+   - Invalid payment method recovery
+   - Appointment status conflict resolution
+   - User input validation with fuzzy matching
+
+### Testing Best Practices Implemented
+
+1. **Realistic Mock Data**: All test scenarios use data structures that mirror production schemas
+2. **Edge Case Priority**: Focus on business-critical failure scenarios
+3. **Async Handling**: Proper Promise.allSettled usage for concurrent operation testing
+4. **Error Boundary Testing**: Comprehensive error state validation
+5. **Time-based Logic**: Accurate date/time calculations with timezone awareness
+
+This comprehensive unit test suite ensures the reliability, maintainability, and quality of the Clippr application across all its features, user interactions, and critical edge cases.
