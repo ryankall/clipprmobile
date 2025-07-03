@@ -59,10 +59,15 @@ export default function BookingPage() {
   });
 
   // Fetch barber services
-  const { data: services, isLoading: servicesLoading } = useQuery<Service[]>({
+  const { data: services, isLoading: servicesLoading, error: servicesError } = useQuery<Service[]>({
     queryKey: [`/api/public/barber/${barberPhone}/services`],
     enabled: !!barberPhone,
   });
+
+  // Debug logging
+  console.log('Services data:', services);
+  console.log('Services loading:', servicesLoading);
+  console.log('Services error:', servicesError);
 
   // Fetch available time slots for selected date
   const { data: timeSlots, isLoading: slotsLoading } = useQuery<TimeSlot[]>({
@@ -354,9 +359,9 @@ export default function BookingPage() {
               <div className="flex justify-center py-4">
                 <div className="animate-spin w-6 h-6 border-2 border-gold border-t-transparent rounded-full" />
               </div>
-            ) : (
+            ) : services && services.length > 0 ? (
               <div className={`space-y-3 ${!selectedTime ? 'opacity-50 pointer-events-none' : ''}`}>
-                {services?.map((service) => (
+                {services.map((service) => (
                   <div key={service.id} className="flex items-center space-x-3 p-3 bg-charcoal rounded-lg">
                     <Checkbox
                       checked={selectedServices.includes(service.id.toString())}
@@ -382,7 +387,16 @@ export default function BookingPage() {
                     </div>
                   </div>
                 ))}
-                
+              </div>
+            ) : (
+              <div className="text-center py-4">
+                <p className="text-steel">No services available</p>
+              </div>
+            )}
+
+            {/* Always show custom service option */}
+            {!servicesLoading && (
+              <div className="mt-3">
                 {/* Custom Service Option */}
                 <div className="flex items-center space-x-3 p-3 bg-charcoal rounded-lg">
                   <Checkbox
@@ -398,7 +412,7 @@ export default function BookingPage() {
                   <Input
                     value={customService}
                     onChange={(e) => setCustomService(e.target.value)}
-                    className="bg-charcoal border-steel/40 text-white"
+                    className="bg-charcoal border-steel/40 text-white mt-3"
                     placeholder="Describe your custom service request..."
                     disabled={!selectedTime}
                   />
