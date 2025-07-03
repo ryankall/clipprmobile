@@ -28,11 +28,20 @@ client/src/test/
 │   ├── Dashboard.test.tsx
 │   ├── Calendar.test.tsx
 │   ├── Clients.test.tsx
+│   ├── ClientProfile.test.tsx        # NEW: Client deletion & VIP display tests
 │   └── BookingNew.test.tsx
-└── utils/
-    ├── appointmentUtils.test.ts
-    ├── authUtils.test.ts
-    └── dateUtils.test.ts
+├── utils/
+│   ├── appointmentUtils.test.ts
+│   ├── authUtils.test.ts
+│   ├── clientUtils.test.ts           # NEW: VIP status utility tests
+│   └── dateUtils.test.ts
+├── pendingSlotLocking.test.ts        # NEW: Comprehensive slot locking tests
+├── appointmentConflictDetection.test.ts
+├── bookingFlowEdgeCases.test.ts
+├── stripeEdgeCases.test.ts
+├── concurrency.test.ts
+├── functional.test.ts
+└── components.test.ts
 
 server/test/
 ├── storage.test.ts            # Database operations testing
@@ -43,7 +52,45 @@ server/test/
 
 ## Test Categories
 
-### 1. Component Tests
+### 1. New Critical Business Logic Tests (Latest)
+
+#### Pending Slot Locking Tests
+**File**: `client/src/test/pendingSlotLocking.test.ts`
+**Purpose**: Validates the critical bug fix for pending appointment slot blocking
+
+**Tests Covered**:
+- ✅ Pending appointments properly block availability slots
+- ✅ Confirmed appointments continue to block slots
+- ✅ Cancelled appointments do NOT block slots  
+- ✅ Expired appointments do NOT block slots
+- ✅ Duration-based blocking works correctly (60-minute appointment blocks 4 slots)
+- ✅ Multiple appointments with mixed statuses handled properly
+- ✅ Specific bug case validation (jake boo boo at 9:00am pending)
+
+**Business Impact**: Ensures the public booking system prevents double bookings by correctly excluding time slots for both pending and confirmed appointments.
+
+#### Client Profile Management Tests
+**File**: `client/src/test/pages/ClientProfile.test.tsx`
+**Purpose**: Tests client deletion functionality and VIP status display
+
+**Tests Covered**:
+- ✅ Client deletion during edit mode with confirmation dialog
+- ✅ Prevention of deletion without user confirmation
+- ✅ VIP client name display logic
+- ✅ Client status updates from regular to VIP
+
+#### Client Utility Functions Tests
+**File**: `client/src/test/utils/clientUtils.test.ts`
+**Purpose**: Validates VIP status utility functions for consistent display
+
+**Tests Covered**:
+- ✅ `getClientDisplayName()` returns "Gold" for VIP clients
+- ✅ `getClientDisplayName()` returns actual name for regular clients
+- ✅ `isVipClient()` correctly identifies VIP status
+- ✅ `getClientBadgeText()` returns appropriate badge text
+- ✅ Edge cases (null names, undefined status)
+
+### 2. Component Tests
 
 #### AppointmentCard Component
 **File**: `client/src/test/components/AppointmentCard.test.tsx`

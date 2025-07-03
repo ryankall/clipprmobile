@@ -10,8 +10,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { ArrowLeft, Phone, Mail, MapPin, Calendar, Star, Camera, DollarSign, Edit, Save, X, MessageCircle } from "lucide-react";
-import { Link } from "wouter";
+import { ArrowLeft, Phone, Mail, MapPin, Calendar, Star, Camera, DollarSign, Edit, Save, X, MessageCircle, Trash2 } from "lucide-react";
+import { Link, useLocation } from "wouter";
 import { format } from "date-fns";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -37,6 +37,7 @@ export default function ClientProfile() {
   const clientId = parseInt(id || "0");
   const [isEditing, setIsEditing] = useState(false);
   const [showAllMessages, setShowAllMessages] = useState(false);
+  const [, navigate] = useLocation();
   const { toast } = useToast();
 
   const { data: client, isLoading: clientLoading } = useQuery<Client>({
@@ -106,6 +107,27 @@ export default function ClientProfile() {
       toast({
         title: "Error",
         description: error.message || "Failed to update client",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const deleteClientMutation = useMutation({
+    mutationFn: async () => {
+      return apiRequest("DELETE", `/api/clients/${clientId}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/clients"] });
+      toast({
+        title: "Client Deleted",
+        description: "Client has been deleted successfully",
+      });
+      navigate("/clients");
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete client",
         variant: "destructive",
       });
     },
@@ -190,6 +212,19 @@ export default function ClientProfile() {
                   onClick={handleCancel}
                 >
                   <X className="w-4 h-4" />
+                </Button>
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  className="text-red-400 hover:text-red-300"
+                  onClick={() => {
+                    if (window.confirm("Are you sure you want to delete this client? This action cannot be undone.")) {
+                      deleteClientMutation.mutate();
+                    }
+                  }}
+                  disabled={deleteClientMutation.isPending}
+                >
+                  <Trash2 className="w-4 h-4" />
                 </Button>
               </>
             ) : (

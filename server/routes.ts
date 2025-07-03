@@ -1652,8 +1652,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
         }
         
-        // Check if time slot is booked (any appointment overlaps with this 15-min slot)
+        // Check if time slot is booked (any confirmed or pending appointment overlaps with this 15-min slot)
         const isBooked = appointments.some(apt => {
+          // Only block time slots for confirmed and pending appointments
+          if (apt.status !== 'confirmed' && apt.status !== 'pending') {
+            return false;
+          }
+          
           const aptStart = new Date(apt.scheduledAt);
           const aptEnd = new Date(aptStart.getTime() + apt.duration * 60000); // Use appointment's duration field
           const slotEnd = new Date(slotDateTime.getTime() + 15 * 60000);
