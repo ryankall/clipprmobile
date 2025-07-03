@@ -7,11 +7,22 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
-import { Calendar, Clock, MapPin, Phone, Mail, User as UserIcon, Scissors, CheckCircle, ChevronLeft, ChevronRight, ArrowLeft } from "lucide-react";
+import { Calendar, Clock, MapPin, Phone, Mail, User as UserIcon, Scissors, CheckCircle, ChevronLeft, ChevronRight, ArrowLeft, User } from "lucide-react";
+import { Label } from "@/components/ui/label";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import type { User as UserType, Service } from "@shared/schema";
 import { format, addDays, startOfDay, parseISO, isToday, isTomorrow } from "date-fns";
+
+// Utility function to format phone numbers
+function formatPhoneNumber(value: string): string {
+  const cleaned = value.replace(/\D/g, '');
+  const match = cleaned.match(/^(\d{3})(\d{3})(\d{4})$/);
+  if (match) {
+    return `(${match[1]}) ${match[2]}-${match[3]}`;
+  }
+  return value;
+}
 
 interface BookingRequest {
   barberPhone: string;
@@ -142,28 +153,28 @@ export default function EnhancedBookingPage() {
   });
 
   const handleNext = () => {
-    if (currentStep === 1 && !selectedDate) {
-      toast({ title: "Please select a date", variant: "destructive" });
-      return;
-    }
-    if (currentStep === 2 && !selectedTime) {
-      toast({ title: "Please select a time", variant: "destructive" });
-      return;
-    }
-    if (currentStep === 3 && selectedServices.length === 0 && !customService) {
-      toast({ title: "Please select at least one service", variant: "destructive" });
-      return;
-    }
-    if (currentStep === 4 && !clientPhone) {
+    if (currentStep === 1 && !clientPhone) {
       toast({ title: "Please enter your phone number", variant: "destructive" });
       return;
     }
-    if (currentStep === 5 && (!clientName || needsTravel === null)) {
+    if (currentStep === 2 && (!clientName || needsTravel === null)) {
       toast({ title: "Please complete all required fields", variant: "destructive" });
       return;
     }
-    if (currentStep === 5 && needsTravel && !clientAddress) {
+    if (currentStep === 2 && needsTravel && !clientAddress) {
       toast({ title: "Please enter your address for travel service", variant: "destructive" });
+      return;
+    }
+    if (currentStep === 3 && !selectedDate) {
+      toast({ title: "Please select a date", variant: "destructive" });
+      return;
+    }
+    if (currentStep === 4 && !selectedTime) {
+      toast({ title: "Please select a time", variant: "destructive" });
+      return;
+    }
+    if (currentStep === 5 && selectedServices.length === 0 && !customService) {
+      toast({ title: "Please select at least one service", variant: "destructive" });
       return;
     }
 
@@ -278,100 +289,129 @@ export default function EnhancedBookingPage() {
           ))}
         </div>
 
-        {/* Step 1: Date Selection */}
+        {/* Step 1: Phone Number Entry */}
         {currentStep === 1 && (
           <Card className="bg-dark-card border-steel/20">
             <CardHeader>
               <CardTitle className="text-white flex items-center">
-                <Calendar className="w-5 h-5 mr-2 text-gold" />
-                Select a Date
+                <Phone className="w-5 h-5 mr-2 text-gold" />
+                Enter Your Phone Number
               </CardTitle>
+              <p className="text-steel text-sm">
+                We'll use this to send you appointment confirmations
+              </p>
             </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="grid grid-cols-1 gap-2 max-h-80 overflow-y-auto">
-                {availableDates.map((dateOption) => (
-                  <Button
-                    key={dateOption.date}
-                    variant={selectedDate === dateOption.date ? "default" : "outline"}
-                    className={`w-full justify-start text-left h-auto py-3 px-4 ${
-                      selectedDate === dateOption.date
-                        ? 'bg-gold text-charcoal'
-                        : 'bg-charcoal border-steel/40 text-white hover:border-gold/50'
-                    }`}
-                    onClick={() => setSelectedDate(dateOption.date)}
-                  >
-                    <div>
-                      <div className="font-medium">{dateOption.display}</div>
-                      <div className="text-xs opacity-70">{dateOption.full}</div>
-                    </div>
-                  </Button>
-                ))}
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="phone" className="text-white">Phone Number</Label>
+                <Input
+                  id="phone"
+                  type="tel"
+                  value={clientPhone}
+                  onChange={(e) => setClientPhone(formatPhoneNumber(e.target.value))}
+                  className="bg-charcoal border-steel/40 text-white"
+                  placeholder="(555) 123-4567"
+                  maxLength={14}
+                />
               </div>
-              {selectedDate && (
+              {clientPhone && (
                 <Button onClick={handleNext} className="w-full gradient-gold text-charcoal">
-                  Continue to Time Selection
+                  Continue to Personal Info
                 </Button>
               )}
             </CardContent>
           </Card>
         )}
 
-        {/* Step 2: Time Selection */}
+        {/* Step 2: Personal Information */}
         {currentStep === 2 && (
           <Card className="bg-dark-card border-steel/20">
             <CardHeader>
               <CardTitle className="text-white flex items-center justify-between">
                 <div className="flex items-center">
-                  <Clock className="w-5 h-5 mr-2 text-gold" />
-                  Available Times
+                  <User className="w-5 h-5 mr-2 text-gold" />
+                  Personal Information
                 </div>
                 <Button variant="ghost" size="sm" onClick={handleBack} className="text-steel hover:text-white">
                   <ArrowLeft className="w-4 h-4" />
                 </Button>
               </CardTitle>
-              <p className="text-steel text-sm">
-                {availableDates.find(d => d.date === selectedDate)?.full}
-              </p>
             </CardHeader>
-            <CardContent className="space-y-3">
-              {slotsLoading ? (
-                <div className="text-center py-8">
-                  <div className="w-6 h-6 border-4 border-gold border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
-                  <p className="text-steel">Loading available times...</p>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="clientName" className="text-white">Full Name *</Label>
+                <Input
+                  id="clientName"
+                  value={clientName}
+                  onChange={(e) => setClientName(e.target.value)}
+                  className="bg-charcoal border-steel/40 text-white"
+                  placeholder="Enter your full name"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="clientEmail" className="text-white">Email (Optional)</Label>
+                <Input
+                  id="clientEmail"
+                  type="email"
+                  value={clientEmail}
+                  onChange={(e) => setClientEmail(e.target.value)}
+                  className="bg-charcoal border-steel/40 text-white"
+                  placeholder="your@email.com"
+                />
+              </div>
+
+              <div className="space-y-3">
+                <Label className="text-white">Do you need travel service? *</Label>
+                <div className="grid grid-cols-2 gap-3">
+                  <Button
+                    type="button"
+                    variant={needsTravel === true ? "default" : "outline"}
+                    className={needsTravel === true 
+                      ? 'bg-gold text-charcoal' 
+                      : 'bg-charcoal border-steel/40 text-white hover:border-gold/50'
+                    }
+                    onClick={() => setNeedsTravel(true)}
+                  >
+                    Yes, come to me
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={needsTravel === false ? "default" : "outline"}
+                    className={needsTravel === false 
+                      ? 'bg-gold text-charcoal' 
+                      : 'bg-charcoal border-steel/40 text-white hover:border-gold/50'
+                    }
+                    onClick={() => setNeedsTravel(false)}
+                  >
+                    I'll come to you
+                  </Button>
                 </div>
-              ) : (
-                <>
-                  <div className="grid grid-cols-2 gap-2 max-h-64 overflow-y-auto">
-                    {timeSlots?.map((slot) => (
-                      <Button
-                        key={slot.time}
-                        variant={selectedTime === slot.time ? "default" : "outline"}
-                        disabled={!slot.available}
-                        className={`${
-                          selectedTime === slot.time
-                            ? 'bg-gold text-charcoal'
-                            : slot.available
-                            ? 'bg-charcoal border-steel/40 text-white hover:border-gold/50'
-                            : 'bg-steel/10 border-steel/20 text-steel/50 cursor-not-allowed'
-                        }`}
-                        onClick={() => setSelectedTime(slot.time)}
-                      >
-                        {formatTime(slot.time)}
-                      </Button>
-                    ))}
-                  </div>
-                  {selectedTime && (
-                    <Button onClick={handleNext} className="w-full gradient-gold text-charcoal">
-                      Continue to Service Selection
-                    </Button>
-                  )}
-                </>
+              </div>
+
+              {needsTravel && (
+                <div className="space-y-2">
+                  <Label htmlFor="clientAddress" className="text-white">Your Address *</Label>
+                  <Input
+                    id="clientAddress"
+                    value={clientAddress}
+                    onChange={(e) => setClientAddress(e.target.value)}
+                    className="bg-charcoal border-steel/40 text-white"
+                    placeholder="123 Main St, City, State"
+                  />
+                </div>
+              )}
+
+              {clientName && needsTravel !== null && (!needsTravel || clientAddress) && (
+                <Button onClick={handleNext} className="w-full gradient-gold text-charcoal">
+                  Continue to Date Selection
+                </Button>
               )}
             </CardContent>
           </Card>
         )}
 
-        {/* Step 3: Service Selection */}
+        {/* Step 3: Date Selection */}
         {currentStep === 3 && (
           <Card className="bg-dark-card border-steel/20">
             <CardHeader>
