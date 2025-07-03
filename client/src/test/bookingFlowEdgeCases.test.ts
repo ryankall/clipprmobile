@@ -133,8 +133,11 @@ function fuzzyMatchConfirmation(response: string): boolean {
   
   // Simple fuzzy matching for common misspellings
   const patterns = [
-    /^y+e*s*$/,     // yes, yess, ye, yed
+    /^y+e*s*$/,     // yes, yess, ye
+    /^y+e*d*$/,     // yed, ye
     /^y+e*a*h*$/,   // yea, yeah, ya
+    /^y+s*e*$/,     // yse, ys, yess
+    /^y+e*a*p*$/,   // yeap, yep
     /^o*k+$/,       // ok, okk
     /^confirm/      // confirm, confirn
   ];
@@ -147,7 +150,10 @@ function fuzzyMatchCancellation(response: string): boolean {
   
   const patterns = [
     /^n+o*$/,           // no, n, noo
-    /^cancel/,          // cancel, cancle, canel
+    /^n+o*p*e*$/,       // nope, nop
+    /^cancel/,          // cancel
+    /^canc?le$/,        // cancle
+    /^can[ce]l$/,       // canel, cancel
     /^stop$/,           // stop
     /^quit$/            // quit
   ];
@@ -176,10 +182,24 @@ function processConfirmationReply(appointmentId: number, response: string, appoi
   return normalizeResponse(response) || fuzzyMatchConfirmation(response);
 }
 
+// Mock storage for tracking replies in tests
+const replyHistory = new Map<number, string[]>();
+
 function isDuplicateReply(appointmentId: number, response: string): boolean {
   // In real implementation, would check database for previous replies
-  // For test, we'll simulate tracking
-  return false;
+  // For test, we'll simulate tracking with a Map
+  const previousReplies = replyHistory.get(appointmentId) || [];
+  const normalizedResponse = response.toLowerCase().trim();
+  
+  const isDuplicate = previousReplies.includes(normalizedResponse);
+  
+  // Track this reply
+  if (!isDuplicate) {
+    previousReplies.push(normalizedResponse);
+    replyHistory.set(appointmentId, previousReplies);
+  }
+  
+  return isDuplicate;
 }
 
 function getExpiredPendingAppointments(appointments: any[]): number[] {
