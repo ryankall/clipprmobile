@@ -126,7 +126,7 @@ export default function BookingPage() {
   };
 
   const handleSubmit = () => {
-    if (!clientName.trim() || !clientPhone.trim() || !selectedTime || selectedServices.length === 0) {
+    if (!clientName.trim() || !clientPhone.trim() || !selectedTime || (selectedServices.length === 0 && (!showCustomService || !customService.trim()))) {
       toast({
         title: "Missing Information",
         description: "Please fill in your name, phone, select a time slot, and choose at least one service.",
@@ -338,66 +338,75 @@ export default function BookingPage() {
           </Card>
         )}
 
-        {/* Services Selection */}
-        {selectedTime && (
-          <Card className="bg-dark-card border-steel/20">
-            <CardHeader>
-              <CardTitle className="text-white flex items-center">
-                <Scissors className="w-5 h-5 mr-2 text-gold" />
-                Select Services
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {servicesLoading ? (
-                <div className="flex justify-center py-4">
-                  <div className="animate-spin w-6 h-6 border-2 border-gold border-t-transparent rounded-full" />
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {services?.map((service) => (
-                    <div key={service.id} className="flex items-center space-x-3 p-3 bg-charcoal rounded-lg">
-                      <Checkbox
-                        checked={selectedServices.includes(service.id.toString())}
-                        onCheckedChange={() => handleServiceToggle(service.id.toString())}
-                        className="border-steel/40"
-                      />
-                      <div className="flex-1">
-                        <div className="flex items-center justify-between">
-                          <span className="text-white font-medium">{service.name}</span>
+        {/* Services Selection - Show immediately, but disable if no time selected */}
+        <Card className="bg-dark-card border-steel/20">
+          <CardHeader>
+            <CardTitle className="text-white flex items-center">
+              <Scissors className="w-5 h-5 mr-2 text-gold" />
+              Select Services
+              {!selectedTime && (
+                <span className="ml-2 text-sm text-steel">(Select date & time first)</span>
+              )}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {servicesLoading ? (
+              <div className="flex justify-center py-4">
+                <div className="animate-spin w-6 h-6 border-2 border-gold border-t-transparent rounded-full" />
+              </div>
+            ) : (
+              <div className={`space-y-3 ${!selectedTime ? 'opacity-50 pointer-events-none' : ''}`}>
+                {services?.map((service) => (
+                  <div key={service.id} className="flex items-center space-x-3 p-3 bg-charcoal rounded-lg">
+                    <Checkbox
+                      checked={selectedServices.includes(service.id.toString())}
+                      onCheckedChange={() => handleServiceToggle(service.id.toString())}
+                      className="border-steel/40"
+                      disabled={!selectedTime}
+                    />
+                    <div className="flex-1">
+                      <div className="flex items-center justify-between">
+                        <span className="text-white font-medium">{service.name}</span>
+                        <div className="flex items-center gap-2">
                           <Badge variant="outline" className="text-gold border-gold/40">
                             ${service.price}
                           </Badge>
+                          <Badge variant="outline" className="text-steel border-steel/40">
+                            {service.duration}min
+                          </Badge>
                         </div>
-                        {service.description && (
-                          <p className="text-steel text-sm mt-1">{service.description}</p>
-                        )}
                       </div>
+                      {service.description && (
+                        <p className="text-steel text-sm mt-1">{service.description}</p>
+                      )}
                     </div>
-                  ))}
-                  
-                  {/* Custom Service Option */}
-                  <div className="flex items-center space-x-3 p-3 bg-charcoal rounded-lg">
-                    <Checkbox
-                      checked={showCustomService}
-                      onCheckedChange={(checked) => setShowCustomService(checked === true)}
-                      className="border-steel/40"
-                    />
-                    <span className="text-white font-medium">Custom Service</span>
                   </div>
-                  
-                  {showCustomService && (
-                    <Input
-                      value={customService}
-                      onChange={(e) => setCustomService(e.target.value)}
-                      className="bg-charcoal border-steel/40 text-white"
-                      placeholder="Describe your custom service request..."
-                    />
-                  )}
+                ))}
+                
+                {/* Custom Service Option */}
+                <div className="flex items-center space-x-3 p-3 bg-charcoal rounded-lg">
+                  <Checkbox
+                    checked={showCustomService}
+                    onCheckedChange={(checked) => setShowCustomService(checked === true)}
+                    className="border-steel/40"
+                    disabled={!selectedTime}
+                  />
+                  <span className="text-white font-medium">Custom Service</span>
                 </div>
-              )}
-            </CardContent>
-          </Card>
-        )}
+                
+                {showCustomService && (
+                  <Input
+                    value={customService}
+                    onChange={(e) => setCustomService(e.target.value)}
+                    className="bg-charcoal border-steel/40 text-white"
+                    placeholder="Describe your custom service request..."
+                    disabled={!selectedTime}
+                  />
+                )}
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
         {/* Optional Message */}
         {selectedTime && (
@@ -426,13 +435,23 @@ export default function BookingPage() {
 
         {/* Submit Button */}
         {selectedTime && (
-          <Button
-            onClick={handleSubmit}
-            disabled={submitBookingMutation.isPending || !clientName.trim() || !clientPhone.trim() || selectedServices.length === 0}
-            className="w-full gradient-gold text-charcoal font-semibold py-4 text-lg"
-          >
-            {submitBookingMutation.isPending ? "Sending Request..." : "Request Appointment"}
-          </Button>
+          <div className="space-y-3">
+            {(selectedServices.length === 0 && (!showCustomService || !customService.trim())) && (
+              <div className="bg-amber-900/20 border border-amber-700/40 rounded-lg p-3">
+                <p className="text-amber-300 text-sm text-center">
+                  Please select at least one service to continue
+                </p>
+              </div>
+            )}
+            
+            <Button
+              onClick={handleSubmit}
+              disabled={submitBookingMutation.isPending || !clientName.trim() || !clientPhone.trim() || (selectedServices.length === 0 && (!showCustomService || !customService.trim()))}
+              className="w-full gradient-gold text-charcoal font-semibold py-4 text-lg"
+            >
+              {submitBookingMutation.isPending ? "Sending Request..." : "Request Appointment"}
+            </Button>
+          </div>
         )}
       </div>
     </div>
