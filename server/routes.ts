@@ -1860,9 +1860,49 @@ export async function registerRoutes(app: Express): Promise<Server> {
         requestMessage += `✂️ Custom Service: ${customService}\n`;
       }
       
-      // Add travel information
+      // Add travel information with travel time calculation
       if (needsTravel && clientAddress) {
         requestMessage += `🚗 Travel: Yes - ${clientAddress}\n`;
+        
+        // Calculate travel time from previous appointment or home base
+        try {
+          // Get the appointment immediately before this one
+          const appointmentStart = new Date(`${selectedDate}T${selectedTime}:00`);
+          const dayStart = new Date(selectedDate + 'T00:00:00');
+          const dayEnd = new Date(selectedDate + 'T23:59:59');
+          
+          const dayAppointments = await storage.getAppointmentsByUserId(user.id, dayStart, dayEnd);
+          const confirmedAppointments = dayAppointments.filter(apt => 
+            apt.status === 'confirmed' && new Date(apt.scheduledAt) < appointmentStart
+          );
+          
+          let originAddress = user.homeBaseAddress || user.address || '';
+          
+          // If there's a previous appointment, use its location
+          if (confirmedAppointments.length > 0) {
+            const lastAppointment = confirmedAppointments
+              .sort((a, b) => new Date(b.scheduledAt).getTime() - new Date(a.scheduledAt).getTime())[0];
+            
+            if (lastAppointment.address) {
+              originAddress = lastAppointment.address;
+            }
+          }
+          
+          if (originAddress && process.env.MAPBOX_ACCESS_TOKEN) {
+            const { mapboxService } = await import('./mapboxService');
+            const travelResult = await mapboxService.calculateTravelTime(
+              originAddress,
+              clientAddress,
+              user.transportationMode || 'driving'
+            );
+            
+            if (travelResult.status === 'OK') {
+              requestMessage += `⏱️ Travel Time: ${travelResult.duration} minutes from ${originAddress}\n`;
+            }
+          }
+        } catch (error) {
+          console.log("Could not calculate travel time:", error);
+        }
       } else {
         requestMessage += `🚗 Travel: No\n`;
       }
