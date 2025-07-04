@@ -69,6 +69,8 @@ const invoiceFormSchema = insertInvoiceSchema.extend({
   userId: z.number().optional(),
   tipPercentage: z.number().optional(),
   items: z.array(invoiceItemSchema).optional(),
+  sendEmail: z.boolean().default(false),
+  sendSMS: z.boolean().default(false),
 });
 
 const templateFormSchema = z.object({
@@ -154,6 +156,8 @@ export default function InvoicePage() {
       total: "0",
       status: "pending",
       paymentMethod: undefined,
+      sendEmail: false,
+      sendSMS: false,
     },
   });
 
@@ -1004,6 +1008,75 @@ export default function InvoicePage() {
                       </FormItem>
                     )}
                   />
+
+                  {/* Notification Preferences */}
+                  <div className="space-y-3">
+                    <FormLabel className="text-white">Send Invoice To</FormLabel>
+                    {(() => {
+                      const selectedClient = clients?.find(c => c.id === form.watch("clientId"));
+                      const hasEmail = selectedClient?.email;
+                      const hasPhone = selectedClient?.phone;
+                      
+                      if (!hasEmail && !hasPhone) {
+                        return (
+                          <p className="text-steel text-sm">
+                            Please select a client with email or phone number
+                          </p>
+                        );
+                      }
+                      
+                      return (
+                        <div className="space-y-2">
+                          {hasEmail && (
+                            <FormField
+                              control={form.control}
+                              name="sendEmail"
+                              render={({ field }) => (
+                                <FormItem className="flex flex-row items-start space-x-3 space-y-0">
+                                  <FormControl>
+                                    <input
+                                      type="checkbox"
+                                      checked={field.value}
+                                      onChange={field.onChange}
+                                      className="mt-1"
+                                    />
+                                  </FormControl>
+                                  <div className="space-y-1 leading-none">
+                                    <FormLabel className="text-white font-normal">
+                                      Email ({selectedClient?.email})
+                                    </FormLabel>
+                                  </div>
+                                </FormItem>
+                              )}
+                            />
+                          )}
+                          {hasPhone && (
+                            <FormField
+                              control={form.control}
+                              name="sendSMS"
+                              render={({ field }) => (
+                                <FormItem className="flex flex-row items-start space-x-3 space-y-0">
+                                  <FormControl>
+                                    <input
+                                      type="checkbox"
+                                      checked={field.value}
+                                      onChange={field.onChange}
+                                      className="mt-1"
+                                    />
+                                  </FormControl>
+                                  <div className="space-y-1 leading-none">
+                                    <FormLabel className="text-white font-normal">
+                                      SMS ({selectedClient?.phone})
+                                    </FormLabel>
+                                  </div>
+                                </FormItem>
+                              )}
+                            />
+                          )}
+                        </div>
+                      );
+                    })()}
+                  </div>
 
                   <FormField
                     control={form.control}

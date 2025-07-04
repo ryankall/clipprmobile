@@ -1,22 +1,28 @@
 import { useState, useRef } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { 
-  Calendar, 
-  Clock, 
-  MapPin, 
-  Phone, 
-  Mail, 
-  User, 
-  Scissors, 
+import {
+  Calendar,
+  Clock,
+  MapPin,
+  Phone,
+  Mail,
+  User,
+  Scissors,
   DollarSign,
   CheckCircle,
   Trash2,
-  Navigation
+  Navigation,
 } from "lucide-react";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
@@ -29,10 +35,10 @@ interface AppointmentDetailsDialogProps {
   onClose: () => void;
 }
 
-export function AppointmentDetailsDialog({ 
-  appointment, 
-  open, 
-  onClose 
+export function AppointmentDetailsDialog({
+  appointment,
+  open,
+  onClose,
 }: AppointmentDetailsDialogProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -42,18 +48,21 @@ export function AppointmentDetailsDialog({
   const confirmAppointmentMutation = useMutation({
     mutationFn: async (appointmentId: number) => {
       return apiRequest("PATCH", `/api/appointments/${appointmentId}`, {
-        status: "confirmed"
+        status: "confirmed",
       });
     },
     onSuccess: () => {
       toast({
         title: "Appointment Confirmed",
-        description: "The appointment has been confirmed and is now unavailable for booking.",
+        description:
+          "The appointment has been confirmed and is now unavailable for booking.",
       });
       // Invalidate all appointment-related queries
       queryClient.invalidateQueries({ queryKey: ["/api/appointments"] });
       queryClient.invalidateQueries({ queryKey: ["/api/appointments/today"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/appointments/pending"] });
+      queryClient.invalidateQueries({
+        queryKey: ["/api/appointments/pending"],
+      });
       queryClient.invalidateQueries({ queryKey: ["/api/dashboard"] });
       onClose();
     },
@@ -73,18 +82,21 @@ export function AppointmentDetailsDialog({
     onSuccess: () => {
       toast({
         title: "Appointment Deleted",
-        description: "The appointment has been deleted and the time slot is now available.",
+        description:
+          "The appointment has been deleted and the time slot is now available.",
       });
       // Invalidate all appointment-related queries
       queryClient.invalidateQueries({ queryKey: ["/api/appointments"] });
       queryClient.invalidateQueries({ queryKey: ["/api/appointments/today"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/appointments/pending"] });
+      queryClient.invalidateQueries({
+        queryKey: ["/api/appointments/pending"],
+      });
       queryClient.invalidateQueries({ queryKey: ["/api/dashboard"] });
       onClose();
     },
     onError: (error) => {
       toast({
-        title: "Deletion Failed", 
+        title: "Deletion Failed",
         description: error.message,
         variant: "destructive",
       });
@@ -95,7 +107,7 @@ export function AppointmentDetailsDialog({
     if (appointment?.address) {
       const encodedAddress = encodeURIComponent(appointment.address);
       const mapsUrl = `https://maps.google.com/?q=${encodedAddress}`;
-      window.open(mapsUrl, '_blank');
+      window.open(mapsUrl, "_blank");
     }
   };
 
@@ -118,7 +130,10 @@ export function AppointmentDetailsDialog({
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent ref={dialogContentRef} className="bg-charcoal border-steel/40 text-white max-w-md max-h-[85vh] flex flex-col overflow-y-auto">
+      <DialogContent
+        ref={dialogContentRef}
+        className="bg-charcoal border-steel/40 text-white max-w-md max-h-[85vh] flex flex-col overflow-y-auto"
+      >
         <DialogHeader className="flex-shrink-0">
           <DialogTitle className="text-xl text-white">
             Appointment Details
@@ -132,20 +147,31 @@ export function AppointmentDetailsDialog({
           {/* Client Information */}
           <div className="flex items-center space-x-4">
             <Avatar className="h-16 w-16">
-              <AvatarImage 
-                src={appointment.client.photoUrl || undefined} 
-                alt={appointment.client.name} 
+              <AvatarImage
+                src={appointment.client.photoUrl || undefined}
+                alt={appointment.client.name}
               />
               <AvatarFallback className="bg-steel text-white text-lg">
-                {appointment.client.name.split(' ').map(n => n[0]).join('').toUpperCase()}
+                {appointment.client.name
+                  .split(" ")
+                  .map((n) => n[0])
+                  .join("")
+                  .toUpperCase()}
               </AvatarFallback>
             </Avatar>
             <div className="flex-1">
-              <h3 className="font-semibold text-lg text-white">{appointment.client.name}</h3>
+              <h3 className="font-semibold text-lg text-white">
+                {appointment.client.name}
+              </h3>
               <div className="flex items-center space-x-2 mt-1">
-                <Badge variant={isConfirmed ? "default" : "secondary"} className={
-                  isConfirmed ? "bg-green-700 text-white" : "bg-yellow-700 text-white"
-                }>
+                <Badge
+                  variant={isConfirmed ? "default" : "secondary"}
+                  className={
+                    isConfirmed
+                      ? "bg-green-700 text-white"
+                      : "bg-yellow-700 text-white"
+                  }
+                >
                   {isConfirmed ? "Confirmed" : "Pending"}
                 </Badge>
               </div>
@@ -160,7 +186,7 @@ export function AppointmentDetailsDialog({
               <Calendar className="w-5 h-5 text-gold" />
               <div>
                 <p className="font-medium text-white">
-                  {format(appointmentDate, 'EEEE, MMMM d, yyyy')}
+                  {format(appointmentDate, "EEEE, MMMM d, yyyy")}
                 </p>
               </div>
             </div>
@@ -169,10 +195,17 @@ export function AppointmentDetailsDialog({
               <Clock className="w-5 h-5 text-gold" />
               <div>
                 <p className="font-medium text-white">
-                  {format(appointmentDate, 'h:mm a')}
+                  {format(appointmentDate, "h:mm a")}
                 </p>
                 <p className="text-sm text-steel">
-                  Approx. completion: {format(new Date(appointmentDate.getTime() + appointment.service.duration * 60000), 'h:mm a')}
+                  Approx. completion:{" "}
+                  {format(
+                    new Date(
+                      appointmentDate.getTime() +
+                        appointment.service.duration * 60000,
+                    ),
+                    "h:mm a",
+                  )}
                 </p>
               </div>
             </div>
@@ -183,45 +216,78 @@ export function AppointmentDetailsDialog({
                 <Scissors className="w-5 h-5 text-gold" />
                 <div className="flex-1">
                   <p className="font-medium text-white">Services</p>
-                  {appointment.appointmentServices && appointment.appointmentServices.length > 0 ? (
+                  {appointment.appointmentServices &&
+                  appointment.appointmentServices.length > 0 ? (
                     <div className="space-y-2 mt-2">
-                      {appointment.appointmentServices.map((appointmentService, index) => (
-                        <div key={index} className="bg-charcoal/50 rounded-md p-2 border border-steel/20">
-                          <div className="flex justify-between items-start">
-                            <div className="flex-1">
-                              <p className="text-sm font-medium text-white">{appointmentService.service.name}</p>
-                              <p className="text-xs text-steel">{appointmentService.service.duration} minutes</p>
-                            </div>
-                            <div className="text-right">
-                              <p className="text-sm font-medium text-white">${appointmentService.price}</p>
-                              {appointmentService.quantity > 1 && (
-                                <p className="text-xs text-steel">Qty: {appointmentService.quantity}</p>
-                              )}
+                      {appointment.appointmentServices.map(
+                        (appointmentService, index) => (
+                          <div
+                            key={index}
+                            className="bg-charcoal/50 rounded-md p-2 border border-steel/20"
+                          >
+                            <div className="flex justify-between items-start">
+                              <div className="flex-1">
+                                <p className="text-sm font-medium text-white">
+                                  {appointmentService.service.name}
+                                </p>
+                                <p className="text-xs text-steel">
+                                  {appointmentService.service.duration} minutes
+                                </p>
+                              </div>
+                              <div className="text-right">
+                                <p className="text-sm font-medium text-white">
+                                  ${appointmentService.price}
+                                </p>
+                                {appointmentService.quantity > 1 && (
+                                  <p className="text-xs text-steel">
+                                    Qty: {appointmentService.quantity}
+                                  </p>
+                                )}
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      ))}
+                        ),
+                      )}
                       <div className="flex justify-between items-center pt-2 border-t border-steel/20">
-                        <p className="text-sm font-medium text-white">Total Duration:</p>
                         <p className="text-sm font-medium text-white">
-                          {appointment.appointmentServices.reduce((total, service) => 
-                            total + (service.service.duration * service.quantity), 0
-                          )} minutes
+                          Total Duration:
+                        </p>
+                        <p className="text-sm font-medium text-white">
+                          {appointment.appointmentServices.reduce(
+                            (total, service) =>
+                              total +
+                              service.service.duration * service.quantity,
+                            0,
+                          )}{" "}
+                          minutes
                         </p>
                       </div>
                       <div className="flex justify-between items-center">
-                        <p className="text-sm font-medium text-white">Total Price:</p>
+                        <p className="text-sm font-medium text-white">
+                          Total Price:
+                        </p>
                         <p className="text-sm font-medium text-gold">
-                          ${appointment.appointmentServices.reduce((total, service) => 
-                            total + (parseFloat(service.price) * service.quantity), 0
-                          ).toFixed(2)}
+                          $
+                          {appointment.appointmentServices
+                            .reduce(
+                              (total, service) =>
+                                total +
+                                parseFloat(service.price) * service.quantity,
+                              0,
+                            )
+                            .toFixed(2)}
                         </p>
                       </div>
                     </div>
                   ) : (
                     <div className="mt-2">
-                      <p className="text-sm text-white">{appointment.service.name}</p>
-                      <p className="text-xs text-steel">{appointment.service.duration} minutes • ${appointment.service.price}</p>
+                      <p className="text-sm text-white">
+                        {appointment.service.name}
+                      </p>
+                      <p className="text-xs text-steel">
+                        {appointment.service.duration} minutes • $
+                        {appointment.service.price}
+                      </p>
                     </div>
                   )}
                 </div>
@@ -252,7 +318,9 @@ export function AppointmentDetailsDialog({
                 <Phone className="w-5 h-5 text-gold" />
                 <div>
                   <p className="font-medium text-white">Phone</p>
-                  <p className="text-sm text-steel">{appointment.client.phone}</p>
+                  <p className="text-sm text-steel">
+                    {appointment.client.phone}
+                  </p>
                 </div>
               </div>
             )}
@@ -262,7 +330,9 @@ export function AppointmentDetailsDialog({
                 <Mail className="w-5 h-5 text-gold" />
                 <div>
                   <p className="font-medium text-white">Email</p>
-                  <p className="text-sm text-steel">{appointment.client.email}</p>
+                  <p className="text-sm text-steel">
+                    {appointment.client.email}
+                  </p>
                 </div>
               </div>
             )}
@@ -278,51 +348,12 @@ export function AppointmentDetailsDialog({
             )}
           </div>
 
-          <Separator className="bg-steel/30" />
-
-          {/* Action Buttons */}
-          <div className="flex space-x-3">
-            {!isConfirmed ? (
-              <Button
-                onClick={handleConfirm}
-                disabled={confirmAppointmentMutation.isPending}
-                className="flex-1 gradient-gold text-charcoal"
-              >
-                <CheckCircle className="w-4 h-4 mr-2" />
-                {confirmAppointmentMutation.isPending ? "Confirming..." : "Confirm Appointment"}
-              </Button>
-            ) : (
-              <div className="flex-1 text-center py-2">
-                <p className="text-sm text-green-400">✓ Appointment Confirmed</p>
-              </div>
-            )}
-            
-            <Button
-              variant="destructive"
-              onClick={() => {
-                setShowDeleteConfirm(true);
-                // Scroll to bottom to show the delete confirmation
-                setTimeout(() => {
-                  if (dialogContentRef.current) {
-                    dialogContentRef.current.scrollTo({
-                      top: dialogContentRef.current.scrollHeight,
-                      behavior: 'smooth'
-                    });
-                  }
-                }, 100);
-              }}
-              disabled={deleteAppointmentMutation.isPending}
-              className="px-4"
-            >
-              <Trash2 className="w-4 h-4" />
-            </Button>
-          </div>
-
           {/* Delete Confirmation */}
           {showDeleteConfirm && (
             <div className="bg-red-900/20 border border-red-500/30 rounded-lg p-4">
               <p className="text-sm text-white mb-3">
-                Are you sure you want to delete this appointment? This will free up the time slot for new bookings.
+                Are you sure you want to delete this appointment? This will free
+                up the time slot for new bookings.
               </p>
               <div className="flex space-x-2">
                 <Button
@@ -331,7 +362,9 @@ export function AppointmentDetailsDialog({
                   onClick={handleDelete}
                   disabled={deleteAppointmentMutation.isPending}
                 >
-                  {deleteAppointmentMutation.isPending ? "Deleting..." : "Yes, Delete"}
+                  {deleteAppointmentMutation.isPending
+                    ? "Deleting..."
+                    : "Yes, Delete"}
                 </Button>
                 <Button
                   variant="outline"
@@ -344,6 +377,50 @@ export function AppointmentDetailsDialog({
               </div>
             </div>
           )}
+
+          <Separator className="bg-steel/30" />
+
+          {/* Action Buttons */}
+          <div className="flex space-x-3">
+            {!isConfirmed ? (
+              <Button
+                onClick={handleConfirm}
+                disabled={confirmAppointmentMutation.isPending}
+                className="flex-1 gradient-gold text-charcoal"
+              >
+                <CheckCircle className="w-4 h-4 mr-2" />
+                {confirmAppointmentMutation.isPending
+                  ? "Confirming..."
+                  : "Confirm Appointment"}
+              </Button>
+            ) : (
+              <div className="flex-1 text-center py-2">
+                <p className="text-sm text-green-400">
+                  ✓ Appointment Confirmed
+                </p>
+              </div>
+            )}
+
+            <Button
+              variant="destructive"
+              onClick={() => {
+                setShowDeleteConfirm(true);
+                // Scroll to bottom to show the delete confirmation
+                setTimeout(() => {
+                  if (dialogContentRef.current) {
+                    dialogContentRef.current.scrollTo({
+                      top: dialogContentRef.current.scrollHeight,
+                      behavior: "smooth",
+                    });
+                  }
+                }, 100);
+              }}
+              disabled={deleteAppointmentMutation.isPending}
+              className="px-4"
+            >
+              <Trash2 className="w-4 h-4" />
+            </Button>
+          </div>
         </div>
       </DialogContent>
     </Dialog>

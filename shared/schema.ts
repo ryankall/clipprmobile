@@ -102,6 +102,10 @@ export const invoices = pgTable("invoices", {
   status: text("status").notNull().default("pending"), // pending, paid, cancelled
   paymentMethod: text("payment_method"), // stripe, apple_pay, cash
   stripePaymentIntentId: text("stripe_payment_intent_id"),
+  sendEmail: boolean("send_email").default(false),
+  sendSMS: boolean("send_sms").default(false),
+  emailSent: boolean("email_sent").default(false),
+  smsSent: boolean("sms_sent").default(false),
   paidAt: timestamp("paid_at"),
   createdAt: timestamp("created_at").defaultNow(),
 });

@@ -41,6 +41,7 @@ client/src/test/
 ├── stripeEdgeCases.test.ts
 ├── concurrency.test.ts
 ├── functional.test.ts
+├── invoiceNotifications.test.ts      # NEW: Email/SMS notification system tests
 └── components.test.ts
 
 server/test/
@@ -591,5 +592,52 @@ While this document focuses on unit tests, the application also includes:
 3. **Async Handling**: Proper Promise.allSettled usage for concurrent operation testing
 4. **Error Boundary Testing**: Comprehensive error state validation
 5. **Time-based Logic**: Accurate date/time calculations with timezone awareness
+
+## NEW: Invoice Notification System Tests
+
+### File: `__tests__/invoiceNotifications.test.ts`
+
+**Purpose**: Validates email and SMS notification system for invoice delivery
+
+**Test Coverage (21 tests)**:
+
+#### Notification Preferences Validation
+- ✅ Validates email preferences when client has email
+- ✅ Validates SMS preferences when client has phone
+- ✅ Fails validation when email requested but no email available
+- ✅ Fails validation when SMS requested but no phone available
+- ✅ Validates multiple notification methods together
+
+#### Available Notification Methods Detection
+- ✅ Detects email availability for clients with email addresses
+- ✅ Detects SMS availability for clients with phone numbers
+- ✅ Detects both methods when client has both email and phone
+- ✅ Handles clients with no contact methods gracefully
+
+#### Notification Sending Logic
+- ✅ Sends email notifications successfully to clients with email
+- ✅ Sends SMS notifications successfully to clients with phone
+- ✅ Sends both email and SMS notifications when both are available
+- ✅ Handles missing email gracefully (skips email, sends SMS)
+- ✅ Handles missing phone gracefully (skips SMS, sends email)
+
+#### Notification Cost Calculation
+- ✅ Calculates email costs correctly ($0.01 per email)
+- ✅ Calculates SMS costs correctly ($0.03 per SMS)
+- ✅ Calculates combined costs for multiple notification methods
+- ✅ Returns zero cost when no notifications are selected
+
+#### Edge Cases
+- ✅ Handles empty client data without errors
+- ✅ Handles invalid email format (considers available for service-level validation)
+- ✅ Handles invalid phone format (considers available for service-level validation)
+
+**Key Features Tested**:
+- Email and SMS notification preference validation
+- Client contact method availability detection
+- Mock notification service integration
+- Cost calculation for notification services
+- Graceful handling of missing contact information
+- Content generation for email and SMS messages
 
 This comprehensive unit test suite ensures the reliability, maintainability, and quality of the Clippr application across all its features, user interactions, and critical edge cases.

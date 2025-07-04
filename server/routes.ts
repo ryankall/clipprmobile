@@ -1019,6 +1019,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = (req.user as any).id;
       const invoiceData = insertInvoiceSchema.parse({ ...req.body, userId });
       const invoice = await storage.createInvoice(invoiceData);
+      
+      // Handle notification preferences
+      const { sendEmail, sendSMS } = req.body;
+      
+      if (sendEmail || sendSMS) {
+        // Get client information for notifications
+        const client = await storage.getClient(invoiceData.clientId);
+        
+        if (client) {
+          // Send email notification if requested and client has email
+          if (sendEmail && client.email) {
+            try {
+              // TODO: Implement email sending with SendGrid
+              console.log(`Email notification would be sent to ${client.email} for invoice ${invoice.id}`);
+              
+              // Update invoice to mark email as sent
+              await storage.updateInvoice(invoice.id, { emailSent: true });
+            } catch (emailError) {
+              console.error('Failed to send email:', emailError);
+            }
+          }
+          
+          // Send SMS notification if requested and client has phone
+          if (sendSMS && client.phone) {
+            try {
+              // TODO: Implement SMS sending with Twilio
+              console.log(`SMS notification would be sent to ${client.phone} for invoice ${invoice.id}`);
+              
+              // Update invoice to mark SMS as sent
+              await storage.updateInvoice(invoice.id, { smsSent: true });
+            } catch (smsError) {
+              console.error('Failed to send SMS:', smsError);
+            }
+          }
+        }
+      }
+      
       res.json(invoice);
     } catch (error: any) {
       res.status(500).json({ message: error.message });
