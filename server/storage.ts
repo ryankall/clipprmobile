@@ -53,6 +53,11 @@ export interface IStorage {
   createClient(client: InsertClient): Promise<Client>;
   updateClient(id: number, client: Partial<InsertClient>): Promise<Client>;
   deleteClient(id: number): Promise<void>;
+  getClientStats(userId: number): Promise<{
+    bigSpenders: Array<{ name: string; totalSpent: string; appointmentCount: number }>;
+    mostVisited: Array<{ name: string; totalVisits: number; lastVisit: Date | null }>;
+    biggestTippers: Array<{ name: string; totalTips: string; tipPercentage: number }>;
+  }>;
 
   // Services
   getServicesByUserId(userId: number): Promise<Service[]>;
@@ -801,6 +806,83 @@ export class DatabaseStorage implements IStorage {
       .from(notifications)
       .where(and(eq(notifications.userId, userId), eq(notifications.isRead, false)));
     return result?.count || 0;
+  }
+
+  async getClientStats(userId: number): Promise<{
+    bigSpenders: Array<{ name: string; totalSpent: string; appointmentCount: number }>;
+    mostVisited: Array<{ name: string; totalVisits: number; lastVisit: Date | null }>;
+    biggestTippers: Array<{ name: string; totalTips: string; tipPercentage: number }>;
+  }> {
+    // Get big spenders (clients with highest total spent on appointments)
+    const bigSpendersQuery = await db
+      .select({
+        name: clients.name,
+        totalSpent: sql<string>`COALESCE(SUM(CAST(${appointments.price} AS DECIMAL)), 0)`,
+        appointmentCount: sql<number>`COUNT(CASE WHEN ${appointments.id} IS NOT NULL THEN 1 END)`,
+      })
+      .from(clients)
+      .leftJoin(appointments, and(
+        eq(clients.id, appointments.clientId),
+        eq(appointments.status, "confirmed")
+      ))
+      .where(eq(clients.userId, userId))
+      .groupBy(clients.id, clients.name)
+      .orderBy(sql`COALESCE(SUM(CAST(${appointments.price} AS DECIMAL)), 0) DESC`)
+      .limit(10);
+
+    // Get most visited clients (clients with most appointments)
+    const mostVisitedQuery = await db
+      .select({
+        name: clients.name,
+        totalVisits: clients.totalVisits,
+        lastVisit: clients.lastVisit,
+      })
+      .from(clients)
+      .where(eq(clients.userId, userId))
+      .orderBy(desc(clients.totalVisits))
+      .limit(10);
+
+    // Get biggest tippers (clients with highest total tips from invoices)
+    const biggestTippersQuery = await db
+      .select({
+        name: clients.name,
+        totalTips: sql<string>`COALESCE(SUM(CAST(${invoices.tip} AS DECIMAL)), 0)`,
+        totalSubtotal: sql<string>`COALESCE(SUM(CAST(${invoices.subtotal} AS DECIMAL)), 0)`,
+      })
+      .from(clients)
+      .leftJoin(invoices, eq(clients.id, invoices.clientId))
+      .where(eq(clients.userId, userId))
+      .groupBy(clients.id, clients.name)
+      .having(sql`COALESCE(SUM(CAST(${invoices.tip} AS DECIMAL)), 0) > 0`)
+      .orderBy(sql`COALESCE(SUM(CAST(${invoices.tip} AS DECIMAL)), 0) DESC`)
+      .limit(10);
+
+    // Calculate tip percentages
+    const biggestTippers = biggestTippersQuery.map(client => {
+      const totalTips = parseFloat(client.totalTips);
+      const totalSubtotal = parseFloat(client.totalSubtotal);
+      const tipPercentage = totalSubtotal > 0 ? Math.round((totalTips / totalSubtotal) * 100) : 0;
+      
+      return {
+        name: client.name,
+        totalTips: client.totalTips,
+        tipPercentage,
+      };
+    });
+
+    return {
+      bigSpenders: bigSpendersQuery.map(client => ({
+        name: client.name,
+        totalSpent: client.totalSpent,
+        appointmentCount: client.appointmentCount,
+      })),
+      mostVisited: mostVisitedQuery.map(client => ({
+        name: client.name,
+        totalVisits: client.totalVisits || 0,
+        lastVisit: client.lastVisit,
+      })),
+      biggestTippers,
+    };
   }
 }
 

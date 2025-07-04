@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Textarea } from "@/components/ui/textarea";
 import { BottomNavigation } from "@/components/bottom-navigation";
-import { Users, Plus, Search, Star, Phone, Mail, MapPin, ChevronRight } from "lucide-react";
+import { Users, Plus, Search, Star, Phone, Mail, MapPin, ChevronRight, DollarSign, Calendar, TrendingUp } from "lucide-react";
 import { Link } from "wouter";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -54,6 +54,160 @@ const clientFormSchema = insertClientSchema.extend({
   message: "Please provide either a phone number or email address",
   path: ["phone"], // This will show the error on the phone field
 });
+
+function ClientStatsCard() {
+  const { data: clientStats, isLoading: statsLoading } = useQuery<{
+    bigSpenders: Array<{ name: string; totalSpent: string; appointmentCount: number }>;
+    mostVisited: Array<{ name: string; totalVisits: number; lastVisit: Date | null }>;
+    biggestTippers: Array<{ name: string; totalTips: string; tipPercentage: number }>;
+  }>({
+    queryKey: ["/api/clients/stats"],
+  });
+
+  if (statsLoading) {
+    return (
+      <Card className="bg-dark-card border-steel/20">
+        <CardHeader>
+          <CardTitle className="text-white flex items-center gap-2">
+            <TrendingUp className="w-5 h-5 text-gold" />
+            Top 10 Client Analytics
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="p-4">
+          <div className="flex justify-center py-8">
+            <div className="animate-spin w-6 h-6 border-2 border-gold border-t-transparent rounded-full" />
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  const hasData = clientStats && (
+    clientStats.bigSpenders.length > 0 || 
+    clientStats.mostVisited.length > 0 || 
+    clientStats.biggestTippers.length > 0
+  );
+
+  if (!hasData) {
+    return (
+      <Card className="bg-dark-card border-steel/20">
+        <CardHeader>
+          <CardTitle className="text-white flex items-center gap-2">
+            <TrendingUp className="w-5 h-5 text-gold" />
+            Top 10 Client Analytics
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="p-4">
+          <div className="text-center text-steel py-8">
+            <TrendingUp className="w-12 h-12 mx-auto mb-3 text-steel/50" />
+            <p>No client data available yet</p>
+            <p className="text-sm">Stats will appear after appointments and invoices</p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <Card className="bg-dark-card border-steel/20">
+      <CardHeader>
+        <CardTitle className="text-white flex items-center gap-2">
+          <TrendingUp className="w-5 h-5 text-gold" />
+          Top 10 Client Analytics
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-6">
+        {/* Big Spenders */}
+        <div>
+          <h3 className="text-lg font-semibold text-white mb-3 flex items-center gap-2">
+            <DollarSign className="w-4 h-4 text-green-400" />
+            Big Spenders
+          </h3>
+          {clientStats?.bigSpenders.length > 0 ? (
+            <div className="space-y-2">
+              {clientStats.bigSpenders.slice(0, 5).map((client, index) => (
+                <div key={index} className="flex items-center justify-between p-2 bg-charcoal rounded border border-steel/20">
+                  <div className="flex items-center gap-3">
+                    <div className="w-6 h-6 rounded-full bg-gold text-charcoal text-xs flex items-center justify-center font-bold">
+                      {index + 1}
+                    </div>
+                    <span className="text-white font-medium">{client.name}</span>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-green-400 font-bold">${client.totalSpent}</div>
+                    <div className="text-xs text-steel">{client.appointmentCount} appointments</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-steel text-sm">No appointment data available</p>
+          )}
+        </div>
+
+        {/* Most Visited */}
+        <div>
+          <h3 className="text-lg font-semibold text-white mb-3 flex items-center gap-2">
+            <Calendar className="w-4 h-4 text-blue-400" />
+            Most Visited
+          </h3>
+          {clientStats?.mostVisited.length > 0 ? (
+            <div className="space-y-2">
+              {clientStats.mostVisited.slice(0, 5).map((client, index) => (
+                <div key={index} className="flex items-center justify-between p-2 bg-charcoal rounded border border-steel/20">
+                  <div className="flex items-center gap-3">
+                    <div className="w-6 h-6 rounded-full bg-gold text-charcoal text-xs flex items-center justify-center font-bold">
+                      {index + 1}
+                    </div>
+                    <span className="text-white font-medium">{client.name}</span>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-blue-400 font-bold">{client.totalVisits} visits</div>
+                    {client.lastVisit && (
+                      <div className="text-xs text-steel">
+                        Last: {new Date(client.lastVisit).toLocaleDateString()}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-steel text-sm">No visit data available</p>
+          )}
+        </div>
+
+        {/* Biggest Tippers */}
+        <div>
+          <h3 className="text-lg font-semibold text-white mb-3 flex items-center gap-2">
+            <Star className="w-4 h-4 text-yellow-400" />
+            Biggest Tippers
+          </h3>
+          {clientStats?.biggestTippers.length > 0 ? (
+            <div className="space-y-2">
+              {clientStats.biggestTippers.slice(0, 5).map((client, index) => (
+                <div key={index} className="flex items-center justify-between p-2 bg-charcoal rounded border border-steel/20">
+                  <div className="flex items-center gap-3">
+                    <div className="w-6 h-6 rounded-full bg-gold text-charcoal text-xs flex items-center justify-center font-bold">
+                      {index + 1}
+                    </div>
+                    <span className="text-white font-medium">{client.name}</span>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-yellow-400 font-bold">${client.totalTips}</div>
+                    <div className="text-xs text-steel">{client.tipPercentage}% average</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-steel text-sm">No tip data available</p>
+          )}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
 
 export default function Clients() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -347,6 +501,9 @@ export default function Clients() {
             </CardContent>
           </Card>
         </div>
+
+        {/* Top 10 Client Analytics */}
+        <ClientStatsCard />
 
         {/* Clients List */}
         <Card className="bg-dark-card border-steel/20">

@@ -776,6 +776,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get("/api/clients/stats", requireAuth, async (req, res) => {
+    try {
+      const userId = (req.user as any).id;
+      const stats = await storage.getClientStats(userId);
+      res.json(stats);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
   app.get("/api/clients/:id", requireAuth, async (req, res) => {
     try {
       const clientId = parseInt(req.params.id);
