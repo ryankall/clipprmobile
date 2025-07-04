@@ -154,7 +154,7 @@ export function AppointmentPreview({
             size="sm" 
             variant="outline"
             onClick={handlePhoneCall}
-            className="text-xs"
+            className="text-xs bg-blue-700 hover:bg-blue-500 text-white"
           >
             <Phone className="h-3 w-3 mr-1" />
             Call

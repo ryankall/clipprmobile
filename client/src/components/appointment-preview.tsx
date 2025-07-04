@@ -3,12 +3,39 @@ import { useMutation } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 
-import { Phone, MapPin, Clock, XCircle, Receipt, MessageSquare, Scissors } from "lucide-react";
+import {
+  Phone,
+  MapPin,
+  Clock,
+  XCircle,
+  Receipt,
+  MessageSquare,
+  Scissors,
+} from "lucide-react";
 import { format, differenceInMinutes } from "date-fns";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -31,14 +58,23 @@ interface AppointmentPreviewProps {
 
 const invoiceFormSchema = insertInvoiceSchema.extend({
   userId: z.number().optional(),
-  services: z.array(z.object({
-    serviceId: z.number(),
-    quantity: z.number().min(1),
-  })).min(1, "At least one service is required"),
+  services: z
+    .array(
+      z.object({
+        serviceId: z.number(),
+        quantity: z.number().min(1),
+      }),
+    )
+    .min(1, "At least one service is required"),
   paymentMethod: z.enum(["cash", "card"]),
 });
 
-export function AppointmentPreview({ appointment, type, services = [], quickActionMessages }: AppointmentPreviewProps) {
+export function AppointmentPreview({
+  appointment,
+  type,
+  services = [],
+  quickActionMessages,
+}: AppointmentPreviewProps) {
   const [isInvoiceDialogOpen, setIsInvoiceDialogOpen] = useState(false);
   const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false);
   const { toast } = useToast();
@@ -58,7 +94,7 @@ export function AppointmentPreview({ appointment, type, services = [], quickActi
     const now = new Date();
     const appointmentTime = new Date(appointment.scheduledAt);
     const minutesUntil = differenceInMinutes(appointmentTime, now);
-    
+
     if (minutesUntil <= 0) return "Now";
     if (minutesUntil < 60) return `${minutesUntil} min`;
     const hours = Math.floor(minutesUntil / 60);
@@ -69,18 +105,21 @@ export function AppointmentPreview({ appointment, type, services = [], quickActi
   const markNoShowMutation = useMutation({
     mutationFn: async () => {
       return apiRequest("PATCH", `/api/appointments/${appointment.id}`, {
-        status: "no_show"
+        status: "no_show",
       });
     },
     onSuccess: () => {
       // Invalidate all appointment-related queries
       queryClient.invalidateQueries({ queryKey: ["/api/appointments"] });
       queryClient.invalidateQueries({ queryKey: ["/api/appointments/today"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/appointments/pending"] });
+      queryClient.invalidateQueries({
+        queryKey: ["/api/appointments/pending"],
+      });
       queryClient.invalidateQueries({ queryKey: ["/api/dashboard"] });
       toast({
         title: "Marked as No Show",
-        description: "Appointment has been marked as no show and time slot freed up",
+        description:
+          "Appointment has been marked as no show and time slot freed up",
       });
     },
     onError: (error: any) => {
@@ -96,14 +135,16 @@ export function AppointmentPreview({ appointment, type, services = [], quickActi
     mutationFn: async (data: z.infer<typeof invoiceFormSchema>) => {
       // Calculate totals
       let subtotal = 0;
-      const selectedServices = data.services.map(serviceData => {
-        const service = services.find(s => s.id === serviceData.serviceId);
-        const serviceTotal = service ? parseFloat(service.price) * serviceData.quantity : 0;
+      const selectedServices = data.services.map((serviceData) => {
+        const service = services.find((s) => s.id === serviceData.serviceId);
+        const serviceTotal = service
+          ? parseFloat(service.price) * serviceData.quantity
+          : 0;
         subtotal += serviceTotal;
         return {
           ...serviceData,
           price: service?.price || "0",
-          name: service?.name || "Unknown Service"
+          name: service?.name || "Unknown Service",
         };
       });
 
@@ -122,11 +163,15 @@ export function AppointmentPreview({ appointment, type, services = [], quickActi
 
       if (data.paymentMethod === "card") {
         // Create Stripe payment link and send SMS
-        const stripeResponse = await apiRequest("POST", "/api/create-payment-link", {
-          invoiceData,
-          services: selectedServices,
-          clientPhone: appointment.client.phone,
-        });
+        const stripeResponse = await apiRequest(
+          "POST",
+          "/api/create-payment-link",
+          {
+            invoiceData,
+            services: selectedServices,
+            clientPhone: appointment.client.phone,
+          },
+        );
         return stripeResponse;
       } else {
         // Cash payment - mark as paid immediately
@@ -152,25 +197,30 @@ export function AppointmentPreview({ appointment, type, services = [], quickActi
     },
   });
 
-  const sendQuickActionMessage = (messageType: 'onMyWay' | 'runningLate' | 'confirmation') => {
+  const sendQuickActionMessage = (
+    messageType: "onMyWay" | "runningLate" | "confirmation",
+  ) => {
     const message = quickActionMessages?.[messageType];
     if (!message || !appointment.client.phone) return;
 
     // Replace placeholder variables
     const personalizedMessage = message
-      .replace('{client_name}', appointment.client.name)
-      .replace('{appointment_time}', format(new Date(appointment.scheduledAt), 'h:mm a'))
-      .replace('{service}', appointment.service.name)
-      .replace('{address}', appointment.address || '');
+      .replace("{client_name}", appointment.client.name)
+      .replace(
+        "{appointment_time}",
+        format(new Date(appointment.scheduledAt), "h:mm a"),
+      )
+      .replace("{service}", appointment.service.name)
+      .replace("{address}", appointment.address || "");
 
     // Open SMS app with pre-filled message
     const smsUrl = `sms:${appointment.client.phone}?body=${encodeURIComponent(personalizedMessage)}`;
-    window.open(smsUrl, '_blank');
+    window.open(smsUrl, "_blank");
   };
 
   const handlePhoneCall = () => {
     if (appointment.client.phone) {
-      window.open(`tel:${appointment.client.phone}`, '_self');
+      window.open(`tel:${appointment.client.phone}`, "_self");
     }
   };
 
@@ -183,44 +233,45 @@ export function AppointmentPreview({ appointment, type, services = [], quickActi
   return (
     <Card className="bg-charcoal border-steel">
       <CardContent className="p-4">
-          <div className="flex items-start justify-between mb-3">
-            <div className="flex items-center gap-2">
-              <Badge variant="outline" className="text-gold border-gold">
-                {type === "next" ? "Next" : "Current"}
-              </Badge>
-              <span className="text-white font-medium">
-                {format(new Date(appointment.scheduledAt), 'h:mm a')} – {appointment.client.name}
-              </span>
-            </div>
-            {eta && (
-              <Badge variant="secondary" className="bg-gold text-charcoal">
-                ETA: {eta}
-              </Badge>
-            )}
+        <div className="flex items-start justify-between mb-3">
+          <div className="flex items-center gap-2">
+            <Badge variant="outline" className="text-gold border-gold">
+              {type === "next" ? "Next" : "Current"}
+            </Badge>
+            <span className="text-white font-medium">
+              {format(new Date(appointment.scheduledAt), "h:mm a")} –{" "}
+              {appointment.client.name}
+            </span>
+          </div>
+          {eta && (
+            <Badge variant="secondary" className="bg-gold text-charcoal">
+              ETA: {eta}
+            </Badge>
+          )}
+        </div>
+
+        <div className="space-y-2 mb-4">
+          <div className="flex items-center gap-2 text-steel">
+            <Scissors className="h-4 w-4" />
+            <span>{appointment.service.name}</span>
           </div>
 
-          <div className="space-y-2 mb-4">
+          {appointment.address && (
             <div className="flex items-center gap-2 text-steel">
-              <Scissors className="h-4 w-4" />
-              <span>{appointment.service.name}</span>
+              <MapPin className="h-4 w-4" />
+              <span className="text-sm">{appointment.address}</span>
             </div>
-            
-            {appointment.address && (
-              <div className="flex items-center gap-2 text-steel">
-                <MapPin className="h-4 w-4" />
-                <span className="text-sm">{appointment.address}</span>
-              </div>
-            )}
-          </div>
+          )}
+        </div>
 
-          <div className="flex gap-2 flex-wrap">
+        <div className="flex gap-2 flex-wrap">
           {type === "next" && quickActionMessages && (
             <>
               {quickActionMessages.onMyWay && (
-                <Button 
-                  size="sm" 
+                <Button
+                  size="sm"
                   variant="outline"
-                  onClick={() => sendQuickActionMessage('onMyWay')}
+                  onClick={() => sendQuickActionMessage("onMyWay")}
                   className="text-xs"
                 >
                   <MessageSquare className="h-3 w-3 mr-1" />
@@ -228,21 +279,21 @@ export function AppointmentPreview({ appointment, type, services = [], quickActi
                 </Button>
               )}
               {quickActionMessages.runningLate && (
-                <Button 
-                  size="sm" 
+                <Button
+                  size="sm"
                   variant="outline"
-                  onClick={() => sendQuickActionMessage('runningLate')}
+                  onClick={() => sendQuickActionMessage("runningLate")}
                   className="text-xs"
                 >
                   <Clock className="h-3 w-3 mr-1" />
                   Running Late
                 </Button>
               )}
-              <Button 
-                size="sm" 
+              <Button
+                size="sm"
                 variant="outline"
                 onClick={handlePhoneCall}
-                className="text-xs"
+                className="text-xs bg-blue-700 hover:bg-blue-500 text-white"
               >
                 <Phone className="h-3 w-3 mr-1" />
                 Call
@@ -252,18 +303,18 @@ export function AppointmentPreview({ appointment, type, services = [], quickActi
 
           {type === "current" && (
             <>
-              <Button 
-                size="sm" 
+              <Button
+                size="sm"
                 variant="outline"
                 onClick={handlePhoneCall}
-                className="text-xs"
+                className="text-xs bg-blue-700 hover:bg-blue-500 text-white"
               >
                 <Phone className="h-3 w-3 mr-1" />
                 Call
               </Button>
-              
-              <Button 
-                size="sm" 
+
+              <Button
+                size="sm"
                 variant="destructive"
                 onClick={() => markNoShowMutation.mutate()}
                 disabled={markNoShowMutation.isPending}
@@ -273,44 +324,79 @@ export function AppointmentPreview({ appointment, type, services = [], quickActi
                 No Show
               </Button>
 
-              <Dialog open={isInvoiceDialogOpen} onOpenChange={setIsInvoiceDialogOpen}>
+              <Dialog
+                open={isInvoiceDialogOpen}
+                onOpenChange={setIsInvoiceDialogOpen}
+              >
                 <DialogTrigger asChild>
-                  <Button size="sm" className="text-xs bg-gold text-charcoal hover:bg-gold/90">
+                  <Button
+                    size="sm"
+                    className="text-xs bg-gold text-charcoal hover:bg-gold/90"
+                  >
                     <Receipt className="h-3 w-3 mr-1" />
                     Create Invoice
                   </Button>
                 </DialogTrigger>
                 <DialogContent className="bg-charcoal border-steel max-w-md">
                   <DialogHeader>
-                    <DialogTitle className="text-white">Create Invoice</DialogTitle>
+                    <DialogTitle className="text-white">
+                      Create Invoice
+                    </DialogTitle>
                   </DialogHeader>
-                  
+
                   <Form {...form}>
-                    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                    <form
+                      onSubmit={form.handleSubmit(onSubmit)}
+                      className="space-y-4"
+                    >
                       <div className="space-y-3">
-                        <h4 className="text-white font-medium">Select Services</h4>
+                        <h4 className="text-white font-medium">
+                          Select Services
+                        </h4>
                         {services.map((service) => (
-                          <div key={service.id} className="flex items-center justify-between">
+                          <div
+                            key={service.id}
+                            className="flex items-center justify-between"
+                          >
                             <div>
-                              <span className="text-white text-sm">{service.name}</span>
-                              <span className="text-steel text-xs ml-2">${service.price}</span>
+                              <span className="text-white text-sm">
+                                {service.name}
+                              </span>
+                              <span className="text-steel text-xs ml-2">
+                                ${service.price}
+                              </span>
                             </div>
                             <Button
                               type="button"
                               size="sm"
                               variant="outline"
                               onClick={() => {
-                                const currentServices = form.getValues('services');
-                                const existing = currentServices.find(s => s.serviceId === service.id);
+                                const currentServices =
+                                  form.getValues("services");
+                                const existing = currentServices.find(
+                                  (s) => s.serviceId === service.id,
+                                );
                                 if (existing) {
-                                  form.setValue('services', currentServices.filter(s => s.serviceId !== service.id));
+                                  form.setValue(
+                                    "services",
+                                    currentServices.filter(
+                                      (s) => s.serviceId !== service.id,
+                                    ),
+                                  );
                                 } else {
-                                  form.setValue('services', [...currentServices, { serviceId: service.id, quantity: 1 }]);
+                                  form.setValue("services", [
+                                    ...currentServices,
+                                    { serviceId: service.id, quantity: 1 },
+                                  ]);
                                 }
                               }}
                               className="text-xs"
                             >
-                              {form.watch('services').find(s => s.serviceId === service.id) ? 'Remove' : 'Add'}
+                              {form
+                                .watch("services")
+                                .find((s) => s.serviceId === service.id)
+                                ? "Remove"
+                                : "Add"}
                             </Button>
                           </div>
                         ))}
@@ -321,7 +407,9 @@ export function AppointmentPreview({ appointment, type, services = [], quickActi
                         name="tip"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel className="text-white">Tip ($)</FormLabel>
+                            <FormLabel className="text-white">
+                              Tip ($)
+                            </FormLabel>
                             <FormControl>
                               <input
                                 type="number"
@@ -345,16 +433,25 @@ export function AppointmentPreview({ appointment, type, services = [], quickActi
                         name="paymentMethod"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel className="text-white">Payment Method</FormLabel>
-                            <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <FormLabel className="text-white">
+                              Payment Method
+                            </FormLabel>
+                            <Select
+                              onValueChange={field.onChange}
+                              defaultValue={field.value}
+                            >
                               <FormControl>
                                 <SelectTrigger>
                                   <SelectValue placeholder="Select payment method" />
                                 </SelectTrigger>
                               </FormControl>
                               <SelectContent>
-                                <SelectItem value="cash">Cash (Mark as Paid)</SelectItem>
-                                <SelectItem value="card">Card (Send Stripe Link)</SelectItem>
+                                <SelectItem value="cash">
+                                  Cash (Mark as Paid)
+                                </SelectItem>
+                                <SelectItem value="card">
+                                  Card (Send Stripe Link)
+                                </SelectItem>
                               </SelectContent>
                             </Select>
                             <FormMessage />
@@ -376,7 +473,9 @@ export function AppointmentPreview({ appointment, type, services = [], quickActi
                           disabled={createInvoiceMutation.isPending}
                           className="flex-1 bg-gold text-charcoal hover:bg-gold/90"
                         >
-                          {createInvoiceMutation.isPending ? "Creating..." : "Create Invoice"}
+                          {createInvoiceMutation.isPending
+                            ? "Creating..."
+                            : "Create Invoice"}
                         </Button>
                       </div>
                     </form>
@@ -385,8 +484,8 @@ export function AppointmentPreview({ appointment, type, services = [], quickActi
               </Dialog>
             </>
           )}
-          </div>
-        </CardContent>
-      </Card>
+        </div>
+      </CardContent>
+    </Card>
   );
 }

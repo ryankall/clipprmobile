@@ -55,7 +55,9 @@ export function PendingAppointments({ className }: PendingAppointmentsProps) {
       return apiRequest("POST", "/api/appointments/expire", {});
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/appointments/pending"] });
+      queryClient.invalidateQueries({
+        queryKey: ["/api/appointments/pending"],
+      });
       queryClient.invalidateQueries({ queryKey: ["/api/dashboard"] });
     },
   });
@@ -316,7 +318,11 @@ export function PendingAppointments({ className }: PendingAppointmentsProps) {
                   {(appointment as any).expiresAt && (
                     <div className="flex items-center gap-2 text-sm text-amber-600">
                       <AlertCircle className="h-4 w-4" />
-                      Expires: {format(new Date((appointment as any).expiresAt), "h:mm a")}
+                      Expires:{" "}
+                      {format(
+                        new Date((appointment as any).expiresAt),
+                        "h:mm a",
+                      )}
                     </div>
                   )}
                   {appointment.client.phone && (
@@ -422,7 +428,7 @@ export function PendingAppointments({ className }: PendingAppointmentsProps) {
                   size="sm"
                   onClick={() => handleConfirm(appointment)}
                   disabled={processingId === appointment.id}
-                  className="flex-1 bg-green-600 hover:bg-green-700"
+                  className="flex-1 bg-green-600 hover:bg-green-700 text-black-500"
                 >
                   <CheckCircle className="h-4 w-4 mr-2" />
                   Confirm
