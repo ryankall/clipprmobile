@@ -1026,26 +1026,32 @@ export default function InvoicePage() {
                       }
                       
                       return (
-                        <div className="space-y-2">
+                        <div className="space-y-3">
                           {hasEmail && (
                             <FormField
                               control={form.control}
                               name="sendEmail"
                               render={({ field }) => (
-                                <FormItem className="flex flex-row items-start space-x-3 space-y-0">
-                                  <FormControl>
-                                    <input
-                                      type="checkbox"
-                                      checked={field.value}
-                                      onChange={field.onChange}
-                                      className="mt-1"
-                                    />
-                                  </FormControl>
-                                  <div className="space-y-1 leading-none">
+                                <FormItem className="flex flex-row items-center justify-between space-y-0 rounded-lg border border-steel/40 p-3 bg-charcoal/50">
+                                  <div className={`space-y-0.5 ${!field.value ? 'opacity-50' : ''}`}>
                                     <FormLabel className="text-white font-normal">
-                                      Email ({selectedClient?.email})
+                                      Email
                                     </FormLabel>
+                                    <div className="text-sm text-steel">
+                                      {selectedClient?.email}
+                                    </div>
                                   </div>
+                                  <FormControl>
+                                    <label className="relative inline-flex items-center cursor-pointer">
+                                      <input
+                                        type="checkbox"
+                                        checked={field.value}
+                                        onChange={field.onChange}
+                                        className="sr-only peer"
+                                      />
+                                      <div className="w-11 h-6 bg-steel/40 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-gold"></div>
+                                    </label>
+                                  </FormControl>
                                 </FormItem>
                               )}
                             />
@@ -1055,20 +1061,26 @@ export default function InvoicePage() {
                               control={form.control}
                               name="sendSMS"
                               render={({ field }) => (
-                                <FormItem className="flex flex-row items-start space-x-3 space-y-0">
-                                  <FormControl>
-                                    <input
-                                      type="checkbox"
-                                      checked={field.value}
-                                      onChange={field.onChange}
-                                      className="mt-1"
-                                    />
-                                  </FormControl>
-                                  <div className="space-y-1 leading-none">
+                                <FormItem className="flex flex-row items-center justify-between space-y-0 rounded-lg border border-steel/40 p-3 bg-charcoal/50">
+                                  <div className={`space-y-0.5 ${!field.value ? 'opacity-50' : ''}`}>
                                     <FormLabel className="text-white font-normal">
-                                      SMS ({selectedClient?.phone})
+                                      SMS
                                     </FormLabel>
+                                    <div className="text-sm text-steel">
+                                      {selectedClient?.phone}
+                                    </div>
                                   </div>
+                                  <FormControl>
+                                    <label className="relative inline-flex items-center cursor-pointer">
+                                      <input
+                                        type="checkbox"
+                                        checked={field.value}
+                                        onChange={field.onChange}
+                                        className="sr-only peer"
+                                      />
+                                      <div className="w-11 h-6 bg-steel/40 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-gold"></div>
+                                    </label>
+                                  </FormControl>
                                 </FormItem>
                               )}
                             />
