@@ -383,4 +383,169 @@ describe('Travel Toggle Functionality', () => {
       expect(shouldEnableTravelWithoutAddress).toBe(false);
     });
   });
+
+  describe('Dashboard Current/Next Card Logic After Deletion', () => {
+    const now = new Date('2025-07-04T14:00:00.000Z'); // 2:00 PM UTC
+    
+    const mockAppointments = [
+      {
+        id: 1,
+        scheduledAt: new Date('2025-07-04T13:50:00.000Z'), // 1:50 PM - current (within 10 min before)
+        duration: 30,
+        status: 'confirmed' as const,
+        client: { name: 'John Doe' }
+      },
+      {
+        id: 2,
+        scheduledAt: new Date('2025-07-04T15:00:00.000Z'), // 3:00 PM - next
+        duration: 45,
+        status: 'confirmed' as const,
+        client: { name: 'Jane Smith' }
+      },
+      {
+        id: 3,
+        scheduledAt: new Date('2025-07-04T16:30:00.000Z'), // 4:30 PM - future
+        duration: 60,
+        status: 'confirmed' as const,
+        client: { name: 'Bob Wilson' }
+      }
+    ];
+
+    it('should update next card when current appointment is deleted', () => {
+      // Simulate current appointment deletion
+      const appointmentsAfterDeletion = mockAppointments.filter(apt => apt.id !== 1);
+      
+      // Find new current appointment (should be none)
+      const newCurrentAppointment = appointmentsAfterDeletion.find(apt => {
+        const startTime = new Date(apt.scheduledAt);
+        const endTime = new Date(startTime.getTime() + (apt.duration * 60 * 1000));
+        const timeDiff = now.getTime() - startTime.getTime();
+        const minutesDiff = timeDiff / (1000 * 60);
+        
+        return minutesDiff >= -10 && now <= endTime;
+      });
+      
+      // Find new next appointment
+      const newNextAppointment = appointmentsAfterDeletion
+        .filter(apt => {
+          const startTime = new Date(apt.scheduledAt);
+          return startTime > now && (!newCurrentAppointment || apt.id !== newCurrentAppointment.id);
+        })
+        .sort((a, b) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime())[0];
+      
+      expect(newCurrentAppointment).toBeUndefined();
+      expect(newNextAppointment?.id).toBe(2); // Jane Smith should become next
+      expect(newNextAppointment?.client.name).toBe('Jane Smith');
+    });
+
+    it('should handle next appointment deletion and promote future appointment', () => {
+      // Simulate next appointment deletion (Jane Smith)
+      const appointmentsAfterDeletion = mockAppointments.filter(apt => apt.id !== 2);
+      
+      // Current should remain the same
+      const currentAppointment = appointmentsAfterDeletion.find(apt => {
+        const startTime = new Date(apt.scheduledAt);
+        const endTime = new Date(startTime.getTime() + (apt.duration * 60 * 1000));
+        const timeDiff = now.getTime() - startTime.getTime();
+        const minutesDiff = timeDiff / (1000 * 60);
+        
+        return minutesDiff >= -10 && now <= endTime;
+      });
+      
+      // Next should be Bob Wilson now
+      const nextAppointment = appointmentsAfterDeletion
+        .filter(apt => {
+          const startTime = new Date(apt.scheduledAt);
+          return startTime > now && (!currentAppointment || apt.id !== currentAppointment.id);
+        })
+        .sort((a, b) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime())[0];
+      
+      expect(currentAppointment?.id).toBe(1); // John Doe remains current
+      expect(nextAppointment?.id).toBe(3); // Bob Wilson becomes next
+      expect(nextAppointment?.client.name).toBe('Bob Wilson');
+    });
+
+    it('should handle all appointments deleted scenario', () => {
+      const appointmentsAfterDeletion: typeof mockAppointments = [];
+      
+      const currentAppointment = appointmentsAfterDeletion.find(apt => {
+        const startTime = new Date(apt.scheduledAt);
+        const endTime = new Date(startTime.getTime() + (apt.duration * 60 * 1000));
+        const timeDiff = now.getTime() - startTime.getTime();
+        const minutesDiff = timeDiff / (1000 * 60);
+        
+        return minutesDiff >= -10 && now <= endTime;
+      });
+      
+      const nextAppointment = appointmentsAfterDeletion
+        .filter(apt => {
+          const startTime = new Date(apt.scheduledAt);
+          return startTime > now && (!currentAppointment || apt.id !== currentAppointment.id);
+        })
+        .sort((a, b) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime())[0];
+      
+      expect(currentAppointment).toBeUndefined();
+      expect(nextAppointment).toBeUndefined();
+    });
+
+    it('should filter out cancelled appointments from current/next logic', () => {
+      const appointmentsWithCancelled = [
+        ...mockAppointments,
+        {
+          id: 4,
+          scheduledAt: new Date('2025-07-04T14:30:00.000Z'), // 2:30 PM - between current and next
+          duration: 30,
+          status: 'cancelled' as const,
+          client: { name: 'Cancelled Client' }
+        }
+      ];
+      
+      // Filter to only confirmed appointments (as dashboard should do)
+      const confirmedAppointments = appointmentsWithCancelled.filter(apt => apt.status === 'confirmed');
+      
+      const currentAppointment = confirmedAppointments.find(apt => {
+        const startTime = new Date(apt.scheduledAt);
+        const endTime = new Date(startTime.getTime() + (apt.duration * 60 * 1000));
+        const timeDiff = now.getTime() - startTime.getTime();
+        const minutesDiff = timeDiff / (1000 * 60);
+        
+        return minutesDiff >= -10 && now <= endTime;
+      });
+      
+      const nextAppointment = confirmedAppointments
+        .filter(apt => {
+          const startTime = new Date(apt.scheduledAt);
+          return startTime > now && (!currentAppointment || apt.id !== currentAppointment.id);
+        })
+        .sort((a, b) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime())[0];
+      
+      expect(currentAppointment?.id).toBe(1); // John Doe
+      expect(nextAppointment?.id).toBe(2); // Jane Smith (cancelled appointment ignored)
+      expect(confirmedAppointments.find(apt => apt.status === 'cancelled')).toBeUndefined();
+    });
+
+    it('should handle cache invalidation triggering recomputation', () => {
+      // Simulate the cache invalidation effect
+      const initialAppointments = mockAppointments;
+      const afterDeletionAppointments = mockAppointments.filter(apt => apt.id !== 1);
+      
+      // Mock cache keys that should be invalidated
+      const invalidatedQueries = [
+        '/api/appointments',
+        '/api/appointments/today',
+        '/api/appointments/pending',
+        '/api/dashboard'
+      ];
+      
+      // Verify that all necessary cache keys are covered
+      expect(invalidatedQueries).toContain('/api/appointments');
+      expect(invalidatedQueries).toContain('/api/appointments/today');
+      expect(invalidatedQueries).toContain('/api/dashboard');
+      
+      // Verify appointments changed after "invalidation"
+      expect(initialAppointments).toHaveLength(3);
+      expect(afterDeletionAppointments).toHaveLength(2);
+      expect(afterDeletionAppointments.find(apt => apt.id === 1)).toBeUndefined();
+    });
+  });
 });

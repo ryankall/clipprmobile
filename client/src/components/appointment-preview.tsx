@@ -73,7 +73,10 @@ export function AppointmentPreview({ appointment, type, services = [], quickActi
       });
     },
     onSuccess: () => {
+      // Invalidate all appointment-related queries
+      queryClient.invalidateQueries({ queryKey: ["/api/appointments"] });
       queryClient.invalidateQueries({ queryKey: ["/api/appointments/today"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/appointments/pending"] });
       queryClient.invalidateQueries({ queryKey: ["/api/dashboard"] });
       toast({
         title: "Marked as No Show",

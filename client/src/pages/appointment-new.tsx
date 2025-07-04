@@ -289,7 +289,11 @@ export default function AppointmentNew() {
         title: "Success",
         description: "Appointment created successfully",
       });
+      // Invalidate all appointment-related queries
       queryClient.invalidateQueries({ queryKey: ["/api/appointments"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/appointments/today"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/appointments/pending"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/dashboard"] });
       navigate("/calendar");
     },
     onError: async (error: any) => {

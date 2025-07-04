@@ -50,7 +50,11 @@ export function AppointmentDetailsDialog({
         title: "Appointment Confirmed",
         description: "The appointment has been confirmed and is now unavailable for booking.",
       });
+      // Invalidate all appointment-related queries
       queryClient.invalidateQueries({ queryKey: ["/api/appointments"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/appointments/today"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/appointments/pending"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/dashboard"] });
       onClose();
     },
     onError: (error) => {
@@ -71,7 +75,11 @@ export function AppointmentDetailsDialog({
         title: "Appointment Deleted",
         description: "The appointment has been deleted and the time slot is now available.",
       });
+      // Invalidate all appointment-related queries
       queryClient.invalidateQueries({ queryKey: ["/api/appointments"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/appointments/today"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/appointments/pending"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/dashboard"] });
       onClose();
     },
     onError: (error) => {
