@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Textarea } from "@/components/ui/textarea";
 import { BottomNavigation } from "@/components/bottom-navigation";
-import { Users, Plus, Search, Star, Phone, Mail, MapPin, ChevronRight, DollarSign, Calendar, TrendingUp } from "lucide-react";
+import { Users, Plus, Search, Star, Phone, Mail, MapPin, ChevronRight, DollarSign, Calendar, TrendingUp, ChevronDown } from "lucide-react";
 import { Link } from "wouter";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -56,6 +56,7 @@ const clientFormSchema = insertClientSchema.extend({
 });
 
 function ClientStatsCard() {
+  const [isExpanded, setIsExpanded] = useState(false);
   const { data: clientStats, isLoading: statsLoading } = useQuery<{
     bigSpenders: Array<{ name: string; totalSpent: string; appointmentCount: number }>;
     mostVisited: Array<{ name: string; totalVisits: number; lastVisit: Date | null }>;
@@ -67,17 +68,25 @@ function ClientStatsCard() {
   if (statsLoading) {
     return (
       <Card className="bg-dark-card border-steel/20">
-        <CardHeader>
-          <CardTitle className="text-white flex items-center gap-2">
-            <TrendingUp className="w-5 h-5 text-gold" />
-            Top 10 Client Analytics
+        <CardHeader 
+          className="cursor-pointer tap-feedback"
+          onClick={() => setIsExpanded(!isExpanded)}
+        >
+          <CardTitle className="text-white flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <TrendingUp className="w-5 h-5 text-gold" />
+              Top 10 Client Analytics
+            </div>
+            <ChevronDown className={`w-5 h-5 text-steel transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
           </CardTitle>
         </CardHeader>
-        <CardContent className="p-4">
-          <div className="flex justify-center py-8">
-            <div className="animate-spin w-6 h-6 border-2 border-gold border-t-transparent rounded-full" />
-          </div>
-        </CardContent>
+        {isExpanded && (
+          <CardContent className="p-4">
+            <div className="flex justify-center py-8">
+              <div className="animate-spin w-6 h-6 border-2 border-gold border-t-transparent rounded-full" />
+            </div>
+          </CardContent>
+        )}
       </Card>
     );
   }
@@ -91,32 +100,47 @@ function ClientStatsCard() {
   if (!hasData) {
     return (
       <Card className="bg-dark-card border-steel/20">
-        <CardHeader>
-          <CardTitle className="text-white flex items-center gap-2">
-            <TrendingUp className="w-5 h-5 text-gold" />
-            Top 10 Client Analytics
+        <CardHeader 
+          className="cursor-pointer tap-feedback"
+          onClick={() => setIsExpanded(!isExpanded)}
+        >
+          <CardTitle className="text-white flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <TrendingUp className="w-5 h-5 text-gold" />
+              Top 10 Client Analytics
+            </div>
+            <ChevronDown className={`w-5 h-5 text-steel transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
           </CardTitle>
         </CardHeader>
-        <CardContent className="p-4">
-          <div className="text-center text-steel py-8">
-            <TrendingUp className="w-12 h-12 mx-auto mb-3 text-steel/50" />
-            <p>No client data available yet</p>
-            <p className="text-sm">Stats will appear after appointments and invoices</p>
-          </div>
-        </CardContent>
+        {isExpanded && (
+          <CardContent className="p-4">
+            <div className="text-center text-steel py-8">
+              <TrendingUp className="w-12 h-12 mx-auto mb-3 text-steel/50" />
+              <p>No client data available yet</p>
+              <p className="text-sm">Stats will appear after appointments and invoices</p>
+            </div>
+          </CardContent>
+        )}
       </Card>
     );
   }
 
   return (
     <Card className="bg-dark-card border-steel/20">
-      <CardHeader>
-        <CardTitle className="text-white flex items-center gap-2">
-          <TrendingUp className="w-5 h-5 text-gold" />
-          Top 10 Client Analytics
+      <CardHeader 
+        className="cursor-pointer tap-feedback"
+        onClick={() => setIsExpanded(!isExpanded)}
+      >
+        <CardTitle className="text-white flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <TrendingUp className="w-5 h-5 text-gold" />
+            Top 10 Client Analytics
+          </div>
+          <ChevronDown className={`w-5 h-5 text-steel transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
         </CardTitle>
       </CardHeader>
-      <CardContent className="space-y-6">
+      {isExpanded && (
+        <CardContent className="space-y-6">
         {/* Big Spenders */}
         <div>
           <h3 className="text-lg font-semibold text-white mb-3 flex items-center gap-2">
@@ -204,7 +228,8 @@ function ClientStatsCard() {
             <p className="text-steel text-sm">No tip data available</p>
           )}
         </div>
-      </CardContent>
+        </CardContent>
+      )}
     </Card>
   );
 }
