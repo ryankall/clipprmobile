@@ -78,6 +78,7 @@ export const appointments = pgTable("appointments", {
   duration: integer("duration").notNull(),
   travelTime: integer("travel_time").default(0), // travel time in minutes
   reminderSent: boolean("reminder_sent").default(false),
+  expiresAt: timestamp("expires_at"), // For pending appointments, auto-expire after 30 minutes
   createdAt: timestamp("created_at").defaultNow(),
 });
 

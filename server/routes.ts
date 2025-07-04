@@ -284,6 +284,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Cleanup expired appointments
+  app.post("/api/appointments/expire", requireAuth, async (req, res) => {
+    try {
+      const expiredCount = await storage.cleanupExpiredAppointments();
+      console.log(`Expired ${expiredCount} appointments`);
+      res.json({ success: true, expiredCount });
+    } catch (error: any) {
+      console.error('Error expiring appointments:', error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
   app.post("/api/appointments", requireAuth, async (req, res) => {
     try {
       const userId = (req.user as any).id;
@@ -446,13 +458,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log('✅ NO OVERLAPS DETECTED - Proceeding with appointment creation');
       
       // Create appointment with pending status (requires SMS confirmation)
+      const expiresAt = new Date(Date.now() + 30 * 60 * 1000); // Expires in 30 minutes
       const appointment = await storage.createAppointment({
         ...appointmentData,
         userId,
         scheduledAt: appointmentUTC,
         duration: totalDuration,
         price: totalPrice.toFixed(2),
-        status: 'pending' // Pending until SMS confirmation
+        status: 'pending', // Pending until SMS confirmation
+        expiresAt
       });
       
       console.log(`✅ Appointment created successfully with ID: ${appointment.id}`);

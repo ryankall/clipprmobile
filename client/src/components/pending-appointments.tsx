@@ -3,12 +3,25 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Clock, CheckCircle, XCircle, Phone, MapPin, User, Car, Navigation, AlertCircle } from "lucide-react";
+import {
+  Clock,
+  CheckCircle,
+  XCircle,
+  Phone,
+  MapPin,
+  User,
+  Car,
+  Navigation,
+  AlertCircle,
+} from "lucide-react";
 import { format, subMinutes } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { getServiceNamesDisplay } from "@/lib/appointmentUtils";
-import type { AppointmentWithRelations, User as UserType } from "@shared/schema";
+import type {
+  AppointmentWithRelations,
+  User as UserType,
+} from "@shared/schema";
 
 interface PendingAppointmentsProps {
   className?: string;
@@ -29,10 +42,30 @@ export function PendingAppointments({ className }: PendingAppointmentsProps) {
   const [travelTimeData, setTravelTimeData] = useState<TravelTimeInfo[]>([]);
   const [loadingTravelTime, setLoadingTravelTime] = useState(false);
 
-  const { data: pendingAppointments, isLoading } = useQuery<AppointmentWithRelations[]>({
+  const { data: pendingAppointments, isLoading } = useQuery<
+    AppointmentWithRelations[]
+  >({
     queryKey: ["/api/appointments/pending"],
     refetchInterval: 30000, // Refresh every 30 seconds
   });
+
+  // Function to check and cleanup expired appointments
+  const cleanupExpiredMutation = useMutation({
+    mutationFn: async () => {
+      return apiRequest("POST", "/api/appointments/expire", {});
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/appointments/pending"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/dashboard"] });
+    },
+  });
+
+  // Automatically cleanup expired appointments when component loads
+  useEffect(() => {
+    if (pendingAppointments && pendingAppointments.length > 0) {
+      cleanupExpiredMutation.mutate();
+    }
+  }, [pendingAppointments?.length]);
 
   const { data: userProfile } = useQuery<UserType>({
     queryKey: ["/api/user/profile"],
@@ -42,76 +75,97 @@ export function PendingAppointments({ className }: PendingAppointmentsProps) {
   useEffect(() => {
     if (!pendingAppointments || !userProfile?.address) return;
 
-    const appointmentsWithAddresses = pendingAppointments.filter(apt => apt.address);
+    const appointmentsWithAddresses = pendingAppointments.filter(
+      (apt) => apt.address,
+    );
     if (appointmentsWithAddresses.length === 0) return;
 
     const calculateTravelTimes = async () => {
       setLoadingTravelTime(true);
       try {
-        const travelPromises = appointmentsWithAddresses.map(async (appointment) => {
-          try {
-            const response = await apiRequest("POST", "/api/travel-time", {
-              origin: userProfile.address,
-              destination: appointment.address,
-              transportationMode: userProfile.transportationMode || 'driving',
-              appointmentTime: appointment.scheduledAt
-            });
-            
-            if (response.success) {
-              const travelTime = response.travelTime;
-              const departureTime = subMinutes(new Date(appointment.scheduledAt), travelTime + 5); // Add 5min buffer
-              
-              return {
-                appointmentId: appointment.id,
-                travelTime: travelTime,
-                departureTime: departureTime,
-                distance: response.distance || 'N/A',
-                travelMode: userProfile.transportationMode || 'driving'
-              };
+        const travelPromises = appointmentsWithAddresses.map(
+          async (appointment) => {
+            try {
+              const response = await apiRequest("POST", "/api/travel-time", {
+                origin: userProfile.address,
+                destination: appointment.address,
+                transportationMode: userProfile.transportationMode || "driving",
+                appointmentTime: appointment.scheduledAt,
+              });
+
+              if (response.success) {
+                const travelTime = response.travelTime;
+                const departureTime = subMinutes(
+                  new Date(appointment.scheduledAt),
+                  travelTime + 5,
+                ); // Add 5min buffer
+
+                return {
+                  appointmentId: appointment.id,
+                  travelTime: travelTime,
+                  departureTime: departureTime,
+                  distance: response.distance || "N/A",
+                  travelMode: userProfile.transportationMode || "driving",
+                };
+              }
+            } catch (error) {
+              console.error(
+                `Failed to calculate travel time for appointment ${appointment.id}:`,
+                error,
+              );
             }
-          } catch (error) {
-            console.error(`Failed to calculate travel time for appointment ${appointment.id}:`, error);
-          }
-          return null;
-        });
+            return null;
+          },
+        );
 
         const travelResults = await Promise.all(travelPromises);
         setTravelTimeData(travelResults.filter(Boolean) as TravelTimeInfo[]);
       } catch (error) {
-        console.error('Error calculating travel times:', error);
+        console.error("Error calculating travel times:", error);
       } finally {
         setLoadingTravelTime(false);
       }
     };
 
     calculateTravelTimes();
-  }, [pendingAppointments, userProfile?.address, userProfile?.transportationMode]);
+  }, [
+    pendingAppointments,
+    userProfile?.address,
+    userProfile?.transportationMode,
+  ]);
 
   // Helper function to get travel time info for an appointment
   const getTravelTimeInfo = (appointmentId: number) => {
-    return travelTimeData.find(info => info.appointmentId === appointmentId);
+    return travelTimeData.find((info) => info.appointmentId === appointmentId);
   };
 
   // Helper function to get transportation mode icon
   const getTransportIcon = (mode: string) => {
     switch (mode?.toLowerCase()) {
-      case 'driving': return <Car className="h-4 w-4" />;
-      case 'walking': return <Navigation className="h-4 w-4" />;
-      case 'cycling': return <Navigation className="h-4 w-4" />;
-      case 'transit': return <Navigation className="h-4 w-4" />;
-      default: return <Car className="h-4 w-4" />;
+      case "driving":
+        return <Car className="h-4 w-4" />;
+      case "walking":
+        return <Navigation className="h-4 w-4" />;
+      case "cycling":
+        return <Navigation className="h-4 w-4" />;
+      case "transit":
+        return <Navigation className="h-4 w-4" />;
+      default:
+        return <Car className="h-4 w-4" />;
     }
   };
 
   const confirmMutation = useMutation({
     mutationFn: async (appointmentId: number) => {
       return apiRequest("PATCH", `/api/appointments/${appointmentId}`, {
-        status: "confirmed"
+        status: "confirmed",
       });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/appointments"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/appointments/pending"] });
+      queryClient.invalidateQueries({
+        queryKey: ["/api/appointments/pending"],
+      });
       queryClient.invalidateQueries({ queryKey: ["/api/appointments/today"] });
       queryClient.invalidateQueries({ queryKey: ["/api/dashboard"] });
       toast({
@@ -128,18 +182,20 @@ export function PendingAppointments({ className }: PendingAppointmentsProps) {
     },
     onSettled: () => {
       setProcessingId(null);
-    }
+    },
   });
 
   const cancelMutation = useMutation({
     mutationFn: async (appointmentId: number) => {
       return apiRequest("PATCH", `/api/appointments/${appointmentId}`, {
-        status: "cancelled"
+        status: "cancelled",
       });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/appointments"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/appointments/pending"] });
+      queryClient.invalidateQueries({
+        queryKey: ["/api/appointments/pending"],
+      });
       queryClient.invalidateQueries({ queryKey: ["/api/appointments/today"] });
       queryClient.invalidateQueries({ queryKey: ["/api/dashboard"] });
       toast({
@@ -156,7 +212,7 @@ export function PendingAppointments({ className }: PendingAppointmentsProps) {
     },
     onSettled: () => {
       setProcessingId(null);
-    }
+    },
   });
 
   const handleConfirm = async (appointment: AppointmentWithRelations) => {
@@ -222,23 +278,32 @@ export function PendingAppointments({ className }: PendingAppointmentsProps) {
           const travelInfo = getTravelTimeInfo(appointment.id);
           const now = new Date();
           const appointmentTime = new Date(appointment.scheduledAt);
-          const shouldShowTravelWarning = travelInfo && travelInfo.departureTime <= now;
+          const shouldShowTravelWarning =
+            travelInfo && travelInfo.departureTime <= now;
 
           return (
             <div
               key={appointment.id}
-              className="border rounded-lg p-4 space-y-3 bg-amber-50/20 border-amber-200"
+              className="border rounded-lg p-4 space-y-3 bg-amber-10/10 border-amber-200"
             >
               <div className="flex items-start justify-between">
                 <div className="space-y-1">
                   <div className="flex items-center gap-2">
                     <User className="h-4 w-4 text-muted-foreground" />
-                    <span className="font-medium">{appointment.client.name}</span>
-                    <Badge variant="outline" className="bg-amber-100 text-amber-800 border-amber-300">
+                    <span className="font-medium">
+                      {appointment.client.name}
+                    </span>
+                    <Badge
+                      variant="outline"
+                      className="bg-amber-100 text-amber-800 border-amber-300"
+                    >
                       Pending
                     </Badge>
                     {shouldShowTravelWarning && (
-                      <Badge variant="destructive" className="bg-red-100 text-red-800 border-red-300">
+                      <Badge
+                        variant="destructive"
+                        className="bg-red-100 text-red-800 border-red-300"
+                      >
                         <AlertCircle className="h-3 w-3 mr-1" />
                         Departure Time!
                       </Badge>
@@ -248,6 +313,12 @@ export function PendingAppointments({ className }: PendingAppointmentsProps) {
                     <Clock className="h-4 w-4" />
                     {format(new Date(appointment.scheduledAt), "MMM d, h:mm a")}
                   </div>
+                  {(appointment as any).expiresAt && (
+                    <div className="flex items-center gap-2 text-sm text-amber-600">
+                      <AlertCircle className="h-4 w-4" />
+                      Expires: {format(new Date((appointment as any).expiresAt), "h:mm a")}
+                    </div>
+                  )}
                   {appointment.client.phone && (
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
                       <Phone className="h-4 w-4" />
@@ -261,50 +332,58 @@ export function PendingAppointments({ className }: PendingAppointmentsProps) {
                     </div>
                   )}
                   {/* Travel Time Information */}
-                  {(travelInfo || (appointment as any).travelTime > 0) && appointment.address && (
-                    <div className="bg-blue-50/50 border border-blue-200 rounded-lg p-3 mt-2">
-                      <div className="flex items-center gap-2 text-sm font-medium text-blue-800 mb-2">
-                        {getTransportIcon(travelInfo?.travelMode || 'driving')}
-                        Travel Information
-                      </div>
-                      <div className="space-y-1 text-sm text-blue-700">
-                        <div className="flex justify-between">
-                          <span>Travel Time:</span>
-                          <span className="font-medium">
-                            {(appointment as any).travelTime > 0 
-                              ? (
+                  {(travelInfo || (appointment as any).travelTime > 0) &&
+                    appointment.address && (
+                      <div className="bg-blue-50/50 border border-blue-200 rounded-lg p-3 mt-2">
+                        <div className="flex items-center gap-2 text-sm font-medium text-blue-800 mb-2">
+                          {getTransportIcon(
+                            travelInfo?.travelMode || "driving",
+                          )}
+                          Travel Information
+                        </div>
+                        <div className="space-y-1 text-sm text-blue-700">
+                          <div className="flex justify-between">
+                            <span>Travel Time:</span>
+                            <span className="font-medium">
+                              {(appointment as any).travelTime > 0 ? (
                                 <span>
-                                  {(appointment as any).travelTime} minutes{' '}
+                                  {(appointment as any).travelTime} minutes{" "}
                                   <span className="text-emerald-600 bg-emerald-100 px-2 py-0.5 rounded-full text-xs font-medium">
                                     stored
                                   </span>
                                 </span>
-                              ) 
-                              : `${travelInfo?.travelTime} minutes (calculated)`
-                            }
-                          </span>
+                              ) : (
+                                `${travelInfo?.travelTime} minutes (calculated)`
+                              )}
+                            </span>
+                          </div>
+                          {travelInfo && (
+                            <>
+                              <div className="flex justify-between">
+                                <span>Distance:</span>
+                                <span className="font-medium">
+                                  {travelInfo.distance}
+                                </span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span>Departure Time:</span>
+                                <span
+                                  className={`font-medium ${shouldShowTravelWarning ? "text-red-600" : ""}`}
+                                >
+                                  {format(travelInfo.departureTime, "h:mm a")}
+                                </span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span>Mode:</span>
+                                <span className="font-medium capitalize">
+                                  {travelInfo.travelMode}
+                                </span>
+                              </div>
+                            </>
+                          )}
                         </div>
-                        {travelInfo && (
-                          <>
-                            <div className="flex justify-between">
-                              <span>Distance:</span>
-                              <span className="font-medium">{travelInfo.distance}</span>
-                            </div>
-                            <div className="flex justify-between">
-                              <span>Departure Time:</span>
-                              <span className={`font-medium ${shouldShowTravelWarning ? 'text-red-600' : ''}`}>
-                                {format(travelInfo.departureTime, "h:mm a")}
-                              </span>
-                            </div>
-                            <div className="flex justify-between">
-                              <span>Mode:</span>
-                              <span className="font-medium capitalize">{travelInfo.travelMode}</span>
-                            </div>
-                          </>
-                        )}
                       </div>
-                    </div>
-                  )}
+                    )}
                   {/* Loading indicator for travel time calculation */}
                   {loadingTravelTime && appointment.address && !travelInfo && (
                     <div className="bg-gray-50/50 border border-gray-200 rounded-lg p-3 mt-2">
@@ -319,17 +398,21 @@ export function PendingAppointments({ className }: PendingAppointmentsProps) {
 
               <div className="space-y-2">
                 <div className="text-sm">
-                  <span className="font-medium">Service:</span> {getServiceNamesDisplay(appointment, 50)}
+                  <span className="font-medium">Service:</span>{" "}
+                  {getServiceNamesDisplay(appointment, 50)}
                 </div>
                 <div className="text-sm">
-                  <span className="font-medium">Duration:</span> {appointment.duration} minutes
+                  <span className="font-medium">Duration:</span>{" "}
+                  {appointment.duration} minutes
                 </div>
                 <div className="text-sm">
-                  <span className="font-medium">Price:</span> ${appointment.price}
+                  <span className="font-medium">Price:</span> $
+                  {appointment.price}
                 </div>
                 {appointment.notes && (
                   <div className="text-sm">
-                    <span className="font-medium">Notes:</span> {appointment.notes}
+                    <span className="font-medium">Notes:</span>{" "}
+                    {appointment.notes}
                   </div>
                 )}
               </div>
@@ -349,7 +432,7 @@ export function PendingAppointments({ className }: PendingAppointmentsProps) {
                   variant="destructive"
                   onClick={() => handleCancel(appointment)}
                   disabled={processingId === appointment.id}
-                  className="flex-1"
+                  className="flex-1 hover:bg-red-500"
                 >
                   <XCircle className="h-4 w-4 mr-2" />
                   Cancel
@@ -358,8 +441,10 @@ export function PendingAppointments({ className }: PendingAppointmentsProps) {
                   <Button
                     size="sm"
                     variant="outline"
-                    onClick={() => window.open(`tel:${appointment.client.phone}`, '_self')}
-                    className="bg-blue-50 hover:bg-blue-100 text-blue-700 border-blue-300"
+                    onClick={() =>
+                      window.open(`tel:${appointment.client.phone}`, "_self")
+                    }
+                    className="bg-blue-700 hover:bg-blue-500 text-black-500"
                   >
                     <Phone className="h-4 w-4 mr-2" />
                     Call

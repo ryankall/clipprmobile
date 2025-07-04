@@ -69,6 +69,9 @@ export interface IStorage {
   createAppointment(appointment: InsertAppointment): Promise<Appointment>;
   updateAppointment(id: number, appointment: Partial<InsertAppointment>): Promise<Appointment>;
   deleteAppointment(id: number): Promise<void>;
+  expireAppointment(id: number): Promise<void>;
+  getExpiredAppointments(): Promise<AppointmentWithRelations[]>;
+  cleanupExpiredAppointments(): Promise<number>;
 
   // Appointment Services
   createAppointmentService(appointmentService: InsertAppointmentService): Promise<AppointmentService>;
@@ -443,6 +446,58 @@ export class DatabaseStorage implements IStorage {
       await tx.delete(appointments).where(eq(appointments.id, id));
       console.log('Successfully deleted appointment:', id);
     });
+  }
+
+  async expireAppointment(id: number): Promise<void> {
+    await db
+      .update(appointments)
+      .set({ status: 'expired' })
+      .where(eq(appointments.id, id));
+  }
+
+  async getExpiredAppointments(): Promise<AppointmentWithRelations[]> {
+    const results = await db
+      .select({
+        appointment: appointments,
+        client: clients,
+        service: services
+      })
+      .from(appointments)
+      .innerJoin(clients, eq(appointments.clientId, clients.id))
+      .innerJoin(services, eq(appointments.serviceId, services.id))
+      .where(
+        and(
+          eq(appointments.status, 'pending'),
+          lte(appointments.expiresAt, new Date())
+        )
+      )
+      .orderBy(appointments.scheduledAt);
+
+    // Load appointment services for each appointment
+    const finalResults: AppointmentWithRelations[] = [];
+    for (const result of results) {
+      const appointmentServicesData = await this.getAppointmentServicesByAppointmentId(result.appointment.id);
+      finalResults.push({
+        ...result.appointment,
+        client: result.client,
+        service: result.service,
+        appointmentServices: appointmentServicesData
+      });
+    }
+
+    return finalResults;
+  }
+
+  async cleanupExpiredAppointments(): Promise<number> {
+    const expiredAppointments = await this.getExpiredAppointments();
+    let expiredCount = 0;
+
+    for (const appointment of expiredAppointments) {
+      await this.expireAppointment(appointment.id);
+      expiredCount++;
+    }
+
+    return expiredCount;
   }
 
   async getInvoicesByUserId(userId: number): Promise<Invoice[]> {
