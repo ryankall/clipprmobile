@@ -272,7 +272,14 @@ export function PendingAppointments({ className }: PendingAppointmentsProps) {
                           <span>Travel Time:</span>
                           <span className="font-medium">
                             {(appointment as any).travelTime > 0 
-                              ? `${(appointment as any).travelTime} minutes (stored)` 
+                              ? (
+                                <span>
+                                  {(appointment as any).travelTime} minutes{' '}
+                                  <span className="text-emerald-600 bg-emerald-100 px-2 py-0.5 rounded-full text-xs font-medium">
+                                    stored
+                                  </span>
+                                </span>
+                              ) 
                               : `${travelInfo?.travelTime} minutes (calculated)`
                             }
                           </span>
@@ -347,6 +354,17 @@ export function PendingAppointments({ className }: PendingAppointmentsProps) {
                   <XCircle className="h-4 w-4 mr-2" />
                   Cancel
                 </Button>
+                {appointment.client.phone && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => window.open(`tel:${appointment.client.phone}`, '_self')}
+                    className="bg-blue-50 hover:bg-blue-100 text-blue-700 border-blue-300"
+                  >
+                    <Phone className="h-4 w-4 mr-2" />
+                    Call
+                  </Button>
+                )}
               </div>
             </div>
           );
