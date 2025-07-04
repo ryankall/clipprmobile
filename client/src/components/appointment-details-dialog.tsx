@@ -304,9 +304,8 @@ export function AppointmentDetailsDialog({
                 // Scroll to bottom to show the delete confirmation
                 setTimeout(() => {
                   if (dialogContentRef.current) {
-                    const scrollContainer = dialogContentRef.current.querySelector('[data-radix-scroll-area-viewport]') || dialogContentRef.current;
-                    scrollContainer.scrollTo({
-                      top: scrollContainer.scrollHeight,
+                    dialogContentRef.current.scrollTo({
+                      top: dialogContentRef.current.scrollHeight,
                       behavior: 'smooth'
                     });
                   }
