@@ -42,6 +42,7 @@ client/src/test/
 ├── concurrency.test.ts
 ├── functional.test.ts
 ├── invoiceNotifications.test.ts      # NEW: Email/SMS notification system tests
+├── invoiceDelivery.test.ts           # NEW: Complete invoice delivery & payment tests
 └── components.test.ts
 
 server/test/
@@ -639,5 +640,50 @@ While this document focuses on unit tests, the application also includes:
 - Cost calculation for notification services
 - Graceful handling of missing contact information
 - Content generation for email and SMS messages
+
+## NEW: Invoice Delivery & Payment Integration Tests
+
+### File: `__tests__/invoiceDelivery.test.ts`
+
+**Purpose**: Validates complete invoice delivery system with Stripe payment link integration
+
+**Test Coverage (16 tests)**:
+
+#### Stripe Payment Link Generation
+- ✅ Generates payment links for stripe payment method
+- ✅ Defaults to stripe when payment method is undefined
+- ✅ Skips payment link generation for cash payments
+
+#### Email Delivery with Payment Links
+- ✅ Sends email with stripe payment link included
+- ✅ Sends email with cash payment instructions
+- ✅ Handles email delivery failures gracefully
+
+#### SMS Delivery with Payment Links
+- ✅ Sends SMS with stripe payment link included
+- ✅ Sends SMS with cash payment instructions
+
+#### Multi-Method Delivery
+- ✅ Delivers to both email and SMS with stripe payment links
+- ✅ Handles partial delivery when one method fails
+
+#### Delivery Validation
+- ✅ Validates delivery capabilities correctly
+- ✅ Detects missing contact methods
+
+#### Delivery Cost Calculation
+- ✅ Calculates email delivery costs ($0.01 per email)
+- ✅ Calculates SMS delivery costs ($0.03 per SMS)
+- ✅ Calculates Stripe processing fees (2.9% + $0.30)
+- ✅ Calculates combined costs for multiple methods
+
+**Key Features Tested**:
+- Stripe payment link generation and validation
+- Dynamic payment instructions based on payment method
+- Email and SMS delivery with payment links
+- Multi-channel delivery coordination
+- Cost calculation including processing fees
+- Error handling for invalid contact information
+- Partial delivery scenarios
 
 This comprehensive unit test suite ensures the reliability, maintainability, and quality of the Clippr application across all its features, user interactions, and critical edge cases.
