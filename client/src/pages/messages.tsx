@@ -254,6 +254,7 @@ export default function Messages() {
     const timeMatch = message.message.match(/⏰ Time: (\d{1,2}:\d{2})/);
     const servicesMatch = message.message.match(/✂️ Services: (.+?)(?:\n|$)/);
     const addressMatch = message.message.match(/🚗 Travel: Yes - (.+?)(?:\n|$)/);
+    const travelNoMatch = message.message.match(/🚗 Travel: No(?:\n|$)/);
     const customServiceMatch = message.message.match(/✂️ Custom Service: (.+?)(?:\n|$)/);
     const messageNotesMatch = message.message.match(/💬 Message: (.+?)(?:\n|$)/);
 
@@ -272,6 +273,8 @@ export default function Messages() {
     const address = addressMatch ? addressMatch[1] : "";
     const customService = customServiceMatch ? customServiceMatch[1] : "";
     const notes = messageNotesMatch ? messageNotesMatch[1] : "";
+    const hasTravel = !!addressMatch; // Travel is yes if there's an address
+    const travelNo = !!travelNoMatch; // Travel is explicitly no
 
     // Find client by phone number
     const existingClient = clients?.find(client => 
@@ -283,8 +286,12 @@ export default function Messages() {
     if (existingClient?.id) {
       params.set('clientId', existingClient.id.toString());
     } else {
-      params.set('clientName', message.customerName);
-      params.set('phone', message.customerPhone);
+      if (message.customerName) {
+        params.set('clientName', message.customerName);
+      }
+      if (message.customerPhone) {
+        params.set('phone', message.customerPhone);
+      }
       if (message.customerEmail) {
         params.set('email', message.customerEmail);
       }
@@ -301,6 +308,12 @@ export default function Messages() {
     if (selectedDate && selectedTime) {
       const scheduledAt = new Date(`${selectedDate}T${selectedTime}:00`);
       params.set('scheduledAt', scheduledAt.toISOString());
+    }
+    // Set travel parameter based on message content
+    if (hasTravel) {
+      params.set('travel', 'yes');
+    } else if (travelNo) {
+      params.set('travel', 'no');
     }
     
     // Navigate directly to appointment creation page

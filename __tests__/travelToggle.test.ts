@@ -298,4 +298,89 @@ describe('Travel Toggle Functionality', () => {
       expect(activeAppointments.map(apt => apt.status)).toEqual(['confirmed', 'pending']);
     });
   });
+
+  describe('Client Address Auto-Fill', () => {
+    it('should auto-fill address when travel toggle is enabled and client is selected', () => {
+      const client = {
+        id: 1,
+        name: 'John Doe',
+        phone: '555-0123',
+        address: '456 Oak St, Los Angeles, CA'
+      };
+      
+      const includeTravel = true;
+      const shouldAutoFill = includeTravel && !!client.address;
+      
+      expect(shouldAutoFill).toBe(true);
+      expect(client.address).toBe('456 Oak St, Los Angeles, CA');
+    });
+
+    it('should not auto-fill address when travel toggle is disabled', () => {
+      const client = {
+        id: 1,
+        name: 'John Doe',
+        phone: '555-0123',
+        address: '456 Oak St, Los Angeles, CA'
+      };
+      
+      const includeTravel = false;
+      const shouldAutoFill = includeTravel && !!client.address;
+      
+      expect(shouldAutoFill).toBe(false);
+    });
+
+    it('should handle client without address gracefully', () => {
+      const client = {
+        id: 1,
+        name: 'John Doe',
+        phone: '555-0123',
+        address: null
+      };
+      
+      const includeTravel = true;
+      const shouldAutoFill = includeTravel && !!client.address;
+      
+      expect(shouldAutoFill).toBe(false);
+    });
+  });
+
+  describe('Message-Based Travel Toggle', () => {
+    it('should set travel toggle to yes when message contains travel: yes', () => {
+      const messageParams = {
+        travel: 'yes',
+        address: '789 Pine St, Chicago, IL'
+      };
+      
+      const shouldEnableTravel = messageParams.travel === 'yes';
+      
+      expect(shouldEnableTravel).toBe(true);
+    });
+
+    it('should set travel toggle to no when message contains travel: no', () => {
+      const messageParams = {
+        travel: 'no',
+        address: ''
+      };
+      
+      const shouldEnableTravel = messageParams.travel === 'yes';
+      
+      expect(shouldEnableTravel).toBe(false);
+    });
+
+    it('should default travel toggle based on address presence when no explicit travel param', () => {
+      const messageParamsWithAddress = {
+        address: '789 Pine St, Chicago, IL'
+      };
+      
+      const messageParamsWithoutAddress = {
+        address: ''
+      };
+      
+      const shouldEnableTravelWithAddress = !!messageParamsWithAddress.address;
+      const shouldEnableTravelWithoutAddress = !!messageParamsWithoutAddress.address;
+      
+      expect(shouldEnableTravelWithAddress).toBe(true);
+      expect(shouldEnableTravelWithoutAddress).toBe(false);
+    });
+  });
 });

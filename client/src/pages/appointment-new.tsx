@@ -99,6 +99,7 @@ export default function AppointmentNew() {
   const prefilledAddress = urlParams.get('address');
   const prefilledNotes = urlParams.get('notes');
   const prefilledScheduledAt = urlParams.get('scheduledAt');
+  const prefilledTravel = urlParams.get('travel'); // 'yes' or 'no' for message-based appointments
 
   const { data: clients } = useQuery<Client[]>({
     queryKey: ["/api/clients"],
@@ -150,8 +151,8 @@ export default function AppointmentNew() {
       services: preselectedServices,
       scheduledAt: prefilledScheduledAt || "",
       notes: prefilledNotes || "",
-      address: prefilledAddress || "",
-      includeTravel: !!prefilledAddress, // Enable travel if address is prefilled
+      address: prefilledAddress || (foundClient?.address && prefilledTravel === 'yes' ? foundClient.address : ""),
+      includeTravel: prefilledTravel === 'yes' || (prefilledTravel === 'no' ? false : !!prefilledAddress), // Handle message-based travel toggle
     },
   });
 
@@ -159,11 +160,29 @@ export default function AppointmentNew() {
   useEffect(() => {
     if (foundClient) {
       form.setValue("clientId", foundClient.id);
+      // Auto-fill address if travel is enabled and client has address
+      if (form.watch("includeTravel") && foundClient.address && !form.watch("address")) {
+        form.setValue("address", foundClient.address);
+      }
     } else if (clientName && !preselectedClientId) {
       // If we have client name but no existing client, show client selection dropdown
       form.setValue("clientId", 0);
     }
   }, [foundClient, clientName, preselectedClientId, form]);
+
+  // Update address and travel time when travel toggle changes or client changes
+  useEffect(() => {
+    const includeTravel = form.watch("includeTravel");
+    const clientId = form.watch("clientId");
+    
+    if (includeTravel && clientId && !prefilledAddress) {
+      // Auto-fill address when travel is enabled and client is selected
+      const selectedClient = clients?.find(c => c.id === clientId);
+      if (selectedClient?.address && !form.watch("address")) {
+        form.setValue("address", selectedClient.address);
+      }
+    }
+  }, [form.watch("includeTravel"), form.watch("clientId"), clients, prefilledAddress]);
 
   // Format and set the scheduled date/time
   useEffect(() => {
@@ -412,7 +431,20 @@ export default function AppointmentNew() {
                           <User className="w-4 h-4 mr-2" />
                           Client
                         </FormLabel>
-                        <Select onValueChange={(value) => field.onChange(parseInt(value))} value={field.value?.toString()}>
+                        <Select onValueChange={(value) => {
+                          const newClientId = parseInt(value);
+                          field.onChange(newClientId);
+                          // Auto-fill address if travel is enabled and client has address
+                          const selectedClient = clients?.find(c => c.id === newClientId);
+                          if (form.watch("includeTravel") && selectedClient?.address) {
+                            form.setValue("address", selectedClient.address);
+                            // Calculate travel time if we have address and scheduled time
+                            const scheduledAt = form.watch("scheduledAt");
+                            if (scheduledAt) {
+                              calculateTravelTime(selectedClient.address, scheduledAt);
+                            }
+                          }
+                        }} value={field.value?.toString()}>
                           <FormControl>
                             <SelectTrigger className="bg-charcoal border-steel/40 text-white">
                               <SelectValue placeholder="Select a client" />
@@ -623,8 +655,19 @@ export default function AppointmentNew() {
                           checked={field.value}
                           onCheckedChange={(checked) => {
                             field.onChange(checked);
-                            // Clear address if travel is disabled
-                            if (!checked) {
+                            if (checked) {
+                              // Auto-fill address if travel is enabled and client has address
+                              const selectedClient = clients?.find(c => c.id === form.watch("clientId"));
+                              if (selectedClient?.address) {
+                                form.setValue("address", selectedClient.address);
+                                // Calculate travel time if we have scheduled time
+                                const scheduledAt = form.watch("scheduledAt");
+                                if (scheduledAt) {
+                                  calculateTravelTime(selectedClient.address, scheduledAt);
+                                }
+                              }
+                            } else {
+                              // Clear address if travel is disabled
                               form.setValue("address", "");
                               setTravelTime(0);
                             }
