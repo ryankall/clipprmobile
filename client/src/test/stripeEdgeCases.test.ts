@@ -103,7 +103,7 @@ describe('Stripe Edge Cases', () => {
         id: 123,
         amount: 3500, // $35.00
         status: 'confirmed',
-        scheduledAt: new Date('2025-07-04T14:00:00Z'), // Tomorrow
+        scheduledAt: new Date(Date.now() + 48 * 60 * 60 * 1000), // 48 hours from now (more than 24h)
         paymentIntentId: 'pi_test_123'
       };
       

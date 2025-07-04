@@ -116,18 +116,20 @@ describe('Advanced Pending Appointment Slot Locking', () => {
   describe('Critical Slot Locking Bug Fix', () => {
     it('should block 1:00pm time slot for jake boo boo pending appointment', () => {
       // Real scenario: jake boo boo appointment at 1:00 PM UTC with 95-minute duration
+      const now = new Date();
+      const futureDate = new Date(now.getTime() + 24 * 60 * 60 * 1000); // Tomorrow
       const jakePendingAppointment: PendingAppointment = {
         id: 65,
         userId: 3,
         clientId: 31,
-        scheduledAt: new Date('2025-07-03T13:00:00.000Z'), // 1:00 PM UTC
+        scheduledAt: new Date(futureDate.getFullYear(), futureDate.getMonth(), futureDate.getDate(), 13, 0, 0), // 1:00 PM on test date
         status: 'pending',
         duration: 95, // 95 minutes (1 hour 35 minutes)
-        createdAt: new Date('2025-07-03T10:58:02.871Z'),
-        expiresAt: new Date('2025-07-03T11:28:02.871Z') // 30 minutes after creation
+        createdAt: new Date(now.getTime() - 30 * 60 * 1000), // Created 30 minutes ago
+        expiresAt: new Date(now.getTime() + 30 * 60 * 1000) // Expires in 30 minutes (still active)
       };
       
-      const testDate = new Date('2025-07-03');
+      const testDate = new Date(futureDate.getFullYear(), futureDate.getMonth(), futureDate.getDate());
       const timeSlots = generateTimeSlots(testDate);
       
       // Apply blocking logic
