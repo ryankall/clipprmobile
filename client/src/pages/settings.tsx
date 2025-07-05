@@ -1245,15 +1245,7 @@ export default function Settings() {
                   </p>
                 </div>
                 
-                <div className="bg-charcoal/50 p-3 rounded-lg border border-steel/20">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-white text-sm font-medium">Appointment Confirmation</span>
-                    <span className="text-steel text-xs">Default</span>
-                  </div>
-                  <p className="text-steel text-xs">
-                    "Hi [Client Name], confirming your [Service] appointment on [Date] at [Time]. Looking forward to seeing you!"
-                  </p>
-                </div>
+
               </div>
               
               <div className="pt-3 border-t border-steel/20">
