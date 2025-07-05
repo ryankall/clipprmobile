@@ -57,20 +57,37 @@ function generateTimeSlots(appointments: MockAppointment[], workingHours?: MockW
   }
   
   // Check if any appointments are outside the working hours range
+  // Also consider appointment end times for proper calendar expansion
   for (const apt of sortedAppointments) {
-    const aptHour = new Date(apt.scheduledAt).getHours();
-    if (aptHour < startHour) startHour = aptHour;
-    if (aptHour > endHour) endHour = aptHour;
+    const aptStart = new Date(apt.scheduledAt);
+    const aptEnd = new Date(aptStart.getTime() + (apt.duration || 0) * 60 * 1000);
+    
+    const aptStartHour = aptStart.getHours();
+    const aptEndHour = aptEnd.getHours();
+    const aptEndMinutes = aptEnd.getMinutes();
+    
+    if (aptStartHour < startHour) startHour = aptStartHour;
+    // For end hours, include the hour that contains the end time
+    if (aptEndHour > endHour || (aptEndHour === endHour && aptEndMinutes > 0)) {
+      endHour = aptEndHour;
+    }
   }
   
   // Generate time slots
   for (let hour = startHour; hour <= endHour; hour++) {
     const timeStr = hour === 0 ? '12 AM' : hour === 12 ? '12 PM' : hour < 12 ? `${hour} AM` : `${hour - 12} PM`;
     
-    // Check if there's an appointment at this time
+    // Check if there's an appointment that starts at this hour OR overlaps this hour
     const appointment = sortedAppointments.find(apt => {
-      const aptTime = new Date(apt.scheduledAt);
-      return aptTime.getHours() === hour;
+      const aptStart = new Date(apt.scheduledAt);
+      const aptEnd = new Date(aptStart.getTime() + (apt.duration || 0) * 60 * 1000);
+      
+      const aptStartHour = aptStart.getHours();
+      const aptEndHour = aptEnd.getHours();
+      
+      // Appointment spans into this hour if it starts at or before this hour
+      // and ends after this hour starts
+      return aptStartHour <= hour && hour < aptEndHour;
     });
     
     // Check if this hour is blocked by working hours
@@ -505,6 +522,141 @@ describe('Calendar Features', () => {
       const lateSlot = slots.find(slot => slot.hour === 22);
       expect(lateSlot?.isBlocked).toBe(true);
       expect(lateSlot?.appointment?.client.name).toBe('Night Owl');
+    });
+  });
+
+  describe('Appointment Duration Visualization', () => {
+    it('should show 75-minute appointment (4pm-5:15pm) in both 4pm and 5pm slots', () => {
+      const longAppointment: MockAppointment = {
+        id: 1,
+        userId: 1,
+        clientId: 1,
+        scheduledAt: new Date('2025-07-05T16:00:00Z'), // 4pm
+        status: 'confirmed',
+        duration: 75, // 75 minutes
+        service: { name: 'Extended Service', price: '50.00' },
+        client: { name: 'Test Client' },
+        price: '50.00'
+      };
+
+      const slots = generateTimeSlots([longAppointment]);
+      
+      // Should find appointment at 4 PM (start time)
+      const fourPmSlot = slots.find(slot => slot.hour === 16);
+      expect(fourPmSlot?.appointment).toBe(longAppointment);
+      expect(fourPmSlot?.isBlocked).toBe(false);
+      
+      // Should also find appointment at 5 PM (continues into this hour)
+      const fivePmSlot = slots.find(slot => slot.hour === 17);
+      expect(fivePmSlot?.appointment).toBe(longAppointment);
+      expect(fivePmSlot?.isBlocked).toBe(false);
+      
+      // Should NOT find appointment at 6 PM (ends at 5:15pm)
+      const sixPmSlot = slots.find(slot => slot.hour === 18);
+      expect(sixPmSlot?.appointment).toBe(null);
+    });
+
+    it('should show 125-minute appointment (11pm-1:05am) properly spanning hours', () => {
+      const veryLongAppointment: MockAppointment = {
+        id: 2,
+        userId: 1,
+        clientId: 1,
+        scheduledAt: new Date('2025-07-05T23:00:00Z'), // 11pm
+        status: 'confirmed',
+        duration: 125, // 2 hours 5 minutes
+        service: { name: 'Very Long Service', price: '100.00' },
+        client: { name: 'Night Client' },
+        price: '100.00'
+      };
+
+      const slots = generateTimeSlots([veryLongAppointment]);
+      
+      // Should find appointment at 11 PM (start time)
+      const elevenPmSlot = slots.find(slot => slot.hour === 23);
+      expect(elevenPmSlot?.appointment).toBe(veryLongAppointment);
+      
+      // Should find appointment at 12 AM (continues)
+      const midnightSlot = slots.find(slot => slot.hour === 0);
+      expect(midnightSlot?.appointment).toBe(veryLongAppointment);
+      
+      // Should find appointment at 1 AM (continues until 1:05am)
+      const oneAmSlot = slots.find(slot => slot.hour === 1);
+      expect(oneAmSlot?.appointment).toBe(veryLongAppointment);
+      
+      // Should NOT find appointment at 2 AM (ends at 1:05am)
+      const twoAmSlot = slots.find(slot => slot.hour === 2);
+      expect(twoAmSlot?.appointment).toBe(null);
+    });
+  });
+
+  describe('Calendar Expansion for Late Appointments', () => {
+    it('should expand calendar to show 11pm appointment ending at 1:05am', () => {
+      const lateAppointment: MockAppointment = {
+        id: 1,
+        userId: 1,
+        clientId: 1,
+        scheduledAt: new Date('2025-07-05T23:00:00Z'), // 11pm
+        status: 'confirmed',
+        duration: 125, // 2 hours 5 minutes, ends at 1:05am
+        service: { name: 'Late Service', price: '75.00' },
+        client: { name: 'Night Owl' },
+        price: '75.00'
+      };
+
+      const slots = generateTimeSlots([lateAppointment]);
+      
+      // Calendar should expand to show from 9am to 1am (end hour)
+      expect(slots[0].hour).toBe(9); // Default start
+      expect(slots[slots.length - 1].hour).toBe(1); // Expanded to end hour
+      
+      // Should include 11pm, 12am, and 1am slots
+      const hoursInSlots = slots.map(slot => slot.hour);
+      expect(hoursInSlots).toContain(23); // 11pm
+      expect(hoursInSlots).toContain(0);  // 12am
+      expect(hoursInSlots).toContain(1);  // 1am
+      
+      // Should span across the hours properly
+      const elevenPmSlot = slots.find(slot => slot.hour === 23);
+      const midnightSlot = slots.find(slot => slot.hour === 0);
+      const oneAmSlot = slots.find(slot => slot.hour === 1);
+      
+      expect(elevenPmSlot?.appointment).toBe(lateAppointment);
+      expect(midnightSlot?.appointment).toBe(lateAppointment);
+      expect(oneAmSlot?.appointment).toBe(lateAppointment);
+    });
+
+    it('should properly expand for appointment ending past midnight', () => {
+      const lateAppointment: MockAppointment = {
+        id: 1,
+        userId: 1,
+        clientId: 1,
+        scheduledAt: new Date('2025-07-05T22:30:00Z'), // 10:30pm
+        status: 'confirmed',
+        duration: 150, // 2.5 hours, ends at 1:00am
+        service: { name: 'Very Late Service', price: '90.00' },
+        client: { name: 'Very Late Client' },
+        price: '90.00'
+      };
+
+      const slots = generateTimeSlots([lateAppointment]);
+      
+      // Calendar should expand to include midnight hours
+      const hoursInSlots = slots.map(slot => slot.hour);
+      expect(hoursInSlots).toContain(22); // 10pm
+      expect(hoursInSlots).toContain(23); // 11pm
+      expect(hoursInSlots).toContain(0);  // 12am
+      expect(hoursInSlots).toContain(1);  // 1am
+      
+      // Should span across the hours properly
+      const tenPmSlot = slots.find(slot => slot.hour === 22);
+      const elevenPmSlot = slots.find(slot => slot.hour === 23);
+      const midnightSlot = slots.find(slot => slot.hour === 0);
+      const oneAmSlot = slots.find(slot => slot.hour === 1);
+      
+      expect(tenPmSlot?.appointment).toBe(lateAppointment);
+      expect(elevenPmSlot?.appointment).toBe(lateAppointment);
+      expect(midnightSlot?.appointment).toBe(lateAppointment);
+      expect(oneAmSlot?.appointment).toBe(lateAppointment);
     });
   });
 });

@@ -53,10 +53,20 @@ function generateTimeSlots(appointments: AppointmentWithRelations[], workingHour
   }
   
   // Check if any appointments are outside the working hours range
+  // Also consider appointment end times for proper calendar expansion
   for (const apt of sortedAppointments) {
-    const aptHour = new Date(apt.scheduledAt).getHours();
-    if (aptHour < startHour) startHour = aptHour;
-    if (aptHour > endHour) endHour = aptHour;
+    const aptStart = new Date(apt.scheduledAt);
+    const aptEnd = new Date(aptStart.getTime() + (apt.duration || 0) * 60 * 1000);
+    
+    const aptStartHour = aptStart.getHours();
+    const aptEndHour = aptEnd.getHours();
+    const aptEndMinutes = aptEnd.getMinutes();
+    
+    if (aptStartHour < startHour) startHour = aptStartHour;
+    // For end hours, include the hour that contains the end time
+    if (aptEndHour > endHour || (aptEndHour === endHour && aptEndMinutes > 0)) {
+      endHour = aptEndHour;
+    }
   }
 
   // Generate time slots
@@ -64,10 +74,17 @@ function generateTimeSlots(appointments: AppointmentWithRelations[], workingHour
     const timeStr =
       hour === 0 ? "12 AM" : hour === 12 ? "12 PM" : hour < 12 ? `${hour} AM` : `${hour - 12} PM`;
 
-    // Check if there's an appointment at this time
+    // Check if there's an appointment that starts at this hour OR overlaps this hour
     const appointment = sortedAppointments.find((apt) => {
-      const aptTime = new Date(apt.scheduledAt);
-      return aptTime.getHours() === hour;
+      const aptStart = new Date(apt.scheduledAt);
+      const aptEnd = new Date(aptStart.getTime() + (apt.duration || 0) * 60 * 1000);
+      
+      const aptStartHour = aptStart.getHours();
+      const aptEndHour = aptEnd.getHours();
+      
+      // Appointment spans into this hour if it starts at or before this hour
+      // and ends after this hour starts
+      return aptStartHour <= hour && hour < aptEndHour;
     });
 
     // Check if this hour is blocked by working hours
@@ -367,33 +384,76 @@ export default function Calendar() {
                               <span className="text-gray-500 text-sm">Blocked</span>
                             </div>
                           ) : slot.appointment ? (
-                            <div
-                              className={`p-3 rounded-lg cursor-pointer transition-all duration-200 hover:shadow-md ${getAppointmentColor(slot.appointment)} border-l-4`}
-                              onClick={() => {
-                                setSelectedAppointment(slot.appointment);
-                                setShowAppointmentDialog(true);
-                              }}
-                            >
-                              <div className="flex items-center justify-between">
-                                <div>
-                                  <div className="font-semibold text-gray-800 mb-1">
-                                    {slot.appointment.service?.name ||
-                                      "Service"}
+                            (() => {
+                              const aptStart = new Date(slot.appointment.scheduledAt);
+                              const aptEnd = new Date(aptStart.getTime() + (slot.appointment.duration || 0) * 60 * 1000);
+                              const aptStartHour = aptStart.getHours();
+                              const aptEndHour = aptEnd.getHours();
+                              const aptStartMinutes = aptStart.getMinutes();
+                              const aptEndMinutes = aptEnd.getMinutes();
+                              
+                              // Calculate if this is the primary slot (where appointment starts)
+                              const isPrimarySlot = aptStartHour === slot.hour;
+                              
+                              // Calculate height based on duration
+                              const durationInHours = (slot.appointment.duration || 0) / 60;
+                              const baseHeight = 52; // base height for 1 hour slot
+                              const appointmentHeight = Math.max(baseHeight, baseHeight * durationInHours);
+                              
+                              // Only show full appointment info in the primary slot
+                              if (isPrimarySlot) {
+                                return (
+                                  <div
+                                    className={`p-3 rounded-lg cursor-pointer transition-all duration-200 hover:shadow-md ${getAppointmentColor(slot.appointment)} border-l-4`}
+                                    style={{ 
+                                      height: `${appointmentHeight}px`,
+                                      zIndex: 10
+                                    }}
+                                    onClick={() => {
+                                      setSelectedAppointment(slot.appointment);
+                                      setShowAppointmentDialog(true);
+                                    }}
+                                  >
+                                    <div className="flex items-center justify-between">
+                                      <div>
+                                        <div className="font-semibold text-gray-800 mb-1">
+                                          {slot.appointment.service?.name || "Service"}
+                                        </div>
+                                        <div className="text-sm text-gray-600">
+                                          {slot.appointment.client.name}
+                                        </div>
+                                        <div className="text-xs text-gray-500 mt-1">
+                                          {format(aptStart, 'h:mm a')} - {format(aptEnd, 'h:mm a')}
+                                        </div>
+                                      </div>
+                                      <div className="text-right">
+                                        <div className="text-sm font-medium text-gray-700">
+                                          {slot.appointment.duration}m
+                                        </div>
+                                        <div className="text-xs text-gray-500">
+                                          ${slot.appointment.price || "0"}
+                                        </div>
+                                      </div>
+                                    </div>
                                   </div>
-                                  <div className="text-sm text-gray-600">
-                                    {slot.appointment.client.name}
+                                );
+                              } else {
+                                // For continuation slots, show a lighter version
+                                return (
+                                  <div
+                                    className={`p-2 rounded-lg cursor-pointer transition-all duration-200 hover:shadow-md ${getAppointmentColor(slot.appointment)} border-l-4 opacity-60`}
+                                    onClick={() => {
+                                      setSelectedAppointment(slot.appointment);
+                                      setShowAppointmentDialog(true);
+                                    }}
+                                  >
+                                    <div className="text-sm text-gray-600">
+                                      ... continues
+                                    </div>
                                   </div>
-                                </div>
-                                <div className="text-right">
-                                  <div className="text-sm font-medium text-gray-700">
-                                    {slot.appointment.duration}m
-                                  </div>
-                                  <div className="text-xs text-gray-500">
-                                    ${slot.appointment.price || "0"}
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
+                                );
+                              }
+                            })()
                           ) : null}
                           
                           {/* Current time indicator */}
