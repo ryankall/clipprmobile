@@ -1,0 +1,68 @@
+🧠 Description to Send to AI Agent or Developer
+Component: Timeline-style calendar day view (hourly column layout)
+
+Behavior Specs:
+
+Time grid spans from configurable start to end time (e.g., 8 AM–10 PM)
+
+Appointments are visual blocks ("cards") positioned within the hourly columns based on start & end time
+
+Support sub-hour granularity, e.g., 3:30–4:30 should appear as half-block into 3 PM and ending in 4 PM
+
+If multiple appointments occur in the same hour or overlap vertically, auto-expand the hour row height to avoid visual clipping
+
+Overlapping appointments within the same hour should either:
+
+Stack vertically (for short appts, e.g., 10 min, 20 min), or
+
+Appear side-by-side if they start at the same time
+
+User can scroll vertically through the day
+
+
+✅ Appointment Rendering
+ts
+Copy
+Edit
+it("renders an appointment block at the correct time position", () => {
+  render(<DayCalendar appointments={[{ start: '15:30', end: '16:30' }]} />);
+  const appt = screen.getByText("Some Appt");
+  expect(appt.style.top).toBeCloseTo(/* 3:30 PM in px */);
+  expect(appt.style.height).toBeCloseTo(/* 60min block height */);
+});
+✅ Overlap Stacking
+ts
+Copy
+Edit
+it("stacks multiple overlapping short appointments vertically", () => {
+  const appts = [
+    { start: '11:00', end: '11:15' },
+    { start: '11:05', end: '11:25' },
+    { start: '11:10', end: '11:20' },
+  ];
+  render(<DayCalendar appointments={appts} />);
+  const blocks = screen.getAllByTestId("appointment-card");
+  // Check they are not overlapping (vertical stacking)
+  expect(blocks[1].offsetTop).toBeGreaterThan(blocks[0].offsetTop);
+});
+✅ Auto-expansion of hour rows
+ts
+Copy
+Edit
+it("expands the hour row height when multiple appointments exist", () => {
+  const appts = [
+    { start: '12:00', end: '12:15' },
+    { start: '12:00', end: '12:20' },
+    { start: '12:00', end: '12:25' },
+    { start: '12:00', end: '12:30' },
+  ];
+  render(<DayCalendar appointments={appts} />);
+  const hourBlock = screen.getByTestId("hour-12");
+  expect(hourBlock.clientHeight).toBeGreaterThan(standardRowHeight);
+});
+📐 Key Implementation Math
+Metric	Logic
+startOffset	(minutesSinceStartOfDay / 60) * rowHeight
+blockHeight	((endTime - startTime) / 60) * rowHeight
+overlapCheck	Check if A.start < B.end && B.start < A.end
+row autoHeight	baseRowHeight + (stackCount * cardMinHeight)
