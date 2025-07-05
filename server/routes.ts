@@ -1668,6 +1668,77 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get suggested next available time considering travel buffers
+  app.get("/api/public/barber/:phone/next-available", async (req, res) => {
+    try {
+      const phoneParam = req.params.phone;
+      const phoneDigits = phoneParam.split('-')[0];
+      const formattedPhone = `(${phoneDigits.slice(0,3)}) ${phoneDigits.slice(3,6)}-${phoneDigits.slice(6)}`;
+      const date = req.query.date as string;
+      const requestedTime = req.query.time as string;
+      const clientAddress = req.query.address as string;
+      
+      if (!date || !requestedTime) {
+        return res.status(400).json({ message: "Date and time parameters are required" });
+      }
+
+      const user = await storage.getUserByPhone(formattedPhone);
+      if (!user) {
+        return res.status(404).json({ message: "Barber not found" });
+      }
+
+      // Get existing appointments for the day
+      const startDate = new Date(date + 'T00:00:00');
+      const endDate = new Date(date + 'T23:59:59');
+      const appointments = await storage.getAppointmentsByUserId(user.id, startDate, endDate);
+      
+      // Check if requested time conflicts with travel buffers
+      const requestedDateTime = new Date(date + 'T' + requestedTime + ':00');
+      
+      // Find the conflicting appointment
+      let conflictingAppointment = null;
+      let nextAvailableTime = null;
+      
+      for (const apt of appointments) {
+        if (apt.status !== 'confirmed' && apt.status !== 'pending') continue;
+        
+        const aptStart = new Date(apt.scheduledAt);
+        const aptEnd = new Date(aptStart.getTime() + apt.duration * 60000);
+        
+        // Calculate travel buffer after appointment
+        let postBufferMinutes = 15;
+        if (apt.travelTime && apt.travelTime > 0) {
+          postBufferMinutes = Math.max(15, apt.travelTime + 5);
+        }
+        
+        const bufferEnd = new Date(aptEnd.getTime() + postBufferMinutes * 60000);
+        
+        // Check if requested time conflicts
+        if (requestedDateTime >= aptStart && requestedDateTime < bufferEnd) {
+          conflictingAppointment = apt;
+          nextAvailableTime = bufferEnd;
+          break;
+        }
+      }
+      
+      res.json({
+        requestedTime: requestedTime,
+        isAvailable: !conflictingAppointment,
+        conflictingAppointment: conflictingAppointment ? {
+          clientName: conflictingAppointment.client?.name,
+          endTime: new Date(new Date(conflictingAppointment.scheduledAt).getTime() + conflictingAppointment.duration * 60000).toTimeString().slice(0, 5),
+          travelTime: conflictingAppointment.travelTime || 15
+        } : null,
+        nextAvailableTime: nextAvailableTime ? nextAvailableTime.toTimeString().slice(0, 5) : null,
+        suggestedMessage: conflictingAppointment ? 
+          `The ${requestedTime} slot conflicts with travel time after the previous appointment. Next available time is ${nextAvailableTime!.toTimeString().slice(0, 5)}.` : 
+          'Time slot is available'
+      });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
   // Get available time slots for a date
   app.get("/api/public/barber/:phone/availability", async (req, res) => {
     try {
@@ -1805,9 +1876,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const aptEnd = new Date(aptStart.getTime() + apt.duration * 60000); // Use appointment's duration field
           const slotEnd = new Date(slotDateTime.getTime() + 15 * 60000);
           
-          // Add travel time buffers (15 minutes before and after appointment)
-          const bufferStart = new Date(aptStart.getTime() - 15 * 60000); // 15 min before
-          const bufferEnd = new Date(aptEnd.getTime() + 15 * 60000); // 15 min after
+          // Add travel time buffers - use actual travel time if available, otherwise default 15 minutes
+          let preBufferMinutes = 15; // Default buffer before appointment
+          let postBufferMinutes = 15; // Default buffer after appointment
+          
+          // If appointment has travel time calculated, use that instead of default
+          if (apt.travelTime && apt.travelTime > 0) {
+            postBufferMinutes = Math.max(15, apt.travelTime + 5); // Travel time + 5 min grace period
+          }
+          
+          const bufferStart = new Date(aptStart.getTime() - preBufferMinutes * 60000);
+          const bufferEnd = new Date(aptEnd.getTime() + postBufferMinutes * 60000);
           
           // Check for overlap with travel time buffers: appointment block and time slot overlap if:
           // - appointment block starts before slot ends AND

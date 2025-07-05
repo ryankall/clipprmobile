@@ -457,13 +457,13 @@ export default function Calendar() {
                             <div
                               key={`${appointment.id}-floating`}
                               data-testid="appointment-card"
-                              className={`absolute rounded-lg cursor-pointer transition-all duration-200 hover:shadow-lg ${getAppointmentColor(appointment)} border-l-4 mx-1 z-10`}
+                              className={`absolute rounded-lg cursor-pointer transition-all duration-200 hover:shadow-lg ${getAppointmentColor(appointment)} border-l-4 mx-1`}
                               style={{ 
                                 top: `${appointment.topOffset}px`,
                                 height: `${appointment.height}px`,
                                 left: `84px`, // Start after time column (80px + 4px margin)
                                 right: `8px`,
-                                zIndex: appointment.zIndex
+                                zIndex: 5 // Lower z-index to stay below navigation bar
                               }}
                               onClick={() => {
                                 setSelectedAppointment(appointment);

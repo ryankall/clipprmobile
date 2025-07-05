@@ -313,6 +313,24 @@ export function AppointmentDetailsDialog({
               </div>
             )}
 
+            {appointment.address && appointment.travelTime && appointment.travelTime > 0 && (
+              <div className="flex items-start space-x-3">
+                <Navigation className="w-5 h-5 text-gold mt-0.5" />
+                <div className="flex-1">
+                  <p className="font-medium text-white">Travel Time</p>
+                  <p className="text-sm text-steel">
+                    {appointment.travelTime} minutes travel time
+                  </p>
+                  <p className="text-xs text-steel/70">
+                    Departure recommended: {format(
+                      new Date(new Date(appointment.scheduledAt).getTime() - (appointment.travelTime + 5) * 60000),
+                      "h:mm a"
+                    )}
+                  </p>
+                </div>
+              </div>
+            )}
+
             {appointment.client.phone && (
               <div className="flex items-center space-x-3">
                 <Phone className="w-5 h-5 text-gold" />
