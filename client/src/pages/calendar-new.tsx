@@ -30,7 +30,6 @@ import type { AppointmentWithRelations } from "@shared/schema";
 // Helper function to generate timeline structure for day view
 function generateTimelineStructure(appointments: AppointmentWithRelations[], workingHours?: any) {
   const HOUR_HEIGHT = 80; // Base height for each hour in pixels
-  const APPOINTMENT_MIN_HEIGHT = 40; // Minimum height for appointment cards
   
   // Determine time range - default to working hours, expand for appointments outside range
   let startHour = 8; // Start earlier for better coverage
@@ -66,92 +65,51 @@ function generateTimelineStructure(appointments: AppointmentWithRelations[], wor
     }
   });
 
-  // Generate hour blocks
-  const hourBlocks = [];
-  for (let hour = startHour; hour <= endHour; hour++) {
-    const hourStart = new Date();
-    hourStart.setHours(hour, 0, 0, 0);
-    const hourEnd = new Date();
-    hourEnd.setHours(hour + 1, 0, 0, 0);
-    
-    // Find appointments that intersect with this hour
-    const hourAppointments = appointments.filter(apt => {
-      const appointmentStart = new Date(apt.scheduledAt);
-      const appointmentEnd = new Date(appointmentStart.getTime() + (apt.duration || 60) * 60 * 1000);
-      
-      // Check if appointment overlaps with this hour
-      return appointmentStart < hourEnd && appointmentEnd > hourStart;
-    });
-
-    // Calculate positions for overlapping appointments
-    const positionedAppointments = positionAppointments(hourAppointments, hour);
-    
-    // Calculate dynamic height based on overlapping appointments
-    const maxStacks = Math.max(1, positionedAppointments.length);
-    const dynamicHeight = Math.max(HOUR_HEIGHT, maxStacks * APPOINTMENT_MIN_HEIGHT + 20);
-
-    // Check if this hour is within working hours
-    const isWithinHours = workingHours && isWithinWorkingHours(hour, workingHours);
-
-    hourBlocks.push({
-      hour,
-      timeLabel: format(hourStart, 'h a'),
-      appointments: positionedAppointments,
-      height: dynamicHeight,
-      isCurrentHour: new Date().getHours() === hour,
-      isWithinWorkingHours: isWithinHours,
-    });
-  }
-
-  return hourBlocks;
-}
-
-// Helper function to position overlapping appointments
-function positionAppointments(appointments: AppointmentWithRelations[], hour: number) {
-  if (appointments.length === 0) return [];
-
-  const positioned = appointments.map(apt => {
+  // Process appointments to calculate positions
+  const processedAppointments = appointments.map(apt => {
     const appointmentStart = new Date(apt.scheduledAt);
     const duration = apt.duration || 60;
     const appointmentEnd = new Date(appointmentStart.getTime() + duration * 60 * 1000);
     
-    // Calculate position within the hour (0-60 minutes)
-    const hourStart = new Date();
-    hourStart.setHours(hour, 0, 0, 0);
+    // Calculate position from the very start of the timeline
+    const timelineStart = new Date();
+    timelineStart.setHours(startHour, 0, 0, 0);
     
-    const minutesFromHourStart = Math.max(0, (appointmentStart.getTime() - hourStart.getTime()) / (1000 * 60));
-    const durationInMinutes = Math.min(60 - minutesFromHourStart, duration);
-    
-    // Calculate pixel positions
-    const topOffset = (minutesFromHourStart / 60) * 80; // 80px per hour
-    const height = Math.max(30, (durationInMinutes / 60) * 80); // Minimum 30px height
+    const minutesFromStart = (appointmentStart.getTime() - timelineStart.getTime()) / (1000 * 60);
+    const topOffset = (minutesFromStart / 60) * HOUR_HEIGHT;
+    const height = Math.max(30, (duration / 60) * HOUR_HEIGHT);
     
     return {
       ...apt,
       topOffset,
       height,
+      startHour: appointmentStart.getHours(),
+      endHour: appointmentEnd.getHours(),
       zIndex: 1,
       leftOffset: 0,
-      width: 100, // Full width initially
+      width: 100
     };
   });
 
-  // Handle overlaps by stacking vertically
-  positioned.sort((a, b) => a.topOffset - b.topOffset);
-  
-  for (let i = 1; i < positioned.length; i++) {
-    const current = positioned[i];
-    const previous = positioned[i - 1];
-    
-    // Check if current appointment overlaps with previous
-    if (current.topOffset < previous.topOffset + previous.height) {
-      // Stack vertically with small gap
-      current.topOffset = previous.topOffset + previous.height + 4;
-    }
+  // Generate hour blocks
+  const hourBlocks = [];
+  for (let hour = startHour; hour <= endHour; hour++) {
+    // Check if this hour is within working hours
+    const isWithinHours = workingHours && isWithinWorkingHours(hour, workingHours);
+
+    hourBlocks.push({
+      hour,
+      timeLabel: format(new Date().setHours(hour, 0, 0, 0), 'h a'),
+      height: HOUR_HEIGHT,
+      isCurrentHour: new Date().getHours() === hour,
+      isWithinWorkingHours: isWithinHours,
+    });
   }
 
-  return positioned;
+  return { hourBlocks, processedAppointments };
 }
+
+
 
 // Helper function to check if hour is within working hours
 function isWithinWorkingHours(hour: number, workingHours: any): boolean {
@@ -446,94 +404,102 @@ export default function Calendar() {
               <div className="bg-white text-black">
                 {/* Timeline Day View - Hourly Column Layout */}
                 <div className="relative">
-                  {generateTimelineStructure(selectedDateAppointments, (userProfile as any)?.workingHours || {}).map(
-                    (hourBlock) => (
-                      <div
-                        key={hourBlock.hour}
-                        data-testid={`hour-${hourBlock.hour}`}
-                        className="flex border-b border-gray-100 last:border-b-0 relative"
-                        style={{ minHeight: `${hourBlock.height}px` }}
-                      >
-                        {/* Time label */}
-                        <div className={`w-20 p-3 text-sm font-medium border-r border-gray-100 flex items-start ${
-                          hourBlock.isCurrentHour ? 'bg-blue-50 text-blue-600' : 'bg-gray-50 text-gray-500'
-                        }`}>
-                          {hourBlock.timeLabel}
-                        </div>
-                        
-                        {/* Content area with positioned appointments */}
-                        <div className="flex-1 relative" style={{ minHeight: `${hourBlock.height}px` }}>
-                          {!hourBlock.isWithinWorkingHours && hourBlock.appointments.length === 0 ? (
-                            <div className="absolute inset-0 bg-gray-100 opacity-30 flex items-center justify-center">
-                              <span className="text-gray-400 text-xs">Outside working hours</span>
+                  {(() => {
+                    const timelineData = generateTimelineStructure(selectedDateAppointments, (userProfile as any)?.workingHours || {});
+                    const { hourBlocks, processedAppointments } = timelineData;
+                    
+                    return (
+                      <>
+                        {/* Hour blocks */}
+                        {hourBlocks.map((hourBlock) => (
+                          <div
+                            key={hourBlock.hour}
+                            data-testid={`hour-${hourBlock.hour}`}
+                            className="flex border-b border-gray-100 last:border-b-0 relative"
+                            style={{ minHeight: `${hourBlock.height}px` }}
+                          >
+                            {/* Time label */}
+                            <div className={`w-20 p-3 text-sm font-medium border-r border-gray-100 flex items-start ${
+                              hourBlock.isCurrentHour ? 'bg-blue-50 text-blue-600' : 'bg-gray-50 text-gray-500'
+                            }`}>
+                              {hourBlock.timeLabel}
                             </div>
-                          ) : null}
-                          
-                          {/* Render positioned appointments */}
-                          {hourBlock.appointments.map((appointment: any, aptIndex: number) => {
-                            const aptStart = new Date(appointment.scheduledAt);
-                            const aptEnd = new Date(aptStart.getTime() + (appointment.duration || 60) * 60 * 1000);
                             
-                            return (
-                              <div
-                                key={`${appointment.id}-${aptIndex}`}
-                                data-testid="appointment-card"
-                                className={`absolute rounded-lg cursor-pointer transition-all duration-200 hover:shadow-lg ${getAppointmentColor(appointment)} border-l-4 mx-1`}
-                                style={{ 
-                                  top: `${appointment.topOffset}px`,
-                                  height: `${appointment.height}px`,
-                                  left: `${appointment.leftOffset}%`,
-                                  width: `calc(${appointment.width}% - 8px)`,
-                                  zIndex: appointment.zIndex
-                                }}
-                                onClick={() => {
-                                  setSelectedAppointment(appointment);
-                                  setShowAppointmentDialog(true);
-                                }}
-                              >
-                                <div className="p-2 h-full overflow-hidden">
-                                  <div className="font-semibold text-gray-800 text-sm truncate">
-                                    {appointment.service?.name || "Service"}
-                                  </div>
-                                  <div className="text-xs text-gray-600 truncate">
-                                    {appointment.client.name}
-                                  </div>
-                                  <div className="text-xs text-gray-500 mt-1">
-                                    {format(aptStart, 'h:mm a')} - {format(aptEnd, 'h:mm a')}
-                                  </div>
-                                  {appointment.status && (
-                                    <Badge
-                                      variant={appointment.status === 'confirmed' ? 'default' : 'secondary'}
-                                      className={`text-xs px-1 py-0 h-4 mt-1 ${
-                                        appointment.status === 'confirmed' ? 'bg-green-100 text-green-700' :
-                                        appointment.status === 'pending' ? 'bg-yellow-100 text-yellow-700' :
-                                        appointment.status === 'expired' ? 'bg-red-100 text-red-700' :
-                                        'bg-gray-100 text-gray-700'
-                                      }`}
-                                    >
-                                      {appointment.status}
-                                    </Badge>
-                                  )}
+                            {/* Content area */}
+                            <div className="flex-1 relative" style={{ minHeight: `${hourBlock.height}px` }}>
+                              {!hourBlock.isWithinWorkingHours ? (
+                                <div className="absolute inset-0 bg-gray-100 opacity-30 flex items-center justify-center">
+                                  <span className="text-gray-400 text-xs">Outside working hours</span>
                                 </div>
-                              </div>
-                            );
-                          })}
+                              ) : null}
+                              
+                              {/* Current time indicator */}
+                              {isSelectedDateToday && currentTime.shouldShow && currentTime.hour === hourBlock.hour && (
+                                <div 
+                                  className="absolute left-0 right-0 border-t-2 border-red-500 z-20 pointer-events-none"
+                                  style={{
+                                    top: `${(currentTime.minutes / 60) * hourBlock.height}px`,
+                                  }}
+                                >
+                                  <div className="absolute left-0 w-3 h-3 bg-red-500 rounded-full -mt-1.5 -ml-1.5"></div>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                        
+                        {/* Floating appointment cards positioned absolutely */}
+                        {processedAppointments.map((appointment: any, aptIndex: number) => {
+                          const aptStart = new Date(appointment.scheduledAt);
+                          const aptEnd = new Date(aptStart.getTime() + (appointment.duration || 60) * 60 * 1000);
                           
-                          {/* Current time indicator */}
-                          {isSelectedDateToday && currentTime.shouldShow && currentTime.hour === hourBlock.hour && (
-                            <div 
-                              className="absolute left-0 right-0 border-t-2 border-red-500 z-20 pointer-events-none"
-                              style={{
-                                top: `${(currentTime.minutes / 60) * hourBlock.height}px`,
+                          return (
+                            <div
+                              key={`${appointment.id}-floating`}
+                              data-testid="appointment-card"
+                              className={`absolute rounded-lg cursor-pointer transition-all duration-200 hover:shadow-lg ${getAppointmentColor(appointment)} border-l-4 mx-1 z-10`}
+                              style={{ 
+                                top: `${appointment.topOffset}px`,
+                                height: `${appointment.height}px`,
+                                left: `84px`, // Start after time column (80px + 4px margin)
+                                right: `8px`,
+                                zIndex: appointment.zIndex
+                              }}
+                              onClick={() => {
+                                setSelectedAppointment(appointment);
+                                setShowAppointmentDialog(true);
                               }}
                             >
-                              <div className="absolute left-0 w-3 h-3 bg-red-500 rounded-full -mt-1.5 -ml-1.5"></div>
+                              <div className="p-3 h-full overflow-hidden">
+                                <div className="font-semibold text-gray-800 text-sm truncate">
+                                  {appointment.service?.name || "Service"}
+                                </div>
+                                <div className="text-xs text-gray-600 truncate">
+                                  {appointment.client.name}
+                                </div>
+                                <div className="text-xs text-gray-500 mt-1">
+                                  {format(aptStart, 'h:mm a')} - {format(aptEnd, 'h:mm a')}
+                                </div>
+                                {appointment.status && (
+                                  <Badge
+                                    variant={appointment.status === 'confirmed' ? 'default' : 'secondary'}
+                                    className={`text-xs px-1 py-0 h-4 mt-1 ${
+                                      appointment.status === 'confirmed' ? 'bg-green-100 text-green-700' :
+                                      appointment.status === 'pending' ? 'bg-yellow-100 text-yellow-700' :
+                                      appointment.status === 'expired' ? 'bg-red-100 text-red-700' :
+                                      'bg-gray-100 text-gray-700'
+                                    }`}
+                                  >
+                                    {appointment.status}
+                                  </Badge>
+                                )}
+                              </div>
                             </div>
-                          )}
-                        </div>
-                      </div>
-                    )
-                  )}
+                          );
+                        })}
+                      </>
+                    );
+                  })()}
                 </div>
               </div>
             )}
