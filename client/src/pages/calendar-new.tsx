@@ -70,6 +70,9 @@ function generateTimeSlots(appointments: AppointmentWithRelations[], workingHour
   }
 
   // Generate time slots
+  console.log("🕒 GENERATING TIME SLOTS:");
+  console.log(`Time range: ${startHour}:00 to ${endHour}:00`);
+  
   for (let hour = startHour; hour <= endHour; hour++) {
     const timeStr =
       hour === 0 ? "12 AM" : hour === 12 ? "12 PM" : hour < 12 ? `${hour} AM` : `${hour - 12} PM`;
@@ -81,10 +84,17 @@ function generateTimeSlots(appointments: AppointmentWithRelations[], workingHour
       
       const aptStartHour = aptStart.getHours();
       const aptEndHour = aptEnd.getHours();
+      const aptEndMinutes = aptEnd.getMinutes();
       
       // Appointment spans into this hour if it starts at or before this hour
-      // and ends after this hour starts
-      return aptStartHour <= hour && hour < aptEndHour;
+      // and ends after this hour starts (or exactly at the end if there are minutes)
+      const overlaps = aptStartHour <= hour && (hour < aptEndHour || (hour === aptEndHour && aptEndMinutes > 0));
+      
+      if (overlaps) {
+        console.log(`📍 Hour ${hour} (${timeStr}) has appointment: ${apt.client.name} - ${format(aptStart, 'h:mm a')} to ${format(aptEnd, 'h:mm a')}`);
+      }
+      
+      return overlaps;
     });
 
     // Check if this hour is blocked by working hours
@@ -205,10 +215,22 @@ export default function Calendar() {
 
   console.log("Selected date:", format(selectedDate, "yyyy-MM-dd"));
   console.log("Total appointments loaded:", appointments?.length);
-  console.log(
-    "Appointments for selected date:",
-    selectedDateAppointments.length,
-  );
+  console.log("Appointments for selected date:", selectedDateAppointments.length);
+  
+  // Detailed logging for appointments
+  if (selectedDateAppointments.length > 0) {
+    console.log("📅 DETAILED APPOINTMENT ANALYSIS:");
+    selectedDateAppointments.forEach((apt, index) => {
+      const start = new Date(apt.scheduledAt);
+      const end = new Date(start.getTime() + (apt.duration || 0) * 60 * 1000);
+      console.log(`${index + 1}. ${apt.client.name} - ${apt.service?.name}`);
+      console.log(`   Status: ${apt.status}`);
+      console.log(`   Time: ${format(start, 'h:mm a')} - ${format(end, 'h:mm a')}`);
+      console.log(`   Duration: ${apt.duration} minutes`);
+      console.log(`   Start Hour: ${start.getHours()}, End Hour: ${end.getHours()}`);
+      console.log("---");
+    });
+  }
 
   const weekDays = Array.from({ length: 7 }, (_, i) => addDays(startDate, i));
 
@@ -410,19 +432,20 @@ export default function Calendar() {
                               // Calculate if this is the primary slot (where appointment starts)
                               const isPrimarySlot = aptStartHour === slot.hour;
                               
-                              // Calculate height based on duration
+                              // Calculate height based on duration - span across multiple slots if needed
                               const durationInHours = (slot.appointment.duration || 0) / 60;
-                              const baseHeight = 52; // base height for 1 hour slot
-                              const appointmentHeight = Math.max(baseHeight, baseHeight * durationInHours);
+                              const baseSlotHeight = 60; // min-h-[60px] for each slot
+                              const appointmentHeight = Math.max(baseSlotHeight - 4, (baseSlotHeight * durationInHours) - 4); // -4 for padding
                               
                               // Only show full appointment info in the primary slot
                               if (isPrimarySlot) {
                                 return (
                                   <div
-                                    className={`p-3 rounded-lg cursor-pointer transition-all duration-200 hover:shadow-md ${getAppointmentColor(slot.appointment)} border-l-4`}
+                                    className={`p-3 rounded-lg cursor-pointer transition-all duration-200 hover:shadow-md ${getAppointmentColor(slot.appointment)} border-l-4 absolute left-2 right-2`}
                                     style={{ 
                                       height: `${appointmentHeight}px`,
-                                      zIndex: 10
+                                      zIndex: 10,
+                                      top: '2px'
                                     }}
                                     onClick={() => {
                                       setSelectedAppointment(slot.appointment);
@@ -464,20 +487,8 @@ export default function Calendar() {
                                   </div>
                                 );
                               } else {
-                                // For continuation slots, show a lighter version
-                                return (
-                                  <div
-                                    className={`p-2 rounded-lg cursor-pointer transition-all duration-200 hover:shadow-md ${getAppointmentColor(slot.appointment)} border-l-4 opacity-60`}
-                                    onClick={() => {
-                                      setSelectedAppointment(slot.appointment);
-                                      setShowAppointmentDialog(true);
-                                    }}
-                                  >
-                                    <div className="text-sm text-gray-600">
-                                      ... continues
-                                    </div>
-                                  </div>
-                                );
+                                // For continuation slots, return null so the appointment from the primary slot can span
+                                return null;
                               }
                             })()
                           ) : null}
