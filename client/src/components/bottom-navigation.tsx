@@ -31,7 +31,7 @@ export function BottomNavigation({ currentPath }: BottomNavigationProps) {
   ];
 
   return (
-    <nav className="fixed bottom-0 left-1/2 transform -translate-x-1/2 w-full max-w-md bg-charcoal border-t border-steel/20 px-4 py-2 mobile-safe-area glass-effect">
+    <nav className="fixed bottom-0 left-1/2 transform -translate-x-1/2 w-full max-w-md bg-charcoal border-t border-steel/20 px-4 py-2 mobile-safe-area glass-effect z-50">
       <div className="flex justify-around items-center">
         {navItems.map(({ path, icon: Icon, label, badge }) => {
           const isActive = currentPath === path;
