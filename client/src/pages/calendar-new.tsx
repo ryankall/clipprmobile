@@ -3,74 +3,143 @@ import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Calendar as CalendarIcon, Plus, ChevronLeft, ChevronRight, Settings, MapPin } from "lucide-react";
+import {
+  Calendar as CalendarIcon,
+  Plus,
+  ChevronLeft,
+  ChevronRight,
+  Settings,
+  MapPin,
+} from "lucide-react";
 import { BottomNavigation } from "@/components/bottom-navigation";
 import { AppointmentCard } from "@/components/appointment-card";
 import { AppointmentDetailsDialog } from "@/components/appointment-details-dialog";
 import { WorkingHoursDialog } from "@/components/working-hours-dialog";
-import { format, addDays, subDays, startOfWeek, endOfWeek, isToday, isSameDay } from "date-fns";
+import {
+  format,
+  addDays,
+  subDays,
+  startOfWeek,
+  endOfWeek,
+  isToday,
+  isSameDay,
+} from "date-fns";
 import { Link } from "wouter";
 import type { AppointmentWithRelations } from "@shared/schema";
 
 // Helper function to generate time slots for calendar view
-function generateTimeSlots(appointments: AppointmentWithRelations[]) {
+function generateTimeSlots(appointments: AppointmentWithRelations[], workingHours?: any) {
   const slots = [];
-  const sortedAppointments = [...appointments].sort((a, b) => 
-    new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime()
+  const sortedAppointments = [...appointments].sort(
+    (a, b) =>
+      new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime(),
   );
+
+  // Determine time range - default 9am-8pm, expand for appointments outside range
+  let startHour = 9;
+  let endHour = 20;
   
-  // Generate time slots from 9 AM to 8 PM
-  for (let hour = 9; hour <= 20; hour++) {
-    const timeStr = hour === 12 ? '12 PM' : hour < 12 ? `${hour} AM` : `${hour - 12} PM`;
-    
+  // Check if any appointments are outside the default range
+  for (const apt of sortedAppointments) {
+    const aptHour = new Date(apt.scheduledAt).getHours();
+    if (aptHour < startHour) startHour = aptHour;
+    if (aptHour > endHour) endHour = aptHour;
+  }
+
+  // Generate time slots
+  for (let hour = startHour; hour <= endHour; hour++) {
+    const timeStr =
+      hour === 0 ? "12 AM" : hour === 12 ? "12 PM" : hour < 12 ? `${hour} AM` : `${hour - 12} PM`;
+
     // Check if there's an appointment at this time
-    const appointment = sortedAppointments.find(apt => {
+    const appointment = sortedAppointments.find((apt) => {
       const aptTime = new Date(apt.scheduledAt);
       return aptTime.getHours() === hour;
     });
-    
+
+    // Check if this hour is blocked by working hours
+    const isBlocked = workingHours && !isWithinWorkingHours(hour, workingHours);
+
     slots.push({
       time: timeStr,
       hour: hour,
-      appointment: appointment || null
+      appointment: appointment || null,
+      isBlocked: isBlocked,
     });
   }
-  
+
   return slots;
+}
+
+// Helper function to check if hour is within working hours
+function isWithinWorkingHours(hour: number, workingHours: any): boolean {
+  if (!workingHours) return true;
+  
+  const today = new Date().getDay(); // 0 = Sunday, 1 = Monday, etc.
+  const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+  const dayName = dayNames[today];
+  
+  const dayHours = workingHours[dayName];
+  if (!dayHours || !dayHours.enabled) return false;
+  
+  const startHour = parseInt(dayHours.start.split(':')[0]);
+  const endHour = parseInt(dayHours.end.split(':')[0]);
+  
+  return hour >= startHour && hour <= endHour;
+}
+
+// Helper function to get current time position
+function getCurrentTimePosition(): { hour: number; minutes: number; shouldShow: boolean } {
+  const now = new Date();
+  const hour = now.getHours();
+  const minutes = now.getMinutes();
+  
+  // Only show current time line if it's today
+  const today = new Date();
+  const shouldShow = now.toDateString() === today.toDateString();
+  
+  return { hour, minutes, shouldShow };
 }
 
 // Helper function to get appointment color based on service type
 function getAppointmentColor(appointment: AppointmentWithRelations) {
-  const serviceName = appointment.service?.name?.toLowerCase() || '';
-  
+  const serviceName = appointment.service?.name?.toLowerCase() || "";
+
   // Color scheme based on service type
-  if (serviceName.includes('haircut') || serviceName.includes('cut')) {
-    return 'bg-amber-100 border-l-amber-400'; // Warm amber for haircuts
-  } else if (serviceName.includes('beard') || serviceName.includes('trim')) {
-    return 'bg-emerald-100 border-l-emerald-400'; // Green for beard services
-  } else if (serviceName.includes('shave')) {
-    return 'bg-blue-100 border-l-blue-400'; // Blue for shave services
-  } else if (serviceName.includes('wash') || serviceName.includes('styling')) {
-    return 'bg-purple-100 border-l-purple-400'; // Purple for styling
-  } else if (serviceName.includes('color') || serviceName.includes('dye')) {
-    return 'bg-pink-100 border-l-pink-400'; // Pink for color services
+  if (serviceName.includes("haircut") || serviceName.includes("cut")) {
+    return "bg-amber-100 border-l-amber-400"; // Warm amber for haircuts
+  } else if (serviceName.includes("beard") || serviceName.includes("trim")) {
+    return "bg-emerald-100 border-l-emerald-400"; // Green for beard services
+  } else if (serviceName.includes("shave")) {
+    return "bg-blue-100 border-l-blue-400"; // Blue for shave services
+  } else if (serviceName.includes("wash") || serviceName.includes("styling")) {
+    return "bg-purple-100 border-l-purple-400"; // Purple for styling
+  } else if (serviceName.includes("color") || serviceName.includes("dye")) {
+    return "bg-pink-100 border-l-pink-400"; // Pink for color services
   } else {
-    return 'bg-gray-100 border-l-gray-400'; // Default gray
+    return "bg-gray-100 border-l-gray-400"; // Default gray
   }
 }
 
 export default function Calendar() {
-  console.log('Calendar-new component rendering...');
+  console.log("Calendar-new component rendering...");
   const [selectedDate, setSelectedDate] = useState(new Date());
-  const [selectedAppointment, setSelectedAppointment] = useState<AppointmentWithRelations | null>(null);
+  const [selectedAppointment, setSelectedAppointment] =
+    useState<AppointmentWithRelations | null>(null);
   const [showAppointmentDialog, setShowAppointmentDialog] = useState(false);
-  
+
   const startDate = startOfWeek(selectedDate);
   const endDate = endOfWeek(selectedDate);
 
   // Fetch appointments for the week
-  const { data: appointments, isLoading } = useQuery<AppointmentWithRelations[]>({
-    queryKey: ["/api/appointments", startDate.toISOString(), endDate.toISOString()],
+  const { data: appointments, isLoading } = useQuery<
+    AppointmentWithRelations[]
+  >({
+    queryKey: [
+      "/api/appointments",
+      startDate.toISOString(),
+      endDate.toISOString(),
+    ],
   });
 
   // Fetch user profile to pass working hours to dialog
@@ -78,18 +147,31 @@ export default function Calendar() {
     queryKey: ["/api/user/profile"],
   });
 
-  const selectedDateAppointments = appointments?.filter(apt => 
-    isSameDay(new Date(apt.scheduledAt), selectedDate) && apt.status === 'confirmed'
-  ) || [];
+  const selectedDateAppointments =
+    appointments?.filter(
+      (apt) =>
+        isSameDay(new Date(apt.scheduledAt), selectedDate) &&
+        apt.status === "confirmed",
+    ) || [];
 
-  console.log('Selected date:', format(selectedDate, 'yyyy-MM-dd'));
-  console.log('Total appointments loaded:', appointments?.length);
-  console.log('Appointments for selected date:', selectedDateAppointments.length);
+  // Get current time position for today indicator
+  const currentTime = getCurrentTimePosition();
+  const isSelectedDateToday = isToday(selectedDate);
+
+  console.log("Selected date:", format(selectedDate, "yyyy-MM-dd"));
+  console.log("Total appointments loaded:", appointments?.length);
+  console.log(
+    "Appointments for selected date:",
+    selectedDateAppointments.length,
+  );
 
   const weekDays = Array.from({ length: 7 }, (_, i) => addDays(startDate, i));
-  
+
   const getAppointmentCount = (date: Date) => {
-    return appointments?.filter(apt => isSameDay(new Date(apt.scheduledAt), date)).length || 0;
+    return (
+      appointments?.filter((apt) => isSameDay(new Date(apt.scheduledAt), date))
+        .length || 0
+    );
   };
 
   if (isLoading) {
@@ -109,12 +191,17 @@ export default function Calendar() {
         <div className="flex items-center justify-between max-w-md mx-auto">
           <div>
             <h1 className="text-xl font-bold text-white">Calendar</h1>
-            <p className="text-steel text-sm">{format(selectedDate, 'MMMM yyyy')}</p>
+            <p className="text-steel text-sm">
+              {format(selectedDate, "MMMM yyyy")}
+            </p>
           </div>
           <div className="flex space-x-2">
             <WorkingHoursDialog currentHours={userProfile?.workingHours} />
             <Link href="/settings">
-              <Button variant="outline" className="bg-charcoal border-steel/40 text-white hover:border-gold/50">
+              <Button
+                variant="outline"
+                className="bg-charcoal border-steel/40 text-white hover:border-gold/50"
+              >
                 <Settings className="w-4 h-4" />
               </Button>
             </Link>
@@ -134,7 +221,7 @@ export default function Calendar() {
             <ChevronLeft className="w-4 h-4" />
           </Button>
           <h2 className="text-white font-medium">
-            {format(startDate, 'MMM d')} - {format(endDate, 'MMM d')}
+            {format(startDate, "MMM d")} - {format(endDate, "MMM d")}
           </h2>
           <Button
             variant="ghost"
@@ -154,29 +241,35 @@ export default function Calendar() {
                 const appointmentCount = getAppointmentCount(day);
                 const isSelected = isSameDay(day, selectedDate);
                 const isCurrentDay = isToday(day);
-                
+
                 return (
                   <button
                     key={day.toISOString()}
                     onClick={() => setSelectedDate(day)}
                     className={`p-2 rounded-lg text-center transition-colors relative ${
                       isSelected
-                        ? 'bg-gold text-charcoal'
+                        ? "bg-gold text-charcoal"
                         : isCurrentDay
-                        ? 'bg-charcoal border border-gold text-white'
-                        : 'text-steel hover:text-white hover:bg-charcoal'
+                          ? "bg-charcoal border border-gold text-white"
+                          : "text-steel hover:text-white hover:bg-charcoal"
                     }`}
                   >
                     <div className="text-xs font-medium">
-                      {format(day, 'EEE')}
+                      {format(day, "EEE")}
                     </div>
-                    <div className={`text-lg font-bold ${isSelected ? 'text-charcoal' : ''}`}>
-                      {format(day, 'd')}
+                    <div
+                      className={`text-lg font-bold ${isSelected ? "text-charcoal" : ""}`}
+                    >
+                      {format(day, "d")}
                     </div>
                     {appointmentCount > 0 && (
-                      <div className={`absolute -top-1 -right-1 w-5 h-5 rounded-full text-xs flex items-center justify-center ${
-                        isSelected ? 'bg-charcoal text-gold' : 'bg-gold text-charcoal'
-                      }`}>
+                      <div
+                        className={`absolute -top-1 -right-1 w-5 h-5 rounded-full text-xs flex items-center justify-center ${
+                          isSelected
+                            ? "bg-charcoal text-gold"
+                            : "bg-gold text-charcoal"
+                        }`}
+                      >
                         {appointmentCount}
                       </div>
                     )}
@@ -184,80 +277,6 @@ export default function Calendar() {
                 );
               })}
             </div>
-          </CardContent>
-        </Card>
-
-        {/* Selected Date Appointments */}
-        <Card className="bg-dark-card border-steel/20">
-          <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-white flex items-center">
-                <CalendarIcon className="w-5 h-5 mr-2 text-gold" />
-                {isToday(selectedDate) ? 'Today' : format(selectedDate, 'EEEE, MMMM d')}
-              </CardTitle>
-              <Link 
-                href={`/appointments/new?date=${format(selectedDate, 'yyyy-MM-dd')}`}
-              >
-                <Button size="sm" className="gradient-gold text-charcoal">
-                  <Plus className="w-4 h-4 mr-1" />
-                  Book
-                </Button>
-              </Link>
-            </div>
-          </CardHeader>
-          <CardContent className="p-0">
-            {selectedDateAppointments.length === 0 ? (
-              <div className="text-center py-8">
-                <CalendarIcon className="w-12 h-12 text-steel/50 mx-auto mb-3" />
-                <p className="text-steel">No confirmed appointments scheduled</p>
-                <p className="text-steel/70 text-sm">Tap the Book button to add one</p>
-              </div>
-            ) : (
-              <div className="bg-white text-black">
-                {/* Calendar Day View - Time-based Layout */}
-                <div className="space-y-0">
-                  {generateTimeSlots(selectedDateAppointments).map((slot, index) => (
-                    <div key={index} className="flex min-h-[60px] border-b border-gray-100 last:border-b-0">
-                      {/* Time label */}
-                      <div className="w-20 p-3 text-sm text-gray-500 font-medium bg-gray-50 border-r border-gray-100 flex items-start">
-                        {slot.time}
-                      </div>
-                      {/* Content area */}
-                      <div className="flex-1 p-2">
-                        {slot.appointment ? (
-                          <div 
-                            className={`p-3 rounded-lg cursor-pointer transition-all duration-200 hover:shadow-md ${getAppointmentColor(slot.appointment)} border-l-4`}
-                            onClick={() => {
-                              setSelectedAppointment(slot.appointment);
-                              setShowAppointmentDialog(true);
-                            }}
-                          >
-                            <div className="flex items-center justify-between">
-                              <div>
-                                <div className="font-semibold text-gray-800 mb-1">
-                                  {slot.appointment.service?.name || 'Service'}
-                                </div>
-                                <div className="text-sm text-gray-600">
-                                  {slot.appointment.client.name}
-                                </div>
-                              </div>
-                              <div className="text-right">
-                                <div className="text-sm font-medium text-gray-700">
-                                  {slot.appointment.duration}m
-                                </div>
-                                <div className="text-xs text-gray-500">
-                                  ${slot.appointment.price || '0'}
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        ) : null}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
           </CardContent>
         </Card>
 
@@ -277,11 +296,113 @@ export default function Calendar() {
                 {selectedDateAppointments.length}
               </div>
               <div className="text-steel text-sm">
-                {isToday(selectedDate) ? 'Today' : 'Selected Day'}
+                {isToday(selectedDate) ? "Today" : "Selected Day"}
               </div>
             </CardContent>
           </Card>
         </div>
+
+        {/* Selected Date Appointments */}
+        <Card className="bg-dark-card border-steel/20">
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-white flex items-center">
+                <CalendarIcon className="w-5 h-5 mr-2 text-gold" />
+                {isToday(selectedDate)
+                  ? "Today"
+                  : format(selectedDate, "EEEE, MMMM d")}
+              </CardTitle>
+              <Link
+                href={`/appointments/new?date=${format(selectedDate, "yyyy-MM-dd")}`}
+              >
+                <Button size="sm" className="gradient-gold text-charcoal">
+                  <Plus className="w-4 h-4 mr-1" />
+                  Book
+                </Button>
+              </Link>
+            </div>
+          </CardHeader>
+          <CardContent className="p-0">
+            {selectedDateAppointments.length === 0 ? (
+              <div className="text-center py-8">
+                <CalendarIcon className="w-12 h-12 text-steel/50 mx-auto mb-3" />
+                <p className="text-steel">
+                  No confirmed appointments scheduled
+                </p>
+                <p className="text-steel/70 text-sm">
+                  Tap the Book button to add one
+                </p>
+              </div>
+            ) : (
+              <div className="bg-white text-black">
+                {/* Calendar Day View - Time-based Layout */}
+                <div className="space-y-0">
+                  {generateTimeSlots(selectedDateAppointments, userProfile?.workingHours).map(
+                    (slot, index) => (
+                      <div
+                        key={index}
+                        className="flex min-h-[60px] border-b border-gray-100 last:border-b-0"
+                      >
+                        {/* Time label */}
+                        <div className="w-20 p-3 text-sm text-gray-500 font-medium bg-gray-50 border-r border-gray-100 flex items-start">
+                          {slot.time}
+                        </div>
+                        {/* Content area */}
+                        <div className="flex-1 p-2 relative">
+                          {slot.isBlocked ? (
+                            <div className="h-full bg-gray-200 rounded-lg flex items-center justify-center">
+                              <span className="text-gray-500 text-sm">Blocked</span>
+                            </div>
+                          ) : slot.appointment ? (
+                            <div
+                              className={`p-3 rounded-lg cursor-pointer transition-all duration-200 hover:shadow-md ${getAppointmentColor(slot.appointment)} border-l-4`}
+                              onClick={() => {
+                                setSelectedAppointment(slot.appointment);
+                                setShowAppointmentDialog(true);
+                              }}
+                            >
+                              <div className="flex items-center justify-between">
+                                <div>
+                                  <div className="font-semibold text-gray-800 mb-1">
+                                    {slot.appointment.service?.name ||
+                                      "Service"}
+                                  </div>
+                                  <div className="text-sm text-gray-600">
+                                    {slot.appointment.client.name}
+                                  </div>
+                                </div>
+                                <div className="text-right">
+                                  <div className="text-sm font-medium text-gray-700">
+                                    {slot.appointment.duration}m
+                                  </div>
+                                  <div className="text-xs text-gray-500">
+                                    ${slot.appointment.price || "0"}
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          ) : null}
+                          
+                          {/* Current time indicator */}
+                          {isSelectedDateToday && currentTime.shouldShow && currentTime.hour === slot.hour && (
+                            <div 
+                              className="absolute left-0 right-0 border-t-2 border-black z-10 pointer-events-none"
+                              style={{
+                                top: `${(currentTime.minutes / 60) * 100}%`,
+                              }}
+                            >
+                              <div className="absolute left-0 w-2 h-2 bg-black rounded-full -mt-1"></div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ),
+                  )}
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </main>
 
       {/* Appointment Details Dialog */}
@@ -289,7 +410,7 @@ export default function Calendar() {
         appointment={selectedAppointment}
         open={showAppointmentDialog}
         onClose={() => {
-          console.log('Appointment dialog closed');
+          console.log("Appointment dialog closed");
           setShowAppointmentDialog(false);
           setSelectedAppointment(null);
         }}
