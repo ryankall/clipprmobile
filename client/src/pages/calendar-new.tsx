@@ -401,7 +401,7 @@ export default function Calendar() {
                 </p>
               </div>
             ) : (
-              <div className="bg-white text-black">
+              <div className="bg-white text-black pb-20"> {/* Added bottom padding to prevent overlap with navigation */}
                 {/* Timeline Day View - Hourly Column Layout */}
                 <div className="relative">
                   {(() => {
@@ -463,7 +463,7 @@ export default function Calendar() {
                                 height: `${appointment.height}px`,
                                 left: `84px`, // Start after time column (80px + 4px margin)
                                 right: `8px`,
-                                zIndex: 5 // Lower z-index to stay below navigation bar
+                                zIndex: 1 // Very low z-index to stay below navigation bar
                               }}
                               onClick={() => {
                                 setSelectedAppointment(appointment);
