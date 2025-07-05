@@ -30,6 +30,7 @@ function generateTimeSlots(appointments: AppointmentWithRelations[]) {
     
     slots.push({
       time: timeStr,
+      hour: hour,
       appointment: appointment || null
     });
   }
@@ -131,13 +132,16 @@ export default function Calendar() {
   const selectedDateAppointments = appointments?.filter(apt => {
     const aptDate = format(new Date(apt.scheduledAt), 'yyyy-MM-dd');
     const selDate = format(selectedDate, 'yyyy-MM-dd');
-    console.log('Appointment:', apt.client.name, 'Date:', aptDate, 'Selected:', selDate, 'Match:', aptDate === selDate);
-    return aptDate === selDate;
+    const isDateMatch = aptDate === selDate;
+    const isConfirmed = apt.status === 'confirmed';
+    console.log('Appointment:', apt.client.name, 'Date:', aptDate, 'Selected:', selDate, 'Status:', apt.status, 'Show:', isDateMatch && isConfirmed);
+    return isDateMatch && isConfirmed;
   }) || [];
   
   console.log('Total appointments:', appointments?.length);
   console.log('Selected date:', format(selectedDate, 'yyyy-MM-dd'));
   console.log('Filtered appointments for selected date:', selectedDateAppointments.length);
+  console.log('Filtered appointments details:', selectedDateAppointments.map(apt => ({ name: apt.client.name, status: apt.status, id: apt.id })));
 
   const weekDays = Array.from({ length: 7 }, (_, i) => addDays(startDate, i));
 
@@ -259,20 +263,20 @@ export default function Calendar() {
                 <div className="animate-spin w-6 h-6 border-2 border-gold border-t-transparent rounded-full" />
               </div>
             ) : selectedDateAppointments.length > 0 ? (
-              <div className="relative">
-                {/* Time-based schedule view */}
+              <div className="bg-white text-black">
+                {/* Calendar Day View */}
                 <div className="space-y-0">
                   {generateTimeSlots(selectedDateAppointments).map((slot, index) => (
-                    <div key={index} className="flex border-b border-steel/10 last:border-b-0">
+                    <div key={index} className="flex min-h-[60px] border-b border-gray-100 last:border-b-0">
                       {/* Time label */}
-                      <div className="w-16 p-4 text-sm text-steel font-medium bg-dark-card/50 border-r border-steel/10">
+                      <div className="w-20 p-3 text-sm text-gray-500 font-medium bg-gray-50 border-r border-gray-100 flex items-start">
                         {slot.time}
                       </div>
-                      {/* Appointment or empty slot */}
-                      <div className="flex-1 min-h-16">
+                      {/* Content area */}
+                      <div className="flex-1 p-2">
                         {slot.appointment ? (
                           <div 
-                            className={`m-2 p-3 rounded-lg cursor-pointer transition-all duration-200 hover:scale-[1.02] ${getAppointmentColor(slot.appointment)}`}
+                            className={`p-3 rounded-lg cursor-pointer transition-all duration-200 hover:shadow-md ${getAppointmentColor(slot.appointment)} border-l-4`}
                             onClick={() => {
                               setSelectedAppointment(slot.appointment);
                               setShowAppointmentDialog(true);
@@ -280,11 +284,11 @@ export default function Calendar() {
                           >
                             <div className="flex items-center justify-between">
                               <div>
-                                <div className="font-medium text-gray-800 mb-1">
-                                  {slot.appointment.client.name}
+                                <div className="font-semibold text-gray-800 mb-1">
+                                  {slot.appointment.service?.name || 'Service'}
                                 </div>
                                 <div className="text-sm text-gray-600">
-                                  {slot.appointment.service?.name || 'Service'}
+                                  {slot.appointment.client.name}
                                 </div>
                               </div>
                               <div className="text-right">
@@ -297,9 +301,7 @@ export default function Calendar() {
                               </div>
                             </div>
                           </div>
-                        ) : (
-                          <div className="h-16"></div>
-                        )}
+                        ) : null}
                       </div>
                     </div>
                   ))}
@@ -308,7 +310,7 @@ export default function Calendar() {
             ) : (
               <div className="text-center py-8 text-steel">
                 <CalendarIcon className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                <p>No appointments scheduled</p>
+                <p>No confirmed appointments scheduled</p>
                 <Link href="/appointments/new">
                   <Button variant="link" className="text-gold text-sm mt-2 p-0 h-auto">
                     Schedule an appointment
