@@ -498,8 +498,10 @@ export class DatabaseStorage implements IStorage {
     let expiredCount = 0;
 
     for (const appointment of expiredAppointments) {
-      await this.expireAppointment(appointment.id);
+      // Delete expired appointments completely instead of just marking them as expired
+      await this.deleteAppointment(appointment.id);
       expiredCount++;
+      console.log(`Deleted expired appointment ${appointment.id} for ${appointment.client.name}`);
     }
 
     return expiredCount;

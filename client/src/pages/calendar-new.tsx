@@ -206,7 +206,8 @@ export default function Calendar() {
   const selectedDateAppointments =
     appointments?.filter(
       (apt) =>
-        isSameDay(new Date(apt.scheduledAt), selectedDate)
+        isSameDay(new Date(apt.scheduledAt), selectedDate) &&
+        apt.status !== 'expired' // Exclude expired appointments from calendar display
     ) || [];
 
   // Get current time position for today indicator
@@ -236,8 +237,10 @@ export default function Calendar() {
 
   const getAppointmentCount = (date: Date) => {
     return (
-      appointments?.filter((apt) => isSameDay(new Date(apt.scheduledAt), date))
-        .length || 0
+      appointments?.filter((apt) => 
+        isSameDay(new Date(apt.scheduledAt), date) && 
+        apt.status !== 'expired' // Exclude expired appointments from count
+      ).length || 0
     );
   };
 
