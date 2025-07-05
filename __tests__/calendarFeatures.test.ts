@@ -29,16 +29,34 @@ interface MockWorkingHours {
 
 // Helper function to generate time slots for calendar view
 function generateTimeSlots(appointments: MockAppointment[], workingHours?: MockWorkingHours) {
-  const slots = [];
+  const slots: Array<{
+    time: string;
+    hour: number;
+    appointment: MockAppointment | null;
+    isBlocked: boolean;
+  }> = [];
   const sortedAppointments = [...appointments].sort((a, b) => 
     new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime()
   );
   
-  // Determine time range - default 9am-8pm, expand for appointments outside range
-  let startHour = 9;
-  let endHour = 20;
+  // Determine time range - default to working hours, expand for appointments outside range
+  let startHour = 9; // fallback if no working hours
+  let endHour = 20;   // fallback if no working hours
   
-  // Check if any appointments are outside the default range
+  // Get working hours for current day
+  if (workingHours) {
+    const today = new Date().getDay();
+    const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+    const dayName = dayNames[today];
+    const dayHours = workingHours[dayName];
+    
+    if (dayHours && dayHours.enabled) {
+      startHour = parseInt(dayHours.start.split(':')[0]);
+      endHour = parseInt(dayHours.end.split(':')[0]);
+    }
+  }
+  
+  // Check if any appointments are outside the working hours range
   for (const apt of sortedAppointments) {
     const aptHour = new Date(apt.scheduledAt).getHours();
     if (aptHour < startHour) startHour = aptHour;
@@ -56,7 +74,7 @@ function generateTimeSlots(appointments: MockAppointment[], workingHours?: MockW
     });
     
     // Check if this hour is blocked by working hours
-    const isBlocked = workingHours && !isWithinWorkingHours(hour, workingHours);
+    const isBlocked = workingHours ? !isWithinWorkingHours(hour, workingHours) : false;
     
     slots.push({
       time: timeStr,
