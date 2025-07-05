@@ -11,6 +11,52 @@ import { format, addDays, subDays, startOfWeek, endOfWeek } from "date-fns";
 import { Link, useLocation } from "wouter";
 import type { AppointmentWithRelations } from "@shared/schema";
 
+// Helper function to generate time slots for calendar view
+function generateTimeSlots(appointments: AppointmentWithRelations[]) {
+  const slots = [];
+  const sortedAppointments = [...appointments].sort((a, b) => 
+    new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime()
+  );
+  
+  // Generate time slots from 9 AM to 8 PM
+  for (let hour = 9; hour <= 20; hour++) {
+    const timeStr = hour === 12 ? '12 PM' : hour < 12 ? `${hour} AM` : `${hour - 12} PM`;
+    
+    // Check if there's an appointment at this time
+    const appointment = sortedAppointments.find(apt => {
+      const aptTime = new Date(apt.scheduledAt);
+      return aptTime.getHours() === hour;
+    });
+    
+    slots.push({
+      time: timeStr,
+      appointment: appointment || null
+    });
+  }
+  
+  return slots;
+}
+
+// Helper function to get appointment color based on service type
+function getAppointmentColor(appointment: AppointmentWithRelations) {
+  const serviceName = appointment.service?.name?.toLowerCase() || '';
+  
+  // Color scheme based on service type
+  if (serviceName.includes('haircut') || serviceName.includes('cut')) {
+    return 'bg-amber-100 border-amber-200'; // Warm amber for haircuts
+  } else if (serviceName.includes('beard') || serviceName.includes('trim')) {
+    return 'bg-emerald-100 border-emerald-200'; // Green for beard services
+  } else if (serviceName.includes('shave')) {
+    return 'bg-blue-100 border-blue-200'; // Blue for shave services
+  } else if (serviceName.includes('wash') || serviceName.includes('styling')) {
+    return 'bg-purple-100 border-purple-200'; // Purple for styling
+  } else if (serviceName.includes('color') || serviceName.includes('dye')) {
+    return 'bg-pink-100 border-pink-200'; // Pink for color services
+  } else {
+    return 'bg-gray-100 border-gray-200'; // Default gray
+  }
+}
+
 export default function Calendar() {
   console.log('Calendar component rendering...');
   
@@ -195,7 +241,7 @@ export default function Calendar() {
           </CardContent>
         </Card>
 
-        {/* Selected Date Appointments */}
+        {/* Today's Schedule - Time-based Layout */}
         <Card className="bg-dark-card border-steel/20">
           <CardHeader>
             <CardTitle className="text-white">
@@ -207,29 +253,58 @@ export default function Calendar() {
               )}
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-3">
+          <CardContent className="p-0">
             {isLoading ? (
               <div className="flex justify-center py-8">
                 <div className="animate-spin w-6 h-6 border-2 border-gold border-t-transparent rounded-full" />
               </div>
             ) : selectedDateAppointments.length > 0 ? (
-              selectedDateAppointments
-                .sort((a, b) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime())
-                .map((appointment) => {
-                  console.log('Rendering appointment:', appointment.client.name, 'ID:', appointment.id);
-                  return (
-                    <AppointmentCard 
-                      key={appointment.id} 
-                      appointment={appointment}
-                      showClickable={true}
-                      onClick={() => {
-                        console.log('Appointment clicked:', appointment.client.name);
-                        setSelectedAppointment(appointment);
-                        setShowAppointmentDialog(true);
-                      }}
-                    />
-                  );
-                })
+              <div className="relative">
+                {/* Time-based schedule view */}
+                <div className="space-y-0">
+                  {generateTimeSlots(selectedDateAppointments).map((slot, index) => (
+                    <div key={index} className="flex border-b border-steel/10 last:border-b-0">
+                      {/* Time label */}
+                      <div className="w-16 p-4 text-sm text-steel font-medium bg-dark-card/50 border-r border-steel/10">
+                        {slot.time}
+                      </div>
+                      {/* Appointment or empty slot */}
+                      <div className="flex-1 min-h-16">
+                        {slot.appointment ? (
+                          <div 
+                            className={`m-2 p-3 rounded-lg cursor-pointer transition-all duration-200 hover:scale-[1.02] ${getAppointmentColor(slot.appointment)}`}
+                            onClick={() => {
+                              setSelectedAppointment(slot.appointment);
+                              setShowAppointmentDialog(true);
+                            }}
+                          >
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <div className="font-medium text-gray-800 mb-1">
+                                  {slot.appointment.client.name}
+                                </div>
+                                <div className="text-sm text-gray-600">
+                                  {slot.appointment.service?.name || 'Service'}
+                                </div>
+                              </div>
+                              <div className="text-right">
+                                <div className="text-sm font-medium text-gray-700">
+                                  {slot.appointment.duration}m
+                                </div>
+                                <div className="text-xs text-gray-500">
+                                  ${slot.appointment.price || '0'}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="h-16"></div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
             ) : (
               <div className="text-center py-8 text-steel">
                 <CalendarIcon className="w-12 h-12 mx-auto mb-3 opacity-50" />
