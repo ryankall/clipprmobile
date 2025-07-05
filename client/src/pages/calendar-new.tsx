@@ -131,23 +131,39 @@ function getCurrentTimePosition(): { hour: number; minutes: number; shouldShow: 
   return { hour, minutes, shouldShow };
 }
 
-// Helper function to get appointment color based on service type
+// Helper function to get appointment color based on service type and status
 function getAppointmentColor(appointment: AppointmentWithRelations) {
   const serviceName = appointment.service?.name?.toLowerCase() || "";
+  const status = appointment.status;
 
-  // Color scheme based on service type
+  // Base color based on service type
+  let baseColor = "";
   if (serviceName.includes("haircut") || serviceName.includes("cut")) {
-    return "bg-amber-100 border-l-amber-400"; // Warm amber for haircuts
+    baseColor = "amber"; // Warm amber for haircuts
   } else if (serviceName.includes("beard") || serviceName.includes("trim")) {
-    return "bg-emerald-100 border-l-emerald-400"; // Green for beard services
+    baseColor = "emerald"; // Green for beard services
   } else if (serviceName.includes("shave")) {
-    return "bg-blue-100 border-l-blue-400"; // Blue for shave services
+    baseColor = "blue"; // Blue for shave services
   } else if (serviceName.includes("wash") || serviceName.includes("styling")) {
-    return "bg-purple-100 border-l-purple-400"; // Purple for styling
+    baseColor = "purple"; // Purple for styling
   } else if (serviceName.includes("color") || serviceName.includes("dye")) {
-    return "bg-pink-100 border-l-pink-400"; // Pink for color services
+    baseColor = "pink"; // Pink for color services
   } else {
-    return "bg-gray-100 border-l-gray-400"; // Default gray
+    baseColor = "gray"; // Default gray
+  }
+
+  // Adjust opacity and styling based on status
+  switch (status) {
+    case "confirmed":
+      return `bg-${baseColor}-100 border-l-${baseColor}-400`;
+    case "pending":
+      return `bg-${baseColor}-50 border-l-${baseColor}-300 opacity-75`;
+    case "expired":
+      return `bg-${baseColor}-50 border-l-${baseColor}-300 opacity-60`;
+    case "cancelled":
+      return `bg-gray-100 border-l-gray-300 opacity-50`;
+    default:
+      return `bg-${baseColor}-100 border-l-${baseColor}-400`;
   }
 }
 
@@ -180,8 +196,7 @@ export default function Calendar() {
   const selectedDateAppointments =
     appointments?.filter(
       (apt) =>
-        isSameDay(new Date(apt.scheduledAt), selectedDate) &&
-        apt.status === "confirmed",
+        isSameDay(new Date(apt.scheduledAt), selectedDate)
     ) || [];
 
   // Get current time position for today indicator
@@ -422,8 +437,19 @@ export default function Calendar() {
                                         <div className="text-sm text-gray-600">
                                           {slot.appointment.client.name}
                                         </div>
-                                        <div className="text-xs text-gray-500 mt-1">
+                                        <div className="text-xs text-gray-500 mt-1 flex items-center gap-2">
                                           {format(aptStart, 'h:mm a')} - {format(aptEnd, 'h:mm a')}
+                                          <Badge
+                                            variant={slot.appointment.status === 'confirmed' ? 'default' : 'secondary'}
+                                            className={`text-xs px-1 py-0 h-4 ${
+                                              slot.appointment.status === 'confirmed' ? 'bg-green-100 text-green-700' :
+                                              slot.appointment.status === 'pending' ? 'bg-yellow-100 text-yellow-700' :
+                                              slot.appointment.status === 'expired' ? 'bg-red-100 text-red-700' :
+                                              'bg-gray-100 text-gray-700'
+                                            }`}
+                                          >
+                                            {slot.appointment.status}
+                                          </Badge>
                                         </div>
                                       </div>
                                       <div className="text-right">
