@@ -17,12 +17,12 @@ interface AppointmentTravelBuffer {
 }
 
 export class TravelTimeService {
-  private apiKey: string;
+  private apiKey: string | undefined;
 
   constructor() {
-    this.apiKey = process.env.GOOGLE_MAPS_API_KEY!;
+    this.apiKey = process.env.GOOGLE_MAPS_API_KEY;
     if (!this.apiKey) {
-      throw new Error('GOOGLE_MAPS_API_KEY is required for travel time calculations');
+      console.warn('GOOGLE_MAPS_API_KEY not found - travel time calculations will be disabled');
     }
   }
 
@@ -30,6 +30,15 @@ export class TravelTimeService {
    * Calculate travel time between two addresses using Google Maps Distance Matrix API
    */
   async calculateTravelTime(origin: string, destination: string): Promise<TravelTimeResult> {
+    if (!this.apiKey) {
+      return {
+        duration: 15, // Default 15-minute travel time
+        distance: 0,
+        status: 'ERROR',
+        errorMessage: 'Google Maps API key not configured'
+      };
+    }
+
     try {
       const url = new URL('https://maps.googleapis.com/maps/api/distancematrix/json');
       url.searchParams.append('origins', origin);
@@ -37,14 +46,14 @@ export class TravelTimeService {
       url.searchParams.append('mode', 'driving');
       url.searchParams.append('traffic_model', 'best_guess');
       url.searchParams.append('departure_time', 'now');
-      url.searchParams.append('key', this.apiKey);
+      url.searchParams.append('key', this.apiKey!);
 
       const response = await fetch(url.toString());
       const data = await response.json();
 
       if (data.status !== 'OK') {
         return {
-          duration: 0,
+          duration: 15, // Default fallback
           distance: 0,
           status: 'ERROR',
           errorMessage: data.error_message || 'Failed to calculate travel time'
@@ -54,7 +63,7 @@ export class TravelTimeService {
       const element = data.rows[0]?.elements[0];
       if (!element || element.status !== 'OK') {
         return {
-          duration: 0,
+          duration: 15, // Default fallback
           distance: 0,
           status: 'ERROR',
           errorMessage: 'No route found between the addresses'
@@ -73,7 +82,7 @@ export class TravelTimeService {
     } catch (error) {
       console.error('Travel time calculation error:', error);
       return {
-        duration: 0,
+        duration: 15, // Default fallback
         distance: 0,
         status: 'ERROR',
         errorMessage: 'Failed to connect to mapping service'
