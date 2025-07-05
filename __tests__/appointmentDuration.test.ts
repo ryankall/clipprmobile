@@ -37,9 +37,10 @@ function generateSimpleTimeSlots(appointments: MockAppointment[]): Array<{
   // Determine range based on appointments
   if (sortedAppointments.length === 0) return [];
   
-  let startHour = sortedAppointments[0].scheduledAt.getUTCHours();
-  let endHour = startHour;
+  let startHour = Number.MAX_SAFE_INTEGER;
+  let endHour = Number.MIN_SAFE_INTEGER;
   
+  // Calculate proper start and end hours including appointment durations
   for (const apt of sortedAppointments) {
     const aptStart = new Date(apt.scheduledAt);
     const aptEnd = new Date(aptStart.getTime() + (apt.duration || 0) * 60 * 1000);
@@ -47,18 +48,66 @@ function generateSimpleTimeSlots(appointments: MockAppointment[]): Array<{
     const aptStartHour = aptStart.getUTCHours();
     const aptEndHour = aptEnd.getUTCHours();
     
-    if (aptStartHour < startHour) startHour = aptStartHour;
-    if (aptEndHour >= endHour) endHour = aptEndHour;
+    startHour = Math.min(startHour, aptStartHour);
+    
+    // For end hour, we need the hour that contains the end time
+    // If appointment ends exactly on the hour, don't include that hour
+    // If appointment ends after the hour starts, include that hour
+    if (aptEnd.getUTCMinutes() > 0) {
+      endHour = Math.max(endHour, aptEndHour);
+    } else {
+      // Ends exactly on the hour, so don't include that hour
+      endHour = Math.max(endHour, aptEndHour - 1);
+    }
   }
   
-  // Handle midnight crossover
-  if (endHour < startHour) {
-    // Appointment crosses midnight
-    endHour += 24;
+  // Handle midnight crossover for appointments that span past midnight
+  const needsMidnightHandling = sortedAppointments.some(apt => {
+    const aptStart = new Date(apt.scheduledAt);
+    const aptEnd = new Date(aptStart.getTime() + (apt.duration || 0) * 60 * 1000);
+    return aptEnd.getUTCDate() !== aptStart.getUTCDate();
+  });
+  
+  // If any appointment crosses midnight, we need to handle hour wraparound
+  if (needsMidnightHandling) {
+    // Find the latest end hour considering midnight crossover
+    let maxEndHour = endHour;
+    for (const apt of sortedAppointments) {
+      const aptStart = new Date(apt.scheduledAt);
+      const aptEnd = new Date(aptStart.getTime() + (apt.duration || 0) * 60 * 1000);
+      
+      if (aptEnd.getUTCDate() !== aptStart.getUTCDate()) {
+        // Appointment crosses midnight
+        const nextDayEndHour = aptEnd.getUTCHours();
+        if (aptEnd.getUTCMinutes() > 0) {
+          maxEndHour = Math.max(maxEndHour, nextDayEndHour);
+        } else {
+          maxEndHour = Math.max(maxEndHour, nextDayEndHour - 1);
+        }
+      }
+    }
+    endHour = maxEndHour;
   }
   
   // Generate time slots
-  for (let hour = startHour; hour <= endHour; hour++) {
+  let hoursToGenerate: number[] = [];
+  
+  if (needsMidnightHandling) {
+    // For midnight crossover, generate hours from start to 23, then 0 to end
+    for (let h = startHour; h <= 23; h++) {
+      hoursToGenerate.push(h);
+    }
+    for (let h = 0; h <= endHour; h++) {
+      hoursToGenerate.push(h);
+    }
+  } else {
+    // Normal case, generate from start to end
+    for (let h = startHour; h <= endHour; h++) {
+      hoursToGenerate.push(h);
+    }
+  }
+  
+  for (const hour of hoursToGenerate) {
     const actualHour = hour % 24; // Handle hour overflow past 24
     const timeStr = actualHour === 0 ? '12 AM' : actualHour === 12 ? '12 PM' : actualHour < 12 ? `${actualHour} AM` : `${actualHour - 12} PM`;
     
@@ -67,24 +116,22 @@ function generateSimpleTimeSlots(appointments: MockAppointment[]): Array<{
       const aptStart = new Date(apt.scheduledAt);
       const aptEnd = new Date(aptStart.getTime() + (apt.duration || 0) * 60 * 1000);
       
-      const aptStartHour = aptStart.getUTCHours();
-      const aptEndHour = aptEnd.getUTCHours();
+      // Create hour boundaries for current slot (same date as appointment start)
+      const slotStart = new Date(aptStart);
+      slotStart.setUTCHours(actualHour, 0, 0, 0);
       
-      // Handle midnight crossover
-      let adjustedEndHour = aptEndHour;
-      if (aptEndHour < aptStartHour) {
-        adjustedEndHour += 24;
+      const slotEnd = new Date(slotStart);
+      slotEnd.setUTCHours(actualHour + 1, 0, 0, 0);
+      
+      // Handle midnight crossover: if slot hour is earlier than appointment start hour,
+      // it means we're in the next day
+      if (actualHour < aptStart.getUTCHours() && needsMidnightHandling) {
+        slotStart.setUTCDate(slotStart.getUTCDate() + 1);
+        slotEnd.setUTCDate(slotEnd.getUTCDate() + 1);
       }
       
-      // Check if current hour (potentially adjusted) overlaps with appointment
-      let adjustedCurrentHour = actualHour;
-      if (actualHour < aptStartHour && hour > startHour) {
-        adjustedCurrentHour += 24;
-      }
-      
-      // Appointment spans into this hour if it starts at or before this hour
-      // and ends after this hour starts
-      return aptStartHour <= adjustedCurrentHour && adjustedCurrentHour < adjustedEndHour;
+      // Check if appointment overlaps with this time slot
+      return aptStart < slotEnd && aptEnd > slotStart;
     });
     
     slots.push({
@@ -172,7 +219,7 @@ describe('Appointment Duration Visualization Tests', () => {
         clientId: 1,
         scheduledAt: new Date('2025-07-05T22:30:00Z'), // 10:30pm UTC
         status: 'confirmed',
-        duration: 150, // 2.5 hours, ends at 1:00am next day
+        duration: 155, // 2 hours 35 minutes, ends at 1:05am next day
         service: { name: 'Very Late Service', price: '90.00' },
         client: { name: 'Very Late Client' },
         price: '90.00'

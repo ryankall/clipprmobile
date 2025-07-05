@@ -56,38 +56,90 @@ function generateTimeSlots(appointments: MockAppointment[], workingHours?: MockW
     }
   }
   
-  // Check if any appointments are outside the working hours range
-  // Also consider appointment end times for proper calendar expansion
+  // Collect all hours needed for appointments (including midnight crossover)
+  const hoursNeeded = new Set<number>();
+  
   for (const apt of sortedAppointments) {
     const aptStart = new Date(apt.scheduledAt);
     const aptEnd = new Date(aptStart.getTime() + (apt.duration || 0) * 60 * 1000);
     
-    const aptStartHour = aptStart.getHours();
-    const aptEndHour = aptEnd.getHours();
-    const aptEndMinutes = aptEnd.getMinutes();
+    const aptStartHour = aptStart.getUTCHours();
+    const aptEndHour = aptEnd.getUTCHours();
+    const aptEndMinutes = aptEnd.getUTCMinutes();
     
+    // Add start hour to expansion
     if (aptStartHour < startHour) startHour = aptStartHour;
-    // For end hours, include the hour that contains the end time
-    if (aptEndHour > endHour || (aptEndHour === endHour && aptEndMinutes > 0)) {
-      endHour = aptEndHour;
+    if (aptStartHour > endHour) endHour = aptStartHour;
+    
+    // Add all hours that this appointment spans
+    let currentHour = aptStartHour;
+    const endHourForSpan = aptEndMinutes > 0 ? aptEndHour : aptEndHour - 1;
+    
+    while (currentHour <= endHourForSpan) {
+      hoursNeeded.add(currentHour);
+      currentHour++;
+    }
+    
+    // Handle midnight crossover - if end hour is less than start hour, appointment crosses midnight
+    if (aptEndHour < aptStartHour) {
+      // Add hours from start to 23
+      for (let h = aptStartHour; h <= 23; h++) {
+        hoursNeeded.add(h);
+      }
+      // Add hours from 0 to end
+      for (let h = 0; h <= endHourForSpan; h++) {
+        hoursNeeded.add(h);
+      }
+      // Expand range to include midnight hours
+      if (endHour < 23) endHour = 23;
+      if (startHour > aptEndHour) startHour = 0;
+    } else {
+      // Normal case - extend end hour if needed
+      if (aptEndHour > endHour || (aptEndHour === endHour && aptEndMinutes > 0)) {
+        endHour = aptEndHour;
+      }
     }
   }
   
-  // Generate time slots
-  for (let hour = startHour; hour <= endHour; hour++) {
+  // Generate time slots from startHour to endHour (handling midnight crossover)
+  const hoursToGenerate: number[] = [];
+  if (startHour <= endHour) {
+    for (let h = startHour; h <= endHour; h++) {
+      hoursToGenerate.push(h);
+    }
+  } else {
+    // Midnight crossover: generate startHour to 23, then 0 to endHour
+    for (let h = startHour; h <= 23; h++) {
+      hoursToGenerate.push(h);
+    }
+    for (let h = 0; h <= endHour; h++) {
+      hoursToGenerate.push(h);
+    }
+  }
+  
+  for (const hour of hoursToGenerate) {
     const timeStr = hour === 0 ? '12 AM' : hour === 12 ? '12 PM' : hour < 12 ? `${hour} AM` : `${hour - 12} PM`;
     
-    // Check if there's an appointment that starts at this hour OR overlaps this hour
+    // Check if there's an appointment that overlaps this hour
     const appointment = sortedAppointments.find(apt => {
       const aptStart = new Date(apt.scheduledAt);
       const aptEnd = new Date(aptStart.getTime() + (apt.duration || 0) * 60 * 1000);
       
-      const aptStartHour = aptStart.getHours();
-      const aptEndHour = aptEnd.getHours();
+      // Create hour boundaries for current slot
+      const slotStart = new Date(aptStart);
+      slotStart.setUTCHours(hour, 0, 0, 0);
       
-      // Appointment spans into this hour if it starts at or before this hour
-      // and ends after this hour starts
-      return aptStartHour <= hour && hour < aptEndHour;
+      const slotEnd = new Date(slotStart);
+      slotEnd.setUTCHours(hour + 1, 0, 0, 0);
+      
+      // Handle midnight crossover in slot boundaries
+      if (hour === 0 && aptStart.getUTCHours() > 12) {
+        slotStart.setUTCDate(slotStart.getUTCDate() + 1);
+        slotEnd.setUTCDate(slotEnd.getUTCDate() + 1);
+      }
+      
+      // Check if appointment overlaps with this time slot
+      return aptStart < slotEnd && aptEnd > slotStart;
     });
     
     // Check if this hour is blocked by working hours
