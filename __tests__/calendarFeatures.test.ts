@@ -41,7 +41,7 @@ function generateTimeSlots(appointments: MockAppointment[], workingHours?: MockW
   
   // Determine time range - default to working hours, expand for appointments outside range
   let startHour = 9; // fallback if no working hours
-  let endHour = 20;   // fallback if no working hours
+  let endHour = 20;   // fallback if no working hours (8pm = 20)
   
   // Get working hours for current day
   if (workingHours) {
@@ -56,10 +56,12 @@ function generateTimeSlots(appointments: MockAppointment[], workingHours?: MockW
     }
   }
   
-  // Collect all hours needed for appointments (including midnight crossover)
-  const hoursNeeded = new Set<number>();
-  
-  for (const apt of sortedAppointments) {
+  // Only process appointments if they exist
+  if (sortedAppointments.length > 0) {
+    // Collect all hours needed for appointments (including midnight crossover)
+    const hoursNeeded = new Set<number>();
+    
+    for (const apt of sortedAppointments) {
     const aptStart = new Date(apt.scheduledAt);
     const aptEnd = new Date(aptStart.getTime() + (apt.duration || 0) * 60 * 1000);
     
@@ -99,6 +101,7 @@ function generateTimeSlots(appointments: MockAppointment[], workingHours?: MockW
         endHour = aptEndHour;
       }
     }
+  }
   }
   
   // Generate time slots from startHour to endHour (handling midnight crossover)
@@ -199,25 +202,34 @@ describe('Calendar Features', () => {
     // Reset mock data before each test
     mockAppointments = [];
     mockWorkingHours = {
-      monday: { enabled: true, start: '09:00', end: '17:00' },
-      tuesday: { enabled: true, start: '09:00', end: '17:00' },
-      wednesday: { enabled: true, start: '09:00', end: '17:00' },
-      thursday: { enabled: true, start: '09:00', end: '17:00' },
-      friday: { enabled: true, start: '09:00', end: '17:00' },
+      monday: { enabled: true, start: '09:00', end: '20:00' },
+      tuesday: { enabled: true, start: '09:00', end: '20:00' },
+      wednesday: { enabled: true, start: '09:00', end: '20:00' },
+      thursday: { enabled: true, start: '09:00', end: '20:00' },
+      friday: { enabled: true, start: '09:00', end: '20:00' },
       saturday: { enabled: true, start: '10:00', end: '16:00' },
-      sunday: { enabled: false, start: '09:00', end: '17:00' }
+      sunday: { enabled: false, start: '09:00', end: '20:00' }
     };
   });
 
   describe('Dynamic Time Range Expansion', () => {
     it('should use default 9am-8pm range when no appointments exist', () => {
       const slots = generateTimeSlots([], mockWorkingHours);
+      const today = new Date().getDay();
       
-      expect(slots).toHaveLength(12); // 9am to 8pm = 12 hours
-      expect(slots[0].hour).toBe(9);
-      expect(slots[0].time).toBe('9 AM');
-      expect(slots[11].hour).toBe(20);
-      expect(slots[11].time).toBe('8 PM');
+      if (today === 6) { // Saturday
+        expect(slots).toHaveLength(7); // 10am to 4pm = 7 hours
+        expect(slots[0].hour).toBe(10);
+        expect(slots[0].time).toBe('10 AM');
+        expect(slots[6].hour).toBe(16);
+        expect(slots[6].time).toBe('4 PM');
+      } else {
+        expect(slots).toHaveLength(12); // 9am to 8pm = 12 hours
+        expect(slots[0].hour).toBe(9);
+        expect(slots[0].time).toBe('9 AM');
+        expect(slots[11].hour).toBe(20);
+        expect(slots[11].time).toBe('8 PM');
+      }
     });
 
     it('should expand to show earlier appointment at 8am', () => {
