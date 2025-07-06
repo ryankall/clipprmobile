@@ -113,17 +113,10 @@ export default function CalendarNew() {
       return aptDate === selDate;
     }) || [];
 
-  // Filter by status and time - only show confirmed appointments and hide past appointments
+  // Filter by status
   const visibleAppointments = selectedDateAppointments.filter((apt) => {
-    // Only show confirmed appointments (exclude pending, cancelled, expired)
-    if (apt.status !== "confirmed") return false;
-    
-    // Hide appointments where current time has passed the appointment time
-    const now = new Date();
-    const appointmentTime = new Date(apt.scheduledAt);
-    
-    // Show appointment if it's in the future or currently ongoing
-    return appointmentTime > now || (appointmentTime <= now && new Date(appointmentTime.getTime() + apt.duration * 60000) > now);
+    if (showExpired) return true;
+    return apt.status === "confirmed" || apt.status === "pending";
   });
 
   console.log(
