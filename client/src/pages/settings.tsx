@@ -17,7 +17,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { BottomNavigation } from "@/components/bottom-navigation";
-import { Settings as SettingsIcon, User, Bell, Shield, HelpCircle, LogOut, Edit3, Camera, Upload, X, CreditCard, DollarSign, CheckCircle, AlertCircle, Share, Copy, Calendar, MessageSquare } from "lucide-react";
+import { Settings as SettingsIcon, User, Bell, Shield, HelpCircle, LogOut, Edit3, Camera, Upload, X, CreditCard, DollarSign, CheckCircle, AlertCircle, Share, Copy, Calendar, MessageSquare, Phone, Smartphone } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { useLocation } from "wouter";
@@ -116,6 +116,10 @@ export default function Settings() {
   const [isConnectingStripe, setIsConnectingStripe] = useState(false);
   const [isGoogleMapsLoaded, setIsGoogleMapsLoaded] = useState(false);
   const [isAutocompleteOpen, setIsAutocompleteOpen] = useState(false);
+  const [isVerifyingPhone, setIsVerifyingPhone] = useState(false);
+  const [verificationCode, setVerificationCode] = useState("");
+  const [isCodeSent, setIsCodeSent] = useState(false);
+  const [countdown, setCountdown] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const addressInputRef = useRef<HTMLInputElement>(null);
   const autocompleteRef = useRef<any>(null);
@@ -191,6 +195,59 @@ export default function Settings() {
     queryKey: ['/api/stripe/status'],
     retry: false,
   });
+
+  // Phone verification mutations
+  const sendVerificationCodeMutation = useMutation({
+    mutationFn: async () => {
+      return await apiRequest('POST', '/api/auth/send-verification-code');
+    },
+    onSuccess: () => {
+      setIsCodeSent(true);
+      setCountdown(60);
+      toast({
+        title: "Verification Code Sent",
+        description: "Please check your phone for the verification code.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Failed to Send Code",
+        description: error.message || "Failed to send verification code",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const verifyPhoneCodeMutation = useMutation({
+    mutationFn: async (code: string) => {
+      return await apiRequest('POST', '/api/auth/verify-phone', { code });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/user/profile'] });
+      setIsVerifyingPhone(false);
+      setVerificationCode("");
+      setIsCodeSent(false);
+      toast({
+        title: "Phone Verified",
+        description: "Your phone number has been successfully verified!",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Verification Failed",
+        description: error.message || "Invalid verification code",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Countdown timer for resend code
+  useEffect(() => {
+    if (countdown > 0) {
+      const timer = setTimeout(() => setCountdown(countdown - 1), 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [countdown]);
 
   // Form setup with current user data
   const form = useForm<ProfileFormData>({
@@ -1403,6 +1460,50 @@ export default function Settings() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
+            {/* Phone Verification Section */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-2">
+                  <Smartphone className="w-4 h-4 text-gold" />
+                  <span className="text-white">Phone Verification</span>
+                </div>
+                <div className="flex items-center space-x-2">
+                  {user?.phoneVerified ? (
+                    <div className="flex items-center space-x-1 text-green-400">
+                      <CheckCircle className="w-4 h-4" />
+                      <span className="text-sm">Verified</span>
+                    </div>
+                  ) : (
+                    <div className="flex items-center space-x-1 text-red-400">
+                      <AlertCircle className="w-4 h-4" />
+                      <span className="text-sm">Not Verified</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+              
+              {!user?.phoneVerified && (
+                <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg p-3">
+                  <div className="flex items-start space-x-2">
+                    <AlertCircle className="w-4 h-4 text-amber-400 mt-0.5" />
+                    <div className="text-sm text-amber-200">
+                      <p className="font-medium">Phone verification required</p>
+                      <p className="text-amber-300/80">You cannot make appointments until your phone number is verified.</p>
+                    </div>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="mt-3 border-amber-500/40 text-amber-200 hover:bg-amber-500/10"
+                    onClick={() => setIsVerifyingPhone(true)}
+                  >
+                    <Phone className="w-4 h-4 mr-2" />
+                    Verify Phone
+                  </Button>
+                </div>
+              )}
+            </div>
+            
             <Button
               variant="outline"
               className="w-full border-steel/40 text-white hover:bg-steel/20"
@@ -1428,6 +1529,73 @@ export default function Settings() {
             </Button>
           </CardContent>
         </Card>
+
+        {/* Phone Verification Dialog */}
+        <Dialog open={isVerifyingPhone} onOpenChange={setIsVerifyingPhone}>
+          <DialogContent className="bg-dark-card border-steel/20">
+            <DialogHeader>
+              <DialogTitle className="text-white">Verify Phone Number</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div className="text-sm text-steel">
+                We'll send a verification code to: <span className="text-white font-medium">{user?.phone}</span>
+              </div>
+              
+              {!isCodeSent ? (
+                <Button
+                  onClick={() => sendVerificationCodeMutation.mutate()}
+                  disabled={sendVerificationCodeMutation.isPending}
+                  className="w-full bg-gold hover:bg-gold/90 text-charcoal"
+                >
+                  {sendVerificationCodeMutation.isPending ? "Sending..." : "Send Verification Code"}
+                </Button>
+              ) : (
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="verification-code" className="text-white">
+                      Enter Verification Code
+                    </Label>
+                    <Input
+                      id="verification-code"
+                      type="text"
+                      placeholder="Enter 6-digit code"
+                      value={verificationCode}
+                      onChange={(e) => setVerificationCode(e.target.value)}
+                      className="bg-charcoal border-steel/40 text-white"
+                      maxLength={6}
+                    />
+                  </div>
+                  
+                  <Button
+                    onClick={() => verifyPhoneCodeMutation.mutate(verificationCode)}
+                    disabled={verifyPhoneCodeMutation.isPending || verificationCode.length !== 6}
+                    className="w-full bg-gold hover:bg-gold/90 text-charcoal"
+                  >
+                    {verifyPhoneCodeMutation.isPending ? "Verifying..." : "Verify Code"}
+                  </Button>
+                  
+                  <div className="flex justify-center">
+                    {countdown > 0 ? (
+                      <span className="text-sm text-steel">
+                        Resend code in {countdown}s
+                      </span>
+                    ) : (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => sendVerificationCodeMutation.mutate()}
+                        disabled={sendVerificationCodeMutation.isPending}
+                        className="text-gold hover:bg-gold/10"
+                      >
+                        Resend Code
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          </DialogContent>
+        </Dialog>
       </main>
 
       <BottomNavigation currentPath={location} />

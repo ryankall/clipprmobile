@@ -169,6 +169,93 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   );
 
+  // Phone verification endpoints
+  app.post('/api/auth/send-verification-code', requireAuth, async (req: Request, res: Response) => {
+    try {
+      const userId = (req.user as any)?.id;
+      if (!userId) {
+        return res.status(401).json({ error: 'User not authenticated' });
+      }
+
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+
+      // Check rate limiting
+      if ((user.phoneVerificationAttempts || 0) >= 5) {
+        return res.status(429).json({ error: 'Too many verification attempts. Try again later.' });
+      }
+
+      // Generate 6-digit verification code
+      const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
+      const expiryTime = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+
+      // Update user with verification code
+      await storage.updateUser(userId, {
+        phoneVerificationCode: verificationCode,
+        phoneVerificationExpiry: expiryTime,
+        phoneVerificationAttempts: (user.phoneVerificationAttempts || 0) + 1,
+      });
+
+      // TODO: Integrate with SMS service (Twilio, etc.) to send actual SMS
+      // For now, log the code for development
+      console.log(`📱 SMS Verification Code for ${user.phone}: ${verificationCode}`);
+
+      res.json({ 
+        success: true, 
+        message: 'Verification code sent',
+        // In development, return the code for testing
+        ...(process.env.NODE_ENV === 'development' && { code: verificationCode })
+      });
+    } catch (error) {
+      console.error('Send verification code error:', error);
+      res.status(500).json({ error: 'Failed to send verification code' });
+    }
+  });
+
+  app.post('/api/auth/verify-phone', requireAuth, async (req: Request, res: Response) => {
+    try {
+      const userId = (req.user as any)?.id;
+      const { code } = req.body;
+
+      if (!userId) {
+        return res.status(401).json({ error: 'User not authenticated' });
+      }
+
+      if (!code || code.length !== 6) {
+        return res.status(400).json({ error: 'Invalid verification code format' });
+      }
+
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+
+      // Check if code is correct and not expired
+      const now = new Date();
+      if (!user.phoneVerificationCode || 
+          !user.phoneVerificationExpiry || 
+          user.phoneVerificationExpiry < now ||
+          user.phoneVerificationCode !== code) {
+        return res.status(400).json({ error: 'Invalid or expired verification code' });
+      }
+
+      // Verify the phone number
+      await storage.updateUser(userId, {
+        phoneVerified: true,
+        phoneVerificationCode: null,
+        phoneVerificationExpiry: null,
+        phoneVerificationAttempts: 0,
+      });
+
+      res.json({ success: true, message: 'Phone number verified successfully' });
+    } catch (error) {
+      console.error('Verify phone error:', error);
+      res.status(500).json({ error: 'Failed to verify phone number' });
+    }
+  });
+
   // Contact form route (public)
   app.post("/api/contact", async (req, res) => {
     try {
@@ -299,6 +386,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/appointments", requireAuth, async (req, res) => {
     try {
       const userId = (req.user as any).id;
+      
+      // Check if user's phone is verified
+      const user = await storage.getUser(userId);
+      if (!user || !user.phoneVerified) {
+        return res.status(403).json({ 
+          error: 'Phone verification required',
+          message: 'You must verify your phone number before creating appointments' 
+        });
+      }
+      
       console.log('Creating appointment with data:', JSON.stringify(req.body, null, 2));
       
       // Handle both old single service format and new multiple services format
@@ -972,6 +1069,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "No photo uploaded" });
       }
 
+      // Get user's current photo storage info
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      const fileSize = req.file.size;
+      const currentTotalSize = user.totalPhotoSize || 0;
+      const maxPhotoSize = user.maxPhotoSize || 524288000; // 500MB default
+
+      // Check if adding this photo would exceed the limit
+      if (currentTotalSize + fileSize > maxPhotoSize) {
+        const remainingSpace = maxPhotoSize - currentTotalSize;
+        const maxSizeMB = Math.round(maxPhotoSize / 1024 / 1024);
+        const remainingMB = Math.round(remainingSpace / 1024 / 1024);
+        const fileSizeMB = Math.round(fileSize / 1024 / 1024);
+        
+        return res.status(413).json({ 
+          error: 'Storage limit exceeded',
+          message: `Photo upload would exceed your ${maxSizeMB}MB storage limit. You have ${remainingMB}MB remaining, but this photo is ${fileSizeMB}MB.`,
+          currentSize: currentTotalSize,
+          maxSize: maxPhotoSize,
+          fileSize: fileSize
+        });
+      }
+
       // Convert to base64 data URL
       const base64 = req.file.buffer.toString('base64');
       const photoUrl = `data:${req.file.mimetype};base64,${base64}`;
@@ -984,9 +1107,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         isPublic: req.body.isPublic === 'true',
         clientId: req.body.clientId ? parseInt(req.body.clientId) : null,
         appointmentId: req.body.appointmentId ? parseInt(req.body.appointmentId) : null,
+        fileSize: fileSize,
       });
       
       const photo = await storage.createGalleryPhoto(photoData);
+      
+      // Update user's total photo size
+      await storage.updateUser(userId, {
+        totalPhotoSize: currentTotalSize + fileSize
+      });
+      
       res.json(photo);
     } catch (error: any) {
       res.status(500).json({ message: error.message });
@@ -995,8 +1125,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.delete("/api/gallery/:id", requireAuth, async (req, res) => {
     try {
+      const userId = (req.user as any).id;
       const photoId = parseInt(req.params.id);
+      
+      // Get photo info before deleting to update user's total storage
+      const photo = await storage.getGalleryPhoto(photoId);
+      if (!photo || photo.userId !== userId) {
+        return res.status(404).json({ message: "Photo not found" });
+      }
+      
       await storage.deleteGalleryPhoto(photoId);
+      
+      // Update user's total photo size by subtracting deleted photo size
+      if (photo.fileSize) {
+        const user = await storage.getUser(userId);
+        if (user) {
+          const newTotalSize = Math.max(0, (user.totalPhotoSize || 0) - photo.fileSize);
+          await storage.updateUser(userId, {
+            totalPhotoSize: newTotalSize
+          });
+        }
+      }
+      
       res.json({ message: "Photo deleted successfully" });
     } catch (error: any) {
       res.status(500).json({ message: error.message });

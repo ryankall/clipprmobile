@@ -33,6 +33,13 @@ export const users = pgTable("users", {
   // Account verification
   emailVerified: boolean("email_verified").default(false),
   phoneVerified: boolean("phone_verified").default(false),
+  phoneVerificationCode: text("phone_verification_code"), // SMS verification code
+  phoneVerificationExpiry: timestamp("phone_verification_expiry"), // expiry time for code
+  phoneVerificationAttempts: integer("phone_verification_attempts").default(0), // rate limiting
+  
+  // Photo storage limits
+  totalPhotoSize: integer("total_photo_size").default(0), // total photo size in bytes
+  maxPhotoSize: integer("max_photo_size").default(524288000), // 500MB limit
   
   createdAt: timestamp("created_at").defaultNow(),
 });
@@ -119,6 +126,7 @@ export const galleryPhotos = pgTable("gallery_photos", {
   type: text("type").notNull(), // before, after, portfolio
   description: text("description"),
   isPublic: boolean("is_public").default(false),
+  fileSize: integer("file_size").default(0), // file size in bytes
   createdAt: timestamp("created_at").defaultNow(),
 });
 
