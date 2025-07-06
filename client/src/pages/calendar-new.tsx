@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Calendar as CalendarIcon, Plus, ChevronLeft, ChevronRight, Settings, Grid, List, Eye, EyeOff } from "lucide-react";
+import { WorkingHoursDialog } from "@/components/working-hours-dialog";
 import { BottomNavigation } from "@/components/bottom-navigation";
 import { AppointmentDetailsDialog } from "@/components/appointment-details-dialog";
 import { TimelineCalendar } from "@/components/timeline-calendar";
@@ -20,6 +21,7 @@ export default function CalendarNew() {
   const [showAppointmentDialog, setShowAppointmentDialog] = useState(false);
   const [viewMode, setViewMode] = useState<'timeline' | 'list'>('timeline');
   const [showExpired, setShowExpired] = useState(false);
+  const [showWorkingHoursDialog, setShowWorkingHoursDialog] = useState(false);
   
   console.log('Selected date:', selectedDate.toISOString().split('T')[0]);
   
@@ -146,32 +148,6 @@ export default function CalendarNew() {
             <CalendarIcon className="w-6 h-6 text-gold" />
             <h1 className="text-xl font-bold text-white">Enhanced Calendar</h1>
           </div>
-          <div className="flex items-center space-x-2">
-            <Button
-              size="sm"
-              variant={viewMode === 'timeline' ? 'default' : 'outline'}
-              onClick={() => setViewMode('timeline')}
-              className="bg-charcoal border-steel/40 text-gold"
-            >
-              <Grid className="w-4 h-4 mr-1" />
-              Timeline
-            </Button>
-            <Button
-              size="sm"
-              variant={viewMode === 'list' ? 'default' : 'outline'}
-              onClick={() => setViewMode('list')}
-              className="bg-charcoal border-steel/40 text-gold"
-            >
-              <List className="w-4 h-4 mr-1" />
-              List
-            </Button>
-            <Link href="/appointments/new">
-              <Button size="sm" className="gradient-gold text-charcoal tap-feedback">
-                <Plus className="w-4 h-4 mr-1" />
-                Add
-              </Button>
-            </Link>
-          </div>
         </div>
       </header>
 
@@ -285,6 +261,51 @@ export default function CalendarNew() {
           </Card>
         )}
 
+        {/* Calendar Controls */}
+        <Card className="bg-dark-card border-steel/20">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center space-x-2">
+                <Button
+                  size="sm"
+                  variant={viewMode === 'timeline' ? 'default' : 'outline'}
+                  onClick={() => setViewMode('timeline')}
+                  className="bg-charcoal border-steel/40 text-gold"
+                >
+                  <Grid className="w-4 h-4 mr-1" />
+                  Timeline
+                </Button>
+                <Button
+                  size="sm"
+                  variant={viewMode === 'list' ? 'default' : 'outline'}
+                  onClick={() => setViewMode('list')}
+                  className="bg-charcoal border-steel/40 text-gold"
+                >
+                  <List className="w-4 h-4 mr-1" />
+                  List
+                </Button>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setShowWorkingHoursDialog(true)}
+                  className="bg-charcoal border-steel/40 text-steel hover:text-gold"
+                >
+                  <Settings className="w-4 h-4 mr-1" />
+                  Hours
+                </Button>
+                <Link href="/appointments/new">
+                  <Button size="sm" className="gradient-gold text-charcoal tap-feedback">
+                    <Plus className="w-4 h-4 mr-1" />
+                    Add
+                  </Button>
+                </Link>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
         {/* Timeline Calendar View */}
         {viewMode === 'timeline' && (
           <TimelineCalendar
@@ -369,6 +390,13 @@ export default function CalendarNew() {
         appointment={selectedAppointment}
         open={showAppointmentDialog}
         onClose={() => setShowAppointmentDialog(false)}
+      />
+
+      {/* Working Hours Dialog */}
+      <WorkingHoursDialog
+        open={showWorkingHoursDialog}
+        onClose={() => setShowWorkingHoursDialog(false)}
+        workingHours={workingHours}
       />
 
       <BottomNavigation currentPath="/calendar" />

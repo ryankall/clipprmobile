@@ -32,11 +32,17 @@ interface WorkingHours {
 }
 
 interface WorkingHoursDialogProps {
+  open: boolean;
+  onClose: () => void;
+  workingHours?: {
+    enabled: boolean;
+    start: string;
+    end: string;
+  };
   currentHours?: any;
 }
 
-export function WorkingHoursDialog({ currentHours }: WorkingHoursDialogProps) {
-  const [isOpen, setIsOpen] = useState(false);
+export function WorkingHoursDialog({ open, onClose, workingHours: initialWorkingHours, currentHours }: WorkingHoursDialogProps) {
   const [workingHours, setWorkingHours] = useState<WorkingHours>({
     monday: { start: "09:00", end: "18:00", enabled: true, breaks: [] },
     tuesday: { start: "09:00", end: "18:00", enabled: true, breaks: [] },
@@ -89,7 +95,7 @@ export function WorkingHoursDialog({ currentHours }: WorkingHoursDialogProps) {
         description: "Your working hours have been saved successfully",
       });
       queryClient.invalidateQueries({ queryKey: ["/api/user/profile"] });
-      setIsOpen(false);
+      onClose();
     },
     onError: (error: any) => {
       toast({
@@ -197,13 +203,7 @@ export function WorkingHoursDialog({ currentHours }: WorkingHoursDialogProps) {
   const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
   return (
-    <Dialog open={isOpen} onOpenChange={setIsOpen}>
-      <DialogTrigger asChild>
-        <Button variant="outline" className="bg-charcoal border-steel/40 text-white hover:border-gold/50">
-          <Clock className="w-4 h-4 mr-2" />
-          Hours
-        </Button>
-      </DialogTrigger>
+    <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="bg-dark-card border-steel/20 text-white max-w-md">
         <DialogHeader>
           <DialogTitle className="text-white">Working Hours</DialogTitle>
@@ -313,7 +313,7 @@ export function WorkingHoursDialog({ currentHours }: WorkingHoursDialogProps) {
         <div className="flex justify-end space-x-2 mt-6">
           <Button
             variant="outline"
-            onClick={() => setIsOpen(false)}
+            onClick={onClose}
             className="bg-charcoal border-steel/40 text-white hover:border-steel/60"
           >
             Cancel

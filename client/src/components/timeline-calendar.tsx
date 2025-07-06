@@ -150,16 +150,30 @@ function generateTimeSlots(
     endHour = Math.max(endHour, latestEnd); // Show all appointments, including late ones
   }
 
+  // Handle midnight crossover appointments (23:00 to 01:00)
+  if (confirmedAppointments.length > 0) {
+    const midnightCrossover = confirmedAppointments.some((apt) => {
+      const start = new Date(apt.scheduledAt);
+      const end = addMinutes(start, apt.duration);
+      return start.getHours() >= 23 && end.getDate() > start.getDate();
+    });
+    
+    if (midnightCrossover) {
+      endHour = Math.max(endHour, 25); // Extend to 1 AM (hour 25 = 1 AM next day)
+    }
+  }
+
   // Generate slots for each hour
   for (let hour = startHour; hour <= endHour; hour++) {
+    const displayHour = hour > 24 ? hour - 24 : hour; // Handle 25 (1 AM) -> 1
     const timeStr =
-      hour === 0
+      displayHour === 0
         ? "12 AM"
-        : hour === 12
+        : displayHour === 12
           ? "12 PM"
-          : hour < 12
-            ? `${hour} AM`
-            : `${hour - 12} PM`;
+          : displayHour < 12
+            ? `${displayHour} AM`
+            : `${displayHour - 12} PM`;
 
     // Check if within working hours
     let isWithinWorkingHours = true;
