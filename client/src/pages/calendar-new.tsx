@@ -155,8 +155,8 @@ export default function CalendarNew() {
 
   const weekDays = Array.from({ length: 7 }, (_, i) => addDays(startDate, i));
 
-  // Get working hours for selected date with day-specific settings
-  const workingHours = {
+  // Get working hours from user profile or use defaults
+  const workingHours = userProfile?.workingHours || {
     monday: { enabled: true, start: '09:00', end: '17:00' },
     tuesday: { enabled: true, start: '09:00', end: '17:00' },
     wednesday: { enabled: true, start: '09:00', end: '17:00' },
@@ -426,6 +426,7 @@ export default function CalendarNew() {
         open={showWorkingHoursDialog}
         onClose={() => setShowWorkingHoursDialog(false)}
         workingHours={workingHours}
+        currentHours={userProfile?.workingHours}
       />
 
       <BottomNavigation currentPath="/calendar" />
