@@ -155,11 +155,15 @@ export default function CalendarNew() {
 
   const weekDays = Array.from({ length: 7 }, (_, i) => addDays(startDate, i));
 
-  // Get working hours for selected date (mock working hours for now)
+  // Get working hours for selected date with day-specific settings
   const workingHours = {
-    enabled: true,
-    start: "09:00",
-    end: "18:00",
+    monday: { enabled: true, start: '09:00', end: '17:00' },
+    tuesday: { enabled: true, start: '09:00', end: '17:00' },
+    wednesday: { enabled: true, start: '09:00', end: '17:00' },
+    thursday: { enabled: true, start: '09:00', end: '17:00' },
+    friday: { enabled: true, start: '09:00', end: '17:00' },
+    saturday: { enabled: true, start: '10:00', end: '16:00' },
+    sunday: { enabled: false, start: '09:00', end: '17:00' } // Sunday disabled
   };
 
   // Handle appointment click

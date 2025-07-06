@@ -120,16 +120,52 @@ function calculateAppointmentPositions(
 // Generate time slots with robust calendar logic from tests
 function generateTimeSlots(
   appointments: AppointmentWithRelations[],
-  workingHours?: { enabled: boolean; start: string; end: string },
+  workingHours?: any, // Accept full working hours object with day-specific settings
+  selectedDate?: Date, // Add selected date for day-specific logic
 ): TimeSlot[] {
   const slots: TimeSlot[] = [];
   const confirmedAppointments = appointments.filter(
     (apt) => apt.status === "confirmed",
   );
 
+  // Get current date or use selected date for day-specific working hours
+  const targetDate = selectedDate || new Date();
+  const dayOfWeek = targetDate.getDay(); // 0 = Sunday, 1 = Monday, etc.
+  const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+  const dayName = dayNames[dayOfWeek];
+
   // Dynamic time range expansion logic
   let startHour = 9; // Default start
   let endHour = 20; // Default end (8 PM)
+  let dayIsEnabled = true;
+
+  // Check day-specific working hours
+  if (workingHours && typeof workingHours === 'object') {
+    // New format: day-specific working hours
+    if (workingHours[dayName]) {
+      const dayHours = workingHours[dayName];
+      dayIsEnabled = dayHours.enabled || false;
+      
+      if (dayIsEnabled && dayHours.start && dayHours.end) {
+        startHour = parseInt(dayHours.start.split(":")[0]);
+        endHour = parseInt(dayHours.end.split(":")[0]);
+      }
+    }
+    // Legacy format: single working hours object
+    else if (workingHours.enabled !== undefined) {
+      dayIsEnabled = workingHours.enabled || false;
+      if (dayIsEnabled && workingHours.start && workingHours.end) {
+        startHour = parseInt(workingHours.start.split(":")[0]);
+        endHour = parseInt(workingHours.end.split(":")[0]);
+      }
+    }
+  }
+
+  // If day is disabled (like Sunday), use default range but mark all as blocked
+  if (!dayIsEnabled) {
+    startHour = 9;
+    endHour = 20;
+  }
 
   // Expand range to include all appointments
   if (confirmedAppointments.length > 0) {
@@ -175,12 +211,23 @@ function generateTimeSlots(
             ? `${displayHour} AM`
             : `${displayHour - 12} PM`;
 
-    // Check if within working hours
-    let isWithinWorkingHours = true;
-    if (workingHours?.enabled) {
-      const workStart = parseInt(workingHours.start.split(":")[0]);
-      const workEnd = parseInt(workingHours.end.split(":")[0]);
-      isWithinWorkingHours = hour >= workStart && hour <= workEnd;
+    // Check if within working hours - if day is disabled, all hours are blocked
+    let isWithinWorkingHours = false;
+    if (dayIsEnabled && workingHours) {
+      if (workingHours[dayName]) {
+        // Day-specific working hours
+        const dayHours = workingHours[dayName];
+        if (dayHours.enabled && dayHours.start && dayHours.end) {
+          const workStart = parseInt(dayHours.start.split(":")[0]);
+          const workEnd = parseInt(dayHours.end.split(":")[0]);
+          isWithinWorkingHours = hour >= workStart && hour <= workEnd;
+        }
+      } else if (workingHours.enabled) {
+        // Legacy single working hours
+        const workStart = parseInt(workingHours.start.split(":")[0]);
+        const workEnd = parseInt(workingHours.end.split(":")[0]);
+        isWithinWorkingHours = hour >= workStart && hour <= workEnd;
+      }
     }
 
     // Find appointments for this hour
@@ -280,7 +327,7 @@ export function TimelineCalendar({
     return aptDate === selectedDateStr;
   });
 
-  const timeSlots = generateTimeSlots(dayAppointments, workingHours);
+  const timeSlots = generateTimeSlots(dayAppointments, workingHours, selectedDate);
   const appointmentPositions = calculateAppointmentPositions(
     dayAppointments,
     timeSlots,
