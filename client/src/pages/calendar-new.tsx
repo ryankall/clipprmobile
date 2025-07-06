@@ -148,6 +148,41 @@ export default function CalendarNew() {
             <CalendarIcon className="w-6 h-6 text-gold" />
             <h1 className="text-xl font-bold text-white">Enhanced Calendar</h1>
           </div>
+          <div className="flex items-center space-x-2">
+            <Button
+              size="sm"
+              variant={viewMode === 'timeline' ? 'default' : 'outline'}
+              onClick={() => setViewMode('timeline')}
+              className="bg-charcoal border-steel/40 text-gold"
+            >
+              <Grid className="w-4 h-4 mr-1" />
+              Timeline
+            </Button>
+            <Button
+              size="sm"
+              variant={viewMode === 'list' ? 'default' : 'outline'}
+              onClick={() => setViewMode('list')}
+              className="bg-charcoal border-steel/40 text-gold"
+            >
+              <List className="w-4 h-4 mr-1" />
+              List
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setShowWorkingHoursDialog(true)}
+              className="bg-charcoal border-steel/40 text-steel hover:text-gold"
+            >
+              <Settings className="w-4 h-4 mr-1" />
+              Hours
+            </Button>
+            <Link href="/appointments/new">
+              <Button size="sm" className="gradient-gold text-charcoal tap-feedback">
+                <Plus className="w-4 h-4 mr-1" />
+                Add
+              </Button>
+            </Link>
+          </div>
         </div>
       </header>
 
@@ -261,50 +296,7 @@ export default function CalendarNew() {
           </Card>
         )}
 
-        {/* Calendar Controls */}
-        <Card className="bg-dark-card border-steel/20">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center space-x-2">
-                <Button
-                  size="sm"
-                  variant={viewMode === 'timeline' ? 'default' : 'outline'}
-                  onClick={() => setViewMode('timeline')}
-                  className="bg-charcoal border-steel/40 text-gold"
-                >
-                  <Grid className="w-4 h-4 mr-1" />
-                  Timeline
-                </Button>
-                <Button
-                  size="sm"
-                  variant={viewMode === 'list' ? 'default' : 'outline'}
-                  onClick={() => setViewMode('list')}
-                  className="bg-charcoal border-steel/40 text-gold"
-                >
-                  <List className="w-4 h-4 mr-1" />
-                  List
-                </Button>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => setShowWorkingHoursDialog(true)}
-                  className="bg-charcoal border-steel/40 text-steel hover:text-gold"
-                >
-                  <Settings className="w-4 h-4 mr-1" />
-                  Hours
-                </Button>
-                <Link href="/appointments/new">
-                  <Button size="sm" className="gradient-gold text-charcoal tap-feedback">
-                    <Plus className="w-4 h-4 mr-1" />
-                    Add
-                  </Button>
-                </Link>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+
 
         {/* Timeline Calendar View */}
         {viewMode === 'timeline' && (
