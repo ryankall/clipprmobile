@@ -342,3 +342,59 @@
   background: hsl(0, 0%, 12%) !important;
   background-color: hsl(0, 0%, 12%) !important;
 }
+
+/* Timeline Calendar Enhancements */
+.timeline-appointment {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  backdrop-filter: blur(8px);
+}
+
+.timeline-appointment:hover {
+  transform: translateY(-2px) scale(1.02);
+  box-shadow: 0 8px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+}
+
+.timeline-current-time {
+  animation: pulse-glow 2s infinite;
+}
+
+@keyframes pulse-glow {
+  0%, 100% {
+    opacity: 1;
+    filter: drop-shadow(0 0 4px rgba(239, 68, 68, 0.6));
+  }
+  50% {
+    opacity: 0.8;
+    filter: drop-shadow(0 0 8px rgba(239, 68, 68, 0.8));
+  }
+}
+
+.timeline-hour-line {
+  background: linear-gradient(90deg, transparent 0%, rgba(156, 163, 175, 0.3) 50%, transparent 100%);
+}
+
+.timeline-working-hours {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.02) 0%, rgba(255, 255, 255, 0.05) 100%);
+}
+
+.timeline-blocked-hours {
+  background: linear-gradient(135deg, rgba(0, 0, 0, 0.02) 0%, rgba(0, 0, 0, 0.05) 100%);
+  position: relative;
+}
+
+.timeline-blocked-hours::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: repeating-linear-gradient(
+    45deg,
+    transparent,
+    transparent 8px,
+    rgba(156, 163, 175, 0.1) 8px,
+    rgba(156, 163, 175, 0.1) 12px
+  );
+  pointer-events: none;
+}
