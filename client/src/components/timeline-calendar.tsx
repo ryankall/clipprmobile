@@ -43,9 +43,14 @@ interface AppointmentPosition {
 // Calculate position for appointments within time slots
 function calculateAppointmentPositions(
   appointments: AppointmentWithRelations[],
+  timeSlots: TimeSlot[],
   rowHeight: number = 80,
 ): AppointmentPosition[] {
   const positions: AppointmentPosition[] = [];
+
+  if (timeSlots.length === 0) return positions;
+
+  const startHour = timeSlots[0].hour; // Get the first hour from time slots
 
   // Group appointments by overlapping time periods
   const groups: AppointmentWithRelations[][] = [];
@@ -86,8 +91,10 @@ function calculateAppointmentPositions(
       const startHour = startTime.getHours();
       const startMinutes = startTime.getMinutes();
 
-      // Calculate top position based on time
-      const top = startHour * rowHeight + (startMinutes * rowHeight) / 60;
+      // Calculate top position based on time relative to the first time slot
+      const firstSlotHour = timeSlots[0]?.hour || 9; // Default to 9 AM if no slots
+      const relativeHour = startHour - firstSlotHour;
+      const top = relativeHour * rowHeight + (startMinutes * rowHeight) / 60;
 
       // Calculate height based on duration
       const height = (appointment.duration * rowHeight) / 60;
@@ -257,6 +264,7 @@ export function TimelineCalendar({
   const timeSlots = generateTimeSlots(dayAppointments, workingHours);
   const appointmentPositions = calculateAppointmentPositions(
     dayAppointments,
+    timeSlots,
     ROW_HEIGHT,
   );
   const currentTimePos = getCurrentTimePosition(ROW_HEIGHT);
