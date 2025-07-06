@@ -151,24 +151,6 @@ export default function CalendarNew() {
           <div className="flex items-center space-x-2">
             <Button
               size="sm"
-              variant={viewMode === 'timeline' ? 'default' : 'outline'}
-              onClick={() => setViewMode('timeline')}
-              className="bg-charcoal border-steel/40 text-gold"
-            >
-              <Grid className="w-4 h-4 mr-1" />
-              Timeline
-            </Button>
-            <Button
-              size="sm"
-              variant={viewMode === 'list' ? 'default' : 'outline'}
-              onClick={() => setViewMode('list')}
-              className="bg-charcoal border-steel/40 text-gold"
-            >
-              <List className="w-4 h-4 mr-1" />
-              List
-            </Button>
-            <Button
-              size="sm"
               variant="outline"
               onClick={() => setShowWorkingHoursDialog(true)}
               className="bg-charcoal border-steel/40 text-steel hover:text-gold"
@@ -176,12 +158,6 @@ export default function CalendarNew() {
               <Settings className="w-4 h-4 mr-1" />
               Hours
             </Button>
-            <Link href="/appointments/new">
-              <Button size="sm" className="gradient-gold text-charcoal tap-feedback">
-                <Plus className="w-4 h-4 mr-1" />
-                Add
-              </Button>
-            </Link>
           </div>
         </div>
       </header>
@@ -251,50 +227,41 @@ export default function CalendarNew() {
           </CardContent>
         </Card>
 
-        {/* Appointment Status Summary */}
-        {selectedDateAppointments.length > 0 && (
-          <Card className="bg-dark-card border-steel/20">
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="text-lg font-semibold text-white">
-                  {format(selectedDate, 'EEEE, MMMM d')}
-                </h3>
+        {/* Calendar Controls */}
+        <Card className="bg-dark-card border-steel/20">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-2">
                 <Button
-                  variant="ghost"
                   size="sm"
-                  onClick={() => setShowExpired(!showExpired)}
-                  className="text-steel hover:text-white"
+                  variant={viewMode === 'timeline' ? 'default' : 'outline'}
+                  onClick={() => setViewMode('timeline')}
+                  className="bg-charcoal border-steel/40 text-gold"
                 >
-                  {showExpired ? <EyeOff className="w-4 h-4 mr-1" /> : <Eye className="w-4 h-4 mr-1" />}
-                  {showExpired ? 'Hide' : 'Show'} All
+                  <Grid className="w-4 h-4 mr-1" />
+                  Timeline
+                </Button>
+                <Button
+                  size="sm"
+                  variant={viewMode === 'list' ? 'default' : 'outline'}
+                  onClick={() => setViewMode('list')}
+                  className="bg-charcoal border-steel/40 text-gold"
+                >
+                  <List className="w-4 h-4 mr-1" />
+                  List
                 </Button>
               </div>
-              
-              <div className="flex flex-wrap gap-2">
-                {appointmentCounts.confirmed > 0 && (
-                  <Badge variant="secondary" className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30">
-                    {appointmentCounts.confirmed} Confirmed
-                  </Badge>
-                )}
-                {appointmentCounts.pending > 0 && (
-                  <Badge variant="secondary" className="bg-amber-500/20 text-amber-400 border-amber-500/30">
-                    {appointmentCounts.pending} Pending
-                  </Badge>
-                )}
-                {appointmentCounts.expired > 0 && (
-                  <Badge variant="secondary" className="bg-red-500/20 text-red-400 border-red-500/30">
-                    {appointmentCounts.expired} Expired
-                  </Badge>
-                )}
-                {appointmentCounts.cancelled > 0 && (
-                  <Badge variant="secondary" className="bg-gray-500/20 text-gray-400 border-gray-500/30">
-                    {appointmentCounts.cancelled} Cancelled
-                  </Badge>
-                )}
+              <div className="flex items-center space-x-2">
+                <Link href="/appointments/new">
+                  <Button size="sm" className="gradient-gold text-charcoal tap-feedback">
+                    <Plus className="w-4 h-4 mr-1" />
+                    Add
+                  </Button>
+                </Link>
               </div>
-            </CardContent>
-          </Card>
-        )}
+            </div>
+          </CardContent>
+        </Card>
 
 
 
