@@ -377,9 +377,17 @@
   background: linear-gradient(135deg, rgba(255, 255, 255, 0.02) 0%, rgba(255, 255, 255, 0.05) 100%);
 }
 
+.dark .timeline-working-hours {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.01) 0%, rgba(255, 255, 255, 0.03) 100%);
+}
+
 .timeline-blocked-hours {
   background: linear-gradient(135deg, rgba(0, 0, 0, 0.02) 0%, rgba(0, 0, 0, 0.05) 100%);
   position: relative;
+}
+
+.dark .timeline-blocked-hours {
+  background: linear-gradient(135deg, rgba(0, 0, 0, 0.2) 0%, rgba(0, 0, 0, 0.3) 100%);
 }
 
 .timeline-blocked-hours::after {
