@@ -188,22 +188,22 @@ function generateTimeSlots(
   return slots;
 }
 
-// Get appointment color based on service type
+// Get appointment color based on service type - using darker backgrounds for better text contrast
 function getAppointmentColor(appointment: AppointmentWithRelations): string {
   const serviceName = appointment.service?.name?.toLowerCase() || "";
 
   if (serviceName.includes("haircut") || serviceName.includes("cut")) {
-    return "bg-gradient-to-br from-amber-400 to-amber-500 text-white shadow-amber-200";
+    return "bg-gradient-to-br from-amber-700 to-amber-800 text-white shadow-amber-300";
   } else if (serviceName.includes("beard") || serviceName.includes("trim")) {
-    return "bg-gradient-to-br from-emerald-400 to-emerald-500 text-white shadow-emerald-200";
+    return "bg-gradient-to-br from-emerald-700 to-emerald-800 text-white shadow-emerald-300";
   } else if (serviceName.includes("shave")) {
-    return "bg-gradient-to-br from-blue-400 to-blue-500 text-white shadow-blue-200";
+    return "bg-gradient-to-br from-blue-700 to-blue-800 text-white shadow-blue-300";
   } else if (serviceName.includes("styling") || serviceName.includes("wash")) {
-    return "bg-gradient-to-br from-purple-400 to-purple-500 text-white shadow-purple-200";
+    return "bg-gradient-to-br from-purple-700 to-purple-800 text-white shadow-purple-300";
   } else if (serviceName.includes("color") || serviceName.includes("dye")) {
-    return "bg-gradient-to-br from-pink-400 to-pink-500 text-white shadow-pink-200";
+    return "bg-gradient-to-br from-pink-700 to-pink-800 text-white shadow-pink-300";
   } else {
-    return "bg-gradient-to-br from-gray-400 to-gray-500 text-white shadow-gray-200";
+    return "bg-gradient-to-br from-gray-700 to-gray-800 text-white shadow-gray-300";
   }
 }
 
@@ -324,7 +324,7 @@ export function TimelineCalendar({
                   style={{ height: `${ROW_HEIGHT}px` }}
                 >
                   {/* Time label */}
-                  <div className="absolute left-0 top-0 w-16 h-full flex items-start justify-center pt-2 bg-gray-100 dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700">
+                  <div className="absolute left-0 top-0 w-16 h-full flex items-center justify-center bg-gray-100 dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700">
                     <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
                       {slot.time}
                     </span>
@@ -357,21 +357,21 @@ export function TimelineCalendar({
                   style={{
                     top: `${pos.top}px`,
                     height: `${Math.max(pos.height, 40)}px`,
-                    left: `${64 + pos.left * 3}px`, // 64px for time label + offset
-                    width: `${Math.max(pos.width * 3, 200)}px`, // Min width for readability
+                    left: `${68 + pos.left * 3}px`, // 68px for time label + offset
+                    width: `${Math.max(pos.width * 3, 180)}px`, // Min width for readability
                     zIndex: pos.zIndex,
                   }}
                   onClick={() => handleAppointmentClick(pos.appointment)}
                 >
-                  <div className="p-3 h-full flex flex-col justify-between">
+                  <div className="p-2 h-full flex flex-col justify-between">
                     <div className="flex-1 min-w-0">
-                      <div className="font-semibold text-sm leading-tight mb-1 truncate">
+                      <div className="font-bold text-sm leading-tight mb-1 truncate text-white">
                         {getServiceNamesDisplay(pos.appointment)}
                       </div>
-                      <div className="text-xs opacity-90 mb-1 truncate">
+                      <div className="text-xs mb-1 truncate text-white/90 font-medium">
                         {pos.appointment.client.name}
                       </div>
-                      <div className="text-xs opacity-75 flex items-center space-x-2">
+                      <div className="text-xs text-white/80 flex items-center space-x-2">
                         <span className="flex items-center">
                           <Clock className="w-3 h-3 mr-1" />
                           {pos.appointment.duration}m
@@ -385,7 +385,7 @@ export function TimelineCalendar({
 
                     {/* Travel indicator */}
                     {pos.appointment.address && (
-                      <div className="mt-2 flex items-center text-xs opacity-75">
+                      <div className="mt-1 flex items-center text-xs text-white/70">
                         <MapPin className="w-3 h-3 mr-1" />
                         <span className="truncate">Travel</span>
                       </div>
