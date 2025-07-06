@@ -8,7 +8,7 @@ import type { AppointmentWithRelations } from "@shared/schema";
 
 interface AppointmentCardProps {
   appointment: AppointmentWithRelations;
-  onClick?: () => void;
+  onClick?: (appointment: AppointmentWithRelations) => void;
   showClickable?: boolean;
 }
 
@@ -31,10 +31,16 @@ export function AppointmentCard({
     showClickable ? 'cursor-pointer hover:bg-charcoal/80 transition-colors' : ''
   }`;
 
+  const handleClick = () => {
+    if (showClickable && onClick) {
+      onClick(appointment);
+    }
+  };
+
   return (
     <div 
       className={cardClasses}
-      onClick={showClickable ? onClick : undefined}
+      onClick={handleClick}
     >
       <Avatar className="h-12 w-12 mr-3">
         <AvatarImage 
@@ -54,6 +60,10 @@ export function AppointmentCard({
           </span>
         </div>
         <p className="text-sm text-steel mb-1 truncate">{getServiceNamesDisplay(appointment, 35)}</p>
+        <div className="flex items-center justify-between mb-1">
+          <span className="text-sm text-gold font-medium">${appointment.price}</span>
+          <span className="text-sm text-steel">{appointment.duration} min</span>
+        </div>
         {appointment.address && (
           <div className="flex items-center mb-2">
             <MapPin className="w-3 h-3 text-steel mr-1 flex-shrink-0" />

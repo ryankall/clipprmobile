@@ -3,115 +3,152 @@ import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Calendar as CalendarIcon, Plus, ChevronLeft, ChevronRight, Settings, Grid, List, Eye, EyeOff } from "lucide-react";
+import {
+  Calendar as CalendarIcon,
+  Plus,
+  ChevronLeft,
+  ChevronRight,
+  Settings,
+  Grid,
+  List,
+  Eye,
+  EyeOff,
+} from "lucide-react";
 import { WorkingHoursDialog } from "@/components/working-hours-dialog";
 import { BottomNavigation } from "@/components/bottom-navigation";
 import { AppointmentDetailsDialog } from "@/components/appointment-details-dialog";
 import { TimelineCalendar } from "@/components/timeline-calendar";
-import { format, addDays, subDays, startOfWeek, endOfWeek, isToday, isSameDay } from "date-fns";
+import {
+  format,
+  addDays,
+  subDays,
+  startOfWeek,
+  endOfWeek,
+  isToday,
+  isSameDay,
+} from "date-fns";
 import { Link, useLocation } from "wouter";
 import type { AppointmentWithRelations } from "@shared/schema";
 
 export default function CalendarNew() {
-  console.log('Calendar-new component rendering...');
-  
+  console.log("Calendar-new component rendering...");
+
   const [, navigate] = useLocation();
   const [selectedDate, setSelectedDate] = useState(new Date());
-  const [selectedAppointment, setSelectedAppointment] = useState<AppointmentWithRelations | null>(null);
+  const [selectedAppointment, setSelectedAppointment] =
+    useState<AppointmentWithRelations | null>(null);
   const [showAppointmentDialog, setShowAppointmentDialog] = useState(false);
-  const [viewMode, setViewMode] = useState<'timeline' | 'list'>('timeline');
+  const [viewMode, setViewMode] = useState<"timeline" | "list">("timeline");
   const [showExpired, setShowExpired] = useState(false);
   const [showWorkingHoursDialog, setShowWorkingHoursDialog] = useState(false);
-  
-  console.log('Selected date:', selectedDate.toISOString().split('T')[0]);
-  
+
+  console.log("Selected date:", selectedDate.toISOString().split("T")[0]);
+
   // Check for pending booking from messages
   useEffect(() => {
-    const pendingBooking = localStorage.getItem('pendingBooking');
+    const pendingBooking = localStorage.getItem("pendingBooking");
     if (pendingBooking) {
       try {
         const bookingInfo = JSON.parse(pendingBooking);
-        localStorage.removeItem('pendingBooking');
-        
+        localStorage.removeItem("pendingBooking");
+
         const params = new URLSearchParams();
         if (bookingInfo.clientId) {
-          params.set('clientId', bookingInfo.clientId.toString());
+          params.set("clientId", bookingInfo.clientId.toString());
         } else {
-          params.set('clientName', bookingInfo.clientName);
-          params.set('phone', bookingInfo.clientPhone);
+          params.set("clientName", bookingInfo.clientName);
+          params.set("phone", bookingInfo.clientPhone);
           if (bookingInfo.clientEmail) {
-            params.set('email', bookingInfo.clientEmail);
+            params.set("email", bookingInfo.clientEmail);
           }
         }
         if (bookingInfo.services && bookingInfo.services.length > 0) {
-          params.set('services', bookingInfo.services.join(','));
+          params.set("services", bookingInfo.services.join(","));
         }
         if (bookingInfo.address) {
-          params.set('address', bookingInfo.address);
+          params.set("address", bookingInfo.address);
         }
         if (bookingInfo.notes) {
-          params.set('notes', bookingInfo.notes);
+          params.set("notes", bookingInfo.notes);
         }
         if (bookingInfo.selectedDate && bookingInfo.selectedTime) {
-          const scheduledAt = new Date(`${bookingInfo.selectedDate}T${bookingInfo.selectedTime}:00`);
-          params.set('scheduledAt', scheduledAt.toISOString());
+          const scheduledAt = new Date(
+            `${bookingInfo.selectedDate}T${bookingInfo.selectedTime}:00`,
+          );
+          params.set("scheduledAt", scheduledAt.toISOString());
         }
-        
+
         navigate(`/appointments/new?${params.toString()}`);
       } catch (error) {
-        console.error('Error parsing pending booking data:', error);
-        localStorage.removeItem('pendingBooking');
+        console.error("Error parsing pending booking data:", error);
+        localStorage.removeItem("pendingBooking");
       }
     }
   }, [navigate]);
-  
+
   const startDate = startOfWeek(selectedDate);
   const endDate = endOfWeek(selectedDate);
 
-  const { data: appointments, isLoading } = useQuery<AppointmentWithRelations[]>({
-    queryKey: ["/api/appointments", startDate.toISOString(), endDate.toISOString()],
+  const { data: appointments, isLoading } = useQuery<
+    AppointmentWithRelations[]
+  >({
+    queryKey: [
+      "/api/appointments",
+      startDate.toISOString(),
+      endDate.toISOString(),
+    ],
   });
 
   const { data: userProfile } = useQuery({
     queryKey: ["/api/user/profile"],
   });
 
-  console.log('Total appointments loaded:', appointments?.length || null);
+  console.log("Total appointments loaded:", appointments?.length || null);
 
   // Filter appointments for selected date
-  const selectedDateAppointments = appointments?.filter(apt => {
-    const aptDate = format(new Date(apt.scheduledAt), 'yyyy-MM-dd');
-    const selDate = format(selectedDate, 'yyyy-MM-dd');
-    return aptDate === selDate;
-  }) || [];
+  const selectedDateAppointments =
+    appointments?.filter((apt) => {
+      const aptDate = format(new Date(apt.scheduledAt), "yyyy-MM-dd");
+      const selDate = format(selectedDate, "yyyy-MM-dd");
+      return aptDate === selDate;
+    }) || [];
 
   // Filter by status
-  const visibleAppointments = selectedDateAppointments.filter(apt => {
+  const visibleAppointments = selectedDateAppointments.filter((apt) => {
     if (showExpired) return true;
-    return apt.status === 'confirmed' || apt.status === 'pending';
+    return apt.status === "confirmed" || apt.status === "pending";
   });
 
-  console.log('Appointments for selected date:', selectedDateAppointments.length);
+  console.log(
+    "Appointments for selected date:",
+    selectedDateAppointments.length,
+  );
 
   // Debug log appointment details
   if (selectedDateAppointments.length > 0) {
-    console.log('📅 DETAILED APPOINTMENT ANALYSIS:');
+    console.log("📅 DETAILED APPOINTMENT ANALYSIS:");
     selectedDateAppointments.forEach((apt, index) => {
       const startTime = new Date(apt.scheduledAt);
       const endTime = new Date(startTime.getTime() + apt.duration * 60000);
-      
-      console.log(`${index + 1}. ${apt.client.name} - ${apt.service?.name || 'Unknown Service'}`);
-      
-      if (apt.status !== 'confirmed') {
+
+      console.log(
+        `${index + 1}. ${apt.client.name} - ${apt.service?.name || "Unknown Service"}`,
+      );
+
+      if (apt.status !== "confirmed") {
         console.log(`   Status: ${apt.status}`);
       }
-      
-      console.log(`   Time: ${format(startTime, 'h:mm a')} - ${format(endTime, 'h:mm a')}`);
+
+      console.log(
+        `   Time: ${format(startTime, "h:mm a")} - ${format(endTime, "h:mm a")}`,
+      );
       console.log(`   Duration: ${apt.duration} minutes`);
-      console.log(`   Start Hour: ${startTime.getHours()}, End Hour: ${endTime.getHours()}`);
-      
+      console.log(
+        `   Start Hour: ${startTime.getHours()}, End Hour: ${endTime.getHours()}`,
+      );
+
       if (index < selectedDateAppointments.length - 1) {
-        console.log('---');
+        console.log("---");
       }
     });
   }
@@ -121,8 +158,8 @@ export default function CalendarNew() {
   // Get working hours for selected date (mock working hours for now)
   const workingHours = {
     enabled: true,
-    start: '09:00',
-    end: '18:00'
+    start: "09:00",
+    end: "18:00",
   };
 
   // Handle appointment click
@@ -133,10 +170,16 @@ export default function CalendarNew() {
 
   // Count appointments by status
   const appointmentCounts = {
-    confirmed: selectedDateAppointments.filter(apt => apt.status === 'confirmed').length,
-    pending: selectedDateAppointments.filter(apt => apt.status === 'pending').length,
-    expired: selectedDateAppointments.filter(apt => apt.status === 'expired').length,
-    cancelled: selectedDateAppointments.filter(apt => apt.status === 'cancelled').length,
+    confirmed: selectedDateAppointments.filter(
+      (apt) => apt.status === "confirmed",
+    ).length,
+    pending: selectedDateAppointments.filter((apt) => apt.status === "pending")
+      .length,
+    expired: selectedDateAppointments.filter((apt) => apt.status === "expired")
+      .length,
+    cancelled: selectedDateAppointments.filter(
+      (apt) => apt.status === "cancelled",
+    ).length,
   };
 
   return (
@@ -175,11 +218,11 @@ export default function CalendarNew() {
               >
                 <ChevronLeft className="w-4 h-4" />
               </Button>
-              
+
               <h2 className="font-semibold text-white">
-                {format(startDate, 'MMM d')} - {format(endDate, 'MMM d, yyyy')}
+                {format(startDate, "MMM d")} - {format(endDate, "MMM d, yyyy")}
               </h2>
-              
+
               <Button
                 variant="ghost"
                 size="sm"
@@ -195,31 +238,35 @@ export default function CalendarNew() {
               {weekDays.map((day) => {
                 const isSelected = isSameDay(day, selectedDate);
                 const isTodayDate = isToday(day);
-                const dayAppointments = appointments?.filter(apt => 
-                  isSameDay(new Date(apt.scheduledAt), day)
-                ) || [];
+                const dayAppointments =
+                  appointments?.filter((apt) =>
+                    isSameDay(new Date(apt.scheduledAt), day),
+                  ) || [];
 
                 return (
                   <Button
                     key={day.toISOString()}
                     variant={isSelected ? "default" : "ghost"}
                     className={`h-14 flex flex-col items-center justify-center p-1 tap-feedback ${
-                      isSelected 
-                        ? "bg-gold text-charcoal" 
-                        : isTodayDate 
-                          ? "text-gold border border-gold/30" 
+                      isSelected
+                        ? "bg-gold text-charcoal"
+                        : isTodayDate
+                          ? "text-gold border border-gold/30"
                           : "text-steel hover:text-white"
                     }`}
                     onClick={() => setSelectedDate(day)}
                   >
-                    <div className="text-xs leading-none">{format(day, 'EEE')}</div>
-                    <div className="text-sm font-medium leading-none">{format(day, 'd')}</div>
                     {dayAppointments.length > 0 && (
                       <div className="flex items-center space-x-1 mt-1">
                         <div className="w-1 h-1 bg-current rounded-full" />
-                        <span className="text-xs">{dayAppointments.length}</span>
                       </div>
                     )}
+                    <div className="text-xs leading-none">
+                      {format(day, "EEE")}
+                    </div>
+                    <div className="text-sm font-medium leading-none">
+                      {format(day, "d")}
+                    </div>
                   </Button>
                 );
               })}
@@ -234,8 +281,8 @@ export default function CalendarNew() {
               <div className="flex items-center space-x-2">
                 <Button
                   size="sm"
-                  variant={viewMode === 'timeline' ? 'default' : 'outline'}
-                  onClick={() => setViewMode('timeline')}
+                  variant={viewMode === "timeline" ? "default" : "outline"}
+                  onClick={() => setViewMode("timeline")}
                   className="bg-charcoal border-steel/40 text-gold"
                 >
                   <Grid className="w-4 h-4 mr-1" />
@@ -243,8 +290,8 @@ export default function CalendarNew() {
                 </Button>
                 <Button
                   size="sm"
-                  variant={viewMode === 'list' ? 'default' : 'outline'}
-                  onClick={() => setViewMode('list')}
+                  variant={viewMode === "list" ? "default" : "outline"}
+                  onClick={() => setViewMode("list")}
                   className="bg-charcoal border-steel/40 text-gold"
                 >
                   <List className="w-4 h-4 mr-1" />
@@ -253,9 +300,12 @@ export default function CalendarNew() {
               </div>
               <div className="flex items-center space-x-2">
                 <Link href="/appointments/new">
-                  <Button size="sm" className="gradient-gold text-charcoal tap-feedback">
+                  <Button
+                    size="sm"
+                    className="gradient-gold text-charcoal tap-feedback"
+                  >
                     <Plus className="w-4 h-4 mr-1" />
-                    Add
+                    Add Appt.
                   </Button>
                 </Link>
               </div>
@@ -263,10 +313,8 @@ export default function CalendarNew() {
           </CardContent>
         </Card>
 
-
-
         {/* Timeline Calendar View */}
-        {viewMode === 'timeline' && (
+        {viewMode === "timeline" && (
           <TimelineCalendar
             appointments={visibleAppointments}
             selectedDate={selectedDate}
@@ -276,11 +324,11 @@ export default function CalendarNew() {
         )}
 
         {/* List View */}
-        {viewMode === 'list' && (
+        {viewMode === "list" && (
           <Card className="bg-dark-card border-steel/20">
             <CardHeader>
               <CardTitle className="text-white">
-                {format(selectedDate, 'EEEE, MMMM d')} - Appointments
+                {format(selectedDate, "EEEE, MMMM d")} - Appointments
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -291,7 +339,11 @@ export default function CalendarNew() {
               ) : visibleAppointments.length > 0 ? (
                 <div className="space-y-3">
                   {visibleAppointments
-                    .sort((a, b) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime())
+                    .sort(
+                      (a, b) =>
+                        new Date(a.scheduledAt).getTime() -
+                        new Date(b.scheduledAt).getTime(),
+                    )
                     .map((appointment) => (
                       <div
                         key={appointment.id}
@@ -301,15 +353,25 @@ export default function CalendarNew() {
                         <div className="flex items-center justify-between mb-2">
                           <div className="flex items-center space-x-3">
                             <div className="text-lg font-semibold text-white">
-                              {format(new Date(appointment.scheduledAt), 'h:mm a')}
+                              {format(
+                                new Date(appointment.scheduledAt),
+                                "h:mm a",
+                              )}
                             </div>
-                            <Badge 
-                              variant={appointment.status === 'confirmed' ? 'default' : 'secondary'}
+                            <Badge
+                              variant={
+                                appointment.status === "confirmed"
+                                  ? "default"
+                                  : "secondary"
+                              }
                               className={
-                                appointment.status === 'confirmed' ? 'bg-emerald-500/20 text-emerald-400' :
-                                appointment.status === 'pending' ? 'bg-amber-500/20 text-amber-400' :
-                                appointment.status === 'expired' ? 'bg-red-500/20 text-red-400' :
-                                'bg-gray-500/20 text-gray-400'
+                                appointment.status === "confirmed"
+                                  ? "bg-emerald-500/20 text-emerald-400"
+                                  : appointment.status === "pending"
+                                    ? "bg-amber-500/20 text-amber-400"
+                                    : appointment.status === "expired"
+                                      ? "bg-red-500/20 text-red-400"
+                                      : "bg-gray-500/20 text-gray-400"
                               }
                             >
                               {appointment.status}
@@ -323,7 +385,8 @@ export default function CalendarNew() {
                           {appointment.client.name}
                         </div>
                         <div className="text-steel text-sm">
-                          {appointment.service?.name || 'Service'} • {appointment.duration} min
+                          {appointment.service?.name || "Service"} •{" "}
+                          {appointment.duration} min
                         </div>
                       </div>
                     ))}
@@ -333,7 +396,10 @@ export default function CalendarNew() {
                   <CalendarIcon className="w-12 h-12 mx-auto mb-3 opacity-50" />
                   <p>No appointments scheduled</p>
                   <Link href="/appointments/new">
-                    <Button variant="link" className="text-gold text-sm mt-2 p-0 h-auto">
+                    <Button
+                      variant="link"
+                      className="text-gold text-sm mt-2 p-0 h-auto"
+                    >
                       Schedule an appointment
                     </Button>
                   </Link>

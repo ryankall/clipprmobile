@@ -33,7 +33,7 @@ const upload = multer({
 
 // Initialize Stripe if secret key is provided
 const stripe = process.env.STRIPE_SECRET_KEY ? new Stripe(process.env.STRIPE_SECRET_KEY, {
-  apiVersion: '2024-06-20',
+  apiVersion: '2024-06-20' as any,
 }) : null;
 
 if (!stripe) {
@@ -1210,7 +1210,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Handle appointment-based travel time calculation
       if (clientAddress && appointmentTime) {
-        const userId = req.user.id;
+        const userId = (req.user as any)?.id;
+        if (!userId) {
+          return res.json({ success: false, travelTime: 0 });
+        }
         
         // Get user info for home base address and transportation mode
         const user = await storage.getUser(userId);
@@ -1344,7 +1347,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const existingAppointments = await storage.getAppointmentsByUserId(userId, startTime, endTime);
       
       let conflictMessage = null;
-      let suggestedTimes = [];
+      let suggestedTimes: string[] = [];
 
       // Check if the proposed time conflicts with existing appointments + travel times
       for (const appointment of existingAppointments) {
@@ -2097,7 +2100,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             const travelResult = await mapboxService.calculateTravelTime(
               originAddress,
               clientAddress,
-              user.transportationMode || 'driving'
+              (user.transportationMode as 'driving' | 'walking' | 'cycling' | 'transit') || 'driving'
             );
             
             if (travelResult.status === 'OK') {
