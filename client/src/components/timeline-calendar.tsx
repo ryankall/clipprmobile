@@ -145,9 +145,9 @@ function generateTimeSlots(
     const earliestStart = Math.min(...appointmentHours.map((h) => h.startHour));
     const latestEnd = Math.max(...appointmentHours.map((h) => h.endHour));
 
-    // Expand range but preserve default bounds - limit expansion to avoid too many empty slots
+    // Expand range but preserve default bounds - allow late appointments to show
     startHour = Math.max(Math.min(startHour, earliestStart), 7); // Don't go earlier than 7 AM
-    endHour = Math.min(Math.max(endHour, latestEnd), 20); // Don't go later than 8 PM
+    endHour = Math.max(endHour, latestEnd); // Show all appointments, including late ones
   }
 
   // Generate slots for each hour
@@ -226,7 +226,10 @@ function getServiceNamesDisplay(appointment: AppointmentWithRelations): string {
 }
 
 // Current time indicator
-function getCurrentTimePosition(rowHeight: number = 80): {
+function getCurrentTimePosition(
+  timeSlots: TimeSlot[],
+  rowHeight: number = 80
+): {
   top: number;
   shouldShow: boolean;
 } {
@@ -238,8 +241,10 @@ function getCurrentTimePosition(rowHeight: number = 80): {
   const today = new Date();
   const shouldShow = now.toDateString() === today.toDateString();
 
-  // Calculate position from start of day
-  const top = hour * rowHeight + (minutes * rowHeight) / 60;
+  // Calculate relative position based on first time slot
+  const firstSlotHour = timeSlots.length > 0 ? timeSlots[0].hour : 9;
+  const relativeHour = hour - firstSlotHour;
+  const top = relativeHour * rowHeight + (minutes * rowHeight) / 60;
 
   return { top, shouldShow };
 }
@@ -267,7 +272,7 @@ export function TimelineCalendar({
     timeSlots,
     ROW_HEIGHT,
   );
-  const currentTimePos = getCurrentTimePosition(ROW_HEIGHT);
+  const currentTimePos = getCurrentTimePosition(timeSlots, ROW_HEIGHT);
 
   // Scroll to current time on mount
   useEffect(() => {
