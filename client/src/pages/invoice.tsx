@@ -50,6 +50,8 @@ import {
   Edit,
   ChevronDown,
   ChevronUp,
+  Download,
+  Mail,
 } from "lucide-react";
 import { Link } from "wouter";
 import { useForm } from "react-hook-form";
@@ -163,6 +165,7 @@ export default function InvoicePage() {
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
   const [isInvoiceDetailsOpen, setIsInvoiceDetailsOpen] = useState(false);
   const [showRecentInvoices, setShowRecentInvoices] = useState(false); // Default to hidden
+  const [showExportCard, setShowExportCard] = useState(false); // Default to hidden
   const { toast } = useToast();
 
   // Parse query params for pre-filled service and appointment data
@@ -334,6 +337,25 @@ export default function InvoicePage() {
       toast({
         title: "Error",
         description: error.message || "Failed to create template",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const exportInvoicesMutation = useMutation({
+    mutationFn: async () => {
+      return apiRequest("POST", "/api/invoices/export");
+    },
+    onSuccess: (response) => {
+      toast({
+        title: "Export Sent",
+        description: `Invoice export with ${response.invoiceCount} invoices sent to your email successfully`,
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Export Failed",
+        description: error.message || "Failed to export invoices",
         variant: "destructive",
       });
     },
@@ -1821,6 +1843,78 @@ export default function InvoicePage() {
                 </Button>
               </div>
             ) : null}
+          </CardContent>
+        </Card>
+
+        {/* Export Invoices */}
+        <Card className="bg-dark-card border-steel/20">
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-white">Export Invoices</CardTitle>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="bg-dark-card border-steel/30 text-white text-sm rounded-lg px-3 py-2 h-auto hover:bg-steel/20 border"
+                  >
+                    <div className="flex items-center gap-2">
+                      <div className="w-2 h-2 bg-gold rounded-full"></div>
+                      <ChevronDown className="w-3 h-3" />
+                    </div>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="bg-dark-card border-steel/30 text-white">
+                  <DropdownMenuItem
+                    onClick={() => exportInvoicesMutation.mutate()}
+                    disabled={exportInvoicesMutation.isPending || !invoices || invoices.length === 0}
+                    className="cursor-pointer hover:bg-steel/20 focus:bg-steel/20"
+                  >
+                    <Mail className="w-4 h-4 mr-2" />
+                    Email CSV Export
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          </CardHeader>
+          <CardContent className="px-6 py-0">
+            {showExportCard ? (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between p-3 bg-charcoal rounded-lg">
+                  <div className="flex items-center space-x-3">
+                    <div className="w-10 h-10 bg-steel/20 rounded-full flex items-center justify-center">
+                      <Download className="w-4 h-4 text-gold" />
+                    </div>
+                    <div>
+                      <div className="font-medium text-white">CSV Export</div>
+                      <div className="text-xs text-steel">
+                        Export all invoices to email as CSV file
+                      </div>
+                    </div>
+                  </div>
+                  <Button
+                    onClick={() => exportInvoicesMutation.mutate()}
+                    disabled={exportInvoicesMutation.isPending || !invoices || invoices.length === 0}
+                    size="sm"
+                    className="gradient-gold text-charcoal font-semibold"
+                  >
+                    {exportInvoicesMutation.isPending ? "Sending..." : "Export"}
+                  </Button>
+                </div>
+              </div>
+            ) : (!invoices || invoices.length === 0) ? (
+              <div className="text-center py-8 text-steel">
+                <Mail className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                <p>No invoices to export</p>
+                <p className="text-xs mt-1">Create invoices first to enable export</p>
+              </div>
+            ) : (
+              <div className="text-center py-8 text-steel">
+                <Download className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                <p>Export {invoices.length} invoices as CSV</p>
+                <p className="text-xs mt-1">Use the dropdown above to send to your email</p>
+              </div>
+            )}
           </CardContent>
         </Card>
       </main>

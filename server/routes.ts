@@ -1222,6 +1222,72 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.post("/api/invoices/export", requireAuth, async (req, res) => {
+    try {
+      const userId = (req.user as any).id;
+      const user = req.user as any;
+      
+      if (!user.email) {
+        return res.status(400).json({ 
+          success: false, 
+          message: "No email address found for user" 
+        });
+      }
+
+      // Get all invoices and clients for the user
+      const invoices = await storage.getInvoicesByUserId(userId);
+      const clients = await storage.getClientsByUserId(userId);
+      
+      if (!invoices || invoices.length === 0) {
+        return res.status(400).json({ 
+          success: false, 
+          message: "No invoices to export" 
+        });
+      }
+
+      // Generate CSV data
+      const { generateInvoiceCSV, sendEmail } = await import('./email');
+      const csvData = generateInvoiceCSV(invoices, clients);
+      const currentDate = new Date().toISOString().split('T')[0];
+      const filename = `invoices_export_${currentDate}.csv`;
+      
+      // Send email with CSV attachment
+      const emailSent = await sendEmail({
+        to: user.email,
+        from: 'noreply@clippr.app',
+        subject: 'Invoice Export - Clippr',
+        text: `Hi ${user.firstName},\n\nYour invoice export is attached. This file contains ${invoices.length} invoices in CSV format.\n\nBest regards,\nClippr Team`,
+        html: `<p>Hi ${user.firstName},</p><p>Your invoice export is attached. This file contains <strong>${invoices.length} invoices</strong> in CSV format.</p><p>Best regards,<br>Clippr Team</p>`,
+        attachments: [{
+          filename,
+          content: Buffer.from(csvData).toString('base64'),
+          type: 'text/csv'
+        }]
+      });
+      
+      if (emailSent) {
+        res.json({ 
+          success: true, 
+          message: "Invoice export sent successfully",
+          emailSent: true,
+          invoiceCount: invoices.length
+        });
+      } else {
+        res.status(500).json({ 
+          success: false, 
+          message: "Failed to send export email. Please check email configuration." 
+        });
+      }
+      
+    } catch (error: any) {
+      console.error('Export error:', error);
+      res.status(500).json({ 
+        success: false, 
+        message: error.message 
+      });
+    }
+  });
+
   // Stripe payment routes (if configured)
   if (stripe) {
     app.post("/api/create-payment-intent", requireAuth, async (req, res) => {
