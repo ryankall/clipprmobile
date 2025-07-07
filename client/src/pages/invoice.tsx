@@ -6,6 +6,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -1568,22 +1574,35 @@ export default function InvoicePage() {
           <CardHeader>
             <div className="flex items-center justify-between">
               <CardTitle className="text-white">Recent Invoices</CardTitle>
-              <Select value={showRecentInvoices ? "show" : "hide"} onValueChange={(value) => setShowRecentInvoices(value === "show")}>
-                <SelectTrigger className="w-auto min-w-[120px] bg-dark-card border-steel/30 text-white text-sm rounded-lg px-3 py-2 h-auto">
-                  <div className="flex items-center gap-2">
-                    <div className="w-2 h-2 bg-gold rounded-full"></div>
-                    <SelectValue placeholder="Filter" />
-                  </div>
-                </SelectTrigger>
-                <SelectContent className="bg-dark-card border-steel/30 text-white rounded-lg">
-                  <SelectItem value="hide" className="text-white hover:bg-steel/20 rounded-md">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="bg-dark-card border-steel/30 text-white text-sm rounded-lg px-3 py-2 h-auto hover:bg-steel/20 border"
+                  >
+                    <div className="flex items-center gap-2">
+                      <div className="w-2 h-2 bg-gold rounded-full"></div>
+                      <span>{showRecentInvoices ? "Show All" : "Hidden"}</span>
+                      <ChevronDown className="w-3 h-3" />
+                    </div>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="bg-dark-card border-steel/30 text-white rounded-lg">
+                  <DropdownMenuItem 
+                    onClick={() => setShowRecentInvoices(false)}
+                    className="text-white hover:bg-steel/20 rounded-md cursor-pointer"
+                  >
                     Hidden
-                  </SelectItem>
-                  <SelectItem value="show" className="text-white hover:bg-steel/20 rounded-md">
+                  </DropdownMenuItem>
+                  <DropdownMenuItem 
+                    onClick={() => setShowRecentInvoices(true)}
+                    className="text-white hover:bg-steel/20 rounded-md cursor-pointer"
+                  >
                     Show All
-                  </SelectItem>
-                </SelectContent>
-              </Select>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           </CardHeader>
           <CardContent>
