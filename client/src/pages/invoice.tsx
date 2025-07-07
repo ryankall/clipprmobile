@@ -48,6 +48,7 @@ import {
   Scissors,
   Trash2,
   Edit,
+  ChevronDown,
 } from "lucide-react";
 import { Link } from "wouter";
 import { useForm } from "react-hook-form";
