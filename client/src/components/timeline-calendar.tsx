@@ -131,7 +131,15 @@ function generateTimeSlots(
   // Get current date or use selected date for day-specific working hours
   const targetDate = selectedDate || new Date();
   const dayOfWeek = targetDate.getDay(); // 0 = Sunday, 1 = Monday, etc.
-  const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+  const dayNames = [
+    "sunday",
+    "monday",
+    "tuesday",
+    "wednesday",
+    "thursday",
+    "friday",
+    "saturday",
+  ];
   const dayName = dayNames[dayOfWeek];
 
   // Dynamic time range expansion logic
@@ -140,12 +148,12 @@ function generateTimeSlots(
   let dayIsEnabled = true;
 
   // Check day-specific working hours
-  if (workingHours && typeof workingHours === 'object') {
+  if (workingHours && typeof workingHours === "object") {
     // New format: day-specific working hours
     if (workingHours[dayName]) {
       const dayHours = workingHours[dayName];
       dayIsEnabled = dayHours.enabled || false;
-      
+
       if (dayIsEnabled && dayHours.start && dayHours.end) {
         startHour = parseInt(dayHours.start.split(":")[0]);
         endHour = parseInt(dayHours.end.split(":")[0]);
@@ -193,7 +201,7 @@ function generateTimeSlots(
       const end = addMinutes(start, apt.duration);
       return start.getHours() >= 23 && end.getDate() > start.getDate();
     });
-    
+
     if (midnightCrossover) {
       endHour = Math.max(endHour, 25); // Extend to 1 AM (hour 25 = 1 AM next day)
     }
@@ -289,7 +297,8 @@ function getServiceNamesDisplay(appointment: AppointmentWithRelations): string {
 // Current time indicator
 function getCurrentTimePosition(
   timeSlots: TimeSlot[],
-  rowHeight: number = 80
+  rowHeight: number = 80,
+  selectedDate?: Date,
 ): {
   top: number;
   shouldShow: boolean;
@@ -298,9 +307,11 @@ function getCurrentTimePosition(
   const hour = now.getHours();
   const minutes = now.getMinutes();
 
-  // Only show if it's today
+  // Only show if we're viewing today's date
   const today = new Date();
-  const shouldShow = now.toDateString() === today.toDateString();
+  const shouldShow = selectedDate ? 
+    (selectedDate.toDateString() === today.toDateString()) : 
+    false;
 
   // Calculate relative position based on first time slot
   const firstSlotHour = timeSlots.length > 0 ? timeSlots[0].hour : 9;
@@ -327,13 +338,17 @@ export function TimelineCalendar({
     return aptDate === selectedDateStr;
   });
 
-  const timeSlots = generateTimeSlots(dayAppointments, workingHours, selectedDate);
+  const timeSlots = generateTimeSlots(
+    dayAppointments,
+    workingHours,
+    selectedDate,
+  );
   const appointmentPositions = calculateAppointmentPositions(
     dayAppointments,
     timeSlots,
     ROW_HEIGHT,
   );
-  const currentTimePos = getCurrentTimePosition(timeSlots, ROW_HEIGHT);
+  const currentTimePos = getCurrentTimePosition(timeSlots, ROW_HEIGHT, selectedDate);
 
   // Scroll to current time on mount
   useEffect(() => {
@@ -483,19 +498,6 @@ export function TimelineCalendar({
                 </div>
               )}
             </div>
-
-            {/* Empty state */}
-            {dayAppointments.length === 0 && (
-              <div className="absolute inset-0 flex items-center justify-center bg-white/50">
-                <div className="text-center text-gray-500 p-8">
-                  <Clock className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                  <p className="text-lg font-medium mb-2">
-                    No appointments scheduled
-                  </p>
-                  <p className="text-sm">This day is free for new bookings</p>
-                </div>
-              </div>
-            )}
           </div>
         )}
       </CardContent>
