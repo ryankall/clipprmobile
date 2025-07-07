@@ -1740,7 +1740,7 @@ export default function InvoicePage() {
               </Button>
             </div>
           </CardHeader>
-          <CardContent className="p-6">
+          <CardContent className="px-6 py-0">
             {invoicesLoading ? (
               <div className="flex justify-center py-8">
                 <div className="animate-spin w-6 h-6 border-2 border-gold border-t-transparent rounded-full" />
