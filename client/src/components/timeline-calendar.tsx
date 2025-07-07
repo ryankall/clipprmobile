@@ -229,6 +229,19 @@ function generateTimeSlots(
           const workStart = parseInt(dayHours.start.split(":")[0]);
           const workEnd = parseInt(dayHours.end.split(":")[0]);
           isWithinWorkingHours = hour >= workStart && hour <= workEnd;
+          
+          // Check if this hour is blocked by break times
+          if (isWithinWorkingHours && dayHours.breaks && dayHours.breaks.length > 0) {
+            for (const breakTime of dayHours.breaks) {
+              const breakStart = parseInt(breakTime.start.split(":")[0]);
+              const breakEnd = parseInt(breakTime.end.split(":")[0]);
+              // If current hour falls within break time, block it
+              if (hour >= breakStart && hour < breakEnd) {
+                isWithinWorkingHours = false;
+                break;
+              }
+            }
+          }
         }
       } else if (workingHours.enabled) {
         // Legacy single working hours

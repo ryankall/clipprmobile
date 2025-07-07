@@ -103,6 +103,9 @@ export default function CalendarNew() {
     queryKey: ["/api/user/profile"],
   });
 
+  // Use real working hours from user profile
+  const realWorkingHours = (userProfile as any)?.workingHours;
+
   console.log("Total appointments loaded:", appointments?.length || null);
 
   // Filter appointments for selected date
@@ -156,7 +159,7 @@ export default function CalendarNew() {
   const weekDays = Array.from({ length: 7 }, (_, i) => addDays(startDate, i));
 
   // Get working hours from user profile or use defaults
-  const workingHours = userProfile?.workingHours || {
+  const workingHours = realWorkingHours || {
     monday: { enabled: true, start: '09:00', end: '17:00' },
     tuesday: { enabled: true, start: '09:00', end: '17:00' },
     wednesday: { enabled: true, start: '09:00', end: '17:00' },
@@ -322,7 +325,7 @@ export default function CalendarNew() {
           <TimelineCalendar
             appointments={visibleAppointments}
             selectedDate={selectedDate}
-            workingHours={userProfile?.workingHours || workingHours}
+            workingHours={realWorkingHours || workingHours}
             onAppointmentClick={handleAppointmentClick}
           />
         )}
@@ -426,7 +429,7 @@ export default function CalendarNew() {
         open={showWorkingHoursDialog}
         onClose={() => setShowWorkingHoursDialog(false)}
         workingHours={workingHours}
-        currentHours={userProfile?.workingHours}
+        currentHours={realWorkingHours}
       />
 
       <BottomNavigation currentPath="/calendar" />
