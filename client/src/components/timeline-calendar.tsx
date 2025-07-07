@@ -29,6 +29,7 @@ interface TimeSlot {
   appointments: AppointmentWithRelations[];
   isBlocked: boolean;
   isWithinWorkingHours: boolean;
+  breakLabel?: string | null; // Label for break time (e.g., "Lunch Break")
 }
 
 interface AppointmentPosition {
@@ -221,6 +222,8 @@ function generateTimeSlots(
 
     // Check if within working hours - if day is disabled, all hours are blocked
     let isWithinWorkingHours = false;
+    let breakLabel = null; // Track break label for this hour
+    
     if (dayIsEnabled && workingHours) {
       if (workingHours[dayName]) {
         // Day-specific working hours
@@ -235,9 +238,10 @@ function generateTimeSlots(
             for (const breakTime of dayHours.breaks) {
               const breakStart = parseInt(breakTime.start.split(":")[0]);
               const breakEnd = parseInt(breakTime.end.split(":")[0]);
-              // If current hour falls within break time, block it
+              // If current hour falls within break time, block it and store label
               if (hour >= breakStart && hour < breakEnd) {
                 isWithinWorkingHours = false;
+                breakLabel = breakTime.label || "Break";
                 break;
               }
             }
@@ -271,6 +275,7 @@ function generateTimeSlots(
       appointments: hourAppointments,
       isBlocked: !isWithinWorkingHours,
       isWithinWorkingHours,
+      breakLabel, // Add break label to slot data
     });
   }
 
@@ -436,7 +441,7 @@ export function TimelineCalendar({
                   {slot.isBlocked && (
                     <div className="absolute left-16 top-0 right-0 h-full flex items-center justify-center">
                       <span className="text-xs text-gray-500 dark:text-gray-400">
-                        Outside working hours
+                        {slot.breakLabel || "Outside working hours"}
                       </span>
                     </div>
                   )}
