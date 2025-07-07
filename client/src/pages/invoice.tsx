@@ -1851,34 +1851,20 @@ export default function InvoicePage() {
           <CardHeader>
             <div className="flex items-center justify-between">
               <CardTitle className="text-white">Export Invoices</CardTitle>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="bg-dark-card border-steel/30 text-white text-sm rounded-lg px-3 py-2 h-auto hover:bg-steel/20 border"
-                  >
-                    <div className="flex items-center gap-2">
-                      <div className="w-2 h-2 bg-gold rounded-full"></div>
-                      <ChevronDown className="w-3 h-3" />
-                    </div>
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent className="bg-dark-card border-steel/30 text-white">
-                  <DropdownMenuItem
-                    onClick={() => exportInvoicesMutation.mutate()}
-                    disabled={exportInvoicesMutation.isPending || !invoices || invoices.length === 0}
-                    className="cursor-pointer hover:bg-steel/20 focus:bg-steel/20"
-                  >
-                    <Mail className="w-4 h-4 mr-2" />
-                    Email CSV Export
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 bg-gold rounded-full"></div>
+                <ChevronDown className="w-3 h-3 text-steel" />
+              </div>
             </div>
           </CardHeader>
           <CardContent className="px-6 py-0">
-            {showExportCard ? (
+            {(!invoices || invoices.length === 0) ? (
+              <div className="text-center py-8 text-steel">
+                <Mail className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                <p>No invoices to export</p>
+                <p className="text-xs mt-1">Create invoices first to enable export</p>
+              </div>
+            ) : (
               <div className="space-y-3">
                 <div className="flex items-center justify-between p-3 bg-charcoal rounded-lg">
                   <div className="flex items-center space-x-3">
@@ -1888,31 +1874,20 @@ export default function InvoicePage() {
                     <div>
                       <div className="font-medium text-white">CSV Export</div>
                       <div className="text-xs text-steel">
-                        Export all invoices to email as CSV file
+                        Export {invoices.length} invoices to email as CSV file
                       </div>
                     </div>
                   </div>
                   <Button
                     onClick={() => exportInvoicesMutation.mutate()}
-                    disabled={exportInvoicesMutation.isPending || !invoices || invoices.length === 0}
+                    disabled={exportInvoicesMutation.isPending}
                     size="sm"
                     className="gradient-gold text-charcoal font-semibold"
                   >
-                    {exportInvoicesMutation.isPending ? "Sending..." : "Export"}
+                    <Mail className="w-4 h-4 mr-2" />
+                    {exportInvoicesMutation.isPending ? "Sending..." : "Email CSV"}
                   </Button>
                 </div>
-              </div>
-            ) : (!invoices || invoices.length === 0) ? (
-              <div className="text-center py-8 text-steel">
-                <Mail className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                <p>No invoices to export</p>
-                <p className="text-xs mt-1">Create invoices first to enable export</p>
-              </div>
-            ) : (
-              <div className="text-center py-8 text-steel">
-                <Download className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                <p>Export {invoices.length} invoices as CSV</p>
-                <p className="text-xs mt-1">Use the dropdown above to send to your email</p>
               </div>
             )}
           </CardContent>
