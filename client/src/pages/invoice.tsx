@@ -125,6 +125,7 @@ export default function InvoicePage() {
   }>>([]);
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
   const [isInvoiceDetailsOpen, setIsInvoiceDetailsOpen] = useState(false);
+  const [showRecentInvoices, setShowRecentInvoices] = useState(false); // Default to hidden
   const { toast } = useToast();
 
   // Parse query params for pre-filled service and appointment data
@@ -1564,11 +1565,29 @@ export default function InvoicePage() {
 
         {/* Recent Invoices */}
         <Card className="bg-dark-card border-steel/20">
-          <CardHeader>
+          <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="text-white">Recent Invoices</CardTitle>
+            <Select value={showRecentInvoices ? "show" : "hide"} onValueChange={(value) => setShowRecentInvoices(value === "show")}>
+              <SelectTrigger className="w-32 bg-charcoal border-steel/40 text-white text-sm">
+                <SelectValue placeholder="Filter" />
+              </SelectTrigger>
+              <SelectContent className="bg-charcoal border-steel/40 text-white">
+                <SelectItem value="hide" className="text-white hover:bg-steel/20">
+                  Hidden
+                </SelectItem>
+                <SelectItem value="show" className="text-white hover:bg-steel/20">
+                  Show All
+                </SelectItem>
+              </SelectContent>
+            </Select>
           </CardHeader>
           <CardContent>
-            {invoicesLoading ? (
+            {!showRecentInvoices ? (
+              <div className="flex flex-col items-center justify-center py-8 text-center">
+                <div className="text-steel text-sm mb-2">Recent invoices are hidden</div>
+                <div className="text-xs text-steel/70">Use the dropdown above to show invoices</div>
+              </div>
+            ) : invoicesLoading ? (
               <div className="flex justify-center py-8">
                 <div className="animate-spin w-6 h-6 border-2 border-gold border-t-transparent rounded-full" />
               </div>
