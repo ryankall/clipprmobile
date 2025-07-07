@@ -1565,21 +1565,26 @@ export default function InvoicePage() {
 
         {/* Recent Invoices */}
         <Card className="bg-dark-card border-steel/20">
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle className="text-white">Recent Invoices</CardTitle>
-            <Select value={showRecentInvoices ? "show" : "hide"} onValueChange={(value) => setShowRecentInvoices(value === "show")}>
-              <SelectTrigger className="w-32 bg-charcoal border-steel/40 text-white text-sm">
-                <SelectValue placeholder="Filter" />
-              </SelectTrigger>
-              <SelectContent className="bg-charcoal border-steel/40 text-white">
-                <SelectItem value="hide" className="text-white hover:bg-steel/20">
-                  Hidden
-                </SelectItem>
-                <SelectItem value="show" className="text-white hover:bg-steel/20">
-                  Show All
-                </SelectItem>
-              </SelectContent>
-            </Select>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-white">Recent Invoices</CardTitle>
+              <Select value={showRecentInvoices ? "show" : "hide"} onValueChange={(value) => setShowRecentInvoices(value === "show")}>
+                <SelectTrigger className="w-auto min-w-[120px] bg-dark-card border-steel/30 text-white text-sm rounded-lg px-3 py-2 h-auto">
+                  <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 bg-gold rounded-full"></div>
+                    <SelectValue placeholder="Filter" />
+                  </div>
+                </SelectTrigger>
+                <SelectContent className="bg-dark-card border-steel/30 text-white rounded-lg">
+                  <SelectItem value="hide" className="text-white hover:bg-steel/20 rounded-md">
+                    Hidden
+                  </SelectItem>
+                  <SelectItem value="show" className="text-white hover:bg-steel/20 rounded-md">
+                    Show All
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </CardHeader>
           <CardContent>
             {!showRecentInvoices ? (
