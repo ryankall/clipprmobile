@@ -94,7 +94,10 @@ export function WorkingHoursDialog({ open, onClose, workingHours: initialWorking
         title: "Working Hours Updated",
         description: "Your working hours have been saved successfully",
       });
+      // Invalidate all related queries to refresh calendar and availability
       queryClient.invalidateQueries({ queryKey: ["/api/user/profile"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/appointments"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/appointments/today"] });
       onClose();
     },
     onError: (error: any) => {

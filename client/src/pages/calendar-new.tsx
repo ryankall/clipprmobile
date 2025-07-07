@@ -322,7 +322,7 @@ export default function CalendarNew() {
           <TimelineCalendar
             appointments={visibleAppointments}
             selectedDate={selectedDate}
-            workingHours={workingHours}
+            workingHours={userProfile?.workingHours || workingHours}
             onAppointmentClick={handleAppointmentClick}
           />
         )}
