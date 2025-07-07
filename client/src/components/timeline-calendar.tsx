@@ -223,7 +223,7 @@ function generateTimeSlots(
     // Check if within working hours - if day is disabled, all hours are blocked
     let isWithinWorkingHours = false;
     let breakLabel = null; // Track break label for this hour
-    
+
     if (dayIsEnabled && workingHours) {
       if (workingHours[dayName]) {
         // Day-specific working hours
@@ -232,9 +232,13 @@ function generateTimeSlots(
           const workStart = parseInt(dayHours.start.split(":")[0]);
           const workEnd = parseInt(dayHours.end.split(":")[0]);
           isWithinWorkingHours = hour >= workStart && hour <= workEnd;
-          
+
           // Check if this hour is blocked by break times
-          if (isWithinWorkingHours && dayHours.breaks && dayHours.breaks.length > 0) {
+          if (
+            isWithinWorkingHours &&
+            dayHours.breaks &&
+            dayHours.breaks.length > 0
+          ) {
             for (const breakTime of dayHours.breaks) {
               const breakStart = parseInt(breakTime.start.split(":")[0]);
               const breakEnd = parseInt(breakTime.end.split(":")[0]);
@@ -327,9 +331,9 @@ function getCurrentTimePosition(
 
   // Only show if we're viewing today's date
   const today = new Date();
-  const shouldShow = selectedDate ? 
-    (selectedDate.toDateString() === today.toDateString()) : 
-    false;
+  const shouldShow = selectedDate
+    ? selectedDate.toDateString() === today.toDateString()
+    : false;
 
   // Calculate relative position based on first time slot
   const firstSlotHour = timeSlots.length > 0 ? timeSlots[0].hour : 9;
@@ -366,7 +370,11 @@ export function TimelineCalendar({
     timeSlots,
     ROW_HEIGHT,
   );
-  const currentTimePos = getCurrentTimePosition(timeSlots, ROW_HEIGHT, selectedDate);
+  const currentTimePos = getCurrentTimePosition(
+    timeSlots,
+    ROW_HEIGHT,
+    selectedDate,
+  );
 
   // Scroll to current time on mount
   useEffect(() => {
@@ -383,7 +391,7 @@ export function TimelineCalendar({
 
   return (
     <Card className="bg-dark-card border-steel/20 overflow-hidden">
-      <CardContent className="p-0">
+      <CardContent className="p-1">
         <div className="flex items-center justify-between p-4 border-b border-steel/20">
           <div className="flex items-center space-x-2">
             <Clock className="w-5 h-5 text-gold" />

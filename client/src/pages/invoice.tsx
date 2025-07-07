@@ -49,6 +49,7 @@ import {
   Trash2,
   Edit,
   ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 import { Link } from "wouter";
 import { useForm } from "react-hook-form";
@@ -81,35 +82,62 @@ const invoiceFormSchema = insertInvoiceSchema.extend({
 });
 
 const templateFormSchema = z.object({
-  name: z.string().min(1, "Template name is required").max(60, "Template name must be 60 characters or less"),
+  name: z
+    .string()
+    .min(1, "Template name is required")
+    .max(60, "Template name must be 60 characters or less"),
   services: z.array(z.number()).min(1, "At least one service is required"),
 });
 
 const serviceFormSchema = z.object({
-  name: z.string().min(1, "Service name is required").max(60, "Service name must be 60 characters or less"),
-  description: z.string().max(200, "Description must be 200 characters or less").optional(),
-  price: z.string().min(1, "Price is required").refine((val) => {
-    const num = parseFloat(val);
-    return !isNaN(num) && num >= 0 && num <= 99999999.99;
-  }, "Price must be between $0.00 and $99,999,999.99"),
-  duration: z.string().min(1, "Duration is required").refine((val) => {
-    const num = parseInt(val);
-    return !isNaN(num) && num >= 1 && num <= 10080; // max 1 week in minutes
-  }, "Duration must be between 1 and 10,080 minutes (1 week)"),
+  name: z
+    .string()
+    .min(1, "Service name is required")
+    .max(60, "Service name must be 60 characters or less"),
+  description: z
+    .string()
+    .max(200, "Description must be 200 characters or less")
+    .optional(),
+  price: z
+    .string()
+    .min(1, "Price is required")
+    .refine((val) => {
+      const num = parseFloat(val);
+      return !isNaN(num) && num >= 0 && num <= 99999999.99;
+    }, "Price must be between $0.00 and $99,999,999.99"),
+  duration: z
+    .string()
+    .min(1, "Duration is required")
+    .refine((val) => {
+      const num = parseInt(val);
+      return !isNaN(num) && num >= 1 && num <= 10080; // max 1 week in minutes
+    }, "Duration must be between 1 and 10,080 minutes (1 week)"),
   category: z.string().min(1, "Category is required"),
 });
 
 const serviceCreateSchema = z.object({
-  name: z.string().min(1, "Service name is required").max(60, "Service name must be 60 characters or less"),
-  description: z.string().max(200, "Description must be 200 characters or less").optional(),
-  price: z.string().min(1, "Price is required").refine((val) => {
-    const num = parseFloat(val);
-    return !isNaN(num) && num >= 0 && num <= 99999999.99;
-  }, "Price must be between $0.00 and $99,999,999.99"),
-  duration: z.string().min(1, "Duration is required").refine((val) => {
-    const num = parseInt(val);
-    return !isNaN(num) && num >= 1 && num <= 10080; // max 1 week in minutes
-  }, "Duration must be between 1 and 10,080 minutes (1 week)"),
+  name: z
+    .string()
+    .min(1, "Service name is required")
+    .max(60, "Service name must be 60 characters or less"),
+  description: z
+    .string()
+    .max(200, "Description must be 200 characters or less")
+    .optional(),
+  price: z
+    .string()
+    .min(1, "Price is required")
+    .refine((val) => {
+      const num = parseFloat(val);
+      return !isNaN(num) && num >= 0 && num <= 99999999.99;
+    }, "Price must be between $0.00 and $99,999,999.99"),
+  duration: z
+    .string()
+    .min(1, "Duration is required")
+    .refine((val) => {
+      const num = parseInt(val);
+      return !isNaN(num) && num >= 1 && num <= 10080; // max 1 week in minutes
+    }, "Duration must be between 1 and 10,080 minutes (1 week)"),
   category: z.string().min(1, "Category is required"),
 });
 
@@ -124,12 +152,14 @@ export default function InvoicePage() {
   const [isServiceSelectOpen, setIsServiceSelectOpen] = useState(false);
   const [savedTemplates, setSavedTemplates] = useState<any[]>([]);
   const [hiddenTemplates, setHiddenTemplates] = useState<string[]>([]);
-  const [selectedServices, setSelectedServices] = useState<Array<{
-    serviceId: number;
-    serviceName: string;
-    price: number;
-    quantity: number;
-  }>>([]);
+  const [selectedServices, setSelectedServices] = useState<
+    Array<{
+      serviceId: number;
+      serviceName: string;
+      price: number;
+      quantity: number;
+    }>
+  >([]);
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
   const [isInvoiceDetailsOpen, setIsInvoiceDetailsOpen] = useState(false);
   const [showRecentInvoices, setShowRecentInvoices] = useState(false); // Default to hidden
@@ -174,32 +204,36 @@ export default function InvoicePage() {
     if (prefilledAppointment && clients && services) {
       try {
         const appointmentData = JSON.parse(prefilledAppointment);
-        
+
         // Find the matching client
-        const client = clients.find(c => c.id === appointmentData.clientId);
+        const client = clients.find((c) => c.id === appointmentData.clientId);
         if (client) {
           form.setValue("clientId", client.id);
         }
-        
+
         // Find or create a matching service for the invoice
-        const matchingService = services.find(s => s.name === appointmentData.serviceName);
+        const matchingService = services.find(
+          (s) => s.name === appointmentData.serviceName,
+        );
         if (matchingService) {
-          setSelectedServices([{
-            serviceId: matchingService.id,
-            serviceName: matchingService.name,
-            price: parseFloat(matchingService.price),
-            quantity: 1
-          }]);
-          
+          setSelectedServices([
+            {
+              serviceId: matchingService.id,
+              serviceName: matchingService.name,
+              price: parseFloat(matchingService.price),
+              quantity: 1,
+            },
+          ]);
+
           // Set the invoice amounts
           const servicePrice = parseFloat(matchingService.price);
           form.setValue("subtotal", servicePrice.toFixed(2));
           form.setValue("total", servicePrice.toFixed(2));
         }
-        
+
         // Auto-open the create invoice dialog
         setIsDialogOpen(true);
-        
+
         // Clear the URL parameter to prevent re-triggering
         window.history.replaceState({}, document.title, "/invoice");
       } catch (error) {
@@ -314,7 +348,9 @@ export default function InvoicePage() {
   };
 
   const loadHiddenTemplates = () => {
-    const hidden = JSON.parse(localStorage.getItem('hiddenDefaultTemplates') || '[]');
+    const hidden = JSON.parse(
+      localStorage.getItem("hiddenDefaultTemplates") || "[]",
+    );
     setHiddenTemplates(hidden);
   };
 
@@ -326,15 +362,18 @@ export default function InvoicePage() {
 
   // Calculate totals when selected services or tip change
   useEffect(() => {
-    const subtotal = selectedServices.reduce((sum, service) => sum + (service.price * service.quantity), 0);
+    const subtotal = selectedServices.reduce(
+      (sum, service) => sum + service.price * service.quantity,
+      0,
+    );
     const tipPercentage = form.watch("tipPercentage");
     const manualTip = parseFloat(form.watch("tip") || "0");
-    
+
     // Calculate tip based on percentage if set, otherwise use manual tip
     let calculatedTip;
     if (tipPercentage !== undefined && tipPercentage !== null) {
       if (tipPercentage > 0) {
-        calculatedTip = subtotal * tipPercentage / 100;
+        calculatedTip = (subtotal * tipPercentage) / 100;
         form.setValue("tip", calculatedTip.toFixed(2));
       } else {
         // When "No tip" (0%) is selected, reset tip to 0
@@ -345,9 +384,9 @@ export default function InvoicePage() {
       // Use manual tip amount when no percentage is set
       calculatedTip = manualTip;
     }
-    
+
     const total = subtotal + calculatedTip;
-    
+
     form.setValue("subtotal", subtotal.toFixed(2));
     form.setValue("total", total.toFixed(2));
   }, [selectedServices, form.watch("tip"), form.watch("tipPercentage")]);
@@ -502,11 +541,20 @@ export default function InvoicePage() {
 
   // Handle template deletion
   const handleDeleteTemplate = (templateId: string) => {
-    if (confirm("Are you sure you want to delete this template? This action cannot be undone.")) {
-      const updatedTemplates = savedTemplates.filter(template => template.id !== templateId);
+    if (
+      confirm(
+        "Are you sure you want to delete this template? This action cannot be undone.",
+      )
+    ) {
+      const updatedTemplates = savedTemplates.filter(
+        (template) => template.id !== templateId,
+      );
       setSavedTemplates(updatedTemplates);
-      localStorage.setItem('invoiceTemplates', JSON.stringify(updatedTemplates));
-      
+      localStorage.setItem(
+        "invoiceTemplates",
+        JSON.stringify(updatedTemplates),
+      );
+
       toast({
         title: "Template Deleted",
         description: "Invoice template has been deleted successfully",
@@ -516,16 +564,25 @@ export default function InvoicePage() {
 
   // Handle default template deletion
   const handleDeleteDefaultTemplate = (templateType: string) => {
-    if (confirm("Are you sure you want to hide this default template? This action cannot be undone.")) {
-      const hiddenTemplates = JSON.parse(localStorage.getItem('hiddenDefaultTemplates') || '[]');
+    if (
+      confirm(
+        "Are you sure you want to hide this default template? This action cannot be undone.",
+      )
+    ) {
+      const hiddenTemplates = JSON.parse(
+        localStorage.getItem("hiddenDefaultTemplates") || "[]",
+      );
       hiddenTemplates.push(templateType);
-      localStorage.setItem('hiddenDefaultTemplates', JSON.stringify(hiddenTemplates));
-      
+      localStorage.setItem(
+        "hiddenDefaultTemplates",
+        JSON.stringify(hiddenTemplates),
+      );
+
       toast({
         title: "Template Hidden",
         description: "Default template has been hidden from quick access",
       });
-      
+
       // Update state instead of reloading
       setHiddenTemplates(hiddenTemplates);
     }
@@ -533,51 +590,67 @@ export default function InvoicePage() {
 
   // Add service to invoice
   const addServiceToInvoice = (service: Service) => {
-    const existingService = selectedServices.find(s => s.serviceId === service.id);
+    const existingService = selectedServices.find(
+      (s) => s.serviceId === service.id,
+    );
     const servicePrice = parseFloat(service.price);
-    
+
     if (existingService) {
       // Increase quantity if service already exists
-      setSelectedServices(prev =>
-        prev.map(s =>
-          s.serviceId === service.id
-            ? { ...s, quantity: s.quantity + 1 }
-            : s
-        )
+      setSelectedServices((prev) =>
+        prev.map((s) =>
+          s.serviceId === service.id ? { ...s, quantity: s.quantity + 1 } : s,
+        ),
       );
     } else {
       // Add new service
-      setSelectedServices(prev => [
+      setSelectedServices((prev) => [
         ...prev,
         {
           serviceId: service.id,
           serviceName: service.name,
           price: servicePrice,
           quantity: 1,
-        }
+        },
       ]);
     }
 
     // Update subtotal by recalculating from current state
     setTimeout(() => {
-      const currentServices = existingService 
-        ? selectedServices.map(s => s.serviceId === service.id ? { ...s, quantity: s.quantity + 1 } : s)
-        : [...selectedServices, { serviceId: service.id, serviceName: service.name, price: servicePrice, quantity: 1 }];
-      
-      const newSubtotal = currentServices.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+      const currentServices = existingService
+        ? selectedServices.map((s) =>
+            s.serviceId === service.id ? { ...s, quantity: s.quantity + 1 } : s,
+          )
+        : [
+            ...selectedServices,
+            {
+              serviceId: service.id,
+              serviceName: service.name,
+              price: servicePrice,
+              quantity: 1,
+            },
+          ];
+
+      const newSubtotal = currentServices.reduce(
+        (sum, item) => sum + item.price * item.quantity,
+        0,
+      );
       form.setValue("subtotal", newSubtotal.toFixed(2));
     }, 0);
   };
 
   // Remove service from invoice
   const removeServiceFromInvoice = (serviceId: number) => {
-    setSelectedServices(prev => {
-      const newServices = prev.filter(s => s.serviceId !== serviceId);
-      
+    setSelectedServices((prev) => {
+      const newServices = prev.filter((s) => s.serviceId !== serviceId);
+
       // Update subtotal with the new filtered services
-      const newSubtotal = newServices.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+      const newSubtotal = newServices.reduce(
+        (sum, item) => sum + item.price * item.quantity,
+        0,
+      );
       form.setValue("subtotal", newSubtotal.toFixed(2));
-      
+
       return newServices;
     });
   };
@@ -589,17 +662,18 @@ export default function InvoicePage() {
       return;
     }
 
-    setSelectedServices(prev => {
-      const newServices = prev.map(s =>
-        s.serviceId === serviceId
-          ? { ...s, quantity }
-          : s
+    setSelectedServices((prev) => {
+      const newServices = prev.map((s) =>
+        s.serviceId === serviceId ? { ...s, quantity } : s,
       );
-      
+
       // Update subtotal with the new services
-      const newSubtotal = newServices.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+      const newSubtotal = newServices.reduce(
+        (sum, item) => sum + item.price * item.quantity,
+        0,
+      );
       form.setValue("subtotal", newSubtotal.toFixed(2));
-      
+
       return newServices;
     });
   };
@@ -649,35 +723,44 @@ export default function InvoicePage() {
 
   const onTemplateSubmit = (data: z.infer<typeof templateFormSchema>) => {
     // Convert selected services to template format
-    const selectedServiceData = services?.filter(s => data.services.includes(s.id)) || [];
-    const totalAmount = selectedServiceData.reduce((sum, service) => sum + parseFloat(service.price || "0"), 0);
-    
+    const selectedServiceData =
+      services?.filter((s) => data.services.includes(s.id)) || [];
+    const totalAmount = selectedServiceData.reduce(
+      (sum, service) => sum + parseFloat(service.price || "0"),
+      0,
+    );
+
     const templateData = {
       name: data.name,
       amount: totalAmount.toFixed(2),
       category: "template",
-      description: selectedServiceData.map(s => s.name).join(", ")
+      description: selectedServiceData.map((s) => s.name).join(", "),
     };
-    
+
     // Since the backend expects the old format, we need to convert to the old template structure
     createTemplateMutation.mutate(templateData as any);
   };
 
-  const handleQuickInvoice = (serviceType: string, price: string, template?: any) => {
+  const handleQuickInvoice = (
+    serviceType: string,
+    price: string,
+    template?: any,
+  ) => {
     form.setValue("subtotal", price);
     form.setValue("total", price);
-    
+
     if (template) {
       // Handle template-based invoice
       const templateServices = template.description?.split(", ") || [];
-      const matchedServices = services?.filter(s => templateServices.includes(s.name)) || [];
-      
+      const matchedServices =
+        services?.filter((s) => templateServices.includes(s.name)) || [];
+
       if (matchedServices.length > 0) {
-        const serviceItems = matchedServices.map(service => ({
+        const serviceItems = matchedServices.map((service) => ({
           serviceId: service.id,
           serviceName: service.name,
           price: parseFloat(service.price || "0"),
-          quantity: 1
+          quantity: 1,
         }));
         setSelectedServices(serviceItems);
       }
@@ -685,15 +768,17 @@ export default function InvoicePage() {
       // Handle category-based quick invoice (legacy)
       const service = services?.find((s) => s.category === serviceType);
       if (service) {
-        setSelectedServices([{
-          serviceId: service.id,
-          serviceName: service.name,
-          price: parseFloat(service.price || "0"),
-          quantity: 1
-        }]);
+        setSelectedServices([
+          {
+            serviceId: service.id,
+            serviceName: service.name,
+            price: parseFloat(service.price || "0"),
+            quantity: 1,
+          },
+        ]);
       }
     }
-    
+
     if (clients?.[0]) {
       form.setValue("clientId", clients[0].id);
     }
@@ -722,14 +807,17 @@ export default function InvoicePage() {
               {id ? "Invoice Details" : "Invoices"}
             </h1>
           </div>
-          <Dialog open={isDialogOpen} onOpenChange={(open) => {
-            setIsDialogOpen(open);
-            if (!open) {
-              // Clear selected services when dialog closes
-              setSelectedServices([]);
-              form.reset();
-            }
-          }}>
+          <Dialog
+            open={isDialogOpen}
+            onOpenChange={(open) => {
+              setIsDialogOpen(open);
+              if (!open) {
+                // Clear selected services when dialog closes
+                setSelectedServices([]);
+                form.reset();
+              }
+            }}
+          >
             <DialogTrigger asChild>
               <Button
                 size="sm"
@@ -829,7 +917,10 @@ export default function InvoicePage() {
                                   size="sm"
                                   className="h-6 w-6 p-0 text-steel hover:text-white"
                                   onClick={() =>
-                                    updateServiceQuantity(item.serviceId, item.quantity - 1)
+                                    updateServiceQuantity(
+                                      item.serviceId,
+                                      item.quantity - 1,
+                                    )
                                   }
                                 >
                                   -
@@ -843,7 +934,10 @@ export default function InvoicePage() {
                                   size="sm"
                                   className="h-6 w-6 p-0 text-steel hover:text-white"
                                   onClick={() =>
-                                    updateServiceQuantity(item.serviceId, item.quantity + 1)
+                                    updateServiceQuantity(
+                                      item.serviceId,
+                                      item.quantity + 1,
+                                    )
                                   }
                                 >
                                   +
@@ -854,7 +948,9 @@ export default function InvoicePage() {
                                 variant="ghost"
                                 size="sm"
                                 className="h-6 w-6 p-0 text-red-400 hover:bg-red-400/10"
-                                onClick={() => removeServiceFromInvoice(item.serviceId)}
+                                onClick={() =>
+                                  removeServiceFromInvoice(item.serviceId)
+                                }
                               >
                                 <Trash2 className="w-3 h-3" />
                               </Button>
@@ -867,7 +963,8 @@ export default function InvoicePage() {
                     {selectedServices.length === 0 && (
                       <div className="bg-charcoal rounded-lg border border-steel/40 p-4 text-center">
                         <div className="text-steel text-sm">
-                          No services selected. Add services from the templates below.
+                          No services selected. Add services from the templates
+                          below.
                         </div>
                       </div>
                     )}
@@ -875,13 +972,19 @@ export default function InvoicePage() {
 
                   {/* Services Summary */}
                   <div className="bg-charcoal/50 rounded-lg p-4 border border-steel/20">
-                    <h4 className="text-white text-sm font-medium mb-2">Services Summary</h4>
+                    <h4 className="text-white text-sm font-medium mb-2">
+                      Services Summary
+                    </h4>
                     {selectedServices.length > 0 ? (
                       <div className="space-y-2">
                         {selectedServices.map((service, index) => (
-                          <div key={index} className="flex justify-between text-sm">
+                          <div
+                            key={index}
+                            className="flex justify-between text-sm"
+                          >
                             <span className="text-steel">
-                              {service.serviceName} {service.quantity > 1 && `(${service.quantity}x)`}
+                              {service.serviceName}{" "}
+                              {service.quantity > 1 && `(${service.quantity}x)`}
                             </span>
                             <span className="text-white">
                               ${(service.price * service.quantity).toFixed(2)}
@@ -892,7 +995,14 @@ export default function InvoicePage() {
                           <div className="flex justify-between text-sm font-medium">
                             <span className="text-white">Subtotal</span>
                             <span className="text-gold">
-                              ${selectedServices.reduce((sum, service) => sum + (service.price * service.quantity), 0).toFixed(2)}
+                              $
+                              {selectedServices
+                                .reduce(
+                                  (sum, service) =>
+                                    sum + service.price * service.quantity,
+                                  0,
+                                )
+                                .toFixed(2)}
                             </span>
                           </div>
                         </div>
@@ -979,7 +1089,12 @@ export default function InvoicePage() {
                               onChange={(e) => {
                                 const value = e.target.value;
                                 // Validate the input to prevent overflow
-                                if (value === "" || (!isNaN(parseFloat(value)) && parseFloat(value) >= 0 && parseFloat(value) <= 999999)) {
+                                if (
+                                  value === "" ||
+                                  (!isNaN(parseFloat(value)) &&
+                                    parseFloat(value) >= 0 &&
+                                    parseFloat(value) <= 999999)
+                                ) {
                                   field.onChange(value);
                                 }
                               }}
@@ -1016,12 +1131,16 @@ export default function InvoicePage() {
 
                   {/* Notification Preferences */}
                   <div className="space-y-3">
-                    <FormLabel className="text-white">Send Invoice To</FormLabel>
+                    <FormLabel className="text-white">
+                      Send Invoice To
+                    </FormLabel>
                     {(() => {
-                      const selectedClient = clients?.find(c => c.id === form.watch("clientId"));
+                      const selectedClient = clients?.find(
+                        (c) => c.id === form.watch("clientId"),
+                      );
                       const hasEmail = selectedClient?.email;
                       const hasPhone = selectedClient?.phone;
-                      
+
                       if (!hasEmail && !hasPhone) {
                         return (
                           <p className="text-steel text-sm">
@@ -1029,7 +1148,7 @@ export default function InvoicePage() {
                           </p>
                         );
                       }
-                      
+
                       return (
                         <div className="space-y-3">
                           {hasEmail && (
@@ -1038,7 +1157,9 @@ export default function InvoicePage() {
                               name="sendEmail"
                               render={({ field }) => (
                                 <FormItem className="flex flex-row items-center justify-between space-y-0 rounded-lg border border-steel/40 p-3 bg-charcoal/50">
-                                  <div className={`space-y-0.5 ${!field.value ? 'opacity-50' : ''}`}>
+                                  <div
+                                    className={`space-y-0.5 ${!field.value ? "opacity-50" : ""}`}
+                                  >
                                     <FormLabel className="text-white font-normal">
                                       Email
                                     </FormLabel>
@@ -1067,7 +1188,9 @@ export default function InvoicePage() {
                               name="sendSMS"
                               render={({ field }) => (
                                 <FormItem className="flex flex-row items-center justify-between space-y-0 rounded-lg border border-steel/40 p-3 bg-charcoal/50">
-                                  <div className={`space-y-0.5 ${!field.value ? 'opacity-50' : ''}`}>
+                                  <div
+                                    className={`space-y-0.5 ${!field.value ? "opacity-50" : ""}`}
+                                  >
                                     <FormLabel className="text-white font-normal">
                                       SMS
                                     </FormLabel>
@@ -1190,7 +1313,9 @@ export default function InvoicePage() {
                   </Button>
                   <div className="flex flex-col items-center space-y-2">
                     <Receipt className="w-5 h-5 text-gold" />
-                    <div className="text-sm font-medium text-white">Haircut</div>
+                    <div className="text-sm font-medium text-white">
+                      Haircut
+                    </div>
                     <div className="text-xs text-steel">$45</div>
                   </div>
                 </div>
@@ -1213,7 +1338,9 @@ export default function InvoicePage() {
                   </Button>
                   <div className="flex flex-col items-center space-y-2">
                     <Receipt className="w-5 h-5 text-gold" />
-                    <div className="text-sm font-medium text-white">Beard Trim</div>
+                    <div className="text-sm font-medium text-white">
+                      Beard Trim
+                    </div>
                     <div className="text-xs text-steel">$25</div>
                   </div>
                 </div>
@@ -1247,7 +1374,13 @@ export default function InvoicePage() {
                 <div
                   key={template.id}
                   className="relative bg-charcoal border border-steel/40 rounded-lg p-4 text-center touch-target hover:bg-charcoal/80 cursor-pointer"
-                  onClick={() => handleQuickInvoice(template.category, template.amount, template)}
+                  onClick={() =>
+                    handleQuickInvoice(
+                      template.category,
+                      template.amount,
+                      template,
+                    )
+                  }
                 >
                   <Button
                     variant="ghost"
@@ -1262,7 +1395,9 @@ export default function InvoicePage() {
                   </Button>
                   <div className="flex flex-col items-center space-y-2">
                     <Receipt className="w-5 h-5 text-gold" />
-                    <div className="text-sm font-medium text-white">{template.name}</div>
+                    <div className="text-sm font-medium text-white">
+                      {template.name}
+                    </div>
                     <div className="text-xs text-steel">${template.amount}</div>
                   </div>
                 </div>
@@ -1379,17 +1514,29 @@ export default function InvoicePage() {
                           <FormLabel className="text-white">Services</FormLabel>
                           <div className="grid grid-cols-1 gap-3 max-h-48 overflow-y-auto border border-steel/20 rounded-lg p-3 bg-charcoal/50">
                             {services?.map((service) => (
-                              <div key={service.id} className="flex items-center space-x-2">
+                              <div
+                                key={service.id}
+                                className="flex items-center space-x-2"
+                              >
                                 <input
                                   type="checkbox"
                                   id={`template-service-${service.id}`}
-                                  checked={field.value?.includes(service.id) || false}
+                                  checked={
+                                    field.value?.includes(service.id) || false
+                                  }
                                   onChange={(e) => {
                                     const currentServices = field.value || [];
                                     if (e.target.checked) {
-                                      field.onChange([...currentServices, service.id]);
+                                      field.onChange([
+                                        ...currentServices,
+                                        service.id,
+                                      ]);
                                     } else {
-                                      field.onChange(currentServices.filter(id => id !== service.id));
+                                      field.onChange(
+                                        currentServices.filter(
+                                          (id) => id !== service.id,
+                                        ),
+                                      );
                                     }
                                   }}
                                   className="w-4 h-4 text-gold bg-charcoal border-steel/40 rounded focus:ring-gold"
@@ -1400,10 +1547,14 @@ export default function InvoicePage() {
                                 >
                                   <div className="flex justify-between items-center">
                                     <span>{service.name}</span>
-                                    <span className="text-gold font-medium">${service.price}</span>
+                                    <span className="text-gold font-medium">
+                                      ${service.price}
+                                    </span>
                                   </div>
                                   {service.description && (
-                                    <div className="text-xs text-steel mt-1">{service.description}</div>
+                                    <div className="text-xs text-steel mt-1">
+                                      {service.description}
+                                    </div>
                                   )}
                                 </label>
                               </div>
@@ -1575,47 +1726,26 @@ export default function InvoicePage() {
           <CardHeader>
             <div className="flex items-center justify-between">
               <CardTitle className="text-white">Recent Invoices</CardTitle>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="bg-dark-card border-steel/30 text-white text-sm rounded-lg px-3 py-2 h-auto hover:bg-steel/20 border"
-                  >
-                    <div className="flex items-center gap-2">
-                      <div className="w-2 h-2 bg-gold rounded-full"></div>
-                      <ChevronDown className="w-3 h-3" />
-                    </div>
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent className="bg-dark-card border-steel/30 text-white rounded-lg">
-                  <DropdownMenuItem 
-                    onClick={() => setShowRecentInvoices(false)}
-                    className="text-white hover:bg-steel/20 rounded-md cursor-pointer"
-                  >
-                    Hidden
-                  </DropdownMenuItem>
-                  <DropdownMenuItem 
-                    onClick={() => setShowRecentInvoices(true)}
-                    className="text-white hover:bg-steel/20 rounded-md cursor-pointer"
-                  >
-                    Show All
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowRecentInvoices(!showRecentInvoices)}
+                className="text-steel hover:text-white"
+              >
+                {showRecentInvoices ? (
+                  <ChevronDown className="w-4 h-4" />
+                ) : (
+                  <ChevronUp className="w-4 h-4" />
+                )}
+              </Button>
             </div>
           </CardHeader>
-          <CardContent>
-            {!showRecentInvoices ? (
-              <div className="flex flex-col items-center justify-center py-8 text-center">
-                <div className="text-steel text-sm mb-2">Recent invoices are hidden</div>
-                <div className="text-xs text-steel/70">Use the dropdown above to show invoices</div>
-              </div>
-            ) : invoicesLoading ? (
+          <CardContent className="p-6">
+            {invoicesLoading ? (
               <div className="flex justify-center py-8">
                 <div className="animate-spin w-6 h-6 border-2 border-gold border-t-transparent rounded-full" />
               </div>
-            ) : invoices && invoices.length > 0 ? (
+            ) : showRecentInvoices && invoices && invoices.length > 0 ? (
               <div className="space-y-3">
                 {invoices.slice(0, 10).map((invoice) => {
                   const client = clients?.find(
@@ -1678,7 +1808,7 @@ export default function InvoicePage() {
                   );
                 })}
               </div>
-            ) : (
+            ) : (invoices && invoices.length <= 0) || !invoices ? (
               <div className="text-center py-8 text-steel">
                 <Receipt className="w-12 h-12 mx-auto mb-3 opacity-50" />
                 <p>No invoices created yet</p>
@@ -1690,7 +1820,7 @@ export default function InvoicePage() {
                   Create your first invoice
                 </Button>
               </div>
-            )}
+            ) : null}
           </CardContent>
         </Card>
       </main>
@@ -1733,7 +1863,9 @@ export default function InvoicePage() {
                 name="description"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="text-white">Description (Optional)</FormLabel>
+                    <FormLabel className="text-white">
+                      Description (Optional)
+                    </FormLabel>
                     <FormControl>
                       <Textarea
                         {...field}
@@ -1777,7 +1909,9 @@ export default function InvoicePage() {
                   name="duration"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="text-white">Duration (minutes)</FormLabel>
+                      <FormLabel className="text-white">
+                        Duration (minutes)
+                      </FormLabel>
                       <FormControl>
                         <Input
                           {...field}
@@ -2054,11 +2188,17 @@ export default function InvoicePage() {
               >
                 <div className="flex-1">
                   <div className="flex justify-between items-center">
-                    <span className="text-white font-medium">{service.name}</span>
-                    <span className="text-gold font-medium">${service.price}</span>
+                    <span className="text-white font-medium">
+                      {service.name}
+                    </span>
+                    <span className="text-gold font-medium">
+                      ${service.price}
+                    </span>
                   </div>
                   {service.description && (
-                    <div className="text-xs text-steel mt-1">{service.description}</div>
+                    <div className="text-xs text-steel mt-1">
+                      {service.description}
+                    </div>
                   )}
                 </div>
                 <Plus className="w-4 h-4 text-gold ml-2" />
@@ -2066,7 +2206,8 @@ export default function InvoicePage() {
             ))}
             {(!services || services.length === 0) && (
               <div className="text-center text-steel py-8">
-                No services available. Create services first to add them to invoices.
+                No services available. Create services first to add them to
+                invoices.
               </div>
             )}
           </div>
@@ -2074,7 +2215,10 @@ export default function InvoicePage() {
       </Dialog>
 
       {/* Invoice Details Dialog */}
-      <Dialog open={isInvoiceDetailsOpen} onOpenChange={setIsInvoiceDetailsOpen}>
+      <Dialog
+        open={isInvoiceDetailsOpen}
+        onOpenChange={setIsInvoiceDetailsOpen}
+      >
         <DialogContent className="bg-dark-card border-steel/20 text-white max-h-[90vh] overflow-y-auto scrollbar-hide">
           <DialogHeader>
             <DialogTitle className="text-white">Invoice Details</DialogTitle>
@@ -2088,7 +2232,8 @@ export default function InvoicePage() {
               <div className="p-4 bg-charcoal rounded-lg">
                 <h3 className="text-white font-medium mb-2">Client</h3>
                 <p className="text-steel">
-                  {clients?.find(c => c.id === selectedInvoice.clientId)?.name || 'Unknown Client'}
+                  {clients?.find((c) => c.id === selectedInvoice.clientId)
+                    ?.name || "Unknown Client"}
                 </p>
               </div>
 
@@ -2098,14 +2243,19 @@ export default function InvoicePage() {
                 <div className="space-y-2 text-sm">
                   <div className="flex justify-between">
                     <span className="text-steel">Subtotal:</span>
-                    <span className="text-white">${selectedInvoice.subtotal}</span>
+                    <span className="text-white">
+                      ${selectedInvoice.subtotal}
+                    </span>
                   </div>
-                  {selectedInvoice.tip && parseFloat(selectedInvoice.tip) > 0 && (
-                    <div className="flex justify-between">
-                      <span className="text-steel">Tip:</span>
-                      <span className="text-white">${selectedInvoice.tip}</span>
-                    </div>
-                  )}
+                  {selectedInvoice.tip &&
+                    parseFloat(selectedInvoice.tip) > 0 && (
+                      <div className="flex justify-between">
+                        <span className="text-steel">Tip:</span>
+                        <span className="text-white">
+                          ${selectedInvoice.tip}
+                        </span>
+                      </div>
+                    )}
                   <div className="flex justify-between text-base font-medium">
                     <span className="text-white">Total:</span>
                     <span className="text-gold">${selectedInvoice.total}</span>
@@ -2117,19 +2267,19 @@ export default function InvoicePage() {
               <div className="p-4 bg-charcoal rounded-lg">
                 <h3 className="text-white font-medium mb-2">Payment Method</h3>
                 <div className="flex items-center space-x-2">
-                  {selectedInvoice.paymentMethod === 'stripe' && (
+                  {selectedInvoice.paymentMethod === "stripe" && (
                     <>
                       <CreditCard className="w-4 h-4 text-gold" />
                       <span className="text-steel">Card Payment</span>
                     </>
                   )}
-                  {selectedInvoice.paymentMethod === 'apple_pay' && (
+                  {selectedInvoice.paymentMethod === "apple_pay" && (
                     <>
                       <Smartphone className="w-4 h-4 text-gold" />
                       <span className="text-steel">Apple Pay</span>
                     </>
                   )}
-                  {selectedInvoice.paymentMethod === 'cash' && (
+                  {selectedInvoice.paymentMethod === "cash" && (
                     <>
                       <DollarSign className="w-4 h-4 text-gold" />
                       <span className="text-steel">Cash</span>
@@ -2141,15 +2291,19 @@ export default function InvoicePage() {
               {/* Status */}
               <div className="p-4 bg-charcoal rounded-lg">
                 <h3 className="text-white font-medium mb-2">Status</h3>
-                <Badge 
-                  variant={selectedInvoice.status === 'paid' ? 'default' : 'destructive'}
+                <Badge
+                  variant={
+                    selectedInvoice.status === "paid"
+                      ? "default"
+                      : "destructive"
+                  }
                   className={
-                    selectedInvoice.status === 'paid' 
-                      ? 'bg-green-500/20 text-green-400 border-green-500/30' 
-                      : 'bg-red-500/20 text-red-400 border-red-500/30'
+                    selectedInvoice.status === "paid"
+                      ? "bg-green-500/20 text-green-400 border-green-500/30"
+                      : "bg-red-500/20 text-red-400 border-red-500/30"
                   }
                 >
-                  {selectedInvoice.status === 'paid' ? 'Paid' : 'Pending'}
+                  {selectedInvoice.status === "paid" ? "Paid" : "Pending"}
                 </Badge>
               </div>
 
@@ -2157,7 +2311,12 @@ export default function InvoicePage() {
               <div className="p-4 bg-charcoal rounded-lg">
                 <h3 className="text-white font-medium mb-2">Created</h3>
                 <p className="text-steel">
-                  {selectedInvoice.createdAt ? format(new Date(selectedInvoice.createdAt), 'MMM d, yyyy h:mm a') : 'Unknown'}
+                  {selectedInvoice.createdAt
+                    ? format(
+                        new Date(selectedInvoice.createdAt),
+                        "MMM d, yyyy h:mm a",
+                      )
+                    : "Unknown"}
                 </p>
               </div>
             </div>

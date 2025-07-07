@@ -160,13 +160,13 @@ export default function CalendarNew() {
 
   // Get working hours from user profile or use defaults
   const workingHours = realWorkingHours || {
-    monday: { enabled: true, start: '09:00', end: '17:00' },
-    tuesday: { enabled: true, start: '09:00', end: '17:00' },
-    wednesday: { enabled: true, start: '09:00', end: '17:00' },
-    thursday: { enabled: true, start: '09:00', end: '17:00' },
-    friday: { enabled: true, start: '09:00', end: '17:00' },
-    saturday: { enabled: true, start: '10:00', end: '16:00' },
-    sunday: { enabled: false, start: '09:00', end: '17:00' } // Sunday disabled
+    monday: { enabled: true, start: "09:00", end: "17:00" },
+    tuesday: { enabled: true, start: "09:00", end: "17:00" },
+    wednesday: { enabled: true, start: "09:00", end: "17:00" },
+    thursday: { enabled: true, start: "09:00", end: "17:00" },
+    friday: { enabled: true, start: "09:00", end: "17:00" },
+    saturday: { enabled: true, start: "10:00", end: "16:00" },
+    sunday: { enabled: false, start: "09:00", end: "17:00" }, // Sunday disabled
   };
 
   // Handle appointment click
@@ -196,7 +196,7 @@ export default function CalendarNew() {
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-3">
             <CalendarIcon className="w-6 h-6 text-gold" />
-            <h1 className="text-xl font-bold text-white">Enhanced Calendar</h1>
+            <h1 className="text-xl font-bold text-white"> Calendar</h1>
           </div>
           <div className="flex items-center space-x-2">
             <Button
