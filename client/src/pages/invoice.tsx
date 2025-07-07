@@ -563,14 +563,15 @@ export default function InvoicePage() {
 
   // Remove service from invoice
   const removeServiceFromInvoice = (serviceId: number) => {
-    setSelectedServices(prev => prev.filter(s => s.serviceId !== serviceId));
-    
-    // Update subtotal
-    const newSubtotal = selectedServices
-      .filter(s => s.serviceId !== serviceId)
-      .reduce((sum, item) => sum + (item.price * item.quantity), 0);
-    
-    form.setValue("subtotal", newSubtotal.toFixed(2));
+    setSelectedServices(prev => {
+      const newServices = prev.filter(s => s.serviceId !== serviceId);
+      
+      // Update subtotal with the new filtered services
+      const newSubtotal = newServices.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+      form.setValue("subtotal", newSubtotal.toFixed(2));
+      
+      return newServices;
+    });
   };
 
   // Update service quantity
@@ -580,20 +581,19 @@ export default function InvoicePage() {
       return;
     }
 
-    setSelectedServices(prev =>
-      prev.map(s =>
+    setSelectedServices(prev => {
+      const newServices = prev.map(s =>
         s.serviceId === serviceId
           ? { ...s, quantity }
           : s
-      )
-    );
-
-    // Update subtotal
-    const newSubtotal = selectedServices
-      .map(s => s.serviceId === serviceId ? { ...s, quantity } : s)
-      .reduce((sum, item) => sum + (item.price * item.quantity), 0);
-    
-    form.setValue("subtotal", newSubtotal.toFixed(2));
+      );
+      
+      // Update subtotal with the new services
+      const newSubtotal = newServices.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+      form.setValue("subtotal", newSubtotal.toFixed(2));
+      
+      return newServices;
+    });
   };
 
   // Auto-calculate total when subtotal or tip changes
@@ -602,8 +602,8 @@ export default function InvoicePage() {
   const watchedTipPercentage = form.watch("tipPercentage");
 
   useEffect(() => {
-    const subtotal = parseFloat(watchedSubtotal) || 0;
-    let tip = parseFloat(watchedTip) || 0;
+    const subtotal = parseFloat(watchedSubtotal || "0") || 0;
+    let tip = parseFloat((watchedTip || "0").toString()) || 0;
 
     // Calculate tip from percentage if provided
     if (watchedTipPercentage && watchedTipPercentage > 0) {
@@ -635,9 +635,6 @@ export default function InvoicePage() {
     const invoiceData = {
       ...data,
       items: selectedServices,
-      description: selectedServices.length > 0 
-        ? selectedServices.map(item => `${item.serviceName} (${item.quantity}x)`).join(', ')
-        : data.description || '',
     };
     createInvoiceMutation.mutate(invoiceData);
   };
