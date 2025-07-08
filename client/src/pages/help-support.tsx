@@ -1,9 +1,11 @@
 import { useState } from 'react';
+import { Link } from 'wouter';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
+import { useToast } from '@/hooks/use-toast';
 import { 
   HelpCircle, 
   Mail, 
@@ -16,9 +18,9 @@ import {
   ChevronDown,
   ChevronRight,
   Send,
-  CheckCircle
+  CheckCircle,
+  ArrowLeft
 } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
 
 interface FAQItem {
   id: string;
@@ -162,9 +164,24 @@ export default function HelpSupport() {
     <div className="min-h-screen bg-charcoal p-4">
       <div className="max-w-4xl mx-auto space-y-6">
         {/* Header */}
-        <div className="text-center space-y-2">
-          <h1 className="text-3xl font-bold text-white">Help & Support</h1>
-          <p className="text-steel">Find answers to common questions or contact our support team</p>
+        <div className="flex items-center justify-between mb-6">
+          <Link href="/settings">
+            <Button 
+              variant="ghost" 
+              size="sm"
+              className="text-steel hover:text-white hover:bg-steel/20"
+            >
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Back to Settings
+            </Button>
+          </Link>
+          
+          <div className="text-center flex-1">
+            <h1 className="text-3xl font-bold text-white">Help & Support</h1>
+            <p className="text-steel">Find answers to common questions or contact our support team</p>
+          </div>
+          
+          <div className="w-32"></div> {/* Spacer for centering */}
         </div>
 
         {/* Quick Contact */}
