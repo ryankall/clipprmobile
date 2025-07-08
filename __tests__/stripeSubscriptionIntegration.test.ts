@@ -75,7 +75,7 @@ class MockStripeService {
       {
         id: 'price_yearly',
         name: 'Premium Yearly',
-        amount: 20148, // $201.48 in cents (exact 16% discount)
+        amount: 19999, // $199.99 in cents
         currency: 'usd',
         interval: 'year',
         discount: 16 // 16% discount
@@ -251,7 +251,7 @@ describe('Stripe Subscription Integration Tests', () => {
       const yearly = pricingOptions.find(p => p.interval === 'year');
 
       expect(yearly).toBeDefined();
-      expect(yearly!.amount).toBe(20148);
+      expect(yearly!.amount).toBe(19999);
       expect(yearly!.currency).toBe('usd');
       expect(yearly!.name).toBe('Premium Yearly');
     });

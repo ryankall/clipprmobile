@@ -1168,6 +1168,70 @@ export default function Settings() {
           </CardContent>
         </Card>
 
+        {/* Subscription Plan */}
+        <Card className="bg-dark-card border-steel/20" id="plan-card">
+          <CardHeader>
+            <CardTitle className="text-white flex items-center">
+              <CreditCard className="w-5 h-5 mr-2" />
+              Subscription Plan
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-center justify-between p-3 bg-charcoal/50 border border-steel/20 rounded-lg">
+              <div className="flex items-center space-x-3">
+                <div className="w-8 h-8 bg-gold rounded-full flex items-center justify-center">
+                  <CheckCircle className="w-4 h-4 text-charcoal" />
+                </div>
+                <div>
+                  <p className="text-white font-medium">Basic Plan</p>
+                  <p className="text-steel text-sm">Currently Active</p>
+                </div>
+              </div>
+              <div className="text-right">
+                <p className="text-white font-medium">Free</p>
+                <p className="text-steel text-xs">Forever</p>
+              </div>
+            </div>
+            
+            <div className="space-y-3">
+              <div className="bg-charcoal/50 p-3 rounded-lg">
+                <h4 className="text-white font-medium text-sm mb-2">Basic Plan includes:</h4>
+                <ul className="text-steel text-sm space-y-1">
+                  <li>• 15 appointments per month</li>
+                  <li>• 3 active services</li>
+                  <li>• 15 SMS messages per month</li>
+                  <li>• 50MB photo storage</li>
+                  <li>• Basic calendar features</li>
+                </ul>
+              </div>
+
+              <div className="bg-gradient-to-br from-gold/10 to-gold/5 border border-gold/20 p-4 rounded-lg">
+                <div className="flex items-center justify-between mb-3">
+                  <h4 className="text-white font-medium">Premium Plan</h4>
+                  <div className="flex items-center space-x-2">
+                    <span className="text-steel text-sm line-through">$19.99/month</span>
+                    <span className="text-gold font-semibold">$199.99/year</span>
+                    <span className="bg-gold text-charcoal text-xs px-2 py-1 rounded-full font-medium">Save 16%</span>
+                  </div>
+                </div>
+                
+                <ul className="text-steel text-sm space-y-1 mb-4">
+                  <li>• Unlimited appointments</li>
+                  <li>• Unlimited services</li>
+                  <li>• Unlimited SMS messages</li>
+                  <li>• 1GB photo storage</li>
+                  <li>• Advanced calendar with custom working hours</li>
+                  <li>• Client analytics and insights</li>
+                </ul>
+                
+                <Button className="w-full gradient-gold text-charcoal font-semibold">
+                  Upgrade to Premium
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
         {/* Public Booking Link */}
         <Card className="bg-dark-card border-steel/20">
           <CardHeader>
