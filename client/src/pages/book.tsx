@@ -10,7 +10,6 @@ import { Badge } from "@/components/ui/badge";
 import { Calendar, Clock, MapPin, Phone, Mail, User as UserIcon, Scissors, CheckCircle, ChevronLeft, ChevronRight } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { ContextualHelpTooltip, QuickHelpTooltip } from "@/components/ui/contextual-help-tooltip";
 import type { User as UserType, Service } from "@shared/schema";
 import { format, addDays, startOfDay, parseISO, isToday, isTomorrow, isYesterday } from "date-fns";
 

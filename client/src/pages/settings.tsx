@@ -25,7 +25,6 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { ContextualHelpTooltip, QuickHelpTooltip, HelpSystemSettings } from "@/components/ui/contextual-help-tooltip";
 
 // Phone number validation regex (US format)
 const phoneRegex = /^(\+1\s?)?(\([0-9]{3}\)|[0-9]{3})[\s.-]?[0-9]{3}[\s.-]?[0-9]{4}$/;
@@ -885,17 +884,10 @@ export default function Settings() {
         <Card className="bg-dark-card border-steel/20">
           <CardHeader>
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <CardTitle className="text-white flex items-center">
-                  <User className="w-5 h-5 mr-2" />
-                  Profile & Business Info
-                </CardTitle>
-                <ContextualHelpTooltip 
-                  helpId="settings-overview" 
-                  side="bottom"
-                  size="sm"
-                />
-              </div>
+              <CardTitle className="text-white flex items-center">
+                <User className="w-5 h-5 mr-2" />
+                Profile & Business Info
+              </CardTitle>
               <Dialog open={isEditingProfile} onOpenChange={(open) => {
               // Always prevent closing if autocomplete has suggestions visible
               if (!open) {
@@ -1410,17 +1402,10 @@ export default function Settings() {
         {subscriptionStatus && (subscriptionStatus.status === 'premium' || subscriptionStatus.status === 'cancelled') && (
           <Card className="bg-dark-card border-steel/20">
             <CardHeader>
-              <div className="flex items-center gap-2">
-                <CardTitle className="text-white flex items-center">
-                  <CreditCard className="w-5 h-5 mr-2" />
-                  Subscription Management
-                </CardTitle>
-                <ContextualHelpTooltip 
-                  helpId="payment-processing" 
-                  side="bottom"
-                  size="sm"
-                />
-              </div>
+              <CardTitle className="text-white flex items-center">
+                <CreditCard className="w-5 h-5 mr-2" />
+                Subscription Management
+              </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="bg-charcoal rounded-lg p-4 border border-steel/20">
@@ -1967,9 +1952,6 @@ export default function Settings() {
             </Button>
           </CardContent>
         </Card>
-
-        {/* Help System Settings */}
-        <HelpSystemSettings />
 
         {/* Phone Verification Dialog */}
         <Dialog open={isVerifyingPhone} onOpenChange={setIsVerifyingPhone}>
