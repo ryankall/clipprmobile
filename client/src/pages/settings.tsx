@@ -80,6 +80,18 @@ const profileSchema = z.object({
 
 type ProfileFormData = z.infer<typeof profileSchema>;
 
+// Password change schema
+const passwordChangeSchema = z.object({
+  currentPassword: z.string().min(1, "Current password is required"),
+  newPassword: z.string().min(8, "New password must be at least 8 characters"),
+  confirmPassword: z.string().min(1, "Please confirm your new password"),
+}).refine((data) => data.newPassword === data.confirmPassword, {
+  message: "New passwords do not match",
+  path: ["confirmPassword"],
+});
+
+type PasswordChangeFormData = z.infer<typeof passwordChangeSchema>;
+
 // Stripe status type
 interface StripeStatus {
   connected: boolean;
@@ -120,6 +132,7 @@ export default function Settings() {
   const [verificationCode, setVerificationCode] = useState("");
   const [isCodeSent, setIsCodeSent] = useState(false);
   const [countdown, setCountdown] = useState(0);
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const addressInputRef = useRef<HTMLInputElement>(null);
   const autocompleteRef = useRef<any>(null);
@@ -288,6 +301,27 @@ export default function Settings() {
     },
   });
 
+  const changePasswordMutation = useMutation({
+    mutationFn: async (data: PasswordChangeFormData) => {
+      return await apiRequest('POST', '/api/auth/change-password', data);
+    },
+    onSuccess: () => {
+      setIsChangingPassword(false);
+      passwordForm.reset();
+      toast({
+        title: "Password Changed",
+        description: "Your password has been successfully updated!",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Password Change Failed",
+        description: error.message || "Failed to change password",
+        variant: "destructive",
+      });
+    },
+  });
+
   // Countdown timer for resend code
   useEffect(() => {
     if (countdown > 0) {
@@ -309,6 +343,16 @@ export default function Settings() {
       homeBaseAddress: "",
       timezone: "America/New_York",
       defaultGraceTime: 5,
+    },
+  });
+
+  // Password change form setup
+  const passwordForm = useForm<PasswordChangeFormData>({
+    resolver: zodResolver(passwordChangeSchema),
+    defaultValues: {
+      currentPassword: "",
+      newPassword: "",
+      confirmPassword: "",
     },
   });
 
@@ -1796,12 +1840,97 @@ export default function Settings() {
               )}
             </div>
             
-            <Button
-              variant="outline"
-              className="w-full border-steel/40 text-white hover:bg-steel/20"
-            >
-              Change Password
-            </Button>
+            <Dialog open={isChangingPassword} onOpenChange={setIsChangingPassword}>
+              <DialogTrigger asChild>
+                <Button
+                  variant="outline"
+                  className="w-full border-steel/40 text-white hover:bg-steel/20"
+                >
+                  <Shield className="w-4 h-4 mr-2" />
+                  Change Password
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="bg-dark-card border-steel/20 text-white">
+                <DialogHeader>
+                  <DialogTitle className="text-white">Change Password</DialogTitle>
+                </DialogHeader>
+                <Form {...passwordForm}>
+                  <form onSubmit={passwordForm.handleSubmit((data) => changePasswordMutation.mutate(data))} className="space-y-4">
+                    <FormField
+                      control={passwordForm.control}
+                      name="currentPassword"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-white">Current Password</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="password"
+                              placeholder="Enter current password"
+                              className="bg-charcoal border-steel/20 text-white"
+                              {...field}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={passwordForm.control}
+                      name="newPassword"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-white">New Password</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="password"
+                              placeholder="Enter new password (min 8 characters)"
+                              className="bg-charcoal border-steel/20 text-white"
+                              {...field}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={passwordForm.control}
+                      name="confirmPassword"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-white">Confirm New Password</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="password"
+                              placeholder="Confirm new password"
+                              className="bg-charcoal border-steel/20 text-white"
+                              {...field}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <div className="flex space-x-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => setIsChangingPassword(false)}
+                        className="flex-1 border-steel/40 text-white hover:bg-steel/20"
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        type="submit"
+                        disabled={changePasswordMutation.isPending}
+                        className="flex-1 bg-gold text-charcoal hover:bg-gold/90"
+                      >
+                        {changePasswordMutation.isPending ? "Changing..." : "Change Password"}
+                      </Button>
+                    </div>
+                  </form>
+                </Form>
+              </DialogContent>
+            </Dialog>
             
             <Link href="/help">
               <Button
