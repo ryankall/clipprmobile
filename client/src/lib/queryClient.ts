@@ -6,19 +6,15 @@ async function throwIfResNotOk(res: Response) {
     
     // Handle authentication failures
     if (res.status === 401) {
-      // Show user-friendly message for authentication issues
-      const isUnauthorized = text.includes('Unauthorized') || text.includes('unauthorized');
-      if (isUnauthorized) {
-        // Clear any stored tokens
-        localStorage.removeItem("token");
-        
-        // Redirect to authentication after a brief delay
-        setTimeout(() => {
-          window.location.href = "/";
-        }, 2000);
-        
-        throw new Error(`Authentication expired. Please sign in again.`);
-      }
+      // Clear any stored tokens
+      localStorage.removeItem("token");
+      
+      // Redirect to authentication after a brief delay
+      setTimeout(() => {
+        window.location.href = "/";
+      }, 1000);
+      
+      throw new Error(`Authentication expired. Please sign in again.`);
     }
     
     throw new Error(`${res.status}: ${text}`);
@@ -93,9 +89,21 @@ export const queryClient = new QueryClient({
       refetchOnWindowFocus: false,
       staleTime: Infinity,
       retry: false,
+      onError: (error: any) => {
+        // Global error handler for authentication failures
+        if (error?.message?.includes('Authentication expired')) {
+          console.log('Authentication expired, redirecting to login...');
+        }
+      },
     },
     mutations: {
       retry: false,
+      onError: (error: any) => {
+        // Global error handler for mutations
+        if (error?.message?.includes('Authentication expired')) {
+          console.log('Authentication expired during mutation, redirecting to login...');
+        }
+      },
     },
   },
 });

@@ -16,6 +16,17 @@ export function useAuth() {
     queryKey: ["/api/auth/me"],
     retry: false,
     staleTime: 5 * 60 * 1000, // 5 minutes
+    onError: (error: any) => {
+      // Handle authentication failures
+      if (error?.message?.includes('401') || error?.message?.includes('Authentication')) {
+        // Clear token and redirect to login
+        localStorage.removeItem("token");
+        queryClient.clear();
+        setTimeout(() => {
+          window.location.href = "/";
+        }, 1000);
+      }
+    },
   });
 
   // Sign out mutation
