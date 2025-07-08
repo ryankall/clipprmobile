@@ -1851,20 +1851,30 @@ export default function InvoicePage() {
           <CardHeader>
             <div className="flex items-center justify-between">
               <CardTitle className="text-white">Export Invoices</CardTitle>
-              <div className="flex items-center gap-2">
-                <div className="w-2 h-2 bg-gold rounded-full"></div>
-                <ChevronDown className="w-3 h-3 text-steel" />
-              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowExportCard(!showExportCard)}
+                className="text-steel hover:text-white"
+              >
+                {showExportCard ? (
+                  <ChevronDown className="w-4 h-4" />
+                ) : (
+                  <ChevronUp className="w-4 h-4" />
+                )}
+              </Button>
             </div>
           </CardHeader>
           <CardContent className="px-6 py-0">
-            {(!invoices || invoices.length === 0) ? (
+            {showExportCard && (!invoices || invoices.length === 0) ? (
               <div className="text-center py-8 text-steel">
                 <Mail className="w-12 h-12 mx-auto mb-3 opacity-50" />
                 <p>No invoices to export</p>
-                <p className="text-xs mt-1">Create invoices first to enable export</p>
+                <p className="text-xs mt-1">
+                  Create invoices first to enable export
+                </p>
               </div>
-            ) : (
+            ) : showExportCard ? (
               <div className="space-y-3">
                 <div className="flex items-center justify-between p-3 bg-charcoal rounded-lg">
                   <div className="flex items-center space-x-3">
@@ -1874,7 +1884,7 @@ export default function InvoicePage() {
                     <div>
                       <div className="font-medium text-white">CSV Export</div>
                       <div className="text-xs text-steel">
-                        Export {invoices.length} invoices to email as CSV file
+                        Export {invoices?.length} invoices to email as CSV file
                       </div>
                     </div>
                   </div>
@@ -1885,11 +1895,13 @@ export default function InvoicePage() {
                     className="gradient-gold text-charcoal font-semibold"
                   >
                     <Mail className="w-4 h-4 mr-2" />
-                    {exportInvoicesMutation.isPending ? "Sending..." : "Email CSV"}
+                    {exportInvoicesMutation.isPending
+                      ? "Sending..."
+                      : "Email CSV"}
                   </Button>
                 </div>
               </div>
-            )}
+            ) : null}
           </CardContent>
         </Card>
       </main>
