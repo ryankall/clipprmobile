@@ -123,14 +123,14 @@ class MockWorkingHoursCalendarSystem {
     };
   }
 
-  testMondayWithBreaks(): {
-    mondaySlots: TimeSlot[];
+  testTuesdayWithBreaks(): {
+    tuesdaySlots: TimeSlot[];
     lunchBlocked: boolean;
     workingSlots: number;
     blockedSlots: number;
   } {
-    const monday = new Date('2025-07-07'); // Monday
-    const slots = this.generateTimeSlots(monday);
+    const tuesday = new Date('2025-07-08'); // Tuesday
+    const slots = this.generateTimeSlots(tuesday);
     
     // Check if lunch hour is blocked (12 PM)
     const lunchSlot = slots.find(slot => slot.hour === 12);
@@ -140,7 +140,7 @@ class MockWorkingHoursCalendarSystem {
     const blockedSlots = slots.filter(slot => slot.isBlocked).length;
     
     return {
-      mondaySlots: slots,
+      tuesdaySlots: slots,
       lunchBlocked,
       workingSlots,
       blockedSlots
@@ -305,19 +305,19 @@ describe('Working Hours Calendar Integration Tests', () => {
         sunday: { enabled: false, start: '10:00', end: '16:00', breaks: [] }
       });
 
-      const tuesdayResult = calendarSystem.testMondayWithBreaks();
+      const tuesdayResult = calendarSystem.testTuesdayWithBreaks();
       
       expect(tuesdayResult.lunchBlocked).toBe(true);
       expect(tuesdayResult.workingSlots).toBeGreaterThan(0);
       expect(tuesdayResult.blockedSlots).toBeGreaterThan(0);
       
       // Check that 12 PM (lunch hour) is blocked
-      const lunchSlot = tuesdayResult.mondaySlots.find(slot => slot.hour === 12);
+      const lunchSlot = tuesdayResult.tuesdaySlots.find(slot => slot.hour === 12);
       expect(lunchSlot?.isBlocked).toBe(true);
       
       // Check that 11 AM and 1 PM are working
-      const beforeLunch = tuesdayResult.mondaySlots.find(slot => slot.hour === 11);
-      const afterLunch = tuesdayResult.mondaySlots.find(slot => slot.hour === 13);
+      const beforeLunch = tuesdayResult.tuesdaySlots.find(slot => slot.hour === 11);
+      const afterLunch = tuesdayResult.tuesdaySlots.find(slot => slot.hour === 13);
       expect(beforeLunch?.isBlocked).toBe(false);
       expect(afterLunch?.isBlocked).toBe(false);
     });

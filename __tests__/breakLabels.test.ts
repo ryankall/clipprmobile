@@ -69,7 +69,11 @@ class MockTimelineCalendarWithLabels {
               const breakStart = parseInt(breakTime.start.split(':')[0]);
               const breakEnd = parseInt(breakTime.end.split(':')[0]);
               // If current hour falls within break time, block it and store label
-              if (hour >= breakStart && hour < breakEnd) {
+              // Handle minutes properly - if break ends at :00, include the hour before
+              const breakEndMinute = parseInt(breakTime.end.split(':')[1] || '0');
+              const shouldIncludeHour = breakEndMinute > 0 ? hour <= breakEnd : hour < breakEnd;
+              
+              if (hour >= breakStart && shouldIncludeHour) {
                 isWithinWorkingHours = false;
                 breakLabel = breakTime.label || "Break";
                 break;
