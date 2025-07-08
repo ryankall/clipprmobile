@@ -17,6 +17,7 @@ import {
   Settings,
   ChevronDown,
   ChevronRight,
+  ChevronUp,
   Send,
   CheckCircle,
   ArrowLeft,
@@ -127,6 +128,8 @@ export default function HelpSupport() {
 
   const categories = ["All", "Premium & Billing", "Features", "Security"];
 
+  const [showContactCard, setShowContactCard] = useState(false); // Default to hidden
+  const [showQuestionsCard, setShowQuestionsCard] = useState(false); // Default to hidden
   const filteredFAQs =
     selectedCategory === "All"
       ? faqData
@@ -198,69 +201,84 @@ export default function HelpSupport() {
         {/* FAQ Section */}
         <Card className="bg-dark-card border-steel/20">
           <CardHeader>
-            <CardTitle className="text-white flex items-center">
-              <HelpCircle className="w-5 h-5 mr-2" />
-              Frequently Asked Questions
+            <CardTitle className="text-white flex items-center justify-between">
+              <div className="flex items-center">
+                <HelpCircle className="w-5 h-5 mr-2" />
+                Frequently Asked Questions
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowQuestionsCard(!showQuestionsCard)}
+                className="text-steel hover:text-white"
+              >
+                {showQuestionsCard ? (
+                  <ChevronDown className="w-4 h-4" />
+                ) : (
+                  <ChevronUp className="w-4 h-4" />
+                )}
+              </Button>
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
-            {/* Category Filter */}
-            <div className="flex flex-wrap gap-2">
-              {categories.map((category) => (
-                <Button
-                  key={category}
-                  variant={
-                    selectedCategory === category ? "default" : "outline"
-                  }
-                  size="sm"
-                  onClick={() => setSelectedCategory(category)}
-                  className={
-                    selectedCategory === category
-                      ? "bg-gold text-charcoal hover:bg-gold/90"
-                      : "border-steel/20 text-steel hover:text-white hover:bg-steel/10"
-                  }
-                >
-                  {category}
-                </Button>
-              ))}
-            </div>
-
-            {/* FAQ List */}
-            <div className="space-y-3">
-              {filteredFAQs.map((faq) => (
-                <div
-                  key={faq.id}
-                  className="border border-steel/20 rounded-lg overflow-hidden"
-                >
-                  <button
-                    onClick={() => handleFAQToggle(faq.id)}
-                    className="w-full px-4 py-3 text-left hover:bg-steel/5 transition-colors"
+          {showQuestionsCard ? (
+            <CardContent className="space-y-4">
+              {/* Category Filter */}
+              <div className="flex flex-wrap gap-2">
+                {categories.map((category) => (
+                  <Button
+                    key={category}
+                    variant={
+                      selectedCategory === category ? "default" : "outline"
+                    }
+                    size="sm"
+                    onClick={() => setSelectedCategory(category)}
+                    className={
+                      selectedCategory === category
+                        ? "bg-gold text-charcoal hover:bg-gold/90"
+                        : "border-steel/20 text-steel hover:text-white hover:bg-steel/10"
+                    }
                   >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-3">
-                        <div className="text-gold">{faq.icon}</div>
-                        <span className="text-white font-medium">
-                          {faq.question}
-                        </span>
+                    {category}
+                  </Button>
+                ))}
+              </div>
+              {/* FAQ List */}
+              <div className="space-y-3">
+                {filteredFAQs.map((faq) => (
+                  <div
+                    key={faq.id}
+                    className="border border-steel/20 rounded-lg overflow-hidden"
+                  >
+                    <button
+                      onClick={() => handleFAQToggle(faq.id)}
+                      className="w-full px-4 py-3 text-left hover:bg-steel/5 transition-colors"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-3">
+                          <div className="text-gold">{faq.icon}</div>
+                          <span className="text-white font-medium">
+                            {faq.question}
+                          </span>
+                        </div>
+                        {expandedFAQ === faq.id ? (
+                          <ChevronDown className="w-4 h-4 text-steel" />
+                        ) : (
+                          <ChevronRight className="w-4 h-4 text-steel" />
+                        )}
                       </div>
-                      {expandedFAQ === faq.id ? (
-                        <ChevronDown className="w-4 h-4 text-steel" />
-                      ) : (
-                        <ChevronRight className="w-4 h-4 text-steel" />
-                      )}
-                    </div>
-                  </button>
-                  {expandedFAQ === faq.id && (
-                    <div className="px-4 pb-4 border-t border-steel/20">
-                      <p className="text-steel text-sm leading-relaxed mt-3">
-                        {faq.answer}
-                      </p>
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          </CardContent>
+                    </button>
+                    {expandedFAQ === faq.id && (
+                      <div className="px-4 pb-4 border-t border-steel/20">
+                        <p className="text-steel text-sm leading-relaxed mt-3">
+                          {faq.answer}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          ) : null}
         </Card>
 
         {/* Premium Guarantee Highlight */}
@@ -295,110 +313,135 @@ export default function HelpSupport() {
         {/* Contact Form */}
         <Card className="bg-dark-card border-steel/20">
           <CardHeader>
-            <CardTitle className="text-white flex items-center">
-              <MessageSquare className="w-5 h-5 mr-2" />
-              Contact Support
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSupportSubmit} className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="name" className="text-white">
-                    Name
-                  </Label>
-                  <Input
-                    id="name"
-                    type="text"
-                    value={supportForm.name}
-                    onChange={(e) =>
-                      setSupportForm({ ...supportForm, name: e.target.value })
-                    }
-                    className="bg-charcoal border-steel/20 text-white"
-                    required
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="email" className="text-white">
-                    Email
-                  </Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    value={supportForm.email}
-                    onChange={(e) =>
-                      setSupportForm({ ...supportForm, email: e.target.value })
-                    }
-                    className="bg-charcoal border-steel/20 text-white"
-                    required
-                  />
-                </div>
+            <CardTitle className="text-white flex items-center justify-between">
+              <div className="flex items-center">
+                <MessageSquare className="w-5 h-5 mr-2" />
+                Contact Support
               </div>
-
-              <div>
-                <Label htmlFor="subject" className="text-white">
-                  Subject
-                </Label>
-                <Input
-                  id="subject"
-                  type="text"
-                  value={supportForm.subject}
-                  onChange={(e) =>
-                    setSupportForm({ ...supportForm, subject: e.target.value })
-                  }
-                  className="bg-charcoal border-steel/20 text-white"
-                  placeholder="Brief description of your issue"
-                  required
-                />
-              </div>
-
-              <div>
-                <Label htmlFor="message" className="text-white">
-                  Message
-                </Label>
-                <Textarea
-                  id="message"
-                  value={supportForm.message}
-                  onChange={(e) =>
-                    setSupportForm({ ...supportForm, message: e.target.value })
-                  }
-                  className="bg-charcoal border-steel/20 text-white min-h-[120px]"
-                  placeholder="Please describe your issue in detail..."
-                  required
-                />
-              </div>
-
               <Button
-                type="submit"
-                disabled={isSubmitting}
-                className="w-full bg-gold text-charcoal hover:bg-gold/90 font-medium"
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowContactCard(!showContactCard)}
+                className="text-steel hover:text-white"
               >
-                {isSubmitting ? (
-                  <div className="flex items-center">
-                    <div className="w-4 h-4 border-2 border-charcoal border-t-transparent rounded-full animate-spin mr-2"></div>
-                    Opening Email...
-                  </div>
+                {showContactCard ? (
+                  <ChevronDown className="w-4 h-4" />
                 ) : (
-                  <div className="flex items-center">
-                    <Send className="w-4 h-4 mr-2" />
-                    Send Support Request
-                  </div>
+                  <ChevronUp className="w-4 h-4" />
                 )}
               </Button>
-            </form>
-            <div className="p-2"></div>
-            <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg px-4 py-2">
-              <div className="flex items-start space-x-3">
-                <Mail className="w-5 h-5 text-blue-400 mt-0.5" />
+            </CardTitle>
+          </CardHeader>
+          {showContactCard ? (
+            <CardContent>
+              <form onSubmit={handleSupportSubmit} className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="name" className="text-white">
+                      Name
+                    </Label>
+                    <Input
+                      id="name"
+                      type="text"
+                      value={supportForm.name}
+                      onChange={(e) =>
+                        setSupportForm({ ...supportForm, name: e.target.value })
+                      }
+                      className="bg-charcoal border-steel/20 text-white"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="email" className="text-white">
+                      Email
+                    </Label>
+                    <Input
+                      id="email"
+                      type="email"
+                      value={supportForm.email}
+                      onChange={(e) =>
+                        setSupportForm({
+                          ...supportForm,
+                          email: e.target.value,
+                        })
+                      }
+                      className="bg-charcoal border-steel/20 text-white"
+                      required
+                    />
+                  </div>
+                </div>
+
                 <div>
-                  <h3 className="text-blue-400 font-medium">Email Support</h3>
-                  <p className="text-steel text-xs mt-1">
-                    We typically respond within 24 hours during business days
-                  </p>
+                  <Label htmlFor="subject" className="text-white">
+                    Subject
+                  </Label>
+                  <Input
+                    id="subject"
+                    type="text"
+                    value={supportForm.subject}
+                    onChange={(e) =>
+                      setSupportForm({
+                        ...supportForm,
+                        subject: e.target.value,
+                      })
+                    }
+                    className="bg-charcoal border-steel/20 text-white"
+                    placeholder="Brief description of your issue"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="message" className="text-white">
+                    Message
+                  </Label>
+                  <Textarea
+                    id="message"
+                    value={supportForm.message}
+                    onChange={(e) =>
+                      setSupportForm({
+                        ...supportForm,
+                        message: e.target.value,
+                      })
+                    }
+                    className="bg-charcoal border-steel/20 text-white min-h-[120px]"
+                    placeholder="Please describe your issue in detail..."
+                    required
+                  />
+                </div>
+
+                <Button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="w-full bg-gold text-charcoal hover:bg-gold/90 font-medium"
+                >
+                  {isSubmitting ? (
+                    <div className="flex items-center">
+                      <div className="w-4 h-4 border-2 border-charcoal border-t-transparent rounded-full animate-spin mr-2"></div>
+                      Opening Email...
+                    </div>
+                  ) : (
+                    <div className="flex items-center">
+                      <Send className="w-4 h-4 mr-2" />
+                      Send Support Request
+                    </div>
+                  )}
+                </Button>
+              </form>
+              <div className="p-2"></div>
+              <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg px-4 py-2">
+                <div className="flex items-start space-x-3">
+                  <Mail className="w-5 h-5 text-blue-400 mt-0.5" />
+                  <div>
+                    <h3 className="text-blue-400 font-medium">Email Support</h3>
+                    <p className="text-steel text-xs mt-1">
+                      We typically respond within 24 hours during business days
+                    </p>
+                  </div>
                 </div>
               </div>
-            </div>
-          </CardContent>
+            </CardContent>
+          ) : null}
         </Card>
       </div>
     </div>
