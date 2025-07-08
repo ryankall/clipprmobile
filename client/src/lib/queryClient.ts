@@ -9,10 +9,14 @@ async function throwIfResNotOk(res: Response) {
       // Clear any stored tokens
       localStorage.removeItem("token");
       
-      // Redirect to authentication after a brief delay
-      setTimeout(() => {
-        window.location.href = "/";
-      }, 1000);
+      // Only redirect if not already on login page
+      const isOnLoginPage = window.location.pathname === "/" || window.location.pathname === "/auth";
+      if (!isOnLoginPage) {
+        // Redirect to authentication after a brief delay
+        setTimeout(() => {
+          window.location.href = "/";
+        }, 1000);
+      }
       
       throw new Error(`Authentication expired. Please sign in again.`);
     }

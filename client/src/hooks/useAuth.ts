@@ -11,14 +11,19 @@ interface AuthResponse {
 export function useAuth() {
   const queryClient = useQueryClient();
 
+  // Check if token exists first
+  const hasToken = typeof window !== "undefined" && !!localStorage.getItem("token");
+
   // Get current user
   const { data: user, isLoading, error } = useQuery<User>({
     queryKey: ["/api/auth/me"],
     retry: false,
     staleTime: 5 * 60 * 1000, // 5 minutes
+    enabled: hasToken, // Only run if token exists
     onError: (error: any) => {
-      // Handle authentication failures
-      if (error?.message?.includes('401') || error?.message?.includes('Authentication')) {
+      // Handle authentication failures only if we're not already on the login page
+      const isOnLoginPage = window.location.pathname === "/" || window.location.pathname === "/auth";
+      if (!isOnLoginPage && (error?.message?.includes('401') || error?.message?.includes('Authentication'))) {
         // Clear token and redirect to login
         localStorage.removeItem("token");
         queryClient.clear();
@@ -48,7 +53,6 @@ export function useAuth() {
   };
 
   // Check if user is authenticated (user exists and no error, also check token)
-  const hasToken = typeof window !== "undefined" && !!localStorage.getItem("token");
   const isAuthenticated = !!user && !error && hasToken;
 
   return {

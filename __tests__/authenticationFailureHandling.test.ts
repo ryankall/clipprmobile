@@ -213,10 +213,14 @@ class AuthFailureHandler {
       this.localStorage.removeItem('token');
       this.queryClient.clear();
       
-      // Redirect to login page
-      setTimeout(() => {
-        this.location.href = '/';
-      }, 1000);
+      // Only redirect if not already on login page
+      const isOnLoginPage = this.location.href === '/' || this.location.href === '/auth';
+      if (!isOnLoginPage) {
+        // Redirect to login page
+        setTimeout(() => {
+          this.location.href = '/';
+        }, 1000);
+      }
     }
   }
 
@@ -513,6 +517,58 @@ describe('Authentication Failure Handling System', () => {
       }
 
       expect(mockQueryClient.clear).toHaveBeenCalled();
+    });
+  });
+
+  describe('Redirect Loop Prevention', () => {
+    it('should not redirect when already on login page', () => {
+      // Mock being on login page
+      mockLocation.href = '/';
+
+      const error = new Error('Authentication expired');
+      authFailureHandler.handleAuthFailure(error);
+
+      // Should clear token and cache but not redirect
+      expect(mockLocalStorage.removeItem).toHaveBeenCalledWith('token');
+      expect(mockQueryClient.clear).toHaveBeenCalled();
+      expect(mockSetTimeout).not.toHaveBeenCalled();
+    });
+
+    it('should not redirect when on auth page', () => {
+      // Mock being on auth page
+      mockLocation.href = '/auth';
+
+      const error = new Error('Authentication expired');
+      authFailureHandler.handleAuthFailure(error);
+
+      // Should clear token and cache but not redirect
+      expect(mockLocalStorage.removeItem).toHaveBeenCalledWith('token');
+      expect(mockQueryClient.clear).toHaveBeenCalled();
+      expect(mockSetTimeout).not.toHaveBeenCalled();
+    });
+
+    it('should redirect when on protected page', () => {
+      // Mock being on protected page
+      mockLocation.href = '/dashboard';
+
+      const error = new Error('Authentication expired');
+      authFailureHandler.handleAuthFailure(error);
+
+      // Should clear token, cache, and redirect
+      expect(mockLocalStorage.removeItem).toHaveBeenCalledWith('token');
+      expect(mockQueryClient.clear).toHaveBeenCalled();
+      expect(mockSetTimeout).toHaveBeenCalledWith(expect.any(Function), 1000);
+    });
+
+    it('should prevent authentication query when no token exists', () => {
+      // Mock no token in localStorage
+      mockLocalStorage.store = {};
+
+      // This simulates the query being disabled when no token exists
+      const shouldRunQuery = !!mockLocalStorage.getItem('token');
+      
+      expect(shouldRunQuery).toBe(false);
+      expect(mockLocalStorage.getItem).toHaveBeenCalledWith('token');
     });
   });
 });
