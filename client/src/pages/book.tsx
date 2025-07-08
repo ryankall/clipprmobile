@@ -97,10 +97,10 @@ export default function BookingPage() {
 
   // Check for existing client when phone number changes
   useEffect(() => {
-    if (clientPhone.length >= 10 && currentStep === 4) {
+    if (clientPhone.length >= 10 && selectedTime) {
       checkClientMutation.mutate(clientPhone);
     }
-  }, [clientPhone, currentStep]);
+  }, [clientPhone, selectedTime]);
 
   const submitBookingMutation = useMutation({
     mutationFn: async (data: BookingRequest) => {
