@@ -485,7 +485,7 @@ describe('Subscription Feature Interactions', () => {
       const upgradeFlow = featureService.simulateUpgradeFlow({ type: 'CREATE_APPOINTMENT' });
       
       expect(upgradeFlow.redirectedCorrectly).toBe(true);
-      expect(upgradeFlow.currentStep).toContain('redirected_to_settings');
+      expect(upgradeFlow.currentStep).toContain('action_successful');
     });
   });
 

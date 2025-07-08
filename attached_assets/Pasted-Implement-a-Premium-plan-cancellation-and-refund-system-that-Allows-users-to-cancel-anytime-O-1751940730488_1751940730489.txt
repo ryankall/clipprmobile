@@ -1,0 +1,110 @@
+Implement a Premium plan cancellation and refund system that:
+
+Allows users to cancel anytime
+
+Offers a 30-day money-back guarantee
+
+Integrates with Stripe for subscriptions and refunds
+
+Includes unit tests to verify logic and UI behavior
+
+✅ Functional Requirements
+1. Cancel Anytime
+Users can cancel their monthly or annual Premium subscription any time via the Settings → Billing section
+
+When cancelled:
+
+Access continues through the end of current billing period
+
+No refund issued unless within 30-day window
+
+Use Stripe’s Cancel Subscription API
+
+UI Text:
+“Cancel anytime. Your premium access will remain active until [end_date].”
+
+2. 30-Day Money-Back Guarantee
+If user cancels within 30 days of their first Premium payment, allow them to request a full refund
+
+Use Stripe’s Create Refund API
+
+After refund:
+
+Downgrade account to Basic
+
+Revoke Premium features immediately
+
+Track the subscription_start_date or first_payment_timestamp in DB to calculate refund eligibility
+
+UI Text (Settings):
+“Not satisfied? You’re eligible for a full refund until [refund_deadline].”
+
+🔐 Backend Logic
+Refund Eligibility Check
+function isEligibleForRefund(subscriptionStartDate: Date): boolean {
+  const now = new Date();
+  const diffInMs = now.getTime() - subscriptionStartDate.getTime();
+  const diffInDays = diffInMs / (1000 * 60 * 60 * 24);
+  return diffInDays <= 30;
+}
+📱 UI Changes (Settings Page)
+Add “Cancel Subscription” button
+
+If within refund window, show “Request Full Refund” CTA
+
+Show current subscription tier and expiration
+
+All upgrade prompts throughout app should link here
+
+🧪 Unit Test Requirements
+1. Refund Eligibility Logic
+
+describe("isEligibleForRefund", () => {
+  it("returns true within 30 days", () => {
+    const date = new Date(Date.now() - 15 * 24 * 60 * 60 * 1000);
+    expect(isEligibleForRefund(date)).toBe(true);
+  });
+
+  it("returns false after 30 days", () => {
+    const date = new Date(Date.now() - 35 * 24 * 60 * 60 * 1000);
+    expect(isEligibleForRefund(date)).toBe(false);
+  });
+});
+2. UI Behavior Tests
+✅ “Cancel Subscription” button appears for Premium users
+
+✅ “Request Refund” only shows if within 30 days
+
+✅ Clicking refund:
+
+Calls refund API
+
+Downgrades plan
+
+Disables Premium features
+
+✅ Upgrade prompts route to Settings → Billing card
+
+💳 Stripe Integration Tips
+Cancel Anytime:
+
+Use stripe.subscriptions.update(subscriptionId, { cancel_at_period_end: true })
+
+Refund:
+
+Use stripe.refunds.create({ payment_intent: paymentIntentId })
+
+Track Eligibility:
+
+Store subscription start timestamp in your DB (user.subscriptionStartDate)
+
+Store Stripe subscription_id, customer_id, and payment_intent_id
+
+📝 Display Copy (Settings)
+Plan Card Example:
+
+
+Plan: Premium
+Next billing: August 8, 2025
+You're eligible for a full refund until August 3, 2025
+[ Cancel Subscription ]    [ Request Refund ]

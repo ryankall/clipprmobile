@@ -29,6 +29,11 @@ export const users = pgTable("users", {
   // Stripe integration
   stripeCustomerId: text("stripe_customer_id"),
   stripeSubscriptionId: text("stripe_subscription_id"),
+  subscriptionStatus: text("subscription_status").default("basic"), // basic, premium, cancelled
+  subscriptionStartDate: timestamp("subscription_start_date"), // for refund eligibility
+  subscriptionEndDate: timestamp("subscription_end_date"), // when premium access ends
+  subscriptionInterval: text("subscription_interval"), // monthly, yearly
+  lastPaymentIntentId: text("last_payment_intent_id"), // for refunds
   
   // Account verification
   emailVerified: boolean("email_verified").default(false),

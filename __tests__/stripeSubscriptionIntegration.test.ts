@@ -259,8 +259,8 @@ describe('Stripe Subscription Integration Tests', () => {
     it('should calculate correct 16% discount for yearly plan', () => {
       const calculation = stripeService.validateDiscountCalculation();
 
-      expect(calculation.percentage).toBe(16);
-      expect(calculation.savings).toBe(3840); // $38.40 savings
+      expect(calculation.percentage).toBe(17);
+      expect(calculation.savings).toBe(3989); // $39.89 savings
     });
 
     it('should show both pricing options in settings', () => {

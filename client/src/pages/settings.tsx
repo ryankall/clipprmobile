@@ -190,9 +190,56 @@ export default function Settings() {
     },
   });
 
+  // Subscription cancellation mutation
+  const cancelSubscriptionMutation = useMutation({
+    mutationFn: async () => {
+      return await apiRequest('POST', '/api/stripe/cancel-subscription');
+    },
+    onSuccess: (data: any) => {
+      toast({
+        title: "Subscription Cancelled",
+        description: `Your premium access will continue until ${new Date(data.accessUntil).toLocaleDateString()}`,
+      });
+      refetchSubscription();
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to cancel subscription",
+        variant: "destructive",
+      });
+    }
+  });
+
+  // Refund request mutation
+  const requestRefundMutation = useMutation({
+    mutationFn: async () => {
+      return await apiRequest('POST', '/api/stripe/request-refund');
+    },
+    onSuccess: (data: any) => {
+      toast({
+        title: "Refund Processed",
+        description: `Refund of $${data.amount} has been processed. You've been downgraded to Basic plan.`,
+      });
+      refetchSubscription();
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to process refund",
+        variant: "destructive",
+      });
+    }
+  });
+
   // Get Stripe account status
   const { data: stripeStatus } = useQuery<StripeStatus>({
     queryKey: ['/api/stripe/status'],
+    retry: false,
+  });
+
+  const { data: subscriptionStatus, refetch: refetchSubscription } = useQuery({
+    queryKey: ['/api/stripe/subscription-status'],
     retry: false,
   });
 
@@ -747,10 +794,7 @@ export default function Settings() {
     try {
       const priceId = interval === 'yearly' ? 'price_yearly' : 'price_monthly';
       
-      const response = await apiRequest('/api/stripe/create-checkout', {
-        method: 'POST',
-        body: JSON.stringify({ priceId })
-      });
+      const response = await apiRequest('POST', '/api/stripe/create-checkout', { priceId });
 
       if (response.url) {
         window.location.href = response.url;
@@ -1309,6 +1353,112 @@ export default function Settings() {
             </div>
           </CardContent>
         </Card>
+
+        {/* Subscription Management */}
+        {subscriptionStatus && (subscriptionStatus.status === 'premium' || subscriptionStatus.status === 'cancelled') && (
+          <Card className="bg-dark-card border-steel/20">
+            <CardHeader>
+              <CardTitle className="text-white flex items-center">
+                <CreditCard className="w-5 h-5 mr-2" />
+                Subscription Management
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="bg-charcoal rounded-lg p-4 border border-steel/20">
+                <div className="flex justify-between items-start mb-3">
+                  <div>
+                    <h4 className="text-white font-semibold">
+                      Plan: {subscriptionStatus.status === 'cancelled' ? 'Premium (Cancelled)' : 'Premium'}
+                    </h4>
+                    <p className="text-steel text-sm">
+                      {subscriptionStatus.interval === 'yearly' ? 'Annual' : 'Monthly'} subscription
+                    </p>
+                  </div>
+                  {subscriptionStatus.status === 'premium' && (
+                    <span className="bg-emerald-500/20 text-emerald-400 px-2 py-1 rounded text-xs font-medium">
+                      Active
+                    </span>
+                  )}
+                  {subscriptionStatus.status === 'cancelled' && (
+                    <span className="bg-amber-500/20 text-amber-400 px-2 py-1 rounded text-xs font-medium">
+                      Cancelled
+                    </span>
+                  )}
+                </div>
+                
+                {subscriptionStatus.endDate && (
+                  <p className="text-steel text-sm mb-3">
+                    {subscriptionStatus.status === 'cancelled' 
+                      ? `Access until: ${new Date(subscriptionStatus.endDate).toLocaleDateString()}`
+                      : `Next billing: ${new Date(subscriptionStatus.endDate).toLocaleDateString()}`
+                    }
+                  </p>
+                )}
+                
+                {subscriptionStatus.isEligibleForRefund && subscriptionStatus.refundDeadline && (
+                  <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-3 mb-3">
+                    <div className="flex items-center mb-2">
+                      <AlertCircle className="w-4 h-4 text-blue-400 mr-2" />
+                      <span className="text-blue-400 font-medium text-sm">30-Day Money-Back Guarantee</span>
+                    </div>
+                    <p className="text-steel text-xs">
+                      You're eligible for a full refund until {new Date(subscriptionStatus.refundDeadline).toLocaleDateString()}
+                    </p>
+                  </div>
+                )}
+                
+                <div className="flex gap-2">
+                  {subscriptionStatus.status === 'premium' && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => cancelSubscriptionMutation.mutate()}
+                      disabled={cancelSubscriptionMutation.isPending}
+                      className="flex-1 border-steel/20 text-steel hover:text-white hover:bg-steel/10"
+                    >
+                      {cancelSubscriptionMutation.isPending ? (
+                        <div className="flex items-center">
+                          <div className="w-3 h-3 border border-t-transparent border-white rounded-full animate-spin mr-2"></div>
+                          Cancelling...
+                        </div>
+                      ) : (
+                        'Cancel Subscription'
+                      )}
+                    </Button>
+                  )}
+                  
+                  {subscriptionStatus.isEligibleForRefund && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => requestRefundMutation.mutate()}
+                      disabled={requestRefundMutation.isPending}
+                      className="flex-1 border-blue-500/20 text-blue-400 hover:text-blue-300 hover:bg-blue-500/10"
+                    >
+                      {requestRefundMutation.isPending ? (
+                        <div className="flex items-center">
+                          <div className="w-3 h-3 border border-t-transparent border-blue-400 rounded-full animate-spin mr-2"></div>
+                          Processing...
+                        </div>
+                      ) : (
+                        'Request Full Refund'
+                      )}
+                    </Button>
+                  )}
+                </div>
+                
+                <div className="mt-3 pt-3 border-t border-steel/20">
+                  <p className="text-steel text-xs">
+                    {subscriptionStatus.status === 'premium' 
+                      ? 'Cancel anytime. Your premium access will remain active until the end of your current billing period.'
+                      : 'Your subscription has been cancelled. Premium access continues until the end date shown above.'
+                    }
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Public Booking Link */}
         <Card className="bg-dark-card border-steel/20">

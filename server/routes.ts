@@ -1367,6 +1367,121 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     });
 
+    // Stripe subscription management routes
+    app.post("/api/stripe/cancel-subscription", requireAuth, async (req, res) => {
+      try {
+        const userId = (req.user as any).id;
+        const user = await storage.getUserById(userId);
+        
+        if (!user?.stripeSubscriptionId) {
+          return res.status(400).json({ message: "No active subscription found" });
+        }
+
+        // Cancel subscription at period end
+        const subscription = await stripe.subscriptions.update(user.stripeSubscriptionId, {
+          cancel_at_period_end: true,
+        });
+
+        // Update user subscription status
+        await storage.updateUser(userId, {
+          subscriptionStatus: "cancelled",
+          subscriptionEndDate: new Date(subscription.current_period_end * 1000),
+        });
+
+        res.json({ 
+          success: true, 
+          message: "Subscription cancelled successfully",
+          accessUntil: new Date(subscription.current_period_end * 1000).toISOString()
+        });
+      } catch (error: any) {
+        console.error('Stripe cancellation error:', error);
+        res.status(500).json({ message: "Error cancelling subscription: " + error.message });
+      }
+    });
+
+    app.post("/api/stripe/request-refund", requireAuth, async (req, res) => {
+      try {
+        const userId = (req.user as any).id;
+        const user = await storage.getUserById(userId);
+        
+        if (!user?.lastPaymentIntentId) {
+          return res.status(400).json({ message: "No payment found for refund" });
+        }
+
+        // Check refund eligibility (30 days)
+        const now = new Date();
+        const subscriptionStart = user.subscriptionStartDate;
+        
+        if (!subscriptionStart) {
+          return res.status(400).json({ message: "Subscription start date not found" });
+        }
+
+        const diffInMs = now.getTime() - subscriptionStart.getTime();
+        const diffInDays = diffInMs / (1000 * 60 * 60 * 24);
+        
+        if (diffInDays > 30) {
+          return res.status(400).json({ 
+            message: "Refund period has expired. Refunds are only available within 30 days of subscription start." 
+          });
+        }
+
+        // Create refund
+        const refund = await stripe.refunds.create({
+          payment_intent: user.lastPaymentIntentId,
+          reason: 'requested_by_customer',
+        });
+
+        // Update user to basic plan immediately
+        await storage.updateUser(userId, {
+          subscriptionStatus: "basic",
+          subscriptionStartDate: null,
+          subscriptionEndDate: null,
+          subscriptionInterval: null,
+          stripeSubscriptionId: null,
+          lastPaymentIntentId: null,
+        });
+
+        res.json({ 
+          success: true, 
+          message: "Refund processed successfully",
+          refundId: refund.id,
+          amount: refund.amount / 100
+        });
+      } catch (error: any) {
+        console.error('Stripe refund error:', error);
+        res.status(500).json({ message: "Error processing refund: " + error.message });
+      }
+    });
+
+    // Get subscription status
+    app.get("/api/stripe/subscription-status", requireAuth, async (req, res) => {
+      try {
+        const userId = (req.user as any).id;
+        const user = await storage.getUserById(userId);
+        
+        if (!user) {
+          return res.status(404).json({ message: "User not found" });
+        }
+
+        const now = new Date();
+        const isEligibleForRefund = user.subscriptionStartDate && 
+          (now.getTime() - user.subscriptionStartDate.getTime()) / (1000 * 60 * 60 * 24) <= 30;
+
+        res.json({
+          status: user.subscriptionStatus || "basic",
+          interval: user.subscriptionInterval,
+          startDate: user.subscriptionStartDate,
+          endDate: user.subscriptionEndDate,
+          isEligibleForRefund,
+          refundDeadline: user.subscriptionStartDate ? 
+            new Date(user.subscriptionStartDate.getTime() + 30 * 24 * 60 * 60 * 1000) : null
+        });
+      } catch (error: any) {
+        console.error('Subscription status error:', error);
+        res.status(500).json({ message: "Error getting subscription status: " + error.message });
+      }
+    });
+
     // Stripe Connect routes
     app.post("/api/stripe/connect", requireAuth, async (req, res) => {
       try {
