@@ -1331,6 +1331,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     });
 
+    // Stripe subscription checkout
+    app.post("/api/stripe/create-checkout", requireAuth, async (req, res) => {
+      try {
+        const { priceId } = req.body;
+        const userId = (req.user as any).id;
+        const userEmail = (req.user as any).email;
+
+        if (!priceId) {
+          return res.status(400).json({ message: "Price ID is required" });
+        }
+
+        // Create Stripe Checkout Session
+        const session = await stripe.checkout.sessions.create({
+          payment_method_types: ['card'],
+          mode: 'subscription',
+          customer_email: userEmail,
+          line_items: [
+            {
+              price: priceId,
+              quantity: 1,
+            },
+          ],
+          success_url: `${req.protocol}://${req.get('host')}/settings?payment=success`,
+          cancel_url: `${req.protocol}://${req.get('host')}/settings?payment=cancelled`,
+          metadata: {
+            userId: userId.toString(),
+          },
+        });
+
+        res.json({ url: session.url });
+      } catch (error: any) {
+        console.error('Stripe checkout error:', error);
+        res.status(500).json({ message: "Error creating checkout session: " + error.message });
+      }
+    });
+
     // Stripe Connect routes
     app.post("/api/stripe/connect", requireAuth, async (req, res) => {
       try {

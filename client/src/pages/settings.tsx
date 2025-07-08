@@ -741,6 +741,30 @@ export default function Settings() {
   const handleConnectStripe = () => {
     setIsConnectingStripe(true);
     connectStripeMutation.mutate();
+  }
+
+  const handleStripeCheckout = async (interval: 'monthly' | 'yearly') => {
+    try {
+      const priceId = interval === 'yearly' ? 'price_yearly' : 'price_monthly';
+      
+      const response = await apiRequest('/api/stripe/create-checkout', {
+        method: 'POST',
+        body: JSON.stringify({ priceId })
+      });
+
+      if (response.url) {
+        window.location.href = response.url;
+      } else {
+        throw new Error('No checkout URL received');
+      }
+    } catch (error) {
+      console.error('Error creating checkout session:', error);
+      toast({
+        title: "Error",
+        description: "Failed to start checkout process. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   const onSubmit = async (data: ProfileFormData) => {
@@ -1205,28 +1229,82 @@ export default function Settings() {
                 </ul>
               </div>
 
-              <div className="bg-gradient-to-br from-gold/10 to-gold/5 border border-gold/20 p-4 rounded-lg">
-                <div className="flex items-center justify-between mb-3">
-                  <h4 className="text-white font-medium">Premium Plan</h4>
-                  <div className="flex items-center space-x-2">
-                    <span className="text-steel text-sm line-through">$19.99/month</span>
-                    <span className="text-gold font-semibold">$199.99/year</span>
-                    <span className="bg-gold text-charcoal text-xs px-2 py-1 rounded-full font-medium">Save 16%</span>
+              <div className="relative bg-gradient-to-br from-gold/20 to-gold/10 border-2 border-gold/30 p-6 rounded-xl overflow-hidden">
+                {/* Premium Badge */}
+                <div className="absolute top-0 right-0 bg-gradient-to-r from-gold to-amber-400 text-charcoal text-xs font-bold px-3 py-1 rounded-bl-lg">
+                  PREMIUM
+                </div>
+                
+                <div className="mb-4">
+                  <div className="flex items-baseline space-x-2 mb-2">
+                    <h4 className="text-white font-bold text-lg">Premium Plan</h4>
+                    <span className="bg-emerald-500 text-white text-xs px-2 py-1 rounded-full font-medium animate-pulse">
+                      MOST POPULAR
+                    </span>
+                  </div>
+                  
+                  <div className="flex items-center space-x-3 mb-3">
+                    <div className="text-center">
+                      <span className="text-steel text-sm line-through block">$239.88/year</span>
+                      <span className="text-white text-xs">if paid monthly</span>
+                    </div>
+                    <div className="text-center">
+                      <span className="text-gold font-bold text-2xl">$199.99</span>
+                      <span className="text-gold text-sm">/year</span>
+                      <div className="bg-emerald-500 text-white text-xs px-2 py-1 rounded-full font-bold mt-1">
+                        SAVE $39.89
+                      </div>
+                    </div>
                   </div>
                 </div>
                 
-                <ul className="text-steel text-sm space-y-1 mb-4">
-                  <li>• Unlimited appointments</li>
-                  <li>• Unlimited services</li>
-                  <li>• Unlimited SMS messages</li>
-                  <li>• 1GB photo storage</li>
-                  <li>• Advanced calendar with custom working hours</li>
-                  <li>• Client analytics and insights</li>
-                </ul>
+                <div className="grid grid-cols-2 gap-3 mb-4">
+                  <div className="bg-charcoal/50 p-3 rounded-lg border border-gold/20">
+                    <div className="text-gold font-bold text-lg">∞</div>
+                    <div className="text-white text-sm font-medium">Appointments</div>
+                    <div className="text-steel text-xs">No monthly limits</div>
+                  </div>
+                  <div className="bg-charcoal/50 p-3 rounded-lg border border-gold/20">
+                    <div className="text-gold font-bold text-lg">1GB</div>
+                    <div className="text-white text-sm font-medium">Photo Storage</div>
+                    <div className="text-steel text-xs">20x more space</div>
+                  </div>
+                  <div className="bg-charcoal/50 p-3 rounded-lg border border-gold/20">
+                    <div className="text-gold font-bold text-lg">∞</div>
+                    <div className="text-white text-sm font-medium">Services</div>
+                    <div className="text-steel text-xs">Unlimited catalog</div>
+                  </div>
+                  <div className="bg-charcoal/50 p-3 rounded-lg border border-gold/20">
+                    <div className="text-gold font-bold text-lg">∞</div>
+                    <div className="text-white text-sm font-medium">SMS Messages</div>
+                    <div className="text-steel text-xs">Stay connected</div>
+                  </div>
+                </div>
                 
-                <Button className="w-full gradient-gold text-charcoal font-semibold">
-                  Upgrade to Premium
+                <div className="bg-charcoal/70 p-3 rounded-lg border border-gold/20 mb-4">
+                  <h5 className="text-white font-medium text-sm mb-2 flex items-center">
+                    <CheckCircle className="w-4 h-4 text-emerald-400 mr-2" />
+                    Premium Features
+                  </h5>
+                  <ul className="text-steel text-sm space-y-1">
+                    <li className="flex items-center"><CheckCircle className="w-3 h-3 text-emerald-400 mr-2" />Advanced calendar with custom working hours</li>
+                    <li className="flex items-center"><CheckCircle className="w-3 h-3 text-emerald-400 mr-2" />Client analytics and business insights</li>
+                    <li className="flex items-center"><CheckCircle className="w-3 h-3 text-emerald-400 mr-2" />Priority customer support</li>
+                  </ul>
+                </div>
+                
+                <Button 
+                  className="w-full bg-gradient-to-r from-gold to-amber-400 hover:from-gold/90 hover:to-amber-400/90 text-charcoal font-bold text-lg py-3 rounded-lg shadow-lg transform hover:scale-105 transition-all duration-200"
+                  onClick={() => handleStripeCheckout('yearly')}
+                >
+                  🚀 Upgrade to Premium Now
                 </Button>
+                
+                <div className="text-center mt-3">
+                  <p className="text-steel text-xs">
+                    ✨ 30-day money-back guarantee • Cancel anytime
+                  </p>
+                </div>
               </div>
             </div>
           </CardContent>
