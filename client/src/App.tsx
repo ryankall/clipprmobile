@@ -14,6 +14,7 @@ import AppointmentNew from "@/pages/appointment-new";
 import Gallery from "@/pages/gallery";
 import Messages from "@/pages/messages";
 import Settings from "@/pages/settings";
+import HelpSupport from "@/pages/help-support";
 import Invoice from "@/pages/invoice";
 import Checkout from "@/pages/checkout";
 import EnhancedBookingPage from "@/pages/book-new";
@@ -69,6 +70,7 @@ function Router() {
           <Route path="/gallery" component={Gallery} />
           <Route path="/messages" component={Messages} />
           <Route path="/settings" component={Settings} />
+          <Route path="/help" component={HelpSupport} />
           <Route path="/invoice/:id?" component={Invoice} />
           <Route path="/checkout/:invoiceId" component={Checkout} />
           <Route component={NotFound} />

@@ -20,7 +20,7 @@ import { BottomNavigation } from "@/components/bottom-navigation";
 import { Settings as SettingsIcon, User, Bell, Shield, HelpCircle, LogOut, Edit3, Camera, Upload, X, CreditCard, DollarSign, CheckCircle, AlertCircle, Share, Copy, Calendar, MessageSquare, Phone, Smartphone } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
-import { useLocation } from "wouter";
+import { useLocation, Link } from "wouter";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -1803,14 +1803,16 @@ export default function Settings() {
               Change Password
             </Button>
             
-            <Button
-              variant="outline"
-              className="w-full border-steel/40 text-white hover:bg-steel/20"
-            >
-              <HelpCircle className="w-4 h-4 mr-2" />
-              Help & Support
-            </Button>
-            
+            <Link href="/help">
+              <Button
+                variant="outline"
+                className="w-full border-blue-500/20 text-blue-400 hover:text-blue-300 hover:bg-blue-500/10 mb-3"
+              >
+                <HelpCircle className="w-4 h-4 mr-2" />
+                Help & Support
+              </Button>
+            </Link>
+
             <Button
               variant="destructive"
               className="w-full"
