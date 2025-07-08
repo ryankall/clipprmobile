@@ -148,25 +148,8 @@ export function configurePassport() {
 
 // Middleware to check if user is authenticated
 export function requireAuth(req: Request, res: Response, next: NextFunction) {
-  console.log('requireAuth check:', {
-    isAuthenticated: req.isAuthenticated && req.isAuthenticated(),
-    user: req.user?.id,
-    session: !!req.session,
-    method: req.method,
-    url: req.url
-  });
-  
+  // Check if user is authenticated via session
   if (req.isAuthenticated && req.isAuthenticated()) {
-    return next();
-  }
-  
-  // Check if session exists but user is not properly authenticated
-  if (req.session && !req.isAuthenticated()) {
-    // Log authentication issue for debugging
-    console.log('Authentication issue detected - session exists but user not authenticated');
-    
-    // For demo purposes, allow access but this should be fixed in production
-    (req as any).user = { id: 3 };
     return next();
   }
   
@@ -178,7 +161,17 @@ export function requireAuth(req: Request, res: Response, next: NextFunction) {
       req.user = { id: decoded.userId } as User;
       return next();
     } catch (error) {
-      console.log('JWT verification failed:', error);
+      // JWT verification failed, continue to session check
+    }
+  }
+  
+  // Check if session exists but user is not properly authenticated
+  // This handles the case where the user is logged in but session deserialization fails
+  if (req.session && (req.session as any).passport && (req.session as any).passport.user) {
+    const userId = (req.session as any).passport.user;
+    if (userId) {
+      (req as any).user = { id: userId };
+      return next();
     }
   }
   

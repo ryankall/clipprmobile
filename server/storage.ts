@@ -249,7 +249,53 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteClient(id: number): Promise<void> {
-    await db.delete(clients).where(eq(clients.id, id));
+    // Use a transaction to ensure all deletions succeed or fail together
+    await db.transaction(async (tx) => {
+      console.log('Deleting client with ID:', id);
+      
+      // First, get all appointments for this client
+      const clientAppointments = await tx
+        .select({ id: appointments.id })
+        .from(appointments)
+        .where(eq(appointments.clientId, id));
+      
+      // Delete all appointments and their related records
+      for (const appointment of clientAppointments) {
+        // Delete appointment services
+        await tx.delete(appointmentServices).where(eq(appointmentServices.appointmentId, appointment.id));
+        
+        // Delete related gallery photos
+        await tx.delete(galleryPhotos).where(eq(galleryPhotos.appointmentId, appointment.id));
+        
+        // Delete related invoices
+        await tx.delete(invoices).where(eq(invoices.appointmentId, appointment.id));
+        
+        // Nullify notification references to this appointment
+        await tx.update(notifications)
+          .set({ appointmentId: null })
+          .where(eq(notifications.appointmentId, appointment.id));
+      }
+      
+      // Delete all appointments for this client
+      await tx.delete(appointments).where(eq(appointments.clientId, id));
+      console.log('Deleted appointments for client:', id);
+      
+      // Delete messages associated with this client
+      await tx.delete(messages).where(eq(messages.clientId, id));
+      console.log('Deleted messages for client:', id);
+      
+      // Delete gallery photos directly associated with this client
+      await tx.delete(galleryPhotos).where(eq(galleryPhotos.clientId, id));
+      console.log('Deleted gallery photos for client:', id);
+      
+      // Delete invoices directly associated with this client
+      await tx.delete(invoices).where(eq(invoices.clientId, id));
+      console.log('Deleted invoices for client:', id);
+      
+      // Finally delete the client
+      await tx.delete(clients).where(eq(clients.id, id));
+      console.log('Successfully deleted client:', id);
+    });
   }
 
   async getServicesByUserId(userId: number): Promise<Service[]> {
