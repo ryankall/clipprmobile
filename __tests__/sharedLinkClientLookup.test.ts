@@ -163,7 +163,7 @@ class MockSharedLinkService {
       
       return null;
     } catch (error) {
-      console.error('Client lookup error:', error);
+      // Silently return null for invalid lookups in tests
       return null;
     }
   }
