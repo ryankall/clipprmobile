@@ -13,6 +13,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { Scissors, Slice, Bell, Plus, Calendar, Users, Camera, Settings, X, MessageSquare, CreditCard, User as UserIcon } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { format } from "date-fns";
+import { ContextualHelpTooltip, QuickHelpTooltip } from "@/components/ui/contextual-help-tooltip";
 import type { DashboardStats, AppointmentWithRelations, GalleryPhoto, User } from "@shared/schema";
 import type { Service } from "@/lib/types";
 
@@ -190,7 +191,16 @@ export default function Dashboard() {
             <div className="w-10 h-10 bg-gold rounded-full flex items-center justify-center">
               <Scissors className="w-5 h-5 text-charcoal" />
             </div>
-            <h1 className="text-xl font-bold text-gold">Clippr</h1>
+            <div className="flex items-center gap-2">
+              <h1 className="text-xl font-bold text-gold">Clippr</h1>
+              <ContextualHelpTooltip 
+                helpId="dashboard-overview" 
+                side="bottom"
+                showOnFirstVisit={true}
+                delayMs={2000}
+                size="sm"
+              />
+            </div>
           </div>
           <div className="flex items-center space-x-4">
             <div className="relative">
@@ -383,7 +393,14 @@ export default function Dashboard() {
         <Card className="bg-dark-card border-steel/20 card-shadow">
           <CardContent className="p-6">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-white">Today's Summary</h2>
+              <div className="flex items-center gap-2">
+                <h2 className="text-lg font-semibold text-white">Today's Summary</h2>
+                <ContextualHelpTooltip 
+                  helpId="dashboard-overview" 
+                  side="bottom"
+                  size="sm"
+                />
+              </div>
               <span className="text-sm text-steel">
                 {new Date().toLocaleDateString('en-US', { 
                   month: 'short', 
@@ -458,7 +475,14 @@ export default function Dashboard() {
         <Card className="bg-dark-card border-steel/20 card-shadow">
           <CardContent className="p-6">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-white">Today's Appointments</h3>
+              <div className="flex items-center gap-2">
+                <h3 className="text-lg font-semibold text-white">Today's Appointments</h3>
+                <ContextualHelpTooltip 
+                  helpId="appointment-scheduling" 
+                  side="bottom"
+                  size="sm"
+                />
+              </div>
               <Link href="/calendar">
                 <Button variant="link" className="text-gold text-sm font-medium p-0 h-auto">
                   View All
@@ -500,7 +524,14 @@ export default function Dashboard() {
         <Card className="bg-dark-card border-steel/20 card-shadow">
           <CardContent className="p-6">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-white">Recent Work</h3>
+              <div className="flex items-center gap-2">
+                <h3 className="text-lg font-semibold text-white">Recent Work</h3>
+                <ContextualHelpTooltip 
+                  helpId="gallery-management" 
+                  side="bottom"
+                  size="sm"
+                />
+              </div>
               <Link href="/gallery">
                 <Button variant="link" className="text-gold text-sm font-medium p-0 h-auto">
                   Gallery
