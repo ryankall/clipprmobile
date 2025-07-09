@@ -447,7 +447,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!user || !user.phone_verified) {
         return res.status(403).json({ 
           error: 'Phone verification required',
-          message: 'You must verify your phone number before creating appointments' 
+          message: 'You must verify your phone number before creating appointments. Go to Settings > Phone Verification to complete this step.',
+          action: 'verify_phone',
+          redirectTo: '/settings'
         });
       }
       
@@ -1001,7 +1003,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.patch("/api/clients/:id", requireAuth, async (req, res) => {
     try {
+      const userId = (req.user as any).id;
       const clientId = parseInt(req.params.id);
+      
+      // Check if user's phone is verified
+      const user = await storage.getUser(userId);
+      if (!user || !user.phone_verified) {
+        return res.status(403).json({ 
+          error: 'Phone verification required',
+          message: 'You must verify your phone number before updating client information. Go to Settings > Phone Verification to complete this step.',
+          action: 'verify_phone',
+          redirectTo: '/settings'
+        });
+      }
+      
       const client = await storage.updateClient(clientId, req.body);
       res.json(client);
     } catch (error: any) {

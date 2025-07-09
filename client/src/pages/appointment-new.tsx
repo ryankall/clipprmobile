@@ -17,6 +17,7 @@ import { Link } from "wouter";
 import { format } from "date-fns";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { isPhoneVerificationError, getPhoneVerificationMessage } from "@/lib/authUtils";
 import type { Client, Service } from "@shared/schema";
 
 // Service selection interface
@@ -297,6 +298,22 @@ export default function AppointmentNew() {
       navigate("/calendar");
     },
     onError: async (error: any) => {
+      // Check if this is a phone verification error
+      if (isPhoneVerificationError(error)) {
+        toast({
+          title: "Phone Verification Required",
+          description: getPhoneVerificationMessage(error),
+          variant: "destructive",
+          action: {
+            label: "Verify Phone",
+            onClick: () => {
+              navigate('/settings');
+            }
+          }
+        });
+        return;
+      }
+      
       let errorMessage = "Failed to create appointment";
       
       if (error.response) {

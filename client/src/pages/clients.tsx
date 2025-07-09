@@ -19,6 +19,8 @@ import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import type { ClientWithStats } from "@shared/schema";
 import { z } from "zod";
+import { isPhoneVerificationError, getPhoneVerificationMessage } from "@/lib/authUtils";
+import { useLocation } from "wouter";
 
 const clientFormSchema = insertClientSchema.extend({
   userId: z.number().optional(),
@@ -238,6 +240,7 @@ export default function Clients() {
   const [searchQuery, setSearchQuery] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const { toast } = useToast();
+  const [, setLocation] = useLocation();
 
   const { data: clients, isLoading } = useQuery<ClientWithStats[]>({
     queryKey: ["/api/clients"],
@@ -270,6 +273,23 @@ export default function Clients() {
       form.reset();
     },
     onError: async (error: any) => {
+      // Check if this is a phone verification error
+      if (isPhoneVerificationError(error)) {
+        toast({
+          title: "Phone Verification Required",
+          description: getPhoneVerificationMessage(error),
+          variant: "destructive",
+          action: {
+            label: "Verify Phone",
+            onClick: () => {
+              setIsDialogOpen(false);
+              setLocation('/settings');
+            }
+          }
+        });
+        return;
+      }
+      
       let errorMessage = "Failed to add client";
       
       if (error.response && error.response.status === 409) {
