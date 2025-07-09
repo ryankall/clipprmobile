@@ -44,6 +44,7 @@ client/src/test/
 ├── invoiceNotifications.test.ts      # NEW: Email/SMS notification system tests
 ├── invoiceDelivery.test.ts           # NEW: Complete invoice delivery & payment tests
 ├── premiumAutoChargingSystem.test.ts # NEW: Premium subscription auto-charging tests
+├── oauthSignIn.test.ts              # NEW: Google and Apple OAuth sign-in tests
 └── components.test.ts
 
 server/test/
@@ -85,6 +86,21 @@ server/test/
 - ✅ Payment Recovery (1 test) - Attempts payment recovery for past due subscriptions
 
 **Business Impact**: Ensures premium plan subscribers are automatically charged monthly/yearly renewals unless they cancel their subscription, preventing manual billing issues and maintaining continuous service for paying customers.
+
+#### OAuth Sign-In System Tests
+**File**: `__tests__/oauthSignIn.test.ts`
+**Purpose**: Validates comprehensive Google and Apple OAuth sign-in functionality and account linking
+
+**Tests Covered**:
+- ✅ Google OAuth Sign-In (4 tests) - Existing user sign-in, account linking via email, phone verification requirements for new users
+- ✅ Apple OAuth Sign-In (4 tests) - Existing user sign-in, account linking via email, phone verification requirements for new users
+- ✅ OAuth Account Linking (4 tests) - Link Google/Apple accounts to existing users, prevent duplicate linking
+- ✅ OAuth Account Unlinking (2 tests) - Unlink Google/Apple accounts from user profiles
+- ✅ Multi-Provider OAuth (3 tests) - Handle users with both Google and Apple accounts linked
+- ✅ OAuth Token Generation (2 tests) - Generate unique JWT tokens for authenticated users
+- ✅ OAuth Error Handling (2 tests) - Graceful error handling for database failures and invalid profiles
+
+**Business Impact**: Provides seamless social authentication options while maintaining security and phone verification requirements for new user registration, improving user experience and reducing signup friction for returning users.
 
 #### Pending Slot Locking Tests
 **File**: `client/src/test/pendingSlotLocking.test.ts`
