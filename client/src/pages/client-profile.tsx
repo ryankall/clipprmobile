@@ -93,9 +93,18 @@ export default function ClientProfile() {
 
   const updateClientMutation = useMutation({
     mutationFn: async (data: z.infer<typeof clientFormSchema>) => {
-      return apiRequest("PUT", `/api/clients/${clientId}`, data);
+      try {
+        console.log('🚀 Making API request to update client:', clientId, data);
+        const result = await apiRequest("PUT", `/api/clients/${clientId}`, data);
+        console.log('✅ API request successful:', result);
+        return result;
+      } catch (error) {
+        console.error('❌ API request failed:', error);
+        throw error;
+      }
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      console.log('✅ Mutation success callback called:', data);
       queryClient.invalidateQueries({ queryKey: [`/api/clients/${clientId}`] });
       queryClient.invalidateQueries({ queryKey: ["/api/clients"] });
       toast({
@@ -106,7 +115,11 @@ export default function ClientProfile() {
     },
     onError: (error: any) => {
       console.error('❌ Client update error:', error);
-      console.error('❌ Error details:', JSON.stringify(error, null, 2));
+      console.error('❌ Error type:', typeof error);
+      console.error('❌ Error constructor:', error?.constructor?.name);
+      console.error('❌ Error message:', error?.message);
+      console.error('❌ Error stack:', error?.stack);
+      console.error('❌ Error details:', JSON.stringify(error, Object.getOwnPropertyNames(error), 2));
       
       // Check if this is a phone verification error
       if (isPhoneVerificationError(error)) {
@@ -127,9 +140,15 @@ export default function ClientProfile() {
       }
       
       console.log('💥 Generic error - showing toast');
+      // Try to get a meaningful error message
+      const errorMessage = error?.message || 
+                          error?.error || 
+                          (typeof error === 'string' ? error : '') ||
+                          "Failed to update client";
+      
       toast({
         title: "Error",
-        description: error.message || "Failed to update client",
+        description: errorMessage,
         variant: "destructive",
       });
     },
