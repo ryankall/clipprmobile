@@ -2517,7 +2517,7 @@ export default function Settings() {
                       <span className="text-white">Phone Verification</span>
                     </div>
                     <div className="flex items-center space-x-2">
-                      {user?.phoneVerified ? (
+                      {user?.phone_verified ? (
                         <div className="flex items-center space-x-1 text-green-400">
                           <CheckCircle className="w-4 h-4" />
                           <span className="text-sm">Verified</span>
@@ -2531,7 +2531,7 @@ export default function Settings() {
                     </div>
                   </div>
 
-                  {!user?.phoneVerified && (
+                  {!user?.phone_verified && (
                     <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg p-3">
                       <div className="flex items-start space-x-2">
                         <AlertCircle className="w-4 h-4 text-amber-400 mt-0.5" />

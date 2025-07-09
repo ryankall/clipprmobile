@@ -251,7 +251,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Verify the phone number
       await storage.updateUser(userId, {
-        phoneVerified: true,
+        phone_verified: true,
         phoneVerificationCode: null,
         phoneVerificationExpiry: null,
         phoneVerificationAttempts: 0,
@@ -444,7 +444,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Check if user's phone is verified
       const user = await storage.getUser(userId);
-      if (!user || !user.phoneVerified) {
+      if (!user || !user.phone_verified) {
         return res.status(403).json({ 
           error: 'Phone verification required',
           message: 'You must verify your phone number before creating appointments' 
