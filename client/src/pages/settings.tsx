@@ -58,6 +58,8 @@ import {
   MessageSquare,
   Phone,
   Smartphone,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
@@ -195,6 +197,9 @@ export default function Settings() {
   const [isCodeSent, setIsCodeSent] = useState(false);
   const [countdown, setCountdown] = useState(0);
   const [isChangingPassword, setIsChangingPassword] = useState(false);
+  const [showPaymentSettingsCard, setShowPaymentSettingsCard] = useState(false); // Default to hidden
+  const [showQuickActionCard, setShowQuickActionCard] = useState(false); // Default to hidden
+  const [showNotificationCard, setShowNotificationCard] = useState(false); // Default to hidden
   const [activeTab, setActiveTab] = useState("profile");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const addressInputRef = useRef<HTMLInputElement>(null);
@@ -226,14 +231,18 @@ export default function Settings() {
   // Unblock client mutation
   const unblockClientMutation = useMutation({
     mutationFn: async ({ phoneNumber }: { phoneNumber: string }) => {
-      return await apiRequest("POST", "/api/anti-spam/unblock", { phoneNumber });
+      return await apiRequest("POST", "/api/anti-spam/unblock", {
+        phoneNumber,
+      });
     },
     onSuccess: () => {
       toast({
         title: "Client Unblocked",
         description: "This phone number can now send booking requests again.",
       });
-      queryClient.invalidateQueries({ queryKey: ["/api/anti-spam/blocked-clients"] });
+      queryClient.invalidateQueries({
+        queryKey: ["/api/anti-spam/blocked-clients"],
+      });
     },
     onError: (error: any) => {
       toast({
@@ -354,11 +363,12 @@ export default function Settings() {
   });
 
   // Push notification subscription status
-  const { data: pushSubscriptionStatus, refetch: refetchPushSubscription } = useQuery({
-    queryKey: ["/api/push/subscription"],
-    retry: false,
-    staleTime: 1000 * 60 * 5, // 5 minutes
-  });
+  const { data: pushSubscriptionStatus, refetch: refetchPushSubscription } =
+    useQuery({
+      queryKey: ["/api/push/subscription"],
+      retry: false,
+      staleTime: 1000 * 60 * 5, // 5 minutes
+    });
 
   // Push notification subscription mutation
   const subscribeToNotificationsMutation = useMutation({
@@ -369,7 +379,8 @@ export default function Settings() {
       refetchPushSubscription();
       toast({
         title: "Push Notifications Enabled",
-        description: "You'll now receive notifications for new bookings and appointments.",
+        description:
+          "You'll now receive notifications for new bookings and appointments.",
       });
     },
     onError: (error: any) => {
@@ -426,17 +437,17 @@ export default function Settings() {
   const handleNotificationToggle = async (checked: boolean) => {
     if (checked) {
       // Enable push notifications
-      if ('serviceWorker' in navigator && 'PushManager' in window) {
+      if ("serviceWorker" in navigator && "PushManager" in window) {
         try {
           const registration = await navigator.serviceWorker.ready;
           const subscription = await registration.pushManager.subscribe({
             userVisibleOnly: true,
             applicationServerKey: import.meta.env.VITE_VAPID_PUBLIC_KEY,
           });
-          
+
           await subscribeToNotificationsMutation.mutateAsync(subscription);
         } catch (error) {
-          console.error('Error subscribing to push notifications:', error);
+          console.error("Error subscribing to push notifications:", error);
           toast({
             title: "Permission Required",
             description: "Please allow notifications in your browser settings.",
@@ -458,38 +469,62 @@ export default function Settings() {
 
   const handleSoundToggle = (checked: boolean) => {
     setSoundEffects(checked);
-    setNotificationSettings(prev => ({ ...prev, soundEffects: checked }));
+    setNotificationSettings((prev) => ({ ...prev, soundEffects: checked }));
     // Store in localStorage for persistence
-    localStorage.setItem('soundEffects', checked.toString());
+    localStorage.setItem("soundEffects", checked.toString());
   };
 
-  const handleNotificationTypeToggle = (type: keyof typeof notificationSettings, checked: boolean) => {
-    setNotificationSettings(prev => ({ ...prev, [type]: checked }));
+  const handleNotificationTypeToggle = (
+    type: keyof typeof notificationSettings,
+    checked: boolean,
+  ) => {
+    setNotificationSettings((prev) => ({ ...prev, [type]: checked }));
     // Store in localStorage for persistence
     localStorage.setItem(`notification_${type}`, checked.toString());
-    
+
     toast({
       title: checked ? "Notification Enabled" : "Notification Disabled",
-      description: `${type.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())} notifications ${checked ? 'enabled' : 'disabled'}`,
+      description: `${type.replace(/([A-Z])/g, " $1").replace(/^./, (str) => str.toUpperCase())} notifications ${checked ? "enabled" : "disabled"}`,
     });
   };
 
   // Initialize notification settings from localStorage
   useEffect(() => {
-    const savedSoundEffects = localStorage.getItem('soundEffects');
-    const savedNewBookingRequests = localStorage.getItem('notification_newBookingRequests');
-    const savedAppointmentConfirmations = localStorage.getItem('notification_appointmentConfirmations');
-    const savedAppointmentCancellations = localStorage.getItem('notification_appointmentCancellations');
-    const savedUpcomingReminders = localStorage.getItem('notification_upcomingReminders');
-    
+    const savedSoundEffects = localStorage.getItem("soundEffects");
+    const savedNewBookingRequests = localStorage.getItem(
+      "notification_newBookingRequests",
+    );
+    const savedAppointmentConfirmations = localStorage.getItem(
+      "notification_appointmentConfirmations",
+    );
+    const savedAppointmentCancellations = localStorage.getItem(
+      "notification_appointmentCancellations",
+    );
+    const savedUpcomingReminders = localStorage.getItem(
+      "notification_upcomingReminders",
+    );
+
     const settings = {
-      newBookingRequests: savedNewBookingRequests !== null ? savedNewBookingRequests === 'true' : true,
-      appointmentConfirmations: savedAppointmentConfirmations !== null ? savedAppointmentConfirmations === 'true' : true,
-      appointmentCancellations: savedAppointmentCancellations !== null ? savedAppointmentCancellations === 'true' : true,
-      upcomingReminders: savedUpcomingReminders !== null ? savedUpcomingReminders === 'true' : true,
-      soundEffects: savedSoundEffects !== null ? savedSoundEffects === 'true' : true,
+      newBookingRequests:
+        savedNewBookingRequests !== null
+          ? savedNewBookingRequests === "true"
+          : true,
+      appointmentConfirmations:
+        savedAppointmentConfirmations !== null
+          ? savedAppointmentConfirmations === "true"
+          : true,
+      appointmentCancellations:
+        savedAppointmentCancellations !== null
+          ? savedAppointmentCancellations === "true"
+          : true,
+      upcomingReminders:
+        savedUpcomingReminders !== null
+          ? savedUpcomingReminders === "true"
+          : true,
+      soundEffects:
+        savedSoundEffects !== null ? savedSoundEffects === "true" : true,
     };
-    
+
     setNotificationSettings(settings);
     setSoundEffects(settings.soundEffects);
   }, []);
@@ -1169,7 +1204,7 @@ export default function Settings() {
             <h1 className="text-xl font-bold text-white">Settings</h1>
           </div>
         </div>
-        
+
         {/* Tab Navigation */}
         <div className="flex space-x-1 mt-4">
           <button
@@ -1201,1359 +1236,1458 @@ export default function Settings() {
           <>
             {/* Profile Settings */}
             <Card className="bg-dark-card border-steel/20">
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-white flex items-center">
-                <User className="w-5 h-5 mr-2" />
-                Profile & Business Info
-              </CardTitle>
-              <Dialog
-                open={isEditingProfile}
-                onOpenChange={(open) => {
-                  // Always prevent closing if autocomplete has suggestions visible
-                  if (!open) {
-                    const pacContainers =
-                      document.querySelectorAll(".pac-container");
-                    const hasVisibleSuggestions = Array.from(
-                      pacContainers,
-                    ).some((container) => {
-                      const element = container as HTMLElement;
-                      return (
-                        element.style.display !== "none" &&
-                        element.children.length > 0 &&
-                        element.offsetHeight > 0
-                      );
-                    });
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-white flex items-center">
+                    <User className="w-5 h-5 mr-2" />
+                    Profile & Business Info
+                  </CardTitle>
+                  <Dialog
+                    open={isEditingProfile}
+                    onOpenChange={(open) => {
+                      // Always prevent closing if autocomplete has suggestions visible
+                      if (!open) {
+                        const pacContainers =
+                          document.querySelectorAll(".pac-container");
+                        const hasVisibleSuggestions = Array.from(
+                          pacContainers,
+                        ).some((container) => {
+                          const element = container as HTMLElement;
+                          return (
+                            element.style.display !== "none" &&
+                            element.children.length > 0 &&
+                            element.offsetHeight > 0
+                          );
+                        });
 
-                    if (hasVisibleSuggestions || isAutocompleteOpen) {
-                      console.log(
-                        "🛡️ Preventing modal close - Google autocomplete active",
-                      );
-                      return;
-                    }
-                  }
+                        if (hasVisibleSuggestions || isAutocompleteOpen) {
+                          console.log(
+                            "🛡️ Preventing modal close - Google autocomplete active",
+                          );
+                          return;
+                        }
+                      }
 
-                  setIsEditingProfile(open);
-                  if (!open) {
-                    setIsAutocompleteOpen(false);
-                  }
-                }}
-              >
-                <DialogTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="text-gold hover:bg-gold/10"
+                      setIsEditingProfile(open);
+                      if (!open) {
+                        setIsAutocompleteOpen(false);
+                      }
+                    }}
                   >
-                    <Edit3 className="w-4 h-4" />
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="bg-dark-card border-steel/20 max-h-[90vh] overflow-y-auto scrollbar-hide">
-                  <DialogHeader>
-                    <DialogTitle className="text-white">
-                      Edit Profile
-                    </DialogTitle>
-                  </DialogHeader>
-                  <Form {...form}>
-                    <form
-                      onSubmit={form.handleSubmit(onSubmit)}
-                      className="space-y-4"
-                    >
-                      {/* Photo Upload */}
-                      <div className="space-y-4">
-                        <Label className="text-white">Profile Photo</Label>
-                        <input
-                          ref={fileInputRef}
-                          type="file"
-                          accept="image/jpeg,image/jpg,image/png,image/webp"
-                          onChange={handleFileChange}
-                          className="hidden"
-                        />
-
-                        {previewUrl ? (
-                          <div className="relative">
-                            <img
-                              src={previewUrl}
-                              alt="Profile preview"
-                              className="w-24 h-24 object-cover rounded-full border border-steel/40"
+                    <DialogTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-gold hover:bg-gold/10"
+                      >
+                        <Edit3 className="w-4 h-4" />
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="bg-dark-card border-steel/20 max-h-[90vh] overflow-y-auto scrollbar-hide">
+                      <DialogHeader>
+                        <DialogTitle className="text-white">
+                          Edit Profile
+                        </DialogTitle>
+                      </DialogHeader>
+                      <Form {...form}>
+                        <form
+                          onSubmit={form.handleSubmit(onSubmit)}
+                          className="space-y-4"
+                        >
+                          {/* Photo Upload */}
+                          <div className="space-y-4">
+                            <Label className="text-white">Profile Photo</Label>
+                            <input
+                              ref={fileInputRef}
+                              type="file"
+                              accept="image/jpeg,image/jpg,image/png,image/webp"
+                              onChange={handleFileChange}
+                              className="hidden"
                             />
+
+                            {previewUrl ? (
+                              <div className="relative">
+                                <img
+                                  src={previewUrl}
+                                  alt="Profile preview"
+                                  className="w-24 h-24 object-cover rounded-full border border-steel/40"
+                                />
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  className="absolute -top-2 -right-2 bg-black/50 hover:bg-red-600 text-white rounded-full w-6 h-6 p-0"
+                                  onClick={clearPhoto}
+                                >
+                                  <X className="w-3 h-3" />
+                                </Button>
+                              </div>
+                            ) : (
+                              <div className="border-2 border-dashed border-steel/40 rounded-lg p-4 text-center">
+                                <Camera className="w-8 h-8 mx-auto mb-2 text-steel" />
+                                <p className="text-steel text-sm mb-3">
+                                  Add a profile photo
+                                </p>
+                                <div className="flex gap-2">
+                                  <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    className="border-steel/40 text-charcoal bg-white hover:bg-steel/10 hover:text-charcoal tap-feedback flex-1"
+                                    onClick={handleCameraCapture}
+                                  >
+                                    <Camera className="w-4 h-4 mr-2" />
+                                    Take Photo
+                                  </Button>
+                                  <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    className="border-steel/40 text-charcoal bg-white hover:bg-steel/10 hover:text-charcoal tap-feedback flex-1"
+                                    onClick={handleUpload}
+                                  >
+                                    <Upload className="w-4 h-4 mr-2" />
+                                    Upload
+                                  </Button>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+
+                          <FormField
+                            control={form.control}
+                            name="businessName"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel className="text-white">
+                                  Business Name
+                                </FormLabel>
+                                <FormControl>
+                                  <Input
+                                    {...field}
+                                    className="bg-charcoal border-steel/40 text-white"
+                                    placeholder="Your barbershop name"
+                                    maxLength={60}
+                                  />
+                                </FormControl>
+                                <div className="flex justify-between items-center">
+                                  <FormMessage />
+                                  <span className="text-steel text-xs">
+                                    {field.value?.length || 0}/60
+                                  </span>
+                                </div>
+                              </FormItem>
+                            )}
+                          />
+
+                          <div className="grid grid-cols-2 gap-4">
+                            <FormField
+                              control={form.control}
+                              name="phone"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel className="text-white">
+                                    Phone
+                                  </FormLabel>
+                                  <FormControl>
+                                    <Input
+                                      {...field}
+                                      className="bg-charcoal border-steel/40 text-white"
+                                      placeholder="(555) 123-4567"
+                                      onChange={(e) => {
+                                        const formatted = formatPhoneNumber(
+                                          e.target.value,
+                                        );
+                                        field.onChange(formatted);
+                                      }}
+                                    />
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                            <FormField
+                              control={form.control}
+                              name="email"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel className="text-white">
+                                    Email
+                                  </FormLabel>
+                                  <FormControl>
+                                    <Input
+                                      {...field}
+                                      type="email"
+                                      className="bg-charcoal border-steel/40 text-white"
+                                      placeholder="Email address"
+                                    />
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                          </div>
+
+                          <FormField
+                            control={form.control}
+                            name="serviceArea"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel className="text-white">
+                                  Service Area
+                                </FormLabel>
+                                <FormControl>
+                                  <Input
+                                    {...field}
+                                    className="bg-charcoal border-steel/40 text-white"
+                                    placeholder="Your service area"
+                                    maxLength={100}
+                                  />
+                                </FormControl>
+                                <div className="flex justify-between items-center">
+                                  <FormMessage />
+                                  <span className="text-steel text-xs">
+                                    {field.value?.length || 0}/100
+                                  </span>
+                                </div>
+                              </FormItem>
+                            )}
+                          />
+
+                          <FormField
+                            control={form.control}
+                            name="about"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel className="text-white">
+                                  About
+                                </FormLabel>
+                                <FormControl>
+                                  <Textarea
+                                    {...field}
+                                    className="bg-charcoal border-steel/40 text-white scrollbar-hide"
+                                    placeholder="Tell clients about your services"
+                                    maxLength={300}
+                                    rows={4}
+                                  />
+                                </FormControl>
+                                <div className="flex justify-between items-center">
+                                  <FormMessage />
+                                  <span className="text-steel text-xs">
+                                    {field.value?.length || 0}/300
+                                  </span>
+                                </div>
+                              </FormItem>
+                            )}
+                          />
+
+                          {/* Scheduling Settings */}
+                          <div className="space-y-4 pt-4 border-t border-steel/20">
+                            <h4 className="text-white font-medium">
+                              Smart Scheduling Settings
+                            </h4>
+
+                            <FormField
+                              control={form.control}
+                              name="homeBaseAddress"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel className="text-white">
+                                    Home Base Address
+                                  </FormLabel>
+                                  <FormControl>
+                                    <Input
+                                      {...field}
+                                      ref={field.ref}
+                                      className="bg-charcoal border-steel/40 text-white"
+                                      placeholder="Start typing your address..."
+                                      autoComplete="off"
+                                    />
+                                  </FormControl>
+                                  <p className="text-steel text-xs">
+                                    Starting point for calculating travel time
+                                    to your first appointment. Enter your full
+                                    address including city and state.
+                                  </p>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+
+                            <FormField
+                              control={form.control}
+                              name="timezone"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel className="text-white">
+                                    Timezone
+                                  </FormLabel>
+                                  <FormControl>
+                                    <select
+                                      {...field}
+                                      className="w-full p-2 bg-charcoal border border-steel/40 text-white rounded-md"
+                                    >
+                                      <option value="America/New_York">
+                                        Eastern Time (ET)
+                                      </option>
+                                      <option value="America/Chicago">
+                                        Central Time (CT)
+                                      </option>
+                                      <option value="America/Denver">
+                                        Mountain Time (MT)
+                                      </option>
+                                      <option value="America/Los_Angeles">
+                                        Pacific Time (PT)
+                                      </option>
+                                      <option value="America/Anchorage">
+                                        Alaska Time (AKT)
+                                      </option>
+                                      <option value="Pacific/Honolulu">
+                                        Hawaii Time (HST)
+                                      </option>
+                                    </select>
+                                  </FormControl>
+                                  <p className="text-steel text-xs">
+                                    Your local timezone for appointment
+                                    scheduling and display
+                                  </p>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+
+                            <FormField
+                              control={form.control}
+                              name="defaultGraceTime"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel className="text-white">
+                                    Grace Time Buffer (minutes)
+                                  </FormLabel>
+                                  <FormControl>
+                                    <Input
+                                      {...field}
+                                      type="number"
+                                      min="0"
+                                      max="60"
+                                      className="bg-charcoal border-steel/40 text-white"
+                                      placeholder="5"
+                                      onChange={(e) =>
+                                        field.onChange(
+                                          parseInt(e.target.value) || 0,
+                                        )
+                                      }
+                                    />
+                                  </FormControl>
+                                  <p className="text-steel text-xs">
+                                    Extra time added to travel estimates for
+                                    parking, elevators, etc.
+                                  </p>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+
+                            <FormField
+                              control={form.control}
+                              name="transportationMode"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel className="text-white">
+                                    Transportation Mode
+                                  </FormLabel>
+                                  <Select
+                                    onValueChange={field.onChange}
+                                    value={field.value}
+                                  >
+                                    <FormControl>
+                                      <SelectTrigger className="bg-charcoal border-steel/40 text-white">
+                                        <SelectValue placeholder="Select transportation mode" />
+                                      </SelectTrigger>
+                                    </FormControl>
+                                    <SelectContent className="bg-charcoal border-steel/40">
+                                      <SelectItem
+                                        value="driving"
+                                        className="text-white hover:bg-steel/20"
+                                      >
+                                        🚗 Driving
+                                      </SelectItem>
+                                      <SelectItem
+                                        value="walking"
+                                        className="text-white hover:bg-steel/20"
+                                      >
+                                        🚶 Walking
+                                      </SelectItem>
+                                      <SelectItem
+                                        value="cycling"
+                                        className="text-white hover:bg-steel/20"
+                                      >
+                                        🚴 Cycling
+                                      </SelectItem>
+                                      <SelectItem
+                                        value="transit"
+                                        className="text-white hover:bg-steel/20"
+                                      >
+                                        🚌 Public Transit
+                                      </SelectItem>
+                                    </SelectContent>
+                                  </Select>
+                                  <p className="text-steel text-xs">
+                                    Your preferred transportation method for
+                                    calculating travel times between
+                                    appointments
+                                  </p>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                          </div>
+
+                          <div className="flex gap-2 pt-2">
                             <Button
                               type="button"
-                              variant="ghost"
-                              size="sm"
-                              className="absolute -top-2 -right-2 bg-black/50 hover:bg-red-600 text-white rounded-full w-6 h-6 p-0"
-                              onClick={clearPhoto}
+                              variant="outline"
+                              className="border-steel/40 text-charcoal bg-white hover:bg-steel/10 hover:text-charcoal flex-1"
+                              onClick={() => setIsEditingProfile(false)}
                             >
-                              <X className="w-3 h-3" />
+                              Cancel
+                            </Button>
+                            <Button
+                              type="submit"
+                              disabled={updateProfileMutation.isPending}
+                              className="gradient-gold text-charcoal font-semibold flex-1"
+                            >
+                              {updateProfileMutation.isPending
+                                ? "Updating..."
+                                : "Update Profile"}
                             </Button>
                           </div>
-                        ) : (
-                          <div className="border-2 border-dashed border-steel/40 rounded-lg p-4 text-center">
-                            <Camera className="w-8 h-8 mx-auto mb-2 text-steel" />
-                            <p className="text-steel text-sm mb-3">
-                              Add a profile photo
-                            </p>
-                            <div className="flex gap-2">
-                              <Button
-                                type="button"
-                                variant="outline"
-                                size="sm"
-                                className="border-steel/40 text-charcoal bg-white hover:bg-steel/10 hover:text-charcoal tap-feedback flex-1"
-                                onClick={handleCameraCapture}
-                              >
-                                <Camera className="w-4 h-4 mr-2" />
-                                Take Photo
-                              </Button>
-                              <Button
-                                type="button"
-                                variant="outline"
-                                size="sm"
-                                className="border-steel/40 text-charcoal bg-white hover:bg-steel/10 hover:text-charcoal tap-feedback flex-1"
-                                onClick={handleUpload}
-                              >
-                                <Upload className="w-4 h-4 mr-2" />
-                                Upload
-                              </Button>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-
-                      <FormField
-                        control={form.control}
-                        name="businessName"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel className="text-white">
-                              Business Name
-                            </FormLabel>
-                            <FormControl>
-                              <Input
-                                {...field}
-                                className="bg-charcoal border-steel/40 text-white"
-                                placeholder="Your barbershop name"
-                                maxLength={60}
-                              />
-                            </FormControl>
-                            <div className="flex justify-between items-center">
-                              <FormMessage />
-                              <span className="text-steel text-xs">
-                                {field.value?.length || 0}/60
-                              </span>
-                            </div>
-                          </FormItem>
-                        )}
-                      />
-
-                      <div className="grid grid-cols-2 gap-4">
-                        <FormField
-                          control={form.control}
-                          name="phone"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel className="text-white">
-                                Phone
-                              </FormLabel>
-                              <FormControl>
-                                <Input
-                                  {...field}
-                                  className="bg-charcoal border-steel/40 text-white"
-                                  placeholder="(555) 123-4567"
-                                  onChange={(e) => {
-                                    const formatted = formatPhoneNumber(
-                                      e.target.value,
-                                    );
-                                    field.onChange(formatted);
-                                  }}
-                                />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        <FormField
-                          control={form.control}
-                          name="email"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel className="text-white">
-                                Email
-                              </FormLabel>
-                              <FormControl>
-                                <Input
-                                  {...field}
-                                  type="email"
-                                  className="bg-charcoal border-steel/40 text-white"
-                                  placeholder="Email address"
-                                />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                      </div>
-
-                      <FormField
-                        control={form.control}
-                        name="serviceArea"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel className="text-white">
-                              Service Area
-                            </FormLabel>
-                            <FormControl>
-                              <Input
-                                {...field}
-                                className="bg-charcoal border-steel/40 text-white"
-                                placeholder="Your service area"
-                                maxLength={100}
-                              />
-                            </FormControl>
-                            <div className="flex justify-between items-center">
-                              <FormMessage />
-                              <span className="text-steel text-xs">
-                                {field.value?.length || 0}/100
-                              </span>
-                            </div>
-                          </FormItem>
-                        )}
-                      />
-
-                      <FormField
-                        control={form.control}
-                        name="about"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel className="text-white">About</FormLabel>
-                            <FormControl>
-                              <Textarea
-                                {...field}
-                                className="bg-charcoal border-steel/40 text-white scrollbar-hide"
-                                placeholder="Tell clients about your services"
-                                maxLength={300}
-                                rows={4}
-                              />
-                            </FormControl>
-                            <div className="flex justify-between items-center">
-                              <FormMessage />
-                              <span className="text-steel text-xs">
-                                {field.value?.length || 0}/300
-                              </span>
-                            </div>
-                          </FormItem>
-                        )}
-                      />
-
-                      {/* Scheduling Settings */}
-                      <div className="space-y-4 pt-4 border-t border-steel/20">
-                        <h4 className="text-white font-medium">
-                          Smart Scheduling Settings
-                        </h4>
-
-                        <FormField
-                          control={form.control}
-                          name="homeBaseAddress"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel className="text-white">
-                                Home Base Address
-                              </FormLabel>
-                              <FormControl>
-                                <Input
-                                  {...field}
-                                  ref={field.ref}
-                                  className="bg-charcoal border-steel/40 text-white"
-                                  placeholder="Start typing your address..."
-                                  autoComplete="off"
-                                />
-                              </FormControl>
-                              <p className="text-steel text-xs">
-                                Starting point for calculating travel time to
-                                your first appointment. Enter your full address
-                                including city and state.
-                              </p>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-
-                        <FormField
-                          control={form.control}
-                          name="timezone"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel className="text-white">
-                                Timezone
-                              </FormLabel>
-                              <FormControl>
-                                <select
-                                  {...field}
-                                  className="w-full p-2 bg-charcoal border border-steel/40 text-white rounded-md"
-                                >
-                                  <option value="America/New_York">
-                                    Eastern Time (ET)
-                                  </option>
-                                  <option value="America/Chicago">
-                                    Central Time (CT)
-                                  </option>
-                                  <option value="America/Denver">
-                                    Mountain Time (MT)
-                                  </option>
-                                  <option value="America/Los_Angeles">
-                                    Pacific Time (PT)
-                                  </option>
-                                  <option value="America/Anchorage">
-                                    Alaska Time (AKT)
-                                  </option>
-                                  <option value="Pacific/Honolulu">
-                                    Hawaii Time (HST)
-                                  </option>
-                                </select>
-                              </FormControl>
-                              <p className="text-steel text-xs">
-                                Your local timezone for appointment scheduling
-                                and display
-                              </p>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-
-                        <FormField
-                          control={form.control}
-                          name="defaultGraceTime"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel className="text-white">
-                                Grace Time Buffer (minutes)
-                              </FormLabel>
-                              <FormControl>
-                                <Input
-                                  {...field}
-                                  type="number"
-                                  min="0"
-                                  max="60"
-                                  className="bg-charcoal border-steel/40 text-white"
-                                  placeholder="5"
-                                  onChange={(e) =>
-                                    field.onChange(
-                                      parseInt(e.target.value) || 0,
-                                    )
-                                  }
-                                />
-                              </FormControl>
-                              <p className="text-steel text-xs">
-                                Extra time added to travel estimates for
-                                parking, elevators, etc.
-                              </p>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-
-                        <FormField
-                          control={form.control}
-                          name="transportationMode"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel className="text-white">
-                                Transportation Mode
-                              </FormLabel>
-                              <Select
-                                onValueChange={field.onChange}
-                                value={field.value}
-                              >
-                                <FormControl>
-                                  <SelectTrigger className="bg-charcoal border-steel/40 text-white">
-                                    <SelectValue placeholder="Select transportation mode" />
-                                  </SelectTrigger>
-                                </FormControl>
-                                <SelectContent className="bg-charcoal border-steel/40">
-                                  <SelectItem
-                                    value="driving"
-                                    className="text-white hover:bg-steel/20"
-                                  >
-                                    🚗 Driving
-                                  </SelectItem>
-                                  <SelectItem
-                                    value="walking"
-                                    className="text-white hover:bg-steel/20"
-                                  >
-                                    🚶 Walking
-                                  </SelectItem>
-                                  <SelectItem
-                                    value="cycling"
-                                    className="text-white hover:bg-steel/20"
-                                  >
-                                    🚴 Cycling
-                                  </SelectItem>
-                                  <SelectItem
-                                    value="transit"
-                                    className="text-white hover:bg-steel/20"
-                                  >
-                                    🚌 Public Transit
-                                  </SelectItem>
-                                </SelectContent>
-                              </Select>
-                              <p className="text-steel text-xs">
-                                Your preferred transportation method for
-                                calculating travel times between appointments
-                              </p>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                      </div>
-
-                      <div className="flex gap-2 pt-2">
-                        <Button
-                          type="button"
-                          variant="outline"
-                          className="border-steel/40 text-charcoal bg-white hover:bg-steel/10 hover:text-charcoal flex-1"
-                          onClick={() => setIsEditingProfile(false)}
-                        >
-                          Cancel
-                        </Button>
-                        <Button
-                          type="submit"
-                          disabled={updateProfileMutation.isPending}
-                          className="gradient-gold text-charcoal font-semibold flex-1"
-                        >
-                          {updateProfileMutation.isPending
-                            ? "Updating..."
-                            : "Update Profile"}
-                        </Button>
-                      </div>
-                    </form>
-                  </Form>
-                </DialogContent>
-              </Dialog>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {/* Display current profile info */}
-            <div className="flex items-center space-x-4">
-              {user?.photoUrl ? (
-                <img
-                  src={user.photoUrl}
-                  alt="Profile"
-                  className="w-16 h-16 object-cover rounded-full border border-steel/40"
-                />
-              ) : (
-                <div className="w-16 h-16 bg-charcoal rounded-full border border-steel/40 flex items-center justify-center">
-                  <User className="w-8 h-8 text-steel" />
+                        </form>
+                      </Form>
+                    </DialogContent>
+                  </Dialog>
                 </div>
-              )}
-              <div className="flex-1 min-w-0">
-                <h3 className="text-white font-semibold truncate">
-                  {user?.businessName || "Business Name"}
-                </h3>
-                <p className="text-steel text-sm truncate">
-                  {user?.email || "No email set"}
-                </p>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4 text-sm">
-              <div className="min-w-0">
-                <Label className="text-steel">Phone</Label>
-                <p className="text-white truncate">{user?.phone || "Not set"}</p>
-              </div>
-              <div className="min-w-0">
-                <Label className="text-steel">Service Area</Label>
-                <p className="text-white truncate">{user?.serviceArea || "Not set"}</p>
-              </div>
-            </div>
-
-            {user?.about && (
-              <div className="min-w-0">
-                <Label className="text-steel">About</Label>
-                <p className="text-white text-sm break-words">{user.about}</p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Subscription Plan */}
-        <Card className="bg-dark-card border-steel/20" id="plan-card">
-          <CardHeader>
-            <CardTitle className="text-white flex items-center">
-              <CreditCard className="w-5 h-5 mr-2" />
-              Subscription Plan
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex items-center justify-between p-3 bg-charcoal/50 border border-steel/20 rounded-lg">
-              <div className="flex items-center space-x-3">
-                <div className="w-8 h-8 bg-gold rounded-full flex items-center justify-center">
-                  <CheckCircle className="w-4 h-4 text-charcoal" />
-                </div>
-                <div>
-                  <p className="text-white font-medium">Basic Plan</p>
-                  <p className="text-steel text-sm">Currently Active</p>
-                </div>
-              </div>
-              <div className="text-right">
-                <p className="text-white font-medium">Free</p>
-                <p className="text-steel text-xs">Forever</p>
-              </div>
-            </div>
-
-            <div className="space-y-3">
-              <div className="bg-charcoal/50 p-3 rounded-lg">
-                <h4 className="text-white font-medium text-sm mb-2">
-                  Basic Plan includes:
-                </h4>
-                <ul className="text-steel text-sm space-y-1">
-                  <li>• 15 appointments per month</li>
-                  <li>• 3 active services</li>
-                  <li>• 15 SMS messages per month</li>
-                  <li>• 50MB photo storage</li>
-                  <li>• Basic calendar features</li>
-                </ul>
-              </div>
-
-              <div className="relative bg-gradient-to-br from-gold/20 to-gold/10 border-2 border-gold/30 p-6 rounded-xl overflow-hidden">
-                {/* Premium Badge */}
-
-                <div className="mb-4">
-                  <div className="flex items-baseline space-x-2 mb-2">
-                    <h4 className="text-white font-bold text-lg">
-                      Premium Plan
-                    </h4>
-                  </div>
-
-                  {/* Pricing Options */}
-                  <div className="mb-4 space-y-3">
-                    {/* Monthly Option - Horizontal */}
-                    <div className="bg-charcoal/50 p-4 rounded-lg border border-gold/20">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-4">
-                          <div>
-                            <div className="text-gold font-bold text-xl">
-                              $19.99
-                            </div>
-                            <div className="text-gold text-sm">/month</div>
-                          </div>
-                          <div className="text-steel text-sm px-2">
-                            Monthly billing
-                          </div>
-                        </div>
-                        <Button
-                          className="bg-gradient-to-r from-gold to-amber-400 hover:from-gold/90 hover:to-amber-400/90 text-charcoal font-bold text-sm py-2 px-6 rounded-lg transition-all duration-200"
-                          onClick={() => handleStripeCheckout("monthly")}
-                          data-testid="monthly-upgrade-button"
-                        >
-                          Choose Monthly
-                        </Button>
-                      </div>
-                    </div>
-
-                    {/* Yearly Option - Below Monthly */}
-                    <div className="bg-charcoal/50 p-4 rounded-lg border border-emerald-500/30 relative">
-                      <div className="absolute -top-2 left-1/2 transform -translate-x-1/2">
-                        <span className="bg-emerald-500 text-white text-xs px-2 py-1 rounded-full font-bold">
-                          SAVE 16%
-                        </span>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-4">
-                          <div>
-                            <div className="text-steel text-xs line-through">
-                              $239.88/year
-                            </div>
-                            <div className="text-emerald-400 font-bold text-xl">
-                              $199.99
-                            </div>
-                            <div className="text-emerald-400 text-sm">
-                              /year
-                            </div>
-                          </div>
-                          <div className="text-steel text-sm px-2">
-                            {" "}
-                            Annual billing
-                          </div>
-                        </div>
-                        <Button
-                          className="bg-gradient-to-r from-emerald-500 to-emerald-400 hover:from-emerald-500/90 hover:to-emerald-400/90 text-white font-bold text-sm py-2 px-6 rounded-lg transition-all duration-200"
-                          onClick={() => handleStripeCheckout("yearly")}
-                          data-testid="yearly-upgrade-button"
-                        >
-                          Choose Yearly
-                        </Button>
-                      </div>
-                      <span className="bg-emerald-500 text-white text-xs px-2 py-1 rounded-full font-medium animate-pulse">
-                        MOST POPULAR
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-3 mb-4">
-                  <div className="bg-charcoal/50 p-3 rounded-lg border border-gold/20">
-                    <div className="text-gold font-bold text-lg">∞</div>
-                    <div className="text-white text-sm font-medium">
-                      Appointments
-                    </div>
-                    <div className="text-steel text-xs">No monthly limits</div>
-                  </div>
-                  <div className="bg-charcoal/50 p-3 rounded-lg border border-gold/20">
-                    <div className="text-gold font-bold text-lg">1GB</div>
-                    <div className="text-white text-sm font-medium">
-                      Photo Storage
-                    </div>
-                    <div className="text-steel text-xs">20x more space</div>
-                  </div>
-                  <div className="bg-charcoal/50 p-3 rounded-lg border border-gold/20">
-                    <div className="text-gold font-bold text-lg">∞</div>
-                    <div className="text-white text-sm font-medium">
-                      Services
-                    </div>
-                    <div className="text-steel text-xs">Unlimited catalog</div>
-                  </div>
-                  <div className="bg-charcoal/50 p-3 rounded-lg border border-gold/20">
-                    <div className="text-gold font-bold text-lg">∞</div>
-                    <div className="text-white text-sm font-medium">
-                      SMS Messages
-                    </div>
-                    <div className="text-steel text-xs">Stay connected</div>
-                  </div>
-                </div>
-
-                <div className="bg-charcoal/70 p-3 rounded-lg border border-gold/20 mb-4">
-                  <h5 className="text-white font-medium text-sm mb-2 flex items-center">
-                    <CheckCircle className="w-4 h-4 text-emerald-400 mr-2" />
-                    Premium Features
-                  </h5>
-                  <ul className="text-steel text-sm space-y-1">
-                    <li className="flex items-center">
-                      <CheckCircle className="w-3 h-3 text-emerald-400 mr-2" />
-                      Advanced calendar with custom working hours
-                    </li>
-                    <li className="flex items-center">
-                      <CheckCircle className="w-3 h-3 text-emerald-400 mr-2" />
-                      Client analytics and business insights
-                    </li>
-                    <li className="flex items-center">
-                      <CheckCircle className="w-3 h-3 text-emerald-400 mr-2" />
-                      Priority customer support
-                    </li>
-                  </ul>
-                </div>
-
-                <div className="text-center mt-3">
-                  <p className="text-steel text-xs">
-                    ✨ 30-day money-back guarantee • Cancel anytime
-                  </p>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Subscription Management */}
-        {subscriptionStatus &&
-          (subscriptionStatus.status === "premium" ||
-            subscriptionStatus.status === "cancelled") && (
-            <Card className="bg-dark-card border-steel/20">
-              <CardHeader>
-                <CardTitle className="text-white flex items-center">
-                  <CreditCard className="w-5 h-5 mr-2" />
-                  Subscription Management
-                </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="bg-charcoal rounded-lg p-4 border border-steel/20">
-                  <div className="flex justify-between items-start mb-3">
-                    <div>
-                      <h4 className="text-white font-semibold">
-                        Plan:{" "}
-                        {subscriptionStatus.status === "cancelled"
-                          ? "Premium (Cancelled)"
-                          : "Premium"}
-                      </h4>
-                      <p className="text-steel text-sm">
-                        {subscriptionStatus.interval === "yearly"
-                          ? "Annual"
-                          : "Monthly"}{" "}
-                        subscription
-                      </p>
-                    </div>
-                    {subscriptionStatus.status === "premium" && (
-                      <span className="bg-emerald-500/20 text-emerald-400 px-2 py-1 rounded text-xs font-medium">
-                        Active
-                      </span>
-                    )}
-                    {subscriptionStatus.status === "cancelled" && (
-                      <span className="bg-amber-500/20 text-amber-400 px-2 py-1 rounded text-xs font-medium">
-                        Cancelled
-                      </span>
-                    )}
-                  </div>
-
-                  {subscriptionStatus.endDate && (
-                    <p className="text-steel text-sm mb-3">
-                      {subscriptionStatus.status === "cancelled"
-                        ? `Access until: ${new Date(subscriptionStatus.endDate).toLocaleDateString()}`
-                        : `Next billing: ${new Date(subscriptionStatus.endDate).toLocaleDateString()}`}
-                    </p>
-                  )}
-
-                  {subscriptionStatus.isEligibleForRefund &&
-                    subscriptionStatus.refundDeadline && (
-                      <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-3 mb-3">
-                        <div className="flex items-center mb-2">
-                          <AlertCircle className="w-4 h-4 text-blue-400 mr-2" />
-                          <span className="text-blue-400 font-medium text-sm">
-                            30-Day Money-Back Guarantee
-                          </span>
-                        </div>
-                        <p className="text-steel text-xs">
-                          You're eligible for a full refund until{" "}
-                          {new Date(
-                            subscriptionStatus.refundDeadline,
-                          ).toLocaleDateString()}
-                        </p>
-                      </div>
-                    )}
-
-                  <div className="flex gap-2">
-                    {subscriptionStatus.status === "premium" && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => cancelSubscriptionMutation.mutate()}
-                        disabled={cancelSubscriptionMutation.isPending}
-                        className="flex-1 border-steel/20 text-steel hover:text-white hover:bg-steel/10"
-                      >
-                        {cancelSubscriptionMutation.isPending ? (
-                          <div className="flex items-center">
-                            <div className="w-3 h-3 border border-t-transparent border-white rounded-full animate-spin mr-2"></div>
-                            Cancelling...
-                          </div>
-                        ) : (
-                          "Cancel Subscription"
-                        )}
-                      </Button>
-                    )}
-
-                    {subscriptionStatus.isEligibleForRefund && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => requestRefundMutation.mutate()}
-                        disabled={requestRefundMutation.isPending}
-                        className="flex-1 border-blue-500/20 text-blue-400 hover:text-blue-300 hover:bg-blue-500/10"
-                      >
-                        {requestRefundMutation.isPending ? (
-                          <div className="flex items-center">
-                            <div className="w-3 h-3 border border-t-transparent border-blue-400 rounded-full animate-spin mr-2"></div>
-                            Processing...
-                          </div>
-                        ) : (
-                          "Request Full Refund"
-                        )}
-                      </Button>
-                    )}
-                  </div>
-
-                  <div className="mt-3 pt-3 border-t border-steel/20">
-                    <p className="text-steel text-xs">
-                      {subscriptionStatus.status === "premium"
-                        ? "Cancel anytime. Your premium access will remain active until the end of your current billing period."
-                        : "Your subscription has been cancelled. Premium access continues until the end date shown above."}
-                    </p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-        {/* Public Booking Link */}
-        <Card className="bg-dark-card border-steel/20">
-          <CardHeader>
-            <CardTitle className="text-white flex items-center">
-              <Share className="w-5 h-5 mr-2" />
-              Public Booking Link
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <p className="text-steel text-sm">
-              Share this link with clients so they can book appointments
-              directly with you from anywhere.
-            </p>
-
-            {user?.phone ? (
-              <div className="space-y-3">
-                <div className="bg-charcoal rounded-lg p-3 border border-steel/20">
-                  <Label className="text-steel text-xs">Your Booking URL</Label>
-                  <div className="flex items-center space-x-2 mt-1">
-                    <code className="text-gold text-sm bg-charcoal/50 px-2 py-1 rounded flex-1 break-all">
-                      {window.location.origin}/book/
-                      {user.phone?.replace(/\D/g, "") || ""}-clipcutman
-                    </code>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="bg-charcoal border-steel/40 text-gold hover:bg-charcoal/80 px-3"
-                      onClick={() => {
-                        if (user?.phone) {
-                          const cleanPhone = user.phone.replace(/\D/g, "");
-                          const bookingUrl = `${window.location.origin}/book/${cleanPhone}-clipcutman`;
-                          navigator.clipboard.writeText(bookingUrl);
-                          toast({
-                            title: "Copied!",
-                            description: "Booking link copied to clipboard",
-                          });
-                        }
-                      }}
-                    >
-                      <Copy className="w-4 h-4" />
-                    </Button>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="bg-charcoal rounded-lg p-3 border border-steel/20 text-center">
-                    <Calendar className="w-5 h-5 text-gold mx-auto mb-1" />
-                    <div className="text-xs font-medium text-white">
-                      Real-time Calendar
-                    </div>
-                    <div className="text-xs text-steel">
-                      Shows your availability
-                    </div>
-                  </div>
-                  <div className="bg-charcoal rounded-lg p-3 border border-steel/20 text-center">
-                    <MessageSquare className="w-5 h-5 text-gold mx-auto mb-1" />
-                    <div className="text-xs font-medium text-white">
-                      Direct Booking
-                    </div>
-                    <div className="text-xs text-steel">
-                      Requests sent to inbox
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div className="bg-charcoal rounded-lg p-4 border border-steel/20 text-center">
-                <p className="text-steel text-sm">
-                  Add your phone number to profile to generate your booking link
-                </p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Notification Settings */}
-        <Card className="bg-dark-card border-steel/20">
-          <CardHeader>
-            <CardTitle className="text-white flex items-center">
-              <Bell className="w-5 h-5 mr-2" />
-              Notifications
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {/* Individual Notification Type Toggles - Always Show All 5 */}
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <div>
-                  <Label className="text-white">New Booking Requests</Label>
-                  <p className="text-xs text-steel">
-                    When clients request appointments
-                  </p>
-                </div>
-                <Switch
-                  checked={notificationSettings.newBookingRequests}
-                  onCheckedChange={(checked) => handleNotificationTypeToggle('newBookingRequests', checked)}
-                />
-              </div>
-
-              <div className="flex items-center justify-between">
-                <div>
-                  <Label className="text-white">Appointment Confirmations</Label>
-                  <p className="text-xs text-steel">
-                    When clients confirm appointments
-                  </p>
-                </div>
-                <Switch
-                  checked={notificationSettings.appointmentConfirmations}
-                  onCheckedChange={(checked) => handleNotificationTypeToggle('appointmentConfirmations', checked)}
-                />
-              </div>
-
-              <div className="flex items-center justify-between">
-                <div>
-                  <Label className="text-white">Appointment Cancellations</Label>
-                  <p className="text-xs text-steel">
-                    When clients cancel appointments
-                  </p>
-                </div>
-                <Switch
-                  checked={notificationSettings.appointmentCancellations}
-                  onCheckedChange={(checked) => handleNotificationTypeToggle('appointmentCancellations', checked)}
-                />
-              </div>
-
-              <div className="flex items-center justify-between">
-                <div>
-                  <Label className="text-white">Upcoming Reminders</Label>
-                  <p className="text-xs text-steel">
-                    30-minute reminders before appointments
-                  </p>
-                </div>
-                <Switch
-                  checked={notificationSettings.upcomingReminders}
-                  onCheckedChange={(checked) => handleNotificationTypeToggle('upcomingReminders', checked)}
-                />
-              </div>
-
-              {/* Sound Effects Toggle */}
-              <div className="flex items-center justify-between pt-2 border-t border-steel/20">
-                <div>
-                  <Label className="text-white">Sound Effects</Label>
-                  <p className="text-xs text-steel">
-                    Play sounds for app interactions
-                  </p>
-                </div>
-                <Switch
-                  checked={notificationSettings.soundEffects}
-                  onCheckedChange={handleSoundToggle}
-                />
-              </div>
-            </div>
-
-            {/* Test Notification Button */}
-            {pushSubscriptionStatus?.subscribed && (
-              <div className="pt-4 border-t border-steel/20">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => testNotificationMutation.mutate()}
-                  disabled={testNotificationMutation.isPending}
-                  className="w-full border-steel/20 text-steel hover:text-white hover:bg-steel/10"
-                >
-                  {testNotificationMutation.isPending ? (
-                    <div className="flex items-center">
-                      <div className="w-3 h-3 border border-t-transparent border-white rounded-full animate-spin mr-2"></div>
-                      Sending...
-                    </div>
+                {/* Display current profile info */}
+                <div className="flex items-center space-x-4">
+                  {user?.photoUrl ? (
+                    <img
+                      src={user.photoUrl}
+                      alt="Profile"
+                      className="w-16 h-16 object-cover rounded-full border border-steel/40"
+                    />
                   ) : (
-                    "Send Test Notification"
-                  )}
-                </Button>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Quick Action Settings */}
-        <Card className="bg-dark-card border-steel/20">
-          <CardHeader>
-            <CardTitle className="text-white flex items-center">
-              <Bell className="w-5 h-5 mr-2" />
-              Quick Action Messages
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-3">
-              <div>
-                <Label className="text-white text-sm font-medium">
-                  Default Messages
-                </Label>
-                <p className="text-steel text-xs">
-                  Pre-built messages for common situations
-                </p>
-              </div>
-
-              <div className="space-y-2">
-                <div className="bg-charcoal/50 p-3 rounded-lg border border-steel/20">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-white text-sm font-medium">
-                      On My Way
-                    </span>
-                    <span className="text-steel text-xs">Default</span>
-                  </div>
-                  <p className="text-steel text-xs">
-                    "Hi [Client Name], I'm on my way to your appointment at
-                    [Time]. See you soon!"
-                  </p>
-                </div>
-
-                <div className="bg-charcoal/50 p-3 rounded-lg border border-steel/20">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-white text-sm font-medium">
-                      Running Late
-                    </span>
-                    <span className="text-steel text-xs">Default</span>
-                  </div>
-                  <p className="text-steel text-xs">
-                    "Hi [Client Name], I'm running about [Minutes] minutes late
-                    for your [Time] appointment. Sorry for the delay!"
-                  </p>
-                </div>
-              </div>
-
-              <div className="pt-3 border-t border-steel/20">
-                <Button
-                  variant="outline"
-                  className="w-full border-steel/40 text-white hover:bg-steel/20"
-                  onClick={() => {
-                    toast({
-                      title: "Feature Coming Soon",
-                      description:
-                        "Custom quick action messages will be available in a future update.",
-                    });
-                  }}
-                >
-                  <Bell className="w-4 h-4 mr-2" />
-                  Create Custom Message
-                </Button>
-              </div>
-
-              <div className="bg-blue-900/20 border border-blue-700/30 p-3 rounded-lg">
-                <h4 className="text-blue-300 font-medium text-sm mb-1">
-                  How Quick Actions Work
-                </h4>
-                <p className="text-blue-200 text-xs">
-                  Quick actions appear on your dashboard when you have
-                  appointments coming up within the next hour. Tap a message to
-                  instantly send it to your client via SMS or email.
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Payment Settings */}
-        <Card className="bg-dark-card border-steel/20" data-section="payment">
-          <CardHeader>
-            <CardTitle className="text-white flex items-center">
-              <CreditCard className="w-5 h-5 mr-2" />
-              Payment Settings
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {stripeStatus && stripeStatus.connected ? (
-              <div className="space-y-4">
-                <div className="flex items-center justify-between p-3 bg-green-900/20 border border-green-700/30 rounded-lg">
-                  <div className="flex items-center space-x-3">
-                    <CheckCircle className="w-5 h-5 text-green-400" />
-                    <div>
-                      <p className="text-white font-medium">Stripe Connected</p>
-                      <p className="text-green-300 text-sm">
-                        Ready to receive payments
-                      </p>
+                    <div className="w-16 h-16 bg-charcoal rounded-full border border-steel/40 flex items-center justify-center">
+                      <User className="w-8 h-8 text-steel" />
                     </div>
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <h3 className="text-white font-semibold truncate">
+                      {user?.businessName || "Business Name"}
+                    </h3>
+                    <p className="text-steel text-sm truncate">
+                      {user?.email || "No email set"}
+                    </p>
                   </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4 text-sm">
-                  <div>
-                    <Label className="text-steel">Account Status</Label>
-                    <p className="text-white capitalize">
-                      {stripeStatus?.status || "Active"}
+                  <div className="min-w-0">
+                    <Label className="text-steel">Phone</Label>
+                    <p className="text-white truncate">
+                      {user?.phone || "Not set"}
                     </p>
                   </div>
-                  <div>
-                    <Label className="text-steel">Country</Label>
-                    <p className="text-white">
-                      {stripeStatus?.country || "US"}
+                  <div className="min-w-0">
+                    <Label className="text-steel">Service Area</Label>
+                    <p className="text-white truncate">
+                      {user?.serviceArea || "Not set"}
                     </p>
                   </div>
                 </div>
 
-                <div className="flex gap-2">
-                  <Button
-                    variant="outline"
-                    className="border-steel/40 text-white hover:bg-steel/20 flex-1"
-                    onClick={() =>
-                      window.open(stripeStatus?.dashboardUrl, "_blank")
-                    }
-                  >
-                    <DollarSign className="w-4 h-4 mr-2" />
-                    View Dashboard
-                  </Button>
-                  <Button
-                    variant="outline"
-                    className="border-steel/40 text-white hover:bg-steel/20 flex-1"
-                    onClick={handleConnectStripe}
-                    disabled={isConnectingStripe}
-                  >
-                    Update Settings
-                  </Button>
-                </div>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                <div className="flex items-center justify-between p-3 bg-amber-900/20 border border-amber-700/30 rounded-lg">
+                {user?.about && (
+                  <div className="min-w-0">
+                    <Label className="text-steel">About</Label>
+                    <p className="text-white text-sm break-words">
+                      {user.about}
+                    </p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Subscription Plan */}
+            <Card className="bg-dark-card border-steel/20" id="plan-card">
+              <CardHeader>
+                <CardTitle className="text-white flex items-center">
+                  <CreditCard className="w-5 h-5 mr-2" />
+                  Subscription Plan
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex items-center justify-between p-3 bg-charcoal/50 border border-steel/20 rounded-lg">
                   <div className="flex items-center space-x-3">
-                    <AlertCircle className="w-5 h-5 text-amber-400" />
-                    <div>
-                      <p className="text-white font-medium">
-                        Payment Setup Required
-                      </p>
-                      <p className="text-amber-300 text-sm">
-                        Connect Stripe to receive payments
-                      </p>
+                    <div className="w-8 h-8 bg-gold rounded-full flex items-center justify-center">
+                      <CheckCircle className="w-4 h-4 text-charcoal" />
                     </div>
+                    <div>
+                      <p className="text-white font-medium">Basic Plan</p>
+                      <p className="text-steel text-sm">Currently Active</p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-white font-medium">Free</p>
+                    <p className="text-steel text-xs">Forever</p>
                   </div>
                 </div>
 
                 <div className="space-y-3">
-                  <p className="text-steel text-sm">
-                    Connect your Stripe account to start accepting credit card
-                    payments from clients. Stripe handles all payment processing
-                    securely.
-                  </p>
-
                   <div className="bg-charcoal/50 p-3 rounded-lg">
                     <h4 className="text-white font-medium text-sm mb-2">
-                      What you'll get:
+                      Basic Plan includes:
                     </h4>
                     <ul className="text-steel text-sm space-y-1">
-                      <li>• Secure credit card processing</li>
-                      <li>• Automatic payment tracking</li>
-                      <li>• Direct deposits to your bank</li>
-                      <li>• Transaction history and reports</li>
+                      <li>• 15 appointments per month</li>
+                      <li>• 3 active services</li>
+                      <li>• 15 SMS messages per month</li>
+                      <li>• 50MB photo storage</li>
+                      <li>• Basic calendar features</li>
                     </ul>
                   </div>
 
-                  <div className="bg-amber-900/20 border border-amber-700/30 p-3 rounded-lg">
-                    <h4 className="text-amber-300 font-medium text-sm mb-2">
-                      Setup Required:
-                    </h4>
-                    <p className="text-amber-200 text-xs mb-2">
-                      Before connecting, you need to enable Stripe Connect in
-                      your Stripe dashboard:
-                    </p>
-                    <ol className="text-amber-200 text-xs space-y-1 ml-4">
-                      <li>1. Go to your Stripe Dashboard</li>
-                      <li>2. Navigate to Connect → Overview</li>
-                      <li>3. Complete the Connect setup process</li>
-                      <li>4. Return here to connect your account</li>
-                    </ol>
-                    <Button
-                      variant="link"
-                      className="text-amber-300 p-0 h-auto text-xs mt-2"
-                      onClick={() =>
-                        window.open(
-                          "https://dashboard.stripe.com/connect/overview",
-                          "_blank",
-                        )
-                      }
-                    >
-                      Open Stripe Connect Setup →
-                    </Button>
-                  </div>
+                  <div className="relative bg-gradient-to-br from-gold/20 to-gold/10 border-2 border-gold/30 p-6 rounded-xl overflow-hidden">
+                    {/* Premium Badge */}
 
-                  <Button
-                    className="w-full gradient-gold text-charcoal font-semibold"
-                    onClick={handleConnectStripe}
-                    disabled={
-                      isConnectingStripe || connectStripeMutation.isPending
-                    }
-                  >
-                    {isConnectingStripe || connectStripeMutation.isPending ? (
-                      "Connecting..."
-                    ) : (
-                      <>
-                        <CreditCard className="w-4 h-4 mr-2" />
-                        Connect Stripe Account
-                      </>
-                    )}
-                  </Button>
-                </div>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+                    <div className="mb-4">
+                      <div className="flex items-baseline space-x-2 mb-2">
+                        <h4 className="text-white font-bold text-lg">
+                          Premium Plan
+                        </h4>
+                      </div>
 
-        {/* Account Settings */}
-        <Card className="bg-dark-card border-steel/20">
-          <CardHeader>
-            <CardTitle className="text-white flex items-center">
-              <Shield className="w-5 h-5 mr-2" />
-              Account & Security
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {/* Phone Verification Section */}
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-2">
-                  <Smartphone className="w-4 h-4 text-gold" />
-                  <span className="text-white">Phone Verification</span>
-                </div>
-                <div className="flex items-center space-x-2">
-                  {user?.phoneVerified ? (
-                    <div className="flex items-center space-x-1 text-green-400">
-                      <CheckCircle className="w-4 h-4" />
-                      <span className="text-sm">Verified</span>
+                      {/* Pricing Options */}
+                      <div className="mb-4 space-y-3">
+                        {/* Monthly Option - Horizontal */}
+                        <div className="bg-charcoal/50 p-4 rounded-lg border border-gold/20">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center space-x-4">
+                              <div>
+                                <div className="text-gold font-bold text-xl">
+                                  $19.99
+                                </div>
+                                <div className="text-gold text-sm">/month</div>
+                              </div>
+                              <div className="text-steel text-sm px-2">
+                                Monthly billing
+                              </div>
+                            </div>
+                            <Button
+                              className="bg-gradient-to-r from-gold to-amber-400 hover:from-gold/90 hover:to-amber-400/90 text-charcoal font-bold text-sm py-2 px-6 rounded-lg transition-all duration-200"
+                              onClick={() => handleStripeCheckout("monthly")}
+                              data-testid="monthly-upgrade-button"
+                            >
+                              Choose Monthly
+                            </Button>
+                          </div>
+                        </div>
+
+                        {/* Yearly Option - Below Monthly */}
+                        <div className="bg-charcoal/50 p-4 rounded-lg border border-emerald-500/30 relative">
+                          <div className="absolute -top-2 left-1/2 transform -translate-x-1/2">
+                            <span className="bg-emerald-500 text-white text-xs px-2 py-1 rounded-full font-bold">
+                              SAVE 16%
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center space-x-4">
+                              <div>
+                                <div className="text-steel text-xs line-through">
+                                  $239.88/year
+                                </div>
+                                <div className="text-emerald-400 font-bold text-xl">
+                                  $199.99
+                                </div>
+                                <div className="text-emerald-400 text-sm">
+                                  /year
+                                </div>
+                              </div>
+                              <div className="text-steel text-sm px-2">
+                                {" "}
+                                Annual billing
+                              </div>
+                            </div>
+                            <Button
+                              className="bg-gradient-to-r from-emerald-500 to-emerald-400 hover:from-emerald-500/90 hover:to-emerald-400/90 text-white font-bold text-sm py-2 px-6 rounded-lg transition-all duration-200"
+                              onClick={() => handleStripeCheckout("yearly")}
+                              data-testid="yearly-upgrade-button"
+                            >
+                              Choose Yearly
+                            </Button>
+                          </div>
+                          <span className="bg-emerald-500 text-white text-xs px-2 py-1 rounded-full font-medium animate-pulse">
+                            MOST POPULAR
+                          </span>
+                        </div>
+                      </div>
                     </div>
-                  ) : (
-                    <div className="flex items-center space-x-1 text-red-400">
-                      <AlertCircle className="w-4 h-4" />
-                      <span className="text-sm">Not Verified</span>
-                    </div>
-                  )}
-                </div>
-              </div>
 
-              {!user?.phoneVerified && (
-                <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg p-3">
-                  <div className="flex items-start space-x-2">
-                    <AlertCircle className="w-4 h-4 text-amber-400 mt-0.5" />
-                    <div className="text-sm text-amber-200">
-                      <p className="font-medium">Phone verification required</p>
-                      <p className="text-amber-300/80">
-                        You cannot make appointments until your phone number is
-                        verified.
+                    <div className="grid grid-cols-2 gap-3 mb-4">
+                      <div className="bg-charcoal/50 p-3 rounded-lg border border-gold/20">
+                        <div className="text-gold font-bold text-lg">∞</div>
+                        <div className="text-white text-sm font-medium">
+                          Appointments
+                        </div>
+                        <div className="text-steel text-xs">
+                          No monthly limits
+                        </div>
+                      </div>
+                      <div className="bg-charcoal/50 p-3 rounded-lg border border-gold/20">
+                        <div className="text-gold font-bold text-lg">1GB</div>
+                        <div className="text-white text-sm font-medium">
+                          Photo Storage
+                        </div>
+                        <div className="text-steel text-xs">20x more space</div>
+                      </div>
+                      <div className="bg-charcoal/50 p-3 rounded-lg border border-gold/20">
+                        <div className="text-gold font-bold text-lg">∞</div>
+                        <div className="text-white text-sm font-medium">
+                          Services
+                        </div>
+                        <div className="text-steel text-xs">
+                          Unlimited catalog
+                        </div>
+                      </div>
+                      <div className="bg-charcoal/50 p-3 rounded-lg border border-gold/20">
+                        <div className="text-gold font-bold text-lg">∞</div>
+                        <div className="text-white text-sm font-medium">
+                          SMS Messages
+                        </div>
+                        <div className="text-steel text-xs">Stay connected</div>
+                      </div>
+                    </div>
+
+                    <div className="bg-charcoal/70 p-3 rounded-lg border border-gold/20 mb-4">
+                      <h5 className="text-white font-medium text-sm mb-2 flex items-center">
+                        <CheckCircle className="w-4 h-4 text-emerald-400 mr-2" />
+                        Premium Features
+                      </h5>
+                      <ul className="text-steel text-sm space-y-1">
+                        <li className="flex items-center">
+                          <CheckCircle className="w-3 h-3 text-emerald-400 mr-2" />
+                          Advanced calendar with custom working hours
+                        </li>
+                        <li className="flex items-center">
+                          <CheckCircle className="w-3 h-3 text-emerald-400 mr-2" />
+                          Client analytics and business insights
+                        </li>
+                        <li className="flex items-center">
+                          <CheckCircle className="w-3 h-3 text-emerald-400 mr-2" />
+                          Priority customer support
+                        </li>
+                      </ul>
+                    </div>
+
+                    <div className="text-center mt-3">
+                      <p className="text-steel text-xs">
+                        ✨ 30-day money-back guarantee • Cancel anytime
                       </p>
                     </div>
                   </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="mt-3 border-amber-500/40 text-amber-200 hover:bg-amber-500/10"
-                    onClick={() => setIsVerifyingPhone(true)}
-                  >
-                    <Phone className="w-4 h-4 mr-2" />
-                    Verify Phone
-                  </Button>
                 </div>
-              )}
-            </div>
+              </CardContent>
+            </Card>
 
-            <Dialog
-              open={isChangingPassword}
-              onOpenChange={setIsChangingPassword}
-            >
-              <DialogTrigger asChild>
-                <Button
-                  variant="outline"
-                  className="w-full border-steel/40 text-white hover:bg-steel/20"
-                >
-                  <Shield className="w-4 h-4 mr-2" />
-                  Change Password
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="bg-dark-card border-steel/20 text-white">
-                <DialogHeader>
-                  <DialogTitle className="text-white">
-                    Change Password
-                  </DialogTitle>
-                </DialogHeader>
-                <Form {...passwordForm}>
-                  <form
-                    onSubmit={passwordForm.handleSubmit((data) =>
-                      changePasswordMutation.mutate(data),
-                    )}
-                    className="space-y-4"
+            {/* Subscription Management */}
+            {subscriptionStatus &&
+              (subscriptionStatus.status === "premium" ||
+                subscriptionStatus.status === "cancelled") && (
+                <Card className="bg-dark-card border-steel/20">
+                  <CardHeader>
+                    <CardTitle className="text-white flex items-center">
+                      <CreditCard className="w-5 h-5 mr-2" />
+                      Subscription Management
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="bg-charcoal rounded-lg p-4 border border-steel/20">
+                      <div className="flex justify-between items-start mb-3">
+                        <div>
+                          <h4 className="text-white font-semibold">
+                            Plan:{" "}
+                            {subscriptionStatus.status === "cancelled"
+                              ? "Premium (Cancelled)"
+                              : "Premium"}
+                          </h4>
+                          <p className="text-steel text-sm">
+                            {subscriptionStatus.interval === "yearly"
+                              ? "Annual"
+                              : "Monthly"}{" "}
+                            subscription
+                          </p>
+                        </div>
+                        {subscriptionStatus.status === "premium" && (
+                          <span className="bg-emerald-500/20 text-emerald-400 px-2 py-1 rounded text-xs font-medium">
+                            Active
+                          </span>
+                        )}
+                        {subscriptionStatus.status === "cancelled" && (
+                          <span className="bg-amber-500/20 text-amber-400 px-2 py-1 rounded text-xs font-medium">
+                            Cancelled
+                          </span>
+                        )}
+                      </div>
+
+                      {subscriptionStatus.endDate && (
+                        <p className="text-steel text-sm mb-3">
+                          {subscriptionStatus.status === "cancelled"
+                            ? `Access until: ${new Date(subscriptionStatus.endDate).toLocaleDateString()}`
+                            : `Next billing: ${new Date(subscriptionStatus.endDate).toLocaleDateString()}`}
+                        </p>
+                      )}
+
+                      {subscriptionStatus.isEligibleForRefund &&
+                        subscriptionStatus.refundDeadline && (
+                          <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-3 mb-3">
+                            <div className="flex items-center mb-2">
+                              <AlertCircle className="w-4 h-4 text-blue-400 mr-2" />
+                              <span className="text-blue-400 font-medium text-sm">
+                                30-Day Money-Back Guarantee
+                              </span>
+                            </div>
+                            <p className="text-steel text-xs">
+                              You're eligible for a full refund until{" "}
+                              {new Date(
+                                subscriptionStatus.refundDeadline,
+                              ).toLocaleDateString()}
+                            </p>
+                          </div>
+                        )}
+
+                      <div className="flex gap-2">
+                        {subscriptionStatus.status === "premium" && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => cancelSubscriptionMutation.mutate()}
+                            disabled={cancelSubscriptionMutation.isPending}
+                            className="flex-1 border-steel/20 text-steel hover:text-white hover:bg-steel/10"
+                          >
+                            {cancelSubscriptionMutation.isPending ? (
+                              <div className="flex items-center">
+                                <div className="w-3 h-3 border border-t-transparent border-white rounded-full animate-spin mr-2"></div>
+                                Cancelling...
+                              </div>
+                            ) : (
+                              "Cancel Subscription"
+                            )}
+                          </Button>
+                        )}
+
+                        {subscriptionStatus.isEligibleForRefund && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => requestRefundMutation.mutate()}
+                            disabled={requestRefundMutation.isPending}
+                            className="flex-1 border-blue-500/20 text-blue-400 hover:text-blue-300 hover:bg-blue-500/10"
+                          >
+                            {requestRefundMutation.isPending ? (
+                              <div className="flex items-center">
+                                <div className="w-3 h-3 border border-t-transparent border-blue-400 rounded-full animate-spin mr-2"></div>
+                                Processing...
+                              </div>
+                            ) : (
+                              "Request Full Refund"
+                            )}
+                          </Button>
+                        )}
+                      </div>
+
+                      <div className="mt-3 pt-3 border-t border-steel/20">
+                        <p className="text-steel text-xs">
+                          {subscriptionStatus.status === "premium"
+                            ? "Cancel anytime. Your premium access will remain active until the end of your current billing period."
+                            : "Your subscription has been cancelled. Premium access continues until the end date shown above."}
+                        </p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+            {/* Public Booking Link */}
+            <Card className="bg-dark-card border-steel/20">
+              <CardHeader>
+                <CardTitle className="text-white flex items-center">
+                  <Share className="w-5 h-5 mr-2" />
+                  Public Booking Link
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <p className="text-steel text-sm">
+                  Share this link with clients so they can book appointments
+                  directly with you from anywhere.
+                </p>
+
+                {user?.phone ? (
+                  <div className="space-y-3">
+                    <div className="bg-charcoal rounded-lg p-3 border border-steel/20">
+                      <Label className="text-steel text-xs">
+                        Your Booking URL
+                      </Label>
+                      <div className="flex items-center space-x-2 mt-1">
+                        <code className="text-gold text-sm bg-charcoal/50 px-2 py-1 rounded flex-1 break-all">
+                          {window.location.origin}/book/
+                          {user.phone?.replace(/\D/g, "") || ""}-clipcutman
+                        </code>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="bg-charcoal border-steel/40 text-gold hover:bg-charcoal/80 px-3"
+                          onClick={() => {
+                            if (user?.phone) {
+                              const cleanPhone = user.phone.replace(/\D/g, "");
+                              const bookingUrl = `${window.location.origin}/book/${cleanPhone}-clipcutman`;
+                              navigator.clipboard.writeText(bookingUrl);
+                              toast({
+                                title: "Copied!",
+                                description: "Booking link copied to clipboard",
+                              });
+                            }
+                          }}
+                        >
+                          <Copy className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="bg-charcoal rounded-lg p-3 border border-steel/20 text-center">
+                        <Calendar className="w-5 h-5 text-gold mx-auto mb-1" />
+                        <div className="text-xs font-medium text-white">
+                          Real-time Calendar
+                        </div>
+                        <div className="text-xs text-steel">
+                          Shows your availability
+                        </div>
+                      </div>
+                      <div className="bg-charcoal rounded-lg p-3 border border-steel/20 text-center">
+                        <MessageSquare className="w-5 h-5 text-gold mx-auto mb-1" />
+                        <div className="text-xs font-medium text-white">
+                          Direct Booking
+                        </div>
+                        <div className="text-xs text-steel">
+                          Requests sent to inbox
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="bg-charcoal rounded-lg p-4 border border-steel/20 text-center">
+                    <p className="text-steel text-sm">
+                      Add your phone number to profile to generate your booking
+                      link
+                    </p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Notification Settings */}
+            <Card className="bg-dark-card border-steel/20">
+              <CardHeader>
+                <CardTitle className="text-white flex items-center justify-between">
+                  <Bell className="w-5 h-5 mr-2" />
+                  Notifications
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() =>
+                      setShowNotificationCard(!showNotificationCard)
+                    }
+                    className="text-steel hover:text-white"
                   >
-                    <FormField
-                      control={passwordForm.control}
-                      name="currentPassword"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className="text-white">
-                            Current Password
-                          </FormLabel>
-                          <FormControl>
-                            <Input
-                              type="password"
-                              placeholder="Enter current password"
-                              className="bg-charcoal border-steel/20 text-white"
-                              {...field}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={passwordForm.control}
-                      name="newPassword"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className="text-white">
-                            New Password
-                          </FormLabel>
-                          <FormControl>
-                            <Input
-                              type="password"
-                              placeholder="Enter new password (min 8 characters)"
-                              className="bg-charcoal border-steel/20 text-white"
-                              {...field}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={passwordForm.control}
-                      name="confirmPassword"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className="text-white">
-                            Confirm New Password
-                          </FormLabel>
-                          <FormControl>
-                            <Input
-                              type="password"
-                              placeholder="Confirm new password"
-                              className="bg-charcoal border-steel/20 text-white"
-                              {...field}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <div className="flex space-x-2">
+                    {showNotificationCard ? (
+                      <ChevronDown className="w-4 h-4" />
+                    ) : (
+                      <ChevronUp className="w-4 h-4" />
+                    )}
+                  </Button>
+                </CardTitle>
+              </CardHeader>
+              {showNotificationCard ? (
+                <CardContent className="space-y-4">
+                  {/* Individual Notification Type Toggles - Always Show All 5 */}
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <Label className="text-white">
+                          New Booking Requests
+                        </Label>
+                        <p className="text-xs text-steel">
+                          When clients request appointments
+                        </p>
+                      </div>
+                      <Switch
+                        checked={notificationSettings.newBookingRequests}
+                        onCheckedChange={(checked) =>
+                          handleNotificationTypeToggle(
+                            "newBookingRequests",
+                            checked,
+                          )
+                        }
+                      />
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <Label className="text-white">
+                          Appointment Confirmations
+                        </Label>
+                        <p className="text-xs text-steel">
+                          When clients confirm appointments
+                        </p>
+                      </div>
+                      <Switch
+                        checked={notificationSettings.appointmentConfirmations}
+                        onCheckedChange={(checked) =>
+                          handleNotificationTypeToggle(
+                            "appointmentConfirmations",
+                            checked,
+                          )
+                        }
+                      />
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <Label className="text-white">
+                          Appointment Cancellations
+                        </Label>
+                        <p className="text-xs text-steel">
+                          When clients cancel appointments
+                        </p>
+                      </div>
+                      <Switch
+                        checked={notificationSettings.appointmentCancellations}
+                        onCheckedChange={(checked) =>
+                          handleNotificationTypeToggle(
+                            "appointmentCancellations",
+                            checked,
+                          )
+                        }
+                      />
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <Label className="text-white">Upcoming Reminders</Label>
+                        <p className="text-xs text-steel">
+                          30-minute reminders before appointments
+                        </p>
+                      </div>
+                      <Switch
+                        checked={notificationSettings.upcomingReminders}
+                        onCheckedChange={(checked) =>
+                          handleNotificationTypeToggle(
+                            "upcomingReminders",
+                            checked,
+                          )
+                        }
+                      />
+                    </div>
+
+                    {/* Sound Effects Toggle */}
+                    <div className="flex items-center justify-between pt-2 border-t border-steel/20">
+                      <div>
+                        <Label className="text-white">Sound Effects</Label>
+                        <p className="text-xs text-steel">
+                          Play sounds for app interactions
+                        </p>
+                      </div>
+                      <Switch
+                        checked={notificationSettings.soundEffects}
+                        onCheckedChange={handleSoundToggle}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Test Notification Button */}
+                  {pushSubscriptionStatus?.subscribed && (
+                    <div className="pt-4 border-t border-steel/20">
                       <Button
-                        type="button"
                         variant="outline"
-                        onClick={() => setIsChangingPassword(false)}
-                        className="flex-1 border-steel/40 text-white hover:bg-steel/20"
+                        size="sm"
+                        onClick={() => testNotificationMutation.mutate()}
+                        disabled={testNotificationMutation.isPending}
+                        className="w-full border-steel/20 text-steel hover:text-white hover:bg-steel/10"
                       >
-                        Cancel
-                      </Button>
-                      <Button
-                        type="submit"
-                        disabled={changePasswordMutation.isPending}
-                        className="flex-1 bg-gold text-charcoal hover:bg-gold/90"
-                      >
-                        {changePasswordMutation.isPending
-                          ? "Changing..."
-                          : "Change Password"}
+                        {testNotificationMutation.isPending ? (
+                          <div className="flex items-center">
+                            <div className="w-3 h-3 border border-t-transparent border-white rounded-full animate-spin mr-2"></div>
+                            Sending...
+                          </div>
+                        ) : (
+                          "Send Test Notification"
+                        )}
                       </Button>
                     </div>
-                  </form>
-                </Form>
-              </DialogContent>
-            </Dialog>
+                  )}
+                </CardContent>
+              ) : null}
+            </Card>
 
-            <Link href="/help">
-              <Button
-                variant="outline"
-                className="w-full border-blue-500/20 text-blue-400 hover:text-blue-300 hover:bg-blue-500/10 mb-3"
-              >
-                <HelpCircle className="w-4 h-4 mr-2" />
-                Help & Support
-              </Button>
-            </Link>
+            {/* Quick Action Settings */}
+            <Card className="bg-dark-card border-steel/20">
+              <CardHeader>
+                <CardTitle className="text-white flex items-center justify-between">
+                  <Bell className="w-5 h-5 mr-2" />
+                  Quick Action Messages
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setShowQuickActionCard(!showQuickActionCard)}
+                    className="text-steel hover:text-white"
+                  >
+                    {showQuickActionCard ? (
+                      <ChevronDown className="w-4 h-4" />
+                    ) : (
+                      <ChevronUp className="w-4 h-4" />
+                    )}
+                  </Button>
+                </CardTitle>
+              </CardHeader>
+              {showQuickActionCard ? (
+                <CardContent className="space-y-4">
+                  <div className="space-y-3">
+                    <div>
+                      <Label className="text-white text-sm font-medium">
+                        Default Messages
+                      </Label>
+                      <p className="text-steel text-xs">
+                        Pre-built messages for common situations
+                      </p>
+                    </div>
 
-            <Button
-              variant="destructive"
-              className="w-full"
-              onClick={handleLogout}
+                    <div className="space-y-2">
+                      <div className="bg-charcoal/50 p-3 rounded-lg border border-steel/20">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-white text-sm font-medium">
+                            On My Way
+                          </span>
+                          <span className="text-steel text-xs">Default</span>
+                        </div>
+                        <p className="text-steel text-xs">
+                          "Hi [Client Name], I'm on my way to your appointment
+                          at [Time]. See you soon!"
+                        </p>
+                      </div>
+
+                      <div className="bg-charcoal/50 p-3 rounded-lg border border-steel/20">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-white text-sm font-medium">
+                            Running Late
+                          </span>
+                          <span className="text-steel text-xs">Default</span>
+                        </div>
+                        <p className="text-steel text-xs">
+                          "Hi [Client Name], I'm running about [Minutes] minutes
+                          late for your [Time] appointment. Sorry for the
+                          delay!"
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="pt-3 border-t border-steel/20">
+                      <Button
+                        variant="outline"
+                        className="w-full border-steel/40 text-white hover:bg-steel/20"
+                        onClick={() => {
+                          toast({
+                            title: "Feature Coming Soon",
+                            description:
+                              "Custom quick action messages will be available in a future update.",
+                          });
+                        }}
+                      >
+                        <Bell className="w-4 h-4 mr-2" />
+                        Create Custom Message
+                      </Button>
+                    </div>
+
+                    <div className="bg-blue-900/20 border border-blue-700/30 p-3 rounded-lg">
+                      <h4 className="text-blue-300 font-medium text-sm mb-1">
+                        How Quick Actions Work
+                      </h4>
+                      <p className="text-blue-200 text-xs">
+                        Quick actions appear on your dashboard when you have
+                        appointments coming up within the next hour. Tap a
+                        message to instantly send it to your client via SMS or
+                        email.
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              ) : null}
+            </Card>
+
+            {/* Payment Settings */}
+            <Card
+              className="bg-dark-card border-steel/20"
+              data-section="payment"
             >
-              <LogOut className="w-4 h-4 mr-2" />
-              Sign Out
-            </Button>
-          </CardContent>
-        </Card>
+              <CardHeader>
+                <CardTitle className="text-white flex items-center justify-between">
+                  <CreditCard className="w-5 h-5 mr-2" />
+                  Payment Settings
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() =>
+                      setShowPaymentSettingsCard(!showPaymentSettingsCard)
+                    }
+                    className="text-steel hover:text-white"
+                  >
+                    {showPaymentSettingsCard ? (
+                      <ChevronDown className="w-4 h-4" />
+                    ) : (
+                      <ChevronUp className="w-4 h-4" />
+                    )}
+                  </Button>
+                </CardTitle>
+              </CardHeader>
+              {showPaymentSettingsCard ? (
+                <CardContent className="space-y-4">
+                  {stripeStatus && stripeStatus.connected ? (
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between p-3 bg-green-900/20 border border-green-700/30 rounded-lg">
+                        <div className="flex items-center space-x-3">
+                          <CheckCircle className="w-5 h-5 text-green-400" />
+                          <div>
+                            <p className="text-white font-medium">
+                              Stripe Connected
+                            </p>
+                            <p className="text-green-300 text-sm">
+                              Ready to receive payments
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-4 text-sm">
+                        <div>
+                          <Label className="text-steel">Account Status</Label>
+                          <p className="text-white capitalize">
+                            {stripeStatus?.status || "Active"}
+                          </p>
+                        </div>
+                        <div>
+                          <Label className="text-steel">Country</Label>
+                          <p className="text-white">
+                            {stripeStatus?.country || "US"}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex gap-2">
+                        <Button
+                          variant="outline"
+                          className="border-steel/40 text-white hover:bg-steel/20 flex-1"
+                          onClick={() =>
+                            window.open(stripeStatus?.dashboardUrl, "_blank")
+                          }
+                        >
+                          <DollarSign className="w-4 h-4 mr-2" />
+                          View Dashboard
+                        </Button>
+                        <Button
+                          variant="outline"
+                          className="border-steel/40 text-white hover:bg-steel/20 flex-1"
+                          onClick={handleConnectStripe}
+                          disabled={isConnectingStripe}
+                        >
+                          Update Settings
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between p-3 bg-amber-900/20 border border-amber-700/30 rounded-lg">
+                        <div className="flex items-center space-x-3">
+                          <AlertCircle className="w-5 h-5 text-amber-400" />
+                          <div>
+                            <p className="text-white font-medium">
+                              Payment Setup Required
+                            </p>
+                            <p className="text-amber-300 text-sm">
+                              Connect Stripe to receive payments
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="space-y-3">
+                        <p className="text-steel text-sm">
+                          Connect your Stripe account to start accepting credit
+                          card payments from clients. Stripe handles all payment
+                          processing securely.
+                        </p>
+
+                        <div className="bg-charcoal/50 p-3 rounded-lg">
+                          <h4 className="text-white font-medium text-sm mb-2">
+                            What you'll get:
+                          </h4>
+                          <ul className="text-steel text-sm space-y-1">
+                            <li>• Secure credit card processing</li>
+                            <li>• Automatic payment tracking</li>
+                            <li>• Direct deposits to your bank</li>
+                            <li>• Transaction history and reports</li>
+                          </ul>
+                        </div>
+
+                        <div className="bg-amber-900/20 border border-amber-700/30 p-3 rounded-lg">
+                          <h4 className="text-amber-300 font-medium text-sm mb-2">
+                            Setup Required:
+                          </h4>
+                          <p className="text-amber-200 text-xs mb-2">
+                            Before connecting, you need to enable Stripe Connect
+                            in your Stripe dashboard:
+                          </p>
+                          <ol className="text-amber-200 text-xs space-y-1 ml-4">
+                            <li>1. Go to your Stripe Dashboard</li>
+                            <li>2. Navigate to Connect → Overview</li>
+                            <li>3. Complete the Connect setup process</li>
+                            <li>4. Return here to connect your account</li>
+                          </ol>
+                          <Button
+                            variant="link"
+                            className="text-amber-300 p-0 h-auto text-xs mt-2"
+                            onClick={() =>
+                              window.open(
+                                "https://dashboard.stripe.com/connect/overview",
+                                "_blank",
+                              )
+                            }
+                          >
+                            Open Stripe Connect Setup →
+                          </Button>
+                        </div>
+
+                        <Button
+                          className="w-full gradient-gold text-charcoal font-semibold"
+                          onClick={handleConnectStripe}
+                          disabled={
+                            isConnectingStripe ||
+                            connectStripeMutation.isPending
+                          }
+                        >
+                          {isConnectingStripe ||
+                          connectStripeMutation.isPending ? (
+                            "Connecting..."
+                          ) : (
+                            <>
+                              <CreditCard className="w-4 h-4 mr-2" />
+                              Connect Stripe Account
+                            </>
+                          )}
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              ) : null}
+            </Card>
+
+            {/* Account Settings */}
+            <Card className="bg-dark-card border-steel/20">
+              <CardHeader>
+                <CardTitle className="text-white flex items-center">
+                  <Shield className="w-5 h-5 mr-2" />
+                  Account & Security
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {/* Phone Verification Section */}
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-2">
+                      <Smartphone className="w-4 h-4 text-gold" />
+                      <span className="text-white">Phone Verification</span>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      {user?.phoneVerified ? (
+                        <div className="flex items-center space-x-1 text-green-400">
+                          <CheckCircle className="w-4 h-4" />
+                          <span className="text-sm">Verified</span>
+                        </div>
+                      ) : (
+                        <div className="flex items-center space-x-1 text-red-400">
+                          <AlertCircle className="w-4 h-4" />
+                          <span className="text-sm">Not Verified</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {!user?.phoneVerified && (
+                    <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg p-3">
+                      <div className="flex items-start space-x-2">
+                        <AlertCircle className="w-4 h-4 text-amber-400 mt-0.5" />
+                        <div className="text-sm text-amber-200">
+                          <p className="font-medium">
+                            Phone verification required
+                          </p>
+                          <p className="text-amber-300/80">
+                            You cannot make appointments until your phone number
+                            is verified.
+                          </p>
+                        </div>
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="mt-3 border-amber-500/40 text-amber-200 hover:bg-amber-500/10"
+                        onClick={() => setIsVerifyingPhone(true)}
+                      >
+                        <Phone className="w-4 h-4 mr-2" />
+                        Verify Phone
+                      </Button>
+                    </div>
+                  )}
+                </div>
+
+                <Dialog
+                  open={isChangingPassword}
+                  onOpenChange={setIsChangingPassword}
+                >
+                  <DialogTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className="w-full border-steel/40 text-white hover:bg-steel/20"
+                    >
+                      <Shield className="w-4 h-4 mr-2" />
+                      Change Password
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="bg-dark-card border-steel/20 text-white">
+                    <DialogHeader>
+                      <DialogTitle className="text-white">
+                        Change Password
+                      </DialogTitle>
+                    </DialogHeader>
+                    <Form {...passwordForm}>
+                      <form
+                        onSubmit={passwordForm.handleSubmit((data) =>
+                          changePasswordMutation.mutate(data),
+                        )}
+                        className="space-y-4"
+                      >
+                        <FormField
+                          control={passwordForm.control}
+                          name="currentPassword"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel className="text-white">
+                                Current Password
+                              </FormLabel>
+                              <FormControl>
+                                <Input
+                                  type="password"
+                                  placeholder="Enter current password"
+                                  className="bg-charcoal border-steel/20 text-white"
+                                  {...field}
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={passwordForm.control}
+                          name="newPassword"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel className="text-white">
+                                New Password
+                              </FormLabel>
+                              <FormControl>
+                                <Input
+                                  type="password"
+                                  placeholder="Enter new password (min 8 characters)"
+                                  className="bg-charcoal border-steel/20 text-white"
+                                  {...field}
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={passwordForm.control}
+                          name="confirmPassword"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel className="text-white">
+                                Confirm New Password
+                              </FormLabel>
+                              <FormControl>
+                                <Input
+                                  type="password"
+                                  placeholder="Confirm new password"
+                                  className="bg-charcoal border-steel/20 text-white"
+                                  {...field}
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <div className="flex space-x-2">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => setIsChangingPassword(false)}
+                            className="flex-1 border-steel/40 text-white hover:bg-steel/20"
+                          >
+                            Cancel
+                          </Button>
+                          <Button
+                            type="submit"
+                            disabled={changePasswordMutation.isPending}
+                            className="flex-1 bg-gold text-charcoal hover:bg-gold/90"
+                          >
+                            {changePasswordMutation.isPending
+                              ? "Changing..."
+                              : "Change Password"}
+                          </Button>
+                        </div>
+                      </form>
+                    </Form>
+                  </DialogContent>
+                </Dialog>
+
+                <Link href="/help">
+                  <Button
+                    variant="outline"
+                    className="w-full border-blue-500/20 text-blue-400 hover:text-blue-300 hover:bg-blue-500/10 mb-3"
+                  >
+                    <HelpCircle className="w-4 h-4 mr-2" />
+                    Help & Support
+                  </Button>
+                </Link>
+
+                <Button
+                  variant="destructive"
+                  className="w-full"
+                  onClick={handleLogout}
+                >
+                  <LogOut className="w-4 h-4 mr-2" />
+                  Sign Out
+                </Button>
+              </CardContent>
+            </Card>
 
             {/* Phone Verification Dialog */}
             <Dialog open={isVerifyingPhone} onOpenChange={setIsVerifyingPhone}>
@@ -2566,7 +2700,9 @@ export default function Settings() {
                 <div className="space-y-4">
                   <div className="text-sm text-steel">
                     We'll send a verification code to:{" "}
-                    <span className="text-white font-medium">{user?.phone}</span>
+                    <span className="text-white font-medium">
+                      {user?.phone}
+                    </span>
                   </div>
 
                   {!isCodeSent ? (
@@ -2582,7 +2718,10 @@ export default function Settings() {
                   ) : (
                     <div className="space-y-4">
                       <div className="space-y-2">
-                        <Label htmlFor="verification-code" className="text-white">
+                        <Label
+                          htmlFor="verification-code"
+                          className="text-white"
+                        >
                           Enter Verification Code
                         </Label>
                         <Input
@@ -2620,7 +2759,9 @@ export default function Settings() {
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => sendVerificationCodeMutation.mutate()}
+                            onClick={() =>
+                              sendVerificationCodeMutation.mutate()
+                            }
                             disabled={sendVerificationCodeMutation.isPending}
                             className="text-gold hover:bg-gold/10"
                           >
@@ -2651,24 +2792,33 @@ export default function Settings() {
                   <div className="w-16 h-16 bg-green-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
                     <Shield className="w-8 h-8 text-green-400" />
                   </div>
-                  <h3 className="text-white font-medium mb-2">No Blocked Clients</h3>
+                  <h3 className="text-white font-medium mb-2">
+                    No Blocked Clients
+                  </h3>
                   <p className="text-steel text-sm">
-                    You haven't blocked any clients yet. When you block a client, they will appear here.
+                    You haven't blocked any clients yet. When you block a
+                    client, they will appear here.
                   </p>
                 </div>
               ) : (
                 <div className="space-y-3">
                   {blockedClients.map((client) => (
-                    <div key={client.id} className="bg-charcoal p-4 rounded-lg border border-steel/20">
+                    <div
+                      key={client.id}
+                      className="bg-charcoal p-4 rounded-lg border border-steel/20"
+                    >
                       <div className="flex items-center justify-between">
                         <div className="flex items-center space-x-3">
                           <div className="w-10 h-10 bg-red-500/20 rounded-full flex items-center justify-center">
                             <Shield className="w-5 h-5 text-red-400" />
                           </div>
                           <div>
-                            <div className="text-white font-medium">{client.phoneNumber}</div>
+                            <div className="text-white font-medium">
+                              {client.phoneNumber}
+                            </div>
                             <div className="text-steel text-sm">
-                              Blocked {new Date(client.blockedAt).toLocaleDateString()}
+                              Blocked{" "}
+                              {new Date(client.blockedAt).toLocaleDateString()}
                             </div>
                             {client.reason && (
                               <div className="text-steel text-xs mt-1">
@@ -2680,7 +2830,11 @@ export default function Settings() {
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => unblockClientMutation.mutate({ phoneNumber: client.phoneNumber })}
+                          onClick={() =>
+                            unblockClientMutation.mutate({
+                              phoneNumber: client.phoneNumber,
+                            })
+                          }
                           disabled={unblockClientMutation.isPending}
                           className="border-green-500/30 text-green-400 hover:bg-green-500/10"
                         >
