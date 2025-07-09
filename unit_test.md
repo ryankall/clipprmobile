@@ -98,6 +98,21 @@ server/test/
 - ✅ OAuth Account Unlinking (2 tests) - Unlink Google/Apple accounts from user profiles
 - ✅ Multi-Provider OAuth (3 tests) - Handle users with both Google and Apple accounts linked
 - ✅ OAuth Token Generation (2 tests) - Generate unique JWT tokens for authenticated users
+
+#### Block Functionality Tests
+**File**: `__tests__/blockFunctionality.test.ts`
+**Purpose**: Validates comprehensive client blocking/unblocking functionality with barber account isolation
+
+**Tests Covered**:
+- ✅ Block Client (6 tests) - Successfully block clients with/without reasons, invalid phone validation, duplicate blocking prevention, barber account isolation
+- ✅ Unblock Client (3 tests) - Successfully unblock clients, reject unblocking non-blocked clients, maintain account isolation during unblocking
+- ✅ Get Blocked Clients (3 tests) - Return empty list for no blocked clients, return blocked clients for specific barber, maintain separate lists for different barbers
+- ✅ Check Blocked Status (3 tests) - Return true for blocked clients, return false for non-blocked clients, respect barber isolation
+- ✅ Message Integration (2 tests) - Mark messages as blocked when client is blocked, respect barber isolation in message blocking
+- ✅ Edge Cases (5 tests) - Handle multiple simultaneous blocks, unblock all clients, very long reason text, special characters in reason, maintain blocked client data integrity
+- ✅ Performance and Scalability (2 tests) - Handle large number of blocked clients efficiently, efficiently check blocked status for many clients
+
+**Business Impact**: Ensures barbers can effectively manage client blocking/unblocking with proper account isolation, preventing spam and inappropriate clients while maintaining data integrity and performance.
 - ✅ OAuth Error Handling (2 tests) - Graceful error handling for database failures and invalid profiles
 
 **Business Impact**: Provides seamless social authentication options while maintaining security and phone verification requirements for new user registration, improving user experience and reducing signup friction for returning users.
