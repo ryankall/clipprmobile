@@ -178,6 +178,13 @@ export default function Settings() {
   const [location, setLocation] = useLocation();
   const [pushNotifications, setPushNotifications] = useState(true);
   const [soundEffects, setSoundEffects] = useState(true);
+  const [notificationSettings, setNotificationSettings] = useState({
+    newBookingRequests: true,
+    appointmentConfirmations: true,
+    appointmentCancellations: true,
+    upcomingReminders: true,
+    soundEffects: true,
+  });
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [isConnectingStripe, setIsConnectingStripe] = useState(false);
@@ -451,16 +458,40 @@ export default function Settings() {
 
   const handleSoundToggle = (checked: boolean) => {
     setSoundEffects(checked);
+    setNotificationSettings(prev => ({ ...prev, soundEffects: checked }));
     // Store in localStorage for persistence
     localStorage.setItem('soundEffects', checked.toString());
   };
 
-  // Initialize sound effects from localStorage
+  const handleNotificationTypeToggle = (type: keyof typeof notificationSettings, checked: boolean) => {
+    setNotificationSettings(prev => ({ ...prev, [type]: checked }));
+    // Store in localStorage for persistence
+    localStorage.setItem(`notification_${type}`, checked.toString());
+    
+    toast({
+      title: checked ? "Notification Enabled" : "Notification Disabled",
+      description: `${type.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())} notifications ${checked ? 'enabled' : 'disabled'}`,
+    });
+  };
+
+  // Initialize notification settings from localStorage
   useEffect(() => {
     const savedSoundEffects = localStorage.getItem('soundEffects');
-    if (savedSoundEffects !== null) {
-      setSoundEffects(savedSoundEffects === 'true');
-    }
+    const savedNewBookingRequests = localStorage.getItem('notification_newBookingRequests');
+    const savedAppointmentConfirmations = localStorage.getItem('notification_appointmentConfirmations');
+    const savedAppointmentCancellations = localStorage.getItem('notification_appointmentCancellations');
+    const savedUpcomingReminders = localStorage.getItem('notification_upcomingReminders');
+    
+    const settings = {
+      newBookingRequests: savedNewBookingRequests !== null ? savedNewBookingRequests === 'true' : true,
+      appointmentConfirmations: savedAppointmentConfirmations !== null ? savedAppointmentConfirmations === 'true' : true,
+      appointmentCancellations: savedAppointmentCancellations !== null ? savedAppointmentCancellations === 'true' : true,
+      upcomingReminders: savedUpcomingReminders !== null ? savedUpcomingReminders === 'true' : true,
+      soundEffects: savedSoundEffects !== null ? savedSoundEffects === 'true' : true,
+    };
+    
+    setNotificationSettings(settings);
+    setSoundEffects(settings.soundEffects);
   }, []);
 
   // Phone verification mutations
@@ -2022,11 +2053,12 @@ export default function Settings() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
+            {/* Master Push Notifications Toggle */}
             <div className="flex items-center justify-between">
               <div>
                 <Label className="text-white">Push Notifications</Label>
                 <p className="text-sm text-steel">
-                  Get notified about new appointments
+                  Enable/disable all push notifications
                 </p>
               </div>
               <Switch
@@ -2036,7 +2068,65 @@ export default function Settings() {
               />
             </div>
 
-            <div className="flex items-center justify-between">
+            {/* Individual Notification Type Toggles */}
+            {pushSubscriptionStatus?.subscribed && (
+              <div className="space-y-3 pt-2 border-t border-steel/20">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Label className="text-white text-sm">New Booking Requests</Label>
+                    <p className="text-xs text-steel">
+                      When clients request appointments
+                    </p>
+                  </div>
+                  <Switch
+                    checked={notificationSettings.newBookingRequests}
+                    onCheckedChange={(checked) => handleNotificationTypeToggle('newBookingRequests', checked)}
+                  />
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Label className="text-white text-sm">Appointment Confirmations</Label>
+                    <p className="text-xs text-steel">
+                      When clients confirm appointments
+                    </p>
+                  </div>
+                  <Switch
+                    checked={notificationSettings.appointmentConfirmations}
+                    onCheckedChange={(checked) => handleNotificationTypeToggle('appointmentConfirmations', checked)}
+                  />
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Label className="text-white text-sm">Appointment Cancellations</Label>
+                    <p className="text-xs text-steel">
+                      When clients cancel appointments
+                    </p>
+                  </div>
+                  <Switch
+                    checked={notificationSettings.appointmentCancellations}
+                    onCheckedChange={(checked) => handleNotificationTypeToggle('appointmentCancellations', checked)}
+                  />
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Label className="text-white text-sm">Upcoming Reminders</Label>
+                    <p className="text-xs text-steel">
+                      30-minute reminders before appointments
+                    </p>
+                  </div>
+                  <Switch
+                    checked={notificationSettings.upcomingReminders}
+                    onCheckedChange={(checked) => handleNotificationTypeToggle('upcomingReminders', checked)}
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Sound Effects Toggle */}
+            <div className="flex items-center justify-between pt-2 border-t border-steel/20">
               <div>
                 <Label className="text-white">Sound Effects</Label>
                 <p className="text-sm text-steel">
@@ -2044,7 +2134,7 @@ export default function Settings() {
                 </p>
               </div>
               <Switch
-                checked={soundEffects}
+                checked={notificationSettings.soundEffects}
                 onCheckedChange={handleSoundToggle}
               />
             </div>

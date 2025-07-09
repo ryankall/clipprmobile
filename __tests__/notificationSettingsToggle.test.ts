@@ -42,6 +42,10 @@ interface NotificationSettings {
   soundEffects: boolean;
   subscribed: boolean;
   subscription?: PushSubscription;
+  newBookingRequests: boolean;
+  appointmentConfirmations: boolean;
+  appointmentCancellations: boolean;
+  upcomingReminders: boolean;
 }
 
 interface NotificationToggleResult {
@@ -63,6 +67,10 @@ class MockNotificationSettingsService {
     pushNotifications: false,
     soundEffects: true,
     subscribed: false,
+    newBookingRequests: true,
+    appointmentConfirmations: true,
+    appointmentCancellations: true,
+    upcomingReminders: true,
   };
 
   private subscriptions: Map<string, PushSubscription> = new Map();
@@ -212,6 +220,35 @@ class MockNotificationSettingsService {
     };
   }
 
+  toggleNotificationType(type: keyof NotificationSettings, enabled: boolean): { success: boolean; message: string } {
+    if (type === 'pushNotifications' || type === 'subscribed' || type === 'subscription') {
+      return { success: false, message: 'Invalid notification type' };
+    }
+
+    this.settings[type] = enabled;
+    mockLocalStorage.setItem(`notification_${type}`, enabled.toString());
+    
+    const typeLabels = {
+      newBookingRequests: 'New Booking Requests',
+      appointmentConfirmations: 'Appointment Confirmations',
+      appointmentCancellations: 'Appointment Cancellations',
+      upcomingReminders: 'Upcoming Reminders',
+      soundEffects: 'Sound Effects',
+    };
+    
+    const label = typeLabels[type as keyof typeof typeLabels] || type;
+    
+    this.addToast({
+      title: enabled ? 'Notification Enabled' : 'Notification Disabled',
+      description: `${label} notifications ${enabled ? 'enabled' : 'disabled'}`,
+    });
+
+    return {
+      success: true,
+      message: `${label} ${enabled ? 'enabled' : 'disabled'} successfully`,
+    };
+  }
+
   async sendTestNotification(userId: string): Promise<{ success: boolean; message: string; error?: string }> {
     if (!this.settings.subscribed) {
       return {
@@ -300,6 +337,10 @@ class MockNotificationSettingsService {
       pushNotifications: false,
       soundEffects: true,
       subscribed: false,
+      newBookingRequests: true,
+      appointmentConfirmations: true,
+      appointmentCancellations: true,
+      upcomingReminders: true,
     };
     this.toastMessages = [];
     mockNotification.permission = 'default';
@@ -711,6 +752,214 @@ describe('Notification Settings Toggle', () => {
     });
   });
 
+  describe('Individual Notification Types', () => {
+    it('should toggle New Booking Requests notifications', () => {
+      // Act - Disable new booking requests
+      const disableResult = notificationService.toggleNotificationType('newBookingRequests', false);
+      
+      // Assert
+      expect(disableResult.success).toBe(true);
+      expect(disableResult.message).toBe('New Booking Requests disabled successfully');
+      
+      const settings = notificationService.getSettings();
+      expect(settings.newBookingRequests).toBe(false);
+      
+      // Verify localStorage was updated
+      expect(mockLocalStorage.setItem).toHaveBeenCalledWith('notification_newBookingRequests', 'false');
+    });
+
+    it('should toggle Appointment Confirmations notifications', () => {
+      // Act - Disable appointment confirmations
+      const disableResult = notificationService.toggleNotificationType('appointmentConfirmations', false);
+      
+      // Assert
+      expect(disableResult.success).toBe(true);
+      expect(disableResult.message).toBe('Appointment Confirmations disabled successfully');
+      
+      const settings = notificationService.getSettings();
+      expect(settings.appointmentConfirmations).toBe(false);
+      
+      // Verify localStorage was updated
+      expect(mockLocalStorage.setItem).toHaveBeenCalledWith('notification_appointmentConfirmations', 'false');
+    });
+
+    it('should toggle Appointment Cancellations notifications', () => {
+      // Act - Disable appointment cancellations
+      const disableResult = notificationService.toggleNotificationType('appointmentCancellations', false);
+      
+      // Assert
+      expect(disableResult.success).toBe(true);
+      expect(disableResult.message).toBe('Appointment Cancellations disabled successfully');
+      
+      const settings = notificationService.getSettings();
+      expect(settings.appointmentCancellations).toBe(false);
+      
+      // Verify localStorage was updated
+      expect(mockLocalStorage.setItem).toHaveBeenCalledWith('notification_appointmentCancellations', 'false');
+    });
+
+    it('should toggle Upcoming Reminders notifications', () => {
+      // Act - Disable upcoming reminders
+      const disableResult = notificationService.toggleNotificationType('upcomingReminders', false);
+      
+      // Assert
+      expect(disableResult.success).toBe(true);
+      expect(disableResult.message).toBe('Upcoming Reminders disabled successfully');
+      
+      const settings = notificationService.getSettings();
+      expect(settings.upcomingReminders).toBe(false);
+      
+      // Verify localStorage was updated
+      expect(mockLocalStorage.setItem).toHaveBeenCalledWith('notification_upcomingReminders', 'false');
+    });
+
+    it('should show appropriate toast messages for each notification type', () => {
+      // Act - Toggle each notification type
+      notificationService.toggleNotificationType('newBookingRequests', false);
+      notificationService.toggleNotificationType('appointmentConfirmations', false);
+      notificationService.toggleNotificationType('appointmentCancellations', false);
+      notificationService.toggleNotificationType('upcomingReminders', false);
+      
+      // Assert
+      const toasts = notificationService.getToastMessages();
+      expect(toasts).toHaveLength(4);
+      
+      expect(toasts[0].title).toBe('Notification Disabled');
+      expect(toasts[0].description).toBe('New Booking Requests notifications disabled');
+      
+      expect(toasts[1].title).toBe('Notification Disabled');
+      expect(toasts[1].description).toBe('Appointment Confirmations notifications disabled');
+      
+      expect(toasts[2].title).toBe('Notification Disabled');
+      expect(toasts[2].description).toBe('Appointment Cancellations notifications disabled');
+      
+      expect(toasts[3].title).toBe('Notification Disabled');
+      expect(toasts[3].description).toBe('Upcoming Reminders notifications disabled');
+    });
+
+    it('should handle invalid notification types gracefully', () => {
+      // Act - Try to toggle invalid types
+      const result1 = notificationService.toggleNotificationType('pushNotifications' as any, false);
+      const result2 = notificationService.toggleNotificationType('subscribed' as any, false);
+      const result3 = notificationService.toggleNotificationType('subscription' as any, false);
+      
+      // Assert
+      expect(result1.success).toBe(false);
+      expect(result1.message).toBe('Invalid notification type');
+      
+      expect(result2.success).toBe(false);
+      expect(result2.message).toBe('Invalid notification type');
+      
+      expect(result3.success).toBe(false);
+      expect(result3.message).toBe('Invalid notification type');
+    });
+
+    it('should allow selective enabling/disabling of notification types', () => {
+      // Act - Enable some, disable others
+      notificationService.toggleNotificationType('newBookingRequests', true);
+      notificationService.toggleNotificationType('appointmentConfirmations', false);
+      notificationService.toggleNotificationType('appointmentCancellations', true);
+      notificationService.toggleNotificationType('upcomingReminders', false);
+      
+      // Assert
+      const settings = notificationService.getSettings();
+      expect(settings.newBookingRequests).toBe(true);
+      expect(settings.appointmentConfirmations).toBe(false);
+      expect(settings.appointmentCancellations).toBe(true);
+      expect(settings.upcomingReminders).toBe(false);
+    });
+
+    it('should maintain notification type settings independently of push subscription', async () => {
+      // Act - Set notification preferences first
+      notificationService.toggleNotificationType('newBookingRequests', false);
+      notificationService.toggleNotificationType('appointmentConfirmations', true);
+      
+      // Then enable push notifications
+      await notificationService.enablePushNotifications(testUserId);
+      
+      // Assert - Individual settings should be preserved
+      const settings = notificationService.getSettings();
+      expect(settings.subscribed).toBe(true);
+      expect(settings.newBookingRequests).toBe(false);
+      expect(settings.appointmentConfirmations).toBe(true);
+    });
+  });
+
+  describe('Notification Settings Integration', () => {
+    it('should handle all notification types together', () => {
+      // Act - Set all notification types to specific states
+      notificationService.toggleNotificationType('newBookingRequests', true);
+      notificationService.toggleNotificationType('appointmentConfirmations', false);
+      notificationService.toggleNotificationType('appointmentCancellations', true);
+      notificationService.toggleNotificationType('upcomingReminders', false);
+      notificationService.toggleSoundEffects(true);
+      
+      // Assert
+      const settings = notificationService.getSettings();
+      expect(settings.newBookingRequests).toBe(true);
+      expect(settings.appointmentConfirmations).toBe(false);
+      expect(settings.appointmentCancellations).toBe(true);
+      expect(settings.upcomingReminders).toBe(false);
+      expect(settings.soundEffects).toBe(true);
+    });
+
+    it('should persist all notification settings in localStorage', () => {
+      // Act - Toggle all notification types
+      notificationService.toggleNotificationType('newBookingRequests', false);
+      notificationService.toggleNotificationType('appointmentConfirmations', false);
+      notificationService.toggleNotificationType('appointmentCancellations', false);
+      notificationService.toggleNotificationType('upcomingReminders', false);
+      notificationService.toggleSoundEffects(false);
+      
+      // Assert - Check localStorage calls
+      expect(mockLocalStorage.setItem).toHaveBeenCalledWith('notification_newBookingRequests', 'false');
+      expect(mockLocalStorage.setItem).toHaveBeenCalledWith('notification_appointmentConfirmations', 'false');
+      expect(mockLocalStorage.setItem).toHaveBeenCalledWith('notification_appointmentCancellations', 'false');
+      expect(mockLocalStorage.setItem).toHaveBeenCalledWith('notification_upcomingReminders', 'false');
+      expect(mockLocalStorage.setItem).toHaveBeenCalledWith('soundEffects', 'false');
+    });
+
+    it('should handle rapid toggles of different notification types', () => {
+      // Act - Rapidly toggle different types
+      notificationService.toggleNotificationType('newBookingRequests', false);
+      notificationService.toggleNotificationType('newBookingRequests', true);
+      notificationService.toggleNotificationType('appointmentConfirmations', false);
+      notificationService.toggleNotificationType('upcomingReminders', false);
+      notificationService.toggleNotificationType('upcomingReminders', true);
+      
+      // Assert - Final state should be correct
+      const settings = notificationService.getSettings();
+      expect(settings.newBookingRequests).toBe(true);
+      expect(settings.appointmentConfirmations).toBe(false);
+      expect(settings.appointmentCancellations).toBe(true); // Default
+      expect(settings.upcomingReminders).toBe(true);
+    });
+
+    it('should show correct toast messages for enabling notification types', () => {
+      // Act - Enable each notification type
+      notificationService.toggleNotificationType('newBookingRequests', true);
+      notificationService.toggleNotificationType('appointmentConfirmations', true);
+      notificationService.toggleNotificationType('appointmentCancellations', true);
+      notificationService.toggleNotificationType('upcomingReminders', true);
+      
+      // Assert
+      const toasts = notificationService.getToastMessages();
+      expect(toasts).toHaveLength(4);
+      
+      expect(toasts[0].title).toBe('Notification Enabled');
+      expect(toasts[0].description).toBe('New Booking Requests notifications enabled');
+      
+      expect(toasts[1].title).toBe('Notification Enabled');
+      expect(toasts[1].description).toBe('Appointment Confirmations notifications enabled');
+      
+      expect(toasts[2].title).toBe('Notification Enabled');
+      expect(toasts[2].description).toBe('Appointment Cancellations notifications enabled');
+      
+      expect(toasts[3].title).toBe('Notification Enabled');
+      expect(toasts[3].description).toBe('Upcoming Reminders notifications enabled');
+    });
+  });
+
   describe('Integration Scenarios', () => {
     it('should handle full notification workflow end-to-end', async () => {
       // Act - Complete workflow
@@ -740,6 +989,32 @@ describe('Notification Settings Toggle', () => {
       // Verify independent operation
       const testResult = await notificationService.sendTestNotification(testUserId);
       expect(testResult.success).toBe(true);
+    });
+
+    it('should handle complete notification settings workflow', async () => {
+      // Act - Complete setup with all notification types
+      await notificationService.enablePushNotifications(testUserId);
+      
+      // Configure individual notification types
+      notificationService.toggleNotificationType('newBookingRequests', true);
+      notificationService.toggleNotificationType('appointmentConfirmations', false);
+      notificationService.toggleNotificationType('appointmentCancellations', true);
+      notificationService.toggleNotificationType('upcomingReminders', true);
+      notificationService.toggleSoundEffects(true);
+      
+      // Test functionality
+      const testResult = await notificationService.sendTestNotification(testUserId);
+      
+      // Assert
+      expect(testResult.success).toBe(true);
+      
+      const settings = notificationService.getSettings();
+      expect(settings.subscribed).toBe(true);
+      expect(settings.newBookingRequests).toBe(true);
+      expect(settings.appointmentConfirmations).toBe(false);
+      expect(settings.appointmentCancellations).toBe(true);
+      expect(settings.upcomingReminders).toBe(true);
+      expect(settings.soundEffects).toBe(true);
     });
   });
 });
