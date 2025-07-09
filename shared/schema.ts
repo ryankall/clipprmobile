@@ -183,6 +183,43 @@ export const notifications = pgTable("notifications", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+// Anti-spam protection tables
+export const rateLimitEntries = pgTable("rate_limit_entries", {
+  id: serial("id").primaryKey(),
+  phoneNumber: text("phone_number").notNull(),
+  requestCount: integer("request_count").notNull().default(1),
+  firstRequestAt: timestamp("first_request_at").notNull().defaultNow(),
+  lastRequestAt: timestamp("last_request_at").notNull().defaultNow(),
+  resetAt: timestamp("reset_at").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => ({
+  phoneNumberIndex: uniqueIndex("rate_limit_phone_idx").on(table.phoneNumber),
+}));
+
+export const blockedClients = pgTable("blocked_clients", {
+  id: serial("id").primaryKey(),
+  barberId: integer("barber_id").notNull().references(() => users.id),
+  phoneNumber: text("phone_number").notNull(),
+  reason: text("reason"),
+  blockedAt: timestamp("blocked_at").notNull().defaultNow(),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => ({
+  barberPhoneIndex: uniqueIndex("blocked_clients_barber_phone_idx").on(table.barberId, table.phoneNumber),
+}));
+
+export const bookingRequestLogs = pgTable("booking_request_logs", {
+  id: serial("id").primaryKey(),
+  barberId: integer("barber_id").notNull().references(() => users.id),
+  phoneNumber: text("phone_number").notNull(),
+  clientName: text("client_name"),
+  requestType: text("request_type").notNull(), // booking_request, rate_limited, blocked
+  allowed: boolean("allowed").notNull(),
+  errorMessage: text("error_message"),
+  ipAddress: text("ip_address"),
+  userAgent: text("user_agent"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 // Relations
 export const usersRelations = relations(users, ({ many }) => ({
   clients: many(clients),
@@ -193,6 +230,8 @@ export const usersRelations = relations(users, ({ many }) => ({
   messages: many(messages),
   reservations: many(reservations),
   notifications: many(notifications),
+  blockedClients: many(blockedClients),
+  bookingRequestLogs: many(bookingRequestLogs),
 }));
 
 export const clientsRelations = relations(clients, ({ one, many }) => ({
@@ -302,6 +341,20 @@ export const notificationsRelations = relations(notifications, ({ one }) => ({
   }),
 }));
 
+export const blockedClientsRelations = relations(blockedClients, ({ one }) => ({
+  barber: one(users, {
+    fields: [blockedClients.barberId],
+    references: [users.id],
+  }),
+}));
+
+export const bookingRequestLogsRelations = relations(bookingRequestLogs, ({ one }) => ({
+  barber: one(users, {
+    fields: [bookingRequestLogs.barberId],
+    references: [users.id],
+  }),
+}));
+
 // Insert schemas
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
@@ -358,6 +411,21 @@ export const insertNotificationSchema = createInsertSchema(notifications).omit({
   createdAt: true,
 });
 
+export const insertRateLimitEntrySchema = createInsertSchema(rateLimitEntries).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertBlockedClientSchema = createInsertSchema(blockedClients).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertBookingRequestLogSchema = createInsertSchema(bookingRequestLogs).omit({
+  id: true,
+  createdAt: true,
+});
+
 // Types
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
@@ -388,6 +456,15 @@ export type Reservation = typeof reservations.$inferSelect;
 
 export type InsertNotification = z.infer<typeof insertNotificationSchema>;
 export type Notification = typeof notifications.$inferSelect;
+
+export type InsertRateLimitEntry = z.infer<typeof insertRateLimitEntrySchema>;
+export type RateLimitEntry = typeof rateLimitEntries.$inferSelect;
+
+export type InsertBlockedClient = z.infer<typeof insertBlockedClientSchema>;
+export type BlockedClient = typeof blockedClients.$inferSelect;
+
+export type InsertBookingRequestLog = z.infer<typeof insertBookingRequestLogSchema>;
+export type BookingRequestLog = typeof bookingRequestLogs.$inferSelect;
 
 // Extended types for API responses
 export type AppointmentWithRelations = Appointment & {
