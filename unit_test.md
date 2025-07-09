@@ -43,6 +43,7 @@ client/src/test/
 ├── functional.test.ts
 ├── invoiceNotifications.test.ts      # NEW: Email/SMS notification system tests
 ├── invoiceDelivery.test.ts           # NEW: Complete invoice delivery & payment tests
+├── premiumAutoChargingSystem.test.ts # NEW: Premium subscription auto-charging tests
 └── components.test.ts
 
 server/test/
@@ -70,6 +71,20 @@ server/test/
 - ✅ Graceful error handling when travel calculation fails
 
 **Business Impact**: Ensures booking messages include accurate travel information and proper email display for barber review.
+
+#### Premium Auto-Charging System Tests
+**File**: `__tests__/premiumAutoChargingSystem.test.ts`
+**Purpose**: Validates comprehensive premium subscription auto-charging functionality and business logic
+
+**Tests Covered**:
+- ✅ Auto-Charging Logic (5 tests) - Premium users are automatically charged at billing period end unless cancelled
+- ✅ Subscription Status Checks (3 tests) - Identifies which subscriptions will auto-charge vs cancelled/past due
+- ✅ Webhook Event Processing (3 tests) - Processes Stripe webhooks for payment success/failure/cancellation
+- ✅ Billing Cycle Edge Cases (3 tests) - Handles billing attempts before period end, period updates, multiple cycles
+- ✅ Customer Access Management (2 tests) - Maintains premium access until period ends for cancelled users
+- ✅ Payment Recovery (1 test) - Attempts payment recovery for past due subscriptions
+
+**Business Impact**: Ensures premium plan subscribers are automatically charged monthly/yearly renewals unless they cancel their subscription, preventing manual billing issues and maintaining continuous service for paying customers.
 
 #### Pending Slot Locking Tests
 **File**: `client/src/test/pendingSlotLocking.test.ts`
