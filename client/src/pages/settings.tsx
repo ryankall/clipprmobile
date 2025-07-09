@@ -845,13 +845,23 @@ export default function Settings() {
       } else {
         throw new Error('No checkout URL received');
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error creating checkout session:', error);
-      toast({
-        title: "Error",
-        description: "Failed to start checkout process. Please try again.",
-        variant: "destructive",
-      });
+      
+      // Check if the error is related to missing price IDs
+      if (error.message.includes('resource_missing') || error.message.includes('No such price')) {
+        toast({
+          title: "Stripe Configuration Required",
+          description: "Please set up your Stripe pricing products first. Contact support for help setting up monthly ($19.99) and yearly ($199.99) subscription prices.",
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Error",
+          description: "Failed to start checkout process. Please try again.",
+          variant: "destructive",
+        });
+      }
     }
   };
 
@@ -1331,16 +1341,43 @@ export default function Settings() {
                     </span>
                   </div>
                   
-                  <div className="flex items-center space-x-3 mb-3">
-                    <div className="text-center">
-                      <span className="text-steel text-sm line-through block">$239.88/year</span>
-                      <span className="text-white text-xs">if paid monthly</span>
-                    </div>
-                    <div className="text-center">
-                      <span className="text-gold font-bold text-2xl">$199.99</span>
-                      <span className="text-gold text-sm">/year</span>
-                      <div className="bg-emerald-500 text-white text-xs px-2 py-1 rounded-full font-bold mt-1">
-                        SAVE $39.89
+                  {/* Pricing Options */}
+                  <div className="mb-4">
+                    <div className="grid grid-cols-2 gap-3">
+                      {/* Monthly Option */}
+                      <div className="bg-charcoal/50 p-4 rounded-lg border border-gold/20">
+                        <div className="text-center">
+                          <div className="text-gold font-bold text-xl">$19.99</div>
+                          <div className="text-gold text-sm">/month</div>
+                          <div className="text-steel text-xs mt-1">Monthly billing</div>
+                        </div>
+                        <Button 
+                          className="w-full mt-3 bg-gradient-to-r from-gold to-amber-400 hover:from-gold/90 hover:to-amber-400/90 text-charcoal font-bold text-sm py-2 rounded-lg transition-all duration-200"
+                          onClick={() => handleStripeCheckout('monthly')}
+                        >
+                          Choose Monthly
+                        </Button>
+                      </div>
+                      
+                      {/* Yearly Option */}
+                      <div className="bg-charcoal/50 p-4 rounded-lg border border-emerald-500/30 relative">
+                        <div className="absolute -top-2 left-1/2 transform -translate-x-1/2">
+                          <span className="bg-emerald-500 text-white text-xs px-2 py-1 rounded-full font-bold">
+                            SAVE 16%
+                          </span>
+                        </div>
+                        <div className="text-center">
+                          <div className="text-steel text-xs line-through">$239.88/year</div>
+                          <div className="text-emerald-400 font-bold text-xl">$199.99</div>
+                          <div className="text-emerald-400 text-sm">/year</div>
+                          <div className="text-steel text-xs mt-1">Annual billing</div>
+                        </div>
+                        <Button 
+                          className="w-full mt-3 bg-gradient-to-r from-emerald-500 to-emerald-400 hover:from-emerald-500/90 hover:to-emerald-400/90 text-white font-bold text-sm py-2 rounded-lg transition-all duration-200"
+                          onClick={() => handleStripeCheckout('yearly')}
+                        >
+                          Choose Yearly
+                        </Button>
                       </div>
                     </div>
                   </div>
@@ -1381,17 +1418,13 @@ export default function Settings() {
                   </ul>
                 </div>
                 
-                <Button 
-                  className="w-full bg-gradient-to-r from-gold to-amber-400 hover:from-gold/90 hover:to-amber-400/90 text-charcoal font-bold text-lg py-3 rounded-lg shadow-lg transform hover:scale-105 transition-all duration-200"
-                  onClick={() => handleStripeCheckout('yearly')}
-                >
-                  🚀 Upgrade to Premium Now
-                </Button>
-                
                 <div className="text-center mt-3">
                   <p className="text-steel text-xs">
                     ✨ 30-day money-back guarantee • Cancel anytime
                   </p>
+                  <div className="mt-2 text-steel text-xs">
+                    Need help setting up pricing? Create products in your Stripe dashboard with IDs: <code className="bg-charcoal px-1 rounded">price_monthly</code> and <code className="bg-charcoal px-1 rounded">price_yearly</code>
+                  </div>
                 </div>
               </div>
             </div>
