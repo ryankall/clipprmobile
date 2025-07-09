@@ -2122,27 +2122,6 @@ export default function Settings() {
               </div>
             </div>
 
-            {/* Push Notification Setup Helper */}
-            <div className="pt-4 border-t border-steel/20">
-              <div className="bg-charcoal rounded-lg p-3 border border-steel/20">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <Label className="text-white text-sm">Push Notifications</Label>
-                    <p className="text-xs text-steel">
-                      {pushSubscriptionStatus?.subscribed 
-                        ? "Push notifications are enabled" 
-                        : "Enable push notifications to receive alerts"}
-                    </p>
-                  </div>
-                  <Switch
-                    checked={pushSubscriptionStatus?.subscribed || false}
-                    onCheckedChange={handleNotificationToggle}
-                    disabled={subscribeToNotificationsMutation.isPending || unsubscribeFromNotificationsMutation.isPending}
-                  />
-                </div>
-              </div>
-            </div>
-
             {/* Test Notification Button */}
             {pushSubscriptionStatus?.subscribed && (
               <div className="pt-4 border-t border-steel/20">
