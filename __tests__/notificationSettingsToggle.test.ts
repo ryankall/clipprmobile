@@ -883,6 +883,33 @@ describe('Notification Settings Toggle', () => {
       expect(settings.newBookingRequests).toBe(false);
       expect(settings.appointmentConfirmations).toBe(true);
     });
+
+    it('should show all 5 notification types always visible', () => {
+      // Assert - All notification types should be available
+      const settings = notificationService.getSettings();
+      expect(settings.hasOwnProperty('newBookingRequests')).toBe(true);
+      expect(settings.hasOwnProperty('appointmentConfirmations')).toBe(true);
+      expect(settings.hasOwnProperty('appointmentCancellations')).toBe(true);
+      expect(settings.hasOwnProperty('upcomingReminders')).toBe(true);
+      expect(settings.hasOwnProperty('soundEffects')).toBe(true);
+    });
+
+    it('should allow individual control of each notification type', () => {
+      // Act - Set each notification type to different states
+      notificationService.toggleNotificationType('newBookingRequests', false);
+      notificationService.toggleNotificationType('appointmentConfirmations', true);
+      notificationService.toggleNotificationType('appointmentCancellations', false);
+      notificationService.toggleNotificationType('upcomingReminders', true);
+      notificationService.toggleSoundEffects(false);
+      
+      // Assert - Each type should have its own state
+      const settings = notificationService.getSettings();
+      expect(settings.newBookingRequests).toBe(false);
+      expect(settings.appointmentConfirmations).toBe(true);
+      expect(settings.appointmentCancellations).toBe(false);
+      expect(settings.upcomingReminders).toBe(true);
+      expect(settings.soundEffects).toBe(false);
+    });
   });
 
   describe('Notification Settings Integration', () => {

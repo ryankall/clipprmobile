@@ -2053,90 +2053,94 @@ export default function Settings() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            {/* Master Push Notifications Toggle */}
-            <div className="flex items-center justify-between">
-              <div>
-                <Label className="text-white">Push Notifications</Label>
-                <p className="text-sm text-steel">
-                  Enable/disable all push notifications
-                </p>
+            {/* Individual Notification Type Toggles - Always Show All 5 */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label className="text-white">New Booking Requests</Label>
+                  <p className="text-xs text-steel">
+                    When clients request appointments
+                  </p>
+                </div>
+                <Switch
+                  checked={notificationSettings.newBookingRequests}
+                  onCheckedChange={(checked) => handleNotificationTypeToggle('newBookingRequests', checked)}
+                />
               </div>
-              <Switch
-                checked={pushSubscriptionStatus?.subscribed || false}
-                onCheckedChange={handleNotificationToggle}
-                disabled={subscribeToNotificationsMutation.isPending || unsubscribeFromNotificationsMutation.isPending}
-              />
+
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label className="text-white">Appointment Confirmations</Label>
+                  <p className="text-xs text-steel">
+                    When clients confirm appointments
+                  </p>
+                </div>
+                <Switch
+                  checked={notificationSettings.appointmentConfirmations}
+                  onCheckedChange={(checked) => handleNotificationTypeToggle('appointmentConfirmations', checked)}
+                />
+              </div>
+
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label className="text-white">Appointment Cancellations</Label>
+                  <p className="text-xs text-steel">
+                    When clients cancel appointments
+                  </p>
+                </div>
+                <Switch
+                  checked={notificationSettings.appointmentCancellations}
+                  onCheckedChange={(checked) => handleNotificationTypeToggle('appointmentCancellations', checked)}
+                />
+              </div>
+
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label className="text-white">Upcoming Reminders</Label>
+                  <p className="text-xs text-steel">
+                    30-minute reminders before appointments
+                  </p>
+                </div>
+                <Switch
+                  checked={notificationSettings.upcomingReminders}
+                  onCheckedChange={(checked) => handleNotificationTypeToggle('upcomingReminders', checked)}
+                />
+              </div>
+
+              {/* Sound Effects Toggle */}
+              <div className="flex items-center justify-between pt-2 border-t border-steel/20">
+                <div>
+                  <Label className="text-white">Sound Effects</Label>
+                  <p className="text-xs text-steel">
+                    Play sounds for app interactions
+                  </p>
+                </div>
+                <Switch
+                  checked={notificationSettings.soundEffects}
+                  onCheckedChange={handleSoundToggle}
+                />
+              </div>
             </div>
 
-            {/* Individual Notification Type Toggles */}
-            {pushSubscriptionStatus?.subscribed && (
-              <div className="space-y-3 pt-2 border-t border-steel/20">
+            {/* Push Notification Setup Helper */}
+            <div className="pt-4 border-t border-steel/20">
+              <div className="bg-charcoal rounded-lg p-3 border border-steel/20">
                 <div className="flex items-center justify-between">
                   <div>
-                    <Label className="text-white text-sm">New Booking Requests</Label>
+                    <Label className="text-white text-sm">Push Notifications</Label>
                     <p className="text-xs text-steel">
-                      When clients request appointments
+                      {pushSubscriptionStatus?.subscribed 
+                        ? "Push notifications are enabled" 
+                        : "Enable push notifications to receive alerts"}
                     </p>
                   </div>
                   <Switch
-                    checked={notificationSettings.newBookingRequests}
-                    onCheckedChange={(checked) => handleNotificationTypeToggle('newBookingRequests', checked)}
-                  />
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <div>
-                    <Label className="text-white text-sm">Appointment Confirmations</Label>
-                    <p className="text-xs text-steel">
-                      When clients confirm appointments
-                    </p>
-                  </div>
-                  <Switch
-                    checked={notificationSettings.appointmentConfirmations}
-                    onCheckedChange={(checked) => handleNotificationTypeToggle('appointmentConfirmations', checked)}
-                  />
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <div>
-                    <Label className="text-white text-sm">Appointment Cancellations</Label>
-                    <p className="text-xs text-steel">
-                      When clients cancel appointments
-                    </p>
-                  </div>
-                  <Switch
-                    checked={notificationSettings.appointmentCancellations}
-                    onCheckedChange={(checked) => handleNotificationTypeToggle('appointmentCancellations', checked)}
-                  />
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <div>
-                    <Label className="text-white text-sm">Upcoming Reminders</Label>
-                    <p className="text-xs text-steel">
-                      30-minute reminders before appointments
-                    </p>
-                  </div>
-                  <Switch
-                    checked={notificationSettings.upcomingReminders}
-                    onCheckedChange={(checked) => handleNotificationTypeToggle('upcomingReminders', checked)}
+                    checked={pushSubscriptionStatus?.subscribed || false}
+                    onCheckedChange={handleNotificationToggle}
+                    disabled={subscribeToNotificationsMutation.isPending || unsubscribeFromNotificationsMutation.isPending}
                   />
                 </div>
               </div>
-            )}
-
-            {/* Sound Effects Toggle */}
-            <div className="flex items-center justify-between pt-2 border-t border-steel/20">
-              <div>
-                <Label className="text-white">Sound Effects</Label>
-                <p className="text-sm text-steel">
-                  Play sounds for app interactions
-                </p>
-              </div>
-              <Switch
-                checked={notificationSettings.soundEffects}
-                onCheckedChange={handleSoundToggle}
-              />
             </div>
 
             {/* Test Notification Button */}
