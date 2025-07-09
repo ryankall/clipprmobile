@@ -12,6 +12,14 @@ import passport from 'passport';
 import Stripe from 'stripe';
 import { travelTimeService } from "./travelTimeService";
 import { format } from "date-fns";
+import { 
+  pushNotificationService,
+  sendNewBookingRequestNotification,
+  sendAppointmentConfirmedNotification,
+  sendAppointmentCancelledNotification,
+  sendUpcomingAppointmentReminder,
+  startReminderScheduler
+} from "./pushNotifications";
 
 // Configure multer for memory storage
 const upload = multer({
@@ -820,6 +828,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         priority: "high",
       });
 
+      // Send push notification to barber
+      await sendAppointmentCancelledNotification(
+        userId.toString(),
+        appointment.client.name,
+        appointmentDate,
+        appointmentTime
+      );
+
       console.log(`Appointment ${appointmentId} deleted. SMS cancellation notice sent to ${appointment.client.name} at ${appointment.client.phone}`);
       console.log(`SMS content: ${cancellationMessage}`);
 
@@ -863,6 +879,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         appointmentId: appointment.id,
         clientName: appointment.client.name,
       });
+
+      // Send push notification to barber
+      await sendAppointmentConfirmedNotification(
+        userId.toString(),
+        appointment.client.name,
+        format(new Date(appointment.scheduledAt), 'EEEE, MMMM d'),
+        format(new Date(appointment.scheduledAt), 'h:mm a')
+      );
       
       res.json({ 
         message: "Appointment confirmed successfully",
@@ -2556,6 +2580,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       console.log("Booking request message created for barber:", user.id);
 
+      // Send push notification to barber
+      await sendNewBookingRequestNotification(
+        user.id.toString(),
+        clientName,
+        selectedServices.join(', ') || customService || "Service",
+        selectedDate,
+        selectedTime
+      );
+
       res.json({ 
         success: true, 
         message: "Booking request sent successfully. The barber will review and confirm your appointment.",
@@ -2640,6 +2673,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
             priority: "normal",
           });
 
+          // Send push notification to barber
+          await sendAppointmentConfirmedNotification(
+            user.id.toString(),
+            reservation.customerName,
+            format(reservation.scheduledAt, 'EEEE, MMMM d'),
+            format(reservation.scheduledAt, 'h:mm a')
+          );
+
           console.log("Appointment confirmed:", appointment.id);
         }
       } else if (normalizedMessage === 'no' || normalizedMessage === 'cancel') {
@@ -2655,8 +2696,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
           );
 
         if (customerReservations.length > 0) {
-          await storage.updateReservation(customerReservations[0].id, { status: "cancelled" });
+          const reservation = customerReservations[0];
+          await storage.updateReservation(reservation.id, { status: "cancelled" });
           console.log("Reservation cancelled by customer");
+
+          // Send push notification to barber
+          await sendAppointmentCancelledNotification(
+            reservation.userId.toString(),
+            reservation.customerName,
+            format(reservation.scheduledAt, 'EEEE, MMMM d'),
+            format(reservation.scheduledAt, 'h:mm a')
+          );
         }
       }
 
@@ -2844,6 +2894,114 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(pendingReservations);
     } catch (error: any) {
       console.error("Error fetching pending reservations:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Push notification endpoints
+  
+  // Subscribe to push notifications
+  app.post("/api/push/subscribe", requireAuth, async (req, res) => {
+    try {
+      const userId = (req.user as any).id;
+      const { subscription } = req.body;
+
+      if (!subscription || !subscription.endpoint || !subscription.keys) {
+        return res.status(400).json({ message: "Invalid subscription data" });
+      }
+
+      const success = await pushNotificationService.subscribeUser(
+        userId.toString(),
+        subscription
+      );
+
+      if (success) {
+        res.json({ 
+          success: true, 
+          message: "Push notifications enabled successfully" 
+        });
+      } else {
+        res.status(400).json({ 
+          success: false, 
+          message: "Failed to enable push notifications" 
+        });
+      }
+    } catch (error: any) {
+      console.error("Error subscribing to push notifications:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Unsubscribe from push notifications
+  app.post("/api/push/unsubscribe", requireAuth, async (req, res) => {
+    try {
+      const userId = (req.user as any).id;
+
+      const success = await pushNotificationService.unsubscribeUser(
+        userId.toString()
+      );
+
+      if (success) {
+        res.json({ 
+          success: true, 
+          message: "Push notifications disabled successfully" 
+        });
+      } else {
+        res.status(400).json({ 
+          success: false, 
+          message: "No active subscription found" 
+        });
+      }
+    } catch (error: any) {
+      console.error("Error unsubscribing from push notifications:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Get push notification subscription status
+  app.get("/api/push/subscription", requireAuth, async (req, res) => {
+    try {
+      const userId = (req.user as any).id;
+
+      const subscription = await pushNotificationService.getSubscription(
+        userId.toString()
+      );
+
+      res.json({
+        subscribed: !!subscription,
+        subscription: subscription
+      });
+    } catch (error: any) {
+      console.error("Error getting push notification subscription:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Test push notification (for development/testing)
+  app.post("/api/push/test", requireAuth, async (req, res) => {
+    try {
+      const userId = (req.user as any).id;
+
+      const success = await pushNotificationService.sendNotification(
+        userId.toString(),
+        {
+          title: "Test Notification",
+          body: "This is a test push notification from Clippr",
+          data: { type: "test" },
+          badge: 1,
+          icon: "/icon-192x192.png",
+          tag: "test-notification"
+        }
+      );
+
+      res.json({
+        success,
+        message: success 
+          ? "Test notification sent successfully" 
+          : "Failed to send test notification"
+      });
+    } catch (error: any) {
+      console.error("Error sending test notification:", error);
       res.status(500).json({ message: error.message });
     }
   });
@@ -3191,6 +3349,112 @@ Travel required: ${message && message.includes('Travel: Yes') ? 'Yes' : 'No'}`;
       console.error("Error in reservation expiration job:", error);
     }
   }, 5 * 60 * 1000); // Run every 5 minutes
+
+  // Push Notification endpoints
+  app.post("/api/notifications/subscribe", requireAuth, async (req, res) => {
+    try {
+      const userId = req.user!.id.toString();
+      const { subscription } = req.body;
+
+      if (!subscription || !subscription.endpoint) {
+        return res.status(400).json({ message: "Invalid subscription data" });
+      }
+
+      const success = await pushNotificationService.subscribeUser(userId, subscription);
+      
+      if (success) {
+        res.json({ success: true, message: "Subscription successful" });
+      } else {
+        res.status(500).json({ success: false, message: "Failed to subscribe" });
+      }
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/notifications/unsubscribe", requireAuth, async (req, res) => {
+    try {
+      const userId = req.user!.id.toString();
+      
+      const success = await pushNotificationService.unsubscribeUser(userId);
+      
+      if (success) {
+        res.json({ success: true, message: "Unsubscribed successfully" });
+      } else {
+        res.status(500).json({ success: false, message: "Failed to unsubscribe" });
+      }
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/notifications/subscription", requireAuth, async (req, res) => {
+    try {
+      const userId = req.user!.id.toString();
+      
+      const subscription = await pushNotificationService.getSubscription(userId);
+      
+      res.json({ subscription });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Test endpoint for sending notifications
+  app.post("/api/notifications/test", requireAuth, async (req, res) => {
+    try {
+      const userId = req.user!.id.toString();
+      const { type, data } = req.body;
+
+      let success = false;
+      
+      switch (type) {
+        case "booking_request":
+          success = await sendNewBookingRequestNotification(
+            userId,
+            data.clientName || "Test Client",
+            data.serviceRequested || "Haircut",
+            data.preferredDate || "Today",
+            data.preferredTime || "3:00 PM"
+          );
+          break;
+        case "appointment_confirmed":
+          success = await sendAppointmentConfirmedNotification(
+            userId,
+            data.clientName || "Test Client",
+            data.appointmentDate || "Today",
+            data.appointmentTime || "3:00 PM"
+          );
+          break;
+        case "appointment_cancelled":
+          success = await sendAppointmentCancelledNotification(
+            userId,
+            data.clientName || "Test Client",
+            data.appointmentDate || "Today",
+            data.appointmentTime || "3:00 PM"
+          );
+          break;
+        case "appointment_reminder":
+          success = await sendUpcomingAppointmentReminder(
+            userId,
+            data.clientName || "Test Client",
+            data.serviceType || "Haircut",
+            data.appointmentTime || "3:00 PM",
+            data.travelTime
+          );
+          break;
+        default:
+          return res.status(400).json({ message: "Invalid notification type" });
+      }
+
+      res.json({ success, message: success ? "Notification sent" : "Failed to send notification" });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Start the reminder scheduler
+  startReminderScheduler();
 
   const httpServer = createServer(app);
   return httpServer;
