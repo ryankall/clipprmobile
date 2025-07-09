@@ -1342,39 +1342,47 @@ export default function Settings() {
                   </div>
                   
                   {/* Pricing Options */}
-                  <div className="mb-4">
-                    <div className="grid grid-cols-2 gap-3">
-                      {/* Monthly Option */}
-                      <div className="bg-charcoal/50 p-4 rounded-lg border border-gold/20">
-                        <div className="text-center">
-                          <div className="text-gold font-bold text-xl">$19.99</div>
-                          <div className="text-gold text-sm">/month</div>
-                          <div className="text-steel text-xs mt-1">Monthly billing</div>
+                  <div className="mb-4 space-y-3">
+                    {/* Monthly Option - Horizontal */}
+                    <div className="bg-charcoal/50 p-4 rounded-lg border border-gold/20">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-4">
+                          <div>
+                            <div className="text-gold font-bold text-xl">$19.99</div>
+                            <div className="text-gold text-sm">/month</div>
+                          </div>
+                          <div className="text-steel text-sm">Monthly billing</div>
                         </div>
                         <Button 
-                          className="w-full mt-3 bg-gradient-to-r from-gold to-amber-400 hover:from-gold/90 hover:to-amber-400/90 text-charcoal font-bold text-sm py-2 rounded-lg transition-all duration-200"
+                          className="bg-gradient-to-r from-gold to-amber-400 hover:from-gold/90 hover:to-amber-400/90 text-charcoal font-bold text-sm py-2 px-6 rounded-lg transition-all duration-200"
                           onClick={() => handleStripeCheckout('monthly')}
+                          data-testid="monthly-upgrade-button"
                         >
                           Choose Monthly
                         </Button>
                       </div>
-                      
-                      {/* Yearly Option */}
-                      <div className="bg-charcoal/50 p-4 rounded-lg border border-emerald-500/30 relative">
-                        <div className="absolute -top-2 left-1/2 transform -translate-x-1/2">
-                          <span className="bg-emerald-500 text-white text-xs px-2 py-1 rounded-full font-bold">
-                            SAVE 16%
-                          </span>
-                        </div>
-                        <div className="text-center">
-                          <div className="text-steel text-xs line-through">$239.88/year</div>
-                          <div className="text-emerald-400 font-bold text-xl">$199.99</div>
-                          <div className="text-emerald-400 text-sm">/year</div>
-                          <div className="text-steel text-xs mt-1">Annual billing</div>
+                    </div>
+                    
+                    {/* Yearly Option - Below Monthly */}
+                    <div className="bg-charcoal/50 p-4 rounded-lg border border-emerald-500/30 relative">
+                      <div className="absolute -top-2 left-1/2 transform -translate-x-1/2">
+                        <span className="bg-emerald-500 text-white text-xs px-2 py-1 rounded-full font-bold">
+                          SAVE 16%
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-4">
+                          <div>
+                            <div className="text-steel text-xs line-through">$239.88/year</div>
+                            <div className="text-emerald-400 font-bold text-xl">$199.99</div>
+                            <div className="text-emerald-400 text-sm">/year</div>
+                          </div>
+                          <div className="text-steel text-sm">Annual billing</div>
                         </div>
                         <Button 
-                          className="w-full mt-3 bg-gradient-to-r from-emerald-500 to-emerald-400 hover:from-emerald-500/90 hover:to-emerald-400/90 text-white font-bold text-sm py-2 rounded-lg transition-all duration-200"
+                          className="bg-gradient-to-r from-emerald-500 to-emerald-400 hover:from-emerald-500/90 hover:to-emerald-400/90 text-white font-bold text-sm py-2 px-6 rounded-lg transition-all duration-200"
                           onClick={() => handleStripeCheckout('yearly')}
+                          data-testid="yearly-upgrade-button"
                         >
                           Choose Yearly
                         </Button>
