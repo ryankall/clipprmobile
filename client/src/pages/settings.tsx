@@ -346,6 +346,123 @@ export default function Settings() {
     retry: false,
   });
 
+  // Push notification subscription status
+  const { data: pushSubscriptionStatus, refetch: refetchPushSubscription } = useQuery({
+    queryKey: ["/api/push/subscription"],
+    retry: false,
+    staleTime: 1000 * 60 * 5, // 5 minutes
+  });
+
+  // Push notification subscription mutation
+  const subscribeToNotificationsMutation = useMutation({
+    mutationFn: async (subscription: any) => {
+      return await apiRequest("POST", "/api/push/subscribe", { subscription });
+    },
+    onSuccess: () => {
+      refetchPushSubscription();
+      toast({
+        title: "Push Notifications Enabled",
+        description: "You'll now receive notifications for new bookings and appointments.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to enable push notifications",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Push notification unsubscribe mutation
+  const unsubscribeFromNotificationsMutation = useMutation({
+    mutationFn: async () => {
+      return await apiRequest("POST", "/api/push/unsubscribe");
+    },
+    onSuccess: () => {
+      refetchPushSubscription();
+      toast({
+        title: "Push Notifications Disabled",
+        description: "You'll no longer receive push notifications.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to disable push notifications",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Test push notification mutation
+  const testNotificationMutation = useMutation({
+    mutationFn: async () => {
+      return await apiRequest("POST", "/api/push/test");
+    },
+    onSuccess: () => {
+      toast({
+        title: "Test Notification Sent",
+        description: "Check your device for the test notification.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to send test notification",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Push notification handlers
+  const handleNotificationToggle = async (checked: boolean) => {
+    if (checked) {
+      // Enable push notifications
+      if ('serviceWorker' in navigator && 'PushManager' in window) {
+        try {
+          const registration = await navigator.serviceWorker.ready;
+          const subscription = await registration.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey: import.meta.env.VITE_VAPID_PUBLIC_KEY,
+          });
+          
+          await subscribeToNotificationsMutation.mutateAsync(subscription);
+        } catch (error) {
+          console.error('Error subscribing to push notifications:', error);
+          toast({
+            title: "Permission Required",
+            description: "Please allow notifications in your browser settings.",
+            variant: "destructive",
+          });
+        }
+      } else {
+        toast({
+          title: "Not Supported",
+          description: "Push notifications are not supported in this browser.",
+          variant: "destructive",
+        });
+      }
+    } else {
+      // Disable push notifications
+      await unsubscribeFromNotificationsMutation.mutateAsync();
+    }
+  };
+
+  const handleSoundToggle = (checked: boolean) => {
+    setSoundEffects(checked);
+    // Store in localStorage for persistence
+    localStorage.setItem('soundEffects', checked.toString());
+  };
+
+  // Initialize sound effects from localStorage
+  useEffect(() => {
+    const savedSoundEffects = localStorage.getItem('soundEffects');
+    if (savedSoundEffects !== null) {
+      setSoundEffects(savedSoundEffects === 'true');
+    }
+  }, []);
+
   // Phone verification mutations
   const sendVerificationCodeMutation = useMutation({
     mutationFn: async () => {
@@ -950,27 +1067,8 @@ export default function Settings() {
     form.trigger("photoUrl");
   };
 
-  const handleNotificationToggle = (checked: boolean) => {
-    setPushNotifications(checked);
-    localStorage.setItem("pushNotifications", JSON.stringify(checked));
-
-    toast({
-      title: checked ? "Notifications Enabled" : "Notifications Disabled",
-      description: checked
-        ? "You'll receive appointment reminders"
-        : "Push notifications turned off",
-    });
-  };
-
-  const handleSoundToggle = (checked: boolean) => {
-    setSoundEffects(checked);
-    localStorage.setItem("soundEffects", JSON.stringify(checked));
-
-    toast({
-      title: checked ? "Sound Effects Enabled" : "Sound Effects Disabled",
-      description: checked ? "App sounds are now on" : "App sounds are now off",
-    });
-  };
+  // Note: handleNotificationToggle is now defined earlier with push notification functionality
+  // handleSoundToggle is now defined earlier with push notification functionality
 
   const handleLogout = () => {
     signOut();
@@ -1932,8 +2030,9 @@ export default function Settings() {
                 </p>
               </div>
               <Switch
-                checked={pushNotifications}
+                checked={pushSubscriptionStatus?.subscribed || false}
                 onCheckedChange={handleNotificationToggle}
+                disabled={subscribeToNotificationsMutation.isPending || unsubscribeFromNotificationsMutation.isPending}
               />
             </div>
 
@@ -1949,6 +2048,28 @@ export default function Settings() {
                 onCheckedChange={handleSoundToggle}
               />
             </div>
+
+            {/* Test Notification Button */}
+            {pushSubscriptionStatus?.subscribed && (
+              <div className="pt-4 border-t border-steel/20">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => testNotificationMutation.mutate()}
+                  disabled={testNotificationMutation.isPending}
+                  className="w-full border-steel/20 text-steel hover:text-white hover:bg-steel/10"
+                >
+                  {testNotificationMutation.isPending ? (
+                    <div className="flex items-center">
+                      <div className="w-3 h-3 border border-t-transparent border-white rounded-full animate-spin mr-2"></div>
+                      Sending...
+                    </div>
+                  ) : (
+                    "Send Test Notification"
+                  )}
+                </Button>
+              </div>
+            )}
           </CardContent>
         </Card>
 
