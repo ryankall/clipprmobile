@@ -105,8 +105,12 @@ export default function ClientProfile() {
       setIsEditing(false);
     },
     onError: (error: any) => {
+      console.error('❌ Client update error:', error);
+      console.error('❌ Error details:', JSON.stringify(error, null, 2));
+      
       // Check if this is a phone verification error
       if (isPhoneVerificationError(error)) {
+        console.log('📱 Phone verification error detected');
         toast({
           title: "Phone Verification Required",
           description: getPhoneVerificationMessage(error),
@@ -122,6 +126,7 @@ export default function ClientProfile() {
         return;
       }
       
+      console.log('💥 Generic error - showing toast');
       toast({
         title: "Error",
         description: error.message || "Failed to update client",
@@ -152,6 +157,20 @@ export default function ClientProfile() {
   });
 
   const handleSave = (data: any) => {
+    console.log('🔄 Client save initiated:', data);
+    console.log('📝 Form state:', form.formState);
+    console.log('🔍 Form errors:', form.formState.errors);
+    
+    if (Object.keys(form.formState.errors).length > 0) {
+      console.error('❌ Form validation errors found:', form.formState.errors);
+      toast({
+        title: "Validation Error",
+        description: "Please fix the form errors before saving",
+        variant: "destructive",
+      });
+      return;
+    }
+    
     updateClientMutation.mutate(data);
   };
 

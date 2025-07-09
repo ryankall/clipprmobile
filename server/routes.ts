@@ -1007,6 +1007,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const clientId = parseInt(req.params.id);
       
       console.log(`📝 Client update request - User ID: ${userId}, Client ID: ${clientId}`);
+      console.log(`📋 Request body:`, JSON.stringify(req.body, null, 2));
       
       // Check if user's phone is verified
       const user = await storage.getUser(userId);
@@ -1024,7 +1025,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       console.log('✅ Phone verified - proceeding with client update');
       const client = await storage.updateClient(clientId, req.body);
-      console.log('✅ Client updated successfully');
+      console.log('✅ Client updated successfully:', JSON.stringify(client, null, 2));
       res.json(client);
     } catch (error: any) {
       console.error('❌ Client update error:', error);
