@@ -1006,9 +1006,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = (req.user as any).id;
       const clientId = parseInt(req.params.id);
       
+      console.log(`📝 Client update request - User ID: ${userId}, Client ID: ${clientId}`);
+      
       // Check if user's phone is verified
       const user = await storage.getUser(userId);
+      console.log(`📱 User phone verification status: ${user?.phone_verified ? 'VERIFIED' : 'NOT VERIFIED'}`);
+      
       if (!user || !user.phone_verified) {
+        console.log('❌ Phone verification required - blocking client update');
         return res.status(403).json({ 
           error: 'Phone verification required',
           message: 'You must verify your phone number before updating client information. Go to Settings > Phone Verification to complete this step.',
@@ -1017,9 +1022,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       
+      console.log('✅ Phone verified - proceeding with client update');
       const client = await storage.updateClient(clientId, req.body);
+      console.log('✅ Client updated successfully');
       res.json(client);
     } catch (error: any) {
+      console.error('❌ Client update error:', error);
       res.status(500).json({ message: error.message });
     }
   });

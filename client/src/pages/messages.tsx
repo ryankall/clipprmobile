@@ -27,6 +27,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
 import { format, formatDistanceToNow } from "date-fns";
+import { isPhoneVerificationError, getPhoneVerificationMessage } from "@/lib/authUtils";
 import type { ClientWithStats } from "@shared/schema";
 
 interface Message {
@@ -146,8 +147,17 @@ export default function Messages() {
             
             // Only update if there are changes
             if (Object.keys(updateData).length > 0) {
-              await apiRequest("PATCH", `/api/clients/${existingClient.id}`, updateData);
-              queryClient.invalidateQueries({ queryKey: ["/api/clients"] });
+              try {
+                await apiRequest("PATCH", `/api/clients/${existingClient.id}`, updateData);
+                queryClient.invalidateQueries({ queryKey: ["/api/clients"] });
+              } catch (clientUpdateError: any) {
+                // Handle phone verification errors silently for automatic updates
+                if (isPhoneVerificationError(clientUpdateError)) {
+                  console.log("Phone verification required for client update, skipping automatic update");
+                  return;
+                }
+                throw clientUpdateError;
+              }
             }
             
             // Mark message as read

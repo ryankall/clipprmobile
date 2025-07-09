@@ -18,6 +18,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { insertClientSchema } from "@shared/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { isPhoneVerificationError, getPhoneVerificationMessage } from "@/lib/authUtils";
 import { z } from "zod";
 import type { Client, AppointmentWithRelations, GalleryPhoto, Message } from "@shared/schema";
 
@@ -104,6 +105,23 @@ export default function ClientProfile() {
       setIsEditing(false);
     },
     onError: (error: any) => {
+      // Check if this is a phone verification error
+      if (isPhoneVerificationError(error)) {
+        toast({
+          title: "Phone Verification Required",
+          description: getPhoneVerificationMessage(error),
+          variant: "destructive",
+          action: {
+            label: "Verify Phone",
+            onClick: () => {
+              setIsEditing(false);
+              navigate('/settings');
+            }
+          }
+        });
+        return;
+      }
+      
       toast({
         title: "Error",
         description: error.message || "Failed to update client",
