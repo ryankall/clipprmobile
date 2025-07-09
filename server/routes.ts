@@ -4,7 +4,7 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { requireAuth, setupAuth } from './auth';
 import multer from 'multer';
-import { insertClientSchema, insertServiceSchema, insertAppointmentSchema, insertInvoiceSchema, insertGalleryPhotoSchema, insertMessageSchema, appointments, reservations } from "@shared/schema";
+import { insertClientSchema, insertServiceSchema, insertAppointmentSchema, insertInvoiceSchema, insertGalleryPhotoSchema, insertMessageSchema, appointments, reservations, rateLimitEntries, blockedClients, bookingRequestLogs, insertBlockedClientSchema } from "@shared/schema";
 import { db } from "./db";
 import { and, eq, sql } from "drizzle-orm";
 import { z } from "zod";
@@ -2844,6 +2844,274 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(pendingReservations);
     } catch (error: any) {
       console.error("Error fetching pending reservations:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Anti-spam protection endpoints
+  
+  // Block a client by phone number
+  app.post("/api/anti-spam/block", requireAuth, async (req, res) => {
+    try {
+      const barberId = (req.user as any).id;
+      const { phoneNumber, reason } = req.body;
+
+      if (!phoneNumber) {
+        return res.status(400).json({ message: "Phone number is required" });
+      }
+
+      // Check if client is already blocked
+      const existingBlock = await db
+        .select()
+        .from(blockedClients)
+        .where(
+          and(
+            eq(blockedClients.barberId, barberId),
+            eq(blockedClients.phoneNumber, phoneNumber)
+          )
+        );
+
+      if (existingBlock.length > 0) {
+        return res.status(409).json({ message: "Client is already blocked" });
+      }
+
+      // Create new block entry
+      await db.insert(blockedClients).values({
+        barberId,
+        phoneNumber,
+        reason: reason || null,
+        blockedAt: new Date()
+      });
+
+      // Log the action
+      await db.insert(bookingRequestLogs).values({
+        barberId,
+        phoneNumber,
+        requestType: 'block_client',
+        allowed: false,
+        errorMessage: `Client blocked by barber. Reason: ${reason || 'No reason provided'}`,
+        createdAt: new Date()
+      });
+
+      res.json({ 
+        success: true, 
+        message: "Client blocked successfully"
+      });
+    } catch (error: any) {
+      console.error("Error blocking client:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Unblock a client by phone number
+  app.post("/api/anti-spam/unblock", requireAuth, async (req, res) => {
+    try {
+      const barberId = (req.user as any).id;
+      const { phoneNumber } = req.body;
+
+      if (!phoneNumber) {
+        return res.status(400).json({ message: "Phone number is required" });
+      }
+
+      // Remove block entry
+      const deletedBlocks = await db
+        .delete(blockedClients)
+        .where(
+          and(
+            eq(blockedClients.barberId, barberId),
+            eq(blockedClients.phoneNumber, phoneNumber)
+          )
+        )
+        .returning();
+
+      if (deletedBlocks.length === 0) {
+        return res.status(404).json({ message: "Client is not blocked" });
+      }
+
+      // Log the action
+      await db.insert(bookingRequestLogs).values({
+        barberId,
+        phoneNumber,
+        requestType: 'unblock_client',
+        allowed: true,
+        errorMessage: `Client unblocked by barber`,
+        createdAt: new Date()
+      });
+
+      res.json({ 
+        success: true, 
+        message: "Client unblocked successfully"
+      });
+    } catch (error: any) {
+      console.error("Error unblocking client:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Get blocked clients for barber
+  app.get("/api/anti-spam/blocked-clients", requireAuth, async (req, res) => {
+    try {
+      const barberId = (req.user as any).id;
+
+      const blockedClientsList = await db
+        .select()
+        .from(blockedClients)
+        .where(eq(blockedClients.barberId, barberId))
+        .orderBy(blockedClients.blockedAt);
+
+      res.json(blockedClientsList);
+    } catch (error: any) {
+      console.error("Error fetching blocked clients:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Process booking request with anti-spam protection
+  app.post("/api/anti-spam/process-booking", async (req, res) => {
+    try {
+      const { barberId, phoneNumber, clientName, selectedDate, selectedTime, services, message } = req.body;
+
+      if (!barberId || !phoneNumber) {
+        return res.status(400).json({ message: "Barber ID and phone number are required" });
+      }
+
+      // Check if client is blocked by this barber
+      const blockedClient = await db
+        .select()
+        .from(blockedClients)
+        .where(
+          and(
+            eq(blockedClients.barberId, parseInt(barberId)),
+            eq(blockedClients.phoneNumber, phoneNumber)
+          )
+        );
+
+      if (blockedClient.length > 0) {
+        // Log blocked request
+        await db.insert(bookingRequestLogs).values({
+          barberId: parseInt(barberId),
+          phoneNumber,
+          clientName: clientName || null,
+          requestType: 'booking_request',
+          allowed: false,
+          errorMessage: 'Client is blocked by barber',
+          createdAt: new Date()
+        });
+
+        return res.status(403).json({ 
+          message: "This barber is not accepting bookings from this number."
+        });
+      }
+
+      // Check rate limiting (3 requests per 24 hours)
+      const now = new Date();
+      const twentyFourHoursAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+
+      const rateLimitEntry = await db
+        .select()
+        .from(rateLimitEntries)
+        .where(eq(rateLimitEntries.phoneNumber, phoneNumber));
+
+      if (rateLimitEntry.length > 0) {
+        const entry = rateLimitEntry[0];
+        const resetTime = new Date(entry.resetAt);
+
+        if (now < resetTime) {
+          // Within rate limit window
+          if (entry.requestCount >= 3) {
+            // Rate limit exceeded
+            await db.insert(bookingRequestLogs).values({
+              barberId: parseInt(barberId),
+              phoneNumber,
+              clientName: clientName || null,
+              requestType: 'booking_request',
+              allowed: false,
+              errorMessage: 'Rate limit exceeded (3 requests per 24 hours)',
+              createdAt: new Date()
+            });
+
+            return res.status(429).json({
+              message: "You've reached your daily limit for booking requests. Please try again tomorrow.",
+              rateLimitInfo: {
+                remainingRequests: 0,
+                resetTime: resetTime
+              }
+            });
+          } else {
+            // Increment request count
+            await db
+              .update(rateLimitEntries)
+              .set({
+                requestCount: entry.requestCount + 1,
+                lastRequestAt: now
+              })
+              .where(eq(rateLimitEntries.phoneNumber, phoneNumber));
+          }
+        } else {
+          // Rate limit window expired, reset
+          await db
+            .update(rateLimitEntries)
+            .set({
+              requestCount: 1,
+              firstRequestAt: now,
+              lastRequestAt: now,
+              resetAt: new Date(now.getTime() + 24 * 60 * 60 * 1000)
+            })
+            .where(eq(rateLimitEntries.phoneNumber, phoneNumber));
+        }
+      } else {
+        // First request for this phone number
+        await db.insert(rateLimitEntries).values({
+          phoneNumber,
+          requestCount: 1,
+          firstRequestAt: now,
+          lastRequestAt: now,
+          resetAt: new Date(now.getTime() + 24 * 60 * 60 * 1000)
+        });
+      }
+
+      // Log successful request
+      await db.insert(bookingRequestLogs).values({
+        barberId: parseInt(barberId),
+        phoneNumber,
+        clientName: clientName || null,
+        requestType: 'booking_request',
+        allowed: true,
+        errorMessage: null,
+        createdAt: new Date()
+      });
+
+      // Continue with normal booking flow
+      // Create message for barber
+      const messageContent = `📅 New booking request from ${clientName || 'Customer'}
+
+📱 Phone: ${phoneNumber}
+📅 Date: ${selectedDate}
+⏰ Time: ${selectedTime}
+💇‍♂️ Services: ${services ? services.join(', ') : 'Not specified'}
+
+${message ? `📝 Message: ${message}` : ''}
+
+Travel required: ${message && message.includes('Travel: Yes') ? 'Yes' : 'No'}`;
+
+      const messageRecord = await storage.createMessage({
+        userId: parseInt(barberId),
+        customerName: clientName || 'Customer',
+        customerPhone: phoneNumber,
+        subject: "New Booking Request",
+        message: messageContent,
+        status: "unread",
+        priority: "normal",
+      });
+
+      res.json({
+        success: true,
+        message: "Booking request sent successfully",
+        messageId: messageRecord.id
+      });
+
+    } catch (error: any) {
+      console.error("Error processing booking request:", error);
       res.status(500).json({ message: error.message });
     }
   });

@@ -20,7 +20,9 @@ import {
   CheckCircle,
   AlertCircle,
   Archive,
-  UserPlus
+  UserPlus,
+  Shield,
+  ShieldOff
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
@@ -56,8 +58,57 @@ export default function Messages() {
     refetchInterval: 10000, // Refresh every 10 seconds
   });
 
+  // Helper function to check if a phone number is blocked
+  const isPhoneBlocked = (phoneNumber: string) => {
+    return blockedClients.some(client => client.phoneNumber === phoneNumber);
+  };
+
   const { data: clients } = useQuery<ClientWithStats[]>({
     queryKey: ["/api/clients"],
+  });
+
+  const { data: blockedClients = [] } = useQuery<any[]>({
+    queryKey: ["/api/anti-spam/blocked-clients"],
+  });
+
+  const blockClientMutation = useMutation({
+    mutationFn: async ({ phoneNumber, reason }: { phoneNumber: string; reason?: string }) => {
+      return await apiRequest("POST", "/api/anti-spam/block", { phoneNumber, reason });
+    },
+    onSuccess: () => {
+      toast({
+        title: "Client Blocked",
+        description: "This phone number has been blocked from sending booking requests.",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/anti-spam/blocked-clients"] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to block client",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const unblockClientMutation = useMutation({
+    mutationFn: async ({ phoneNumber }: { phoneNumber: string }) => {
+      return await apiRequest("POST", "/api/anti-spam/unblock", { phoneNumber });
+    },
+    onSuccess: () => {
+      toast({
+        title: "Client Unblocked",
+        description: "This phone number can now send booking requests again.",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/anti-spam/blocked-clients"] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to unblock client",
+        variant: "destructive",
+      });
+    },
   });
 
   // Update client info when opening a message
@@ -618,6 +669,34 @@ export default function Messages() {
                       <Calendar className="w-4 h-4 mr-2" />
                       Book Appointment
                     </Button>
+
+                    {selectedMessage.customerPhone && (
+                      <>
+                        {isPhoneBlocked(selectedMessage.customerPhone) ? (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => unblockClientMutation.mutate({ phoneNumber: selectedMessage.customerPhone! })}
+                            disabled={unblockClientMutation.isPending}
+                            className="border-green-500/30 text-green-400 hover:bg-green-500/10"
+                          >
+                            <ShieldOff className="w-4 h-4 mr-2" />
+                            Unblock
+                          </Button>
+                        ) : (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => blockClientMutation.mutate({ phoneNumber: selectedMessage.customerPhone!, reason: "Blocked from messages" })}
+                            disabled={blockClientMutation.isPending}
+                            className="border-orange-500/30 text-orange-400 hover:bg-orange-500/10"
+                          >
+                            <Shield className="w-4 h-4 mr-2" />
+                            Block
+                          </Button>
+                        )}
+                      </>
+                    )}
 
                     <Button
                       variant="outline"

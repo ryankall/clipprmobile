@@ -41,6 +41,7 @@ import {
   User,
   Bell,
   Shield,
+  ShieldOff,
   HelpCircle,
   LogOut,
   Edit3,
@@ -187,6 +188,7 @@ export default function Settings() {
   const [isCodeSent, setIsCodeSent] = useState(false);
   const [countdown, setCountdown] = useState(0);
   const [isChangingPassword, setIsChangingPassword] = useState(false);
+  const [activeTab, setActiveTab] = useState("profile");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const addressInputRef = useRef<HTMLInputElement>(null);
   const autocompleteRef = useRef<any>(null);
@@ -206,6 +208,33 @@ export default function Settings() {
   const { data: user, isLoading } = useQuery<User>({
     queryKey: ["/api/user/profile"],
     staleTime: 1000 * 60 * 5, // 5 minutes
+  });
+
+  // Fetch blocked clients
+  const { data: blockedClients = [] } = useQuery<any[]>({
+    queryKey: ["/api/anti-spam/blocked-clients"],
+    staleTime: 1000 * 60 * 2, // 2 minutes
+  });
+
+  // Unblock client mutation
+  const unblockClientMutation = useMutation({
+    mutationFn: async ({ phoneNumber }: { phoneNumber: string }) => {
+      return await apiRequest("POST", "/api/anti-spam/unblock", { phoneNumber });
+    },
+    onSuccess: () => {
+      toast({
+        title: "Client Unblocked",
+        description: "This phone number can now send booking requests again.",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/anti-spam/blocked-clients"] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to unblock client",
+        variant: "destructive",
+      });
+    },
   });
 
   // Profile update mutation
@@ -1011,11 +1040,38 @@ export default function Settings() {
             <h1 className="text-xl font-bold text-white">Settings</h1>
           </div>
         </div>
+        
+        {/* Tab Navigation */}
+        <div className="flex space-x-1 mt-4">
+          <button
+            onClick={() => setActiveTab("profile")}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+              activeTab === "profile"
+                ? "bg-gold text-charcoal"
+                : "text-steel hover:text-white hover:bg-steel/20"
+            }`}
+          >
+            Profile
+          </button>
+          <button
+            onClick={() => setActiveTab("blocked")}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+              activeTab === "blocked"
+                ? "bg-gold text-charcoal"
+                : "text-steel hover:text-white hover:bg-steel/20"
+            }`}
+          >
+            Blocked Clients
+          </button>
+        </div>
       </header>
 
       <main className="p-4 space-y-6">
-        {/* Profile Settings */}
-        <Card className="bg-dark-card border-steel/20">
+        {/* Profile Tab */}
+        {activeTab === "profile" && (
+          <>
+            {/* Profile Settings */}
+            <Card className="bg-dark-card border-steel/20">
           <CardHeader>
             <div className="flex items-center justify-between">
               <CardTitle className="text-white flex items-center">
@@ -2305,84 +2361,146 @@ export default function Settings() {
           </CardContent>
         </Card>
 
-        {/* Phone Verification Dialog */}
-        <Dialog open={isVerifyingPhone} onOpenChange={setIsVerifyingPhone}>
-          <DialogContent className="bg-dark-card border-steel/20">
-            <DialogHeader>
-              <DialogTitle className="text-white">
-                Verify Phone Number
-              </DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4">
-              <div className="text-sm text-steel">
-                We'll send a verification code to:{" "}
-                <span className="text-white font-medium">{user?.phone}</span>
-              </div>
-
-              {!isCodeSent ? (
-                <Button
-                  onClick={() => sendVerificationCodeMutation.mutate()}
-                  disabled={sendVerificationCodeMutation.isPending}
-                  className="w-full bg-gold hover:bg-gold/90 text-charcoal"
-                >
-                  {sendVerificationCodeMutation.isPending
-                    ? "Sending..."
-                    : "Send Verification Code"}
-                </Button>
-              ) : (
+            {/* Phone Verification Dialog */}
+            <Dialog open={isVerifyingPhone} onOpenChange={setIsVerifyingPhone}>
+              <DialogContent className="bg-dark-card border-steel/20">
+                <DialogHeader>
+                  <DialogTitle className="text-white">
+                    Verify Phone Number
+                  </DialogTitle>
+                </DialogHeader>
                 <div className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="verification-code" className="text-white">
-                      Enter Verification Code
-                    </Label>
-                    <Input
-                      id="verification-code"
-                      type="text"
-                      placeholder="Enter 6-digit code"
-                      value={verificationCode}
-                      onChange={(e) => setVerificationCode(e.target.value)}
-                      className="bg-charcoal border-steel/40 text-white"
-                      maxLength={6}
-                    />
+                  <div className="text-sm text-steel">
+                    We'll send a verification code to:{" "}
+                    <span className="text-white font-medium">{user?.phone}</span>
                   </div>
 
-                  <Button
-                    onClick={() =>
-                      verifyPhoneCodeMutation.mutate(verificationCode)
-                    }
-                    disabled={
-                      verifyPhoneCodeMutation.isPending ||
-                      verificationCode.length !== 6
-                    }
-                    className="w-full bg-gold hover:bg-gold/90 text-charcoal"
-                  >
-                    {verifyPhoneCodeMutation.isPending
-                      ? "Verifying..."
-                      : "Verify Code"}
-                  </Button>
+                  {!isCodeSent ? (
+                    <Button
+                      onClick={() => sendVerificationCodeMutation.mutate()}
+                      disabled={sendVerificationCodeMutation.isPending}
+                      className="w-full bg-gold hover:bg-gold/90 text-charcoal"
+                    >
+                      {sendVerificationCodeMutation.isPending
+                        ? "Sending..."
+                        : "Send Verification Code"}
+                    </Button>
+                  ) : (
+                    <div className="space-y-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="verification-code" className="text-white">
+                          Enter Verification Code
+                        </Label>
+                        <Input
+                          id="verification-code"
+                          type="text"
+                          placeholder="Enter 6-digit code"
+                          value={verificationCode}
+                          onChange={(e) => setVerificationCode(e.target.value)}
+                          className="bg-charcoal border-steel/40 text-white"
+                          maxLength={6}
+                        />
+                      </div>
 
-                  <div className="flex justify-center">
-                    {countdown > 0 ? (
-                      <span className="text-sm text-steel">
-                        Resend code in {countdown}s
-                      </span>
-                    ) : (
                       <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => sendVerificationCodeMutation.mutate()}
-                        disabled={sendVerificationCodeMutation.isPending}
-                        className="text-gold hover:bg-gold/10"
+                        onClick={() =>
+                          verifyPhoneCodeMutation.mutate(verificationCode)
+                        }
+                        disabled={
+                          verifyPhoneCodeMutation.isPending ||
+                          verificationCode.length !== 6
+                        }
+                        className="w-full bg-gold hover:bg-gold/90 text-charcoal"
                       >
-                        Resend Code
+                        {verifyPhoneCodeMutation.isPending
+                          ? "Verifying..."
+                          : "Verify Code"}
                       </Button>
-                    )}
+
+                      <div className="flex justify-center">
+                        {countdown > 0 ? (
+                          <span className="text-sm text-steel">
+                            Resend code in {countdown}s
+                          </span>
+                        ) : (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => sendVerificationCodeMutation.mutate()}
+                            disabled={sendVerificationCodeMutation.isPending}
+                            className="text-gold hover:bg-gold/10"
+                          >
+                            Resend Code
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </DialogContent>
+            </Dialog>
+          </>
+        )}
+
+        {/* Blocked Clients Tab */}
+        {activeTab === "blocked" && (
+          <Card className="bg-dark-card border-steel/20">
+            <CardHeader>
+              <CardTitle className="text-white flex items-center">
+                <Shield className="w-5 h-5 mr-2" />
+                Blocked Clients
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {blockedClients.length === 0 ? (
+                <div className="text-center py-8">
+                  <div className="w-16 h-16 bg-green-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <Shield className="w-8 h-8 text-green-400" />
                   </div>
+                  <h3 className="text-white font-medium mb-2">No Blocked Clients</h3>
+                  <p className="text-steel text-sm">
+                    You haven't blocked any clients yet. When you block a client, they will appear here.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {blockedClients.map((client) => (
+                    <div key={client.id} className="bg-charcoal p-4 rounded-lg border border-steel/20">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-3">
+                          <div className="w-10 h-10 bg-red-500/20 rounded-full flex items-center justify-center">
+                            <Shield className="w-5 h-5 text-red-400" />
+                          </div>
+                          <div>
+                            <div className="text-white font-medium">{client.phoneNumber}</div>
+                            <div className="text-steel text-sm">
+                              Blocked {new Date(client.blockedAt).toLocaleDateString()}
+                            </div>
+                            {client.reason && (
+                              <div className="text-steel text-xs mt-1">
+                                Reason: {client.reason}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => unblockClientMutation.mutate({ phoneNumber: client.phoneNumber })}
+                          disabled={unblockClientMutation.isPending}
+                          className="border-green-500/30 text-green-400 hover:bg-green-500/10"
+                        >
+                          <ShieldOff className="w-4 h-4 mr-2" />
+                          Unblock
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               )}
-            </div>
-          </DialogContent>
-        </Dialog>
+            </CardContent>
+          </Card>
+        )}
       </main>
 
       <BottomNavigation currentPath={location} />
