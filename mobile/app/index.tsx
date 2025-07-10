@@ -1,31 +1,31 @@
 import React from 'react';
-import { View, Text, TouchableOpacity } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Link } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function Welcome() {
   return (
-    <SafeAreaView className="flex-1 bg-background">
-      <View className="flex-1 justify-center items-center px-6">
-        <Text className="text-4xl font-bold text-foreground mb-2">
+    <SafeAreaView style={styles.container}>
+      <View style={styles.content}>
+        <Text style={styles.title}>
           Welcome to Clippr
         </Text>
-        <Text className="text-lg text-muted-foreground text-center mb-8">
+        <Text style={styles.subtitle}>
           Simplifying the business side of your style game
         </Text>
         
-        <View className="w-full space-y-4">
+        <View style={styles.buttonContainer}>
           <Link href="/auth" asChild>
-            <TouchableOpacity className="bg-primary px-6 py-4 rounded-lg">
-              <Text className="text-primary-foreground text-center font-semibold text-lg">
+            <TouchableOpacity style={styles.primaryButton}>
+              <Text style={styles.primaryButtonText}>
                 Get Started
               </Text>
             </TouchableOpacity>
           </Link>
           
           <Link href="/(tabs)" asChild>
-            <TouchableOpacity className="border border-border px-6 py-4 rounded-lg">
-              <Text className="text-foreground text-center font-semibold text-lg">
+            <TouchableOpacity style={styles.secondaryButton}>
+              <Text style={styles.secondaryButtonText}>
                 Continue as Guest
               </Text>
             </TouchableOpacity>
@@ -35,3 +35,58 @@ export default function Welcome() {
     </SafeAreaView>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#0F0F0F',
+  },
+  content: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 24,
+  },
+  title: {
+    fontSize: 36,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  subtitle: {
+    fontSize: 18,
+    color: '#9CA3AF',
+    textAlign: 'center',
+    marginBottom: 32,
+  },
+  buttonContainer: {
+    width: '100%',
+    gap: 16,
+  },
+  primaryButton: {
+    backgroundColor: '#22C55E',
+    paddingHorizontal: 24,
+    paddingVertical: 16,
+    borderRadius: 8,
+  },
+  primaryButtonText: {
+    color: '#FFFFFF',
+    textAlign: 'center',
+    fontWeight: '600',
+    fontSize: 18,
+  },
+  secondaryButton: {
+    borderWidth: 1,
+    borderColor: '#374151',
+    paddingHorizontal: 24,
+    paddingVertical: 16,
+    borderRadius: 8,
+  },
+  secondaryButtonText: {
+    color: '#FFFFFF',
+    textAlign: 'center',
+    fontWeight: '600',
+    fontSize: 18,
+  },
+});

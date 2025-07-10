@@ -27,13 +27,21 @@ npm install
 npm start
 
 # Or run directly:
-npx expo start
+npx expo start --localhost
 ```
 
-### 4. Run on Device/Simulator
+### 4. Testing Your App
+The development server will show a QR code that you can scan with:
+- **iOS**: Camera app (built-in QR scanner)
+- **Android**: Expo Go app (download from Play Store)
+- **Web Browser**: Press 'w' to open in browser at localhost:8081
+
+### 5. Run on Device/Simulator
+When the development server is running, you can:
 - **Physical Device**: Install Expo Go app and scan the QR code
 - **iOS Simulator**: Press `i` in the terminal
 - **Android Simulator**: Press `a` in the terminal
+- **Web Browser**: Press `w` to test the web version
 
 ## 📱 App Features
 
