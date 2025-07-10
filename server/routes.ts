@@ -449,7 +449,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Check if user's phone is verified
       const user = await storage.getUser(userId);
-      if (!user || !user.phone_verified) {
+      if (!user || !user.phoneVerified) {
         return res.status(403).json({ 
           error: 'Phone verification required',
           message: 'Please verify your phone number first. This keeps your appointments secure.',
