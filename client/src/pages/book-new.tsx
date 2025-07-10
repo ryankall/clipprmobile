@@ -233,8 +233,8 @@ export default function EnhancedBookingPage() {
 
   if (!barber) {
     return (
-      <div className="min-h-screen bg-dark-bg flex items-center justify-center">
-        <Card className="bg-dark-card border-steel/20 p-8 text-center">
+      <div className="min-h-screen bg-dark-bg flex items-center justify-center p-3 sm:p-4">
+        <Card className="bg-dark-card border-steel/20 p-6 sm:p-8 text-center max-w-md w-full">
           <h1 className="text-xl font-bold text-white mb-4">Barber not found</h1>
           <p className="text-steel">The booking link you're looking for doesn't exist.</p>
         </Card>
@@ -244,7 +244,7 @@ export default function EnhancedBookingPage() {
 
   if (isSubmitted) {
     return (
-      <div className="min-h-screen bg-dark-bg flex items-center justify-center p-4">
+      <div className="min-h-screen bg-dark-bg flex items-center justify-center p-3 sm:p-4">
         <Card className="bg-dark-card border-steel/20 max-w-md w-full text-center">
           <CardContent className="p-8">
             <CheckCircle className="w-16 h-16 text-gold mx-auto mb-4" />
@@ -289,7 +289,7 @@ export default function EnhancedBookingPage() {
         </div>
       </header>
 
-      <main className="max-w-md mx-auto p-4 space-y-6">
+      <main className="max-w-md mx-auto p-3 sm:p-4 space-y-4 sm:space-y-6">
         {/* Step Navigation */}
         <div className="flex justify-center space-x-2 py-4">
           {[1, 2, 3, 4, 5, 6].map((step) => (

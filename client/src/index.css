@@ -259,11 +259,13 @@
 }
 
 /* Hide scrollbar for modal dialogs while keeping scroll functionality */
-[data-radix-dialog-content]::-webkit-scrollbar {
+[data-radix-dialog-content]::-webkit-scrollbar,
+[data-radix-alert-dialog-content]::-webkit-scrollbar {
   display: none;
 }
 
-[data-radix-dialog-content] {
+[data-radix-dialog-content],
+[data-radix-alert-dialog-content] {
   -ms-overflow-style: none;  /* Internet Explorer 10+ */
   scrollbar-width: none;  /* Firefox */
 }
@@ -288,13 +290,47 @@
   display: none;
 }
 
+/* Mobile-first modal responsiveness */
+@media (max-width: 640px) {
+  [data-radix-dialog-content],
+  [data-radix-alert-dialog-content] {
+    width: calc(100vw - 1rem) !important;
+    max-width: none !important;
+    margin: 0.5rem !important;
+    max-height: 90vh !important;
+    overflow-y: auto !important;
+    padding: 1rem !important;
+  }
+  
+  /* Ensure book-new page is mobile friendly */
+  .book-new-container {
+    padding: 0.75rem !important;
+  }
+  
+  /* Make cards more compact on mobile */
+  .mobile-card {
+    padding: 1rem !important;
+  }
+  
+  /* Reduce button sizes on very small screens */
+  @media (max-width: 400px) {
+    button {
+      padding-top: 0.5rem !important;
+      padding-bottom: 0.5rem !important;
+      font-size: 0.875rem !important;
+    }
+  }
+}
+
 /* Specific targeting for the dialog content with overflow */
 [data-radix-dialog-content].overflow-y-auto::-webkit-scrollbar,
+[data-radix-alert-dialog-content].overflow-y-auto::-webkit-scrollbar,
 .bg-dark-card.overflow-y-auto::-webkit-scrollbar {
   display: none;
 }
 
 [data-radix-dialog-content].overflow-y-auto,
+[data-radix-alert-dialog-content].overflow-y-auto,
 .bg-dark-card.overflow-y-auto {
   -ms-overflow-style: none;
   scrollbar-width: none;
