@@ -69,11 +69,11 @@ describe("Client Save Error Investigation", () => {
       }
 
       // Simulate validation errors
-      if (updates.name && updates.name.trim().length === 0) {
+      if (updates.hasOwnProperty('name') && (!updates.name || updates.name.trim().length === 0)) {
         throw new Error("Name is required");
       }
       
-      if (updates.phone && updates.phone.trim().length === 0) {
+      if (updates.hasOwnProperty('phone') && (!updates.phone || updates.phone.trim().length === 0)) {
         throw new Error("Phone is required");
       }
 
