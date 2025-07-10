@@ -1016,9 +1016,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Check if user's phone is verified
       const user = await storage.getUser(userId);
-      console.log(`📱 User phone verification status: ${user?.phone_verified ? 'VERIFIED' : 'NOT VERIFIED'}`);
+      console.log(`📱 User phone verification status: ${user?.phoneVerified ? 'VERIFIED' : 'NOT VERIFIED'}`);
       
-      if (!user || !user.phone_verified) {
+      if (!user || !user.phoneVerified) {
         console.log('❌ Phone verification required - blocking client update');
         return res.status(403).json({ 
           error: 'Phone verification required',
