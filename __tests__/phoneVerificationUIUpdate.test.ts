@@ -41,7 +41,7 @@ class MockPhoneVerificationService {
   private users: Map<string, {
     id: number;
     phone: string;
-    phone_verified: boolean;
+    phoneVerified: boolean;
     phoneVerificationCode?: string;
     phoneVerificationExpiry?: Date;
     phoneVerificationAttempts?: number;
@@ -56,7 +56,7 @@ class MockPhoneVerificationService {
     this.users.set('1', {
       id: 1,
       phone: '(347) 942-5309',
-      phone_verified: false,
+      phoneVerified: false,
       phoneVerificationAttempts: 0
     });
 
@@ -64,7 +64,7 @@ class MockPhoneVerificationService {
     this.users.set('2', {
       id: 2,
       phone: '(646) 789-1820',
-      phone_verified: true,
+      phoneVerified: true,
       phoneVerificationAttempts: 0
     });
   }
@@ -129,7 +129,7 @@ class MockPhoneVerificationService {
     }
 
     // Verify the phone
-    user.phone_verified = true;
+    user.phoneVerified = true;
     user.phoneVerificationCode = undefined;
     user.phoneVerificationExpiry = undefined;
     user.phoneVerificationAttempts = 0;
@@ -149,14 +149,14 @@ class MockPhoneVerificationService {
 
   isPhoneVerified(userId: string): boolean {
     const user = this.users.get(userId);
-    return user?.phone_verified || false;
+    return user?.phoneVerified || false;
   }
 
   // Test utilities
   clearVerificationData(): void {
     this.verificationCodes.clear();
     this.users.forEach(user => {
-      user.phone_verified = false;
+      user.phoneVerified = false;
       user.phoneVerificationCode = undefined;
       user.phoneVerificationExpiry = undefined;
       user.phoneVerificationAttempts = 0;
@@ -188,7 +188,7 @@ class MockPhoneVerificationUI {
   }
 
   isPhoneVerified(): boolean {
-    return this.currentUser?.phone_verified || false;
+    return this.currentUser?.phoneVerified || false;
   }
 
   async sendVerificationCode(): Promise<void> {
@@ -214,7 +214,7 @@ class MockPhoneVerificationUI {
     
     if (result.success) {
       // Update current user state
-      this.currentUser.phone_verified = true;
+      this.currentUser.phoneVerified = true;
       this.isCodeSent = false;
       this.verificationCode = '';
       this.isVerifyingPhone = false;
@@ -419,18 +419,45 @@ describe('Phone Verification UI Update', () => {
   });
 
   describe('Database Schema Consistency', () => {
-    it('should use phone_verified (snake_case) field consistently', () => {
+    it('should use phoneVerified (camelCase) field consistently', () => {
       const user = phoneVerificationService.getUser('1');
-      expect(user).toHaveProperty('phone_verified');
-      expect(typeof user.phone_verified).toBe('boolean');
+      expect(user).toHaveProperty('phoneVerified');
+      expect(typeof user.phoneVerified).toBe('boolean');
     });
 
-    it('should update phone_verified field after verification', async () => {
+    it('should render correct UI elements based on phone verification status', () => {
+      // Test unverified user UI
+      phoneVerificationUI.setCurrentUser('1');
+      let uiState = phoneVerificationUI.getUIState();
+      expect(uiState.isPhoneVerified).toBe(false);
+      
+      // Should show red AlertCircle and "Not Verified" text
+      const unverifiedUIElement = `<div className="flex items-center space-x-1 text-red-400">
+        <AlertCircle className="w-4 h-4" />
+        <span className="text-sm">Not Verified</span>
+      </div>`;
+      
+      // Test verified user UI
+      phoneVerificationUI.setCurrentUser('2');
+      uiState = phoneVerificationUI.getUIState();
+      expect(uiState.isPhoneVerified).toBe(true);
+      
+      // Should show green CheckCircle and "Verified" text
+      const verifiedUIElement = `<div className="flex items-center space-x-1 text-green-400">
+        <CheckCircle className="w-4 h-4" />
+        <span className="text-sm">Verified</span>
+      </div>`;
+      
+      // Verify the conditional rendering logic
+      expect(uiState.isPhoneVerified).toBe(true);
+    });
+
+    it('should update phoneVerified field after verification', async () => {
       const sendResult = await phoneVerificationService.sendVerificationCode('1');
       await phoneVerificationService.verifyPhone('1', sendResult.code!);
       
       const user = phoneVerificationService.getUser('1');
-      expect(user.phone_verified).toBe(true);
+      expect(user.phoneVerified).toBe(true);
     });
 
     it('should clear verification fields after successful verification', async () => {

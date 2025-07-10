@@ -256,7 +256,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Verify the phone number
       await storage.updateUser(userId, {
-        phone_verified: true,
+        phoneVerified: true,
         phoneVerificationCode: null,
         phoneVerificationExpiry: null,
         phoneVerificationAttempts: 0,
