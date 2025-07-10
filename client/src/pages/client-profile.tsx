@@ -128,14 +128,12 @@ export default function ClientProfile() {
           title: "Phone Verification Required",
           description: getPhoneVerificationMessage(error),
           variant: "destructive",
-          action: {
-            label: "Verify Phone",
-            onClick: () => {
-              setIsEditing(false);
-              navigate('/settings');
-            }
-          }
         });
+        // Navigate to settings after a delay
+        setTimeout(() => {
+          setIsEditing(false);
+          navigate('/settings');
+        }, 2000);
         return;
       }
       

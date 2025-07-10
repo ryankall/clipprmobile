@@ -304,13 +304,11 @@ export default function AppointmentNew() {
           title: "Phone Verification Required",
           description: getPhoneVerificationMessage(error),
           variant: "destructive",
-          action: {
-            label: "Verify Phone",
-            onClick: () => {
-              navigate('/settings');
-            }
-          }
         });
+        // Navigate to settings after showing the message
+        setTimeout(() => {
+          navigate('/settings');
+        }, 2000);
         return;
       }
       

@@ -1001,7 +1001,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch("/api/clients/:id", requireAuth, async (req, res) => {
+  app.put("/api/clients/:id", requireAuth, async (req, res) => {
     try {
       const userId = (req.user as any).id;
       const clientId = parseInt(req.params.id);
@@ -1025,6 +1025,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       console.log('✅ Phone verified - proceeding with client update');
       const client = await storage.updateClient(clientId, req.body);
+      
+      if (!client) {
+        console.log('❌ Client not found after update');
+        return res.status(404).json({ message: "Client not found" });
+      }
+      
       console.log('✅ Client updated successfully:', JSON.stringify(client, null, 2));
       res.json(client);
     } catch (error: any) {
