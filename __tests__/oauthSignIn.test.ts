@@ -225,8 +225,11 @@ class MockOAuthService {
   }
 
   generateToken(userId: number): string {
-    // Simple token generation for testing
-    return `jwt_token_${userId}_${Date.now()}`;
+    // Simple token generation for testing with high precision timestamp and randomness
+    const timestamp = Date.now();
+    const random = Math.random().toString(36).substring(2, 15);
+    const nanoTime = process.hrtime.bigint();
+    return `jwt_token_${userId}_${timestamp}_${random}_${nanoTime}`;
   }
 
   async handleGoogleSignIn(profile: GoogleProfile, tokens: OAuthTokens): Promise<AuthResult> {
@@ -820,13 +823,14 @@ describe('OAuth Sign-In System Tests', () => {
 
     it('should generate tokens with timestamp for uniqueness', async () => {
       const token1 = oauthService.generateToken(1);
-      
-      // Small delay to ensure different timestamp
-      await new Promise(resolve => setTimeout(resolve, 1));
-      
       const token2 = oauthService.generateToken(1);
       
       expect(token1).not.toBe(token2);
+      expect(token1).toContain('jwt_token_1');
+      expect(token2).toContain('jwt_token_1');
+      // Tokens should be different even when generated immediately
+      expect(token1.length).toBeGreaterThan(20);
+      expect(token2.length).toBeGreaterThan(20);
     });
   });
 
