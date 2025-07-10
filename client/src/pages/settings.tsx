@@ -165,6 +165,7 @@ interface User {
   email?: string | null;
   businessName?: string | null;
   phone?: string | null;
+  phone_verified?: boolean;
   address?: string | null;
   photoUrl?: string | null;
   serviceArea?: string | null;
