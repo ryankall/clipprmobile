@@ -210,11 +210,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // For now, log the code for development
       console.log(`📱 SMS Verification Code for ${user.phone}: ${verificationCode}`);
 
+      // In development, always return the code for testing
       res.json({ 
         success: true, 
         message: 'Verification code sent',
-        // In development, return the code for testing
-        ...(process.env.NODE_ENV === 'development' && { code: verificationCode })
+        // Show the code in development for testing
+        ...(process.env.NODE_ENV === 'development' && { code: verificationCode }),
+        // Show helpful message for users
+        developerNote: process.env.NODE_ENV === 'development' 
+          ? `Development mode: Use code ${verificationCode} to verify your phone`
+          : undefined
       });
     } catch (error) {
       console.error('Send verification code error:', error);
@@ -447,7 +452,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!user || !user.phone_verified) {
         return res.status(403).json({ 
           error: 'Phone verification required',
-          message: 'You must verify your phone number before creating appointments. Go to Settings > Phone Verification to complete this step.',
+          message: 'Please verify your phone number first. This keeps your appointments secure.',
           action: 'verify_phone',
           redirectTo: '/settings'
         });
@@ -1017,7 +1022,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.log('❌ Phone verification required - blocking client update');
         return res.status(403).json({ 
           error: 'Phone verification required',
-          message: 'You must verify your phone number before updating client information. Go to Settings > Phone Verification to complete this step.',
+          message: 'Please verify your phone number first. This keeps your client information secure.',
           action: 'verify_phone',
           redirectTo: '/settings'
         });

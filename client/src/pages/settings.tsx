@@ -534,12 +534,18 @@ export default function Settings() {
     mutationFn: async () => {
       return await apiRequest("POST", "/api/auth/send-verification-code");
     },
-    onSuccess: () => {
+    onSuccess: (data: any) => {
       setIsCodeSent(true);
       setCountdown(60);
+      
+      // Show development code in toast for testing
+      const description = data?.developerNote 
+        ? `Development mode: ${data.developerNote}`
+        : "Please check your phone for the verification code.";
+      
       toast({
         title: "Verification Code Sent",
-        description: "Please check your phone for the verification code.",
+        description: description,
       });
     },
     onError: (error: any) => {

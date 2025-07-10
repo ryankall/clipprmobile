@@ -10,6 +10,19 @@ export function isPhoneVerificationError(error: any): boolean {
 
 export function getPhoneVerificationMessage(error: any): string {
   if (error?.message) {
+    // Try to parse JSON from error message if it contains JSON
+    if (error.message.includes('{"error":')) {
+      try {
+        const jsonStart = error.message.indexOf('{');
+        const jsonStr = error.message.substring(jsonStart);
+        const parsed = JSON.parse(jsonStr);
+        if (parsed.message) {
+          return parsed.message;
+        }
+      } catch (e) {
+        // If JSON parsing fails, return the original message
+      }
+    }
     return error.message;
   }
   return 'You must verify your phone number before proceeding. Go to Settings > Phone Verification to complete this step.';
