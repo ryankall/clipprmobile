@@ -238,7 +238,7 @@ export default function MobileApp() {
 
     const generateMobileTimeSlots = () => {
       const slots = [];
-      const dayName = calendarDate.toLocaleDateString('en-US', { weekday: 'lowercase' });
+      const dayName = calendarDate.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
       const dayHours = workingHours[dayName as keyof typeof workingHours] || workingHours.monday;
       
       for (let hour = 8; hour <= 22; hour++) {
@@ -268,89 +268,86 @@ export default function MobileApp() {
         {/* Calendar Header */}
         <div className="flex items-center justify-between">
           <h2 className="text-xl font-bold text-white">Calendar</h2>
-          <Link href="/calendar-new">
-            <Button variant="outline" className="bg-gray-800 text-white border-gray-600 hover:bg-gray-700">
-              Full Calendar
-            </Button>
-          </Link>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setIsWorkingHoursOpen(true)}
+            className="bg-gray-800 text-white border-gray-600 hover:bg-gray-700"
+          >
+            <Clock className="w-4 h-4 mr-2" />
+            Hours
+          </Button>
         </div>
 
-        {/* Date Navigation */}
+        {/* Calendar Controls */}
         <Card className="bg-gray-800 border-gray-700">
           <CardContent className="p-4">
             <div className="flex items-center justify-between mb-4">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setCalendarDate(new Date(calendarDate.getTime() - 24 * 60 * 60 * 1000))}
-                className="text-gray-400 hover:text-white"
-              >
-                <ArrowLeft className="w-4 h-4" />
-              </Button>
-              <div className="text-center">
-                <p className="font-semibold text-white">
+              <div className="flex items-center space-x-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCalendarDate(new Date(calendarDate.getTime() - 24 * 60 * 60 * 1000))}
+                  className="bg-gray-700 text-white border-gray-600 hover:bg-gray-600"
+                >
+                  <ArrowLeft className="w-4 h-4" />
+                </Button>
+                <h3 className="text-lg font-semibold text-white">
                   {calendarDate.toLocaleDateString('en-US', { 
                     weekday: 'long', 
                     month: 'long', 
                     day: 'numeric' 
                   })}
-                </p>
-                <p className="text-sm text-gray-400">
-                  {appointmentCounts.confirmed + appointmentCounts.pending} appointments
-                </p>
+                </h3>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCalendarDate(new Date(calendarDate.getTime() + 24 * 60 * 60 * 1000))}
+                  className="bg-gray-700 text-white border-gray-600 hover:bg-gray-600"
+                >
+                  <ArrowLeft className="w-4 h-4 rotate-180" />
+                </Button>
               </div>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setCalendarDate(new Date(calendarDate.getTime() + 24 * 60 * 60 * 1000))}
-                className="text-gray-400 hover:text-white"
-              >
-                <ArrowLeft className="w-4 h-4 rotate-180" />
-              </Button>
+              <div className="flex items-center space-x-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowExpired(!showExpired)}
+                  className="bg-gray-700 text-white border-gray-600 hover:bg-gray-600"
+                >
+                  {showExpired ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </Button>
+                <Link href="/appointments/new">
+                  <Button size="sm" className="bg-amber-500 hover:bg-amber-600 text-gray-900">
+                    <Plus className="w-4 h-4 mr-1" />
+                    Add
+                  </Button>
+                </Link>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap gap-2">
+              <Badge className="bg-green-500 text-white">
+                {appointmentCounts.confirmed} Confirmed
+              </Badge>
+              <Badge className="bg-yellow-500 text-gray-900">
+                {appointmentCounts.pending} Pending
+              </Badge>
+              {showExpired && (
+                <>
+                  <Badge className="bg-red-500 text-white">
+                    {appointmentCounts.expired} Expired
+                  </Badge>
+                  <Badge className="bg-gray-500 text-white">
+                    {appointmentCounts.cancelled} Cancelled
+                  </Badge>
+                </>
+              )}
             </div>
           </CardContent>
         </Card>
 
-        {/* Status Summary */}
-        {(appointmentCounts.confirmed + appointmentCounts.pending + appointmentCounts.expired + appointmentCounts.cancelled) > 0 && (
-          <Card className="bg-gray-800 border-gray-700">
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="font-semibold text-white">Status Summary</h3>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setShowExpired(!showExpired)}
-                  className="text-gray-400 hover:text-white"
-                >
-                  {showExpired ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                </Button>
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                {appointmentCounts.confirmed > 0 && (
-                  <Badge className="bg-green-500 text-white justify-center">
-                    {appointmentCounts.confirmed} Confirmed
-                  </Badge>
-                )}
-                {appointmentCounts.pending > 0 && (
-                  <Badge className="bg-yellow-500 text-gray-900 justify-center">
-                    {appointmentCounts.pending} Pending
-                  </Badge>
-                )}
-                {appointmentCounts.expired > 0 && (
-                  <Badge className="bg-red-500 text-white justify-center">
-                    {appointmentCounts.expired} Expired
-                  </Badge>
-                )}
-                {appointmentCounts.cancelled > 0 && (
-                  <Badge className="bg-gray-500 text-white justify-center">
-                    {appointmentCounts.cancelled} Cancelled
-                  </Badge>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        )}
+
 
         {/* Timeline View */}
         <Card className="bg-gray-800 border-gray-700">
