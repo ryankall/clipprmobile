@@ -11,6 +11,7 @@ import { AppointmentPreview } from "@/components/appointment-preview-simple";
 import { AppointmentDetailsDialog } from "@/components/appointment-details-dialog";
 import { PendingAppointments } from "@/components/pending-appointments";
 import { WorkingHoursDialog } from "@/components/working-hours-dialog";
+import { TimelineCalendar } from "@/components/timeline-calendar";
 import { Link, useLocation } from "wouter";
 import { 
   Home, 
@@ -55,6 +56,12 @@ export default function MobileApp() {
   const [viewMode, setViewMode] = useState<'timeline' | 'list'>('timeline');
   const [showExpired, setShowExpired] = useState(false);
   const [isWorkingHoursOpen, setIsWorkingHoursOpen] = useState(false);
+
+  // Calendar appointments query
+  const { data: appointments, isLoading: appointmentsLoading } = useQuery<AppointmentWithRelations[]>({
+    queryKey: ["/api/appointments"],
+    enabled: activeTab === 'calendar',
+  });
   const [showWorkingHours, setShowWorkingHours] = useState(false);
 
   // Close notifications when clicking outside
@@ -76,7 +83,7 @@ export default function MobileApp() {
     enabled: isAuthenticated,
   });
 
-  const { data: todayAppointments, isLoading: appointmentsLoading } = useQuery<AppointmentWithRelations[]>({
+  const { data: todayAppointments, isLoading: todayAppointmentsLoading } = useQuery<AppointmentWithRelations[]>({
     queryKey: ["/api/appointments/today"],
     enabled: isAuthenticated,
   });
@@ -196,7 +203,7 @@ export default function MobileApp() {
   ) || [];
 
   // Mobile Calendar Queries
-  const { data: calendarAppointments, isLoading: calendarLoading } = useQuery<AppointmentWithRelations[]>({
+  const { data: calendarAppointments, isLoading: calendarLoadingState } = useQuery<AppointmentWithRelations[]>({
     queryKey: ["/api/appointments", calendarDate.toISOString().split('T')[0]],
     enabled: activeTab === 'calendar',
   });
@@ -421,7 +428,7 @@ export default function MobileApp() {
         {viewMode === 'timeline' && (
           <Card className="bg-gray-800 border-gray-700">
             <CardContent className="p-4">
-              {calendarLoading ? (
+              {calendarLoadingState ? (
                 <div className="flex justify-center py-8">
                   <div className="animate-spin w-6 h-6 border-2 border-amber-500 border-t-transparent rounded-full" />
                 </div>
@@ -465,7 +472,7 @@ export default function MobileApp() {
                                       {appointment.client?.name || 'Unknown Client'}
                                     </div>
                                     <div className="text-xs opacity-75 mt-1">
-                                      {appointment.services || 'No services'} • {appointment.duration}min
+                                      {appointment.service?.name || 'No service'} • {appointment.duration}min
                                     </div>
                                   </div>
                                   <div className="text-xs">
@@ -559,11 +566,8 @@ export default function MobileApp() {
         {/* Working Hours Dialog */}
         <WorkingHoursDialog
           open={isWorkingHoursOpen}
-          onOpenChange={setIsWorkingHoursOpen}
-          workingHours={workingHours}
-          onSave={(hours) => {
-            setIsWorkingHoursOpen(false);
-          }}
+          onClose={() => setIsWorkingHoursOpen(false)}
+          currentHours={workingHours}
         />
 
         {/* Appointment Details Dialog */}
