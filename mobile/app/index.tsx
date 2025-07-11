@@ -39,7 +39,7 @@ export default function Welcome() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0F0F0F',
+    backgroundColor: '#1A1A1A',
   },
   content: {
     flex: 1,
@@ -65,13 +65,13 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   primaryButton: {
-    backgroundColor: '#22C55E',
+    backgroundColor: '#F59E0B',
     paddingHorizontal: 24,
     paddingVertical: 16,
     borderRadius: 8,
   },
   primaryButtonText: {
-    color: '#FFFFFF',
+    color: '#1A1A1A',
     textAlign: 'center',
     fontWeight: '600',
     fontSize: 18,

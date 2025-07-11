@@ -1,6 +1,6 @@
 import { getToken } from './auth';
 
-const API_BASE_URL = 'http://localhost:5000'; // Change this to your backend URL
+const API_BASE_URL = ''; // Use relative URLs to match web app
 
 export interface ApiError {
   message: string;
@@ -26,7 +26,7 @@ export async function apiRequest<T = any>(
     config.body = JSON.stringify(data);
   }
 
-  const url = `${API_BASE_URL}${endpoint}`;
+  const url = endpoint;
   
   try {
     const response = await fetch(url, config);

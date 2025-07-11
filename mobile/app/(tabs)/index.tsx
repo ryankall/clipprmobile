@@ -242,7 +242,7 @@ export default function Dashboard() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0F0F0F',
+    backgroundColor: '#1A1A1A', // Match web version dark background
   },
   scrollView: {
     flex: 1,
@@ -269,7 +269,7 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   statCard: {
-    backgroundColor: '#1A1A1A',
+    backgroundColor: '#2A2A2A', // Match web version card background
     borderRadius: 12,
     padding: 16,
     flexDirection: 'row',
@@ -277,6 +277,8 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     minWidth: '47%',
     flex: 1,
+    borderWidth: 1,
+    borderColor: '#374151', // Add subtle border
   },
   statContent: {
     flex: 1,
@@ -301,9 +303,11 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   appointmentCard: {
-    backgroundColor: '#1A1A1A',
+    backgroundColor: '#2A2A2A', // Match web version card background
     borderRadius: 12,
     padding: 16,
+    borderWidth: 1,
+    borderColor: '#374151', // Add subtle border
   },
   appointmentHeader: {
     flexDirection: 'row',
@@ -340,9 +344,11 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   quickActionCard: {
-    backgroundColor: '#1A1A1A',
+    backgroundColor: '#2A2A2A', // Match web version card background
     borderRadius: 12,
     padding: 16,
+    borderWidth: 1,
+    borderColor: '#374151', // Add subtle border
     minWidth: '47%',
     flex: 1,
   },
