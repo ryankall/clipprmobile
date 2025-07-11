@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, Alert, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Link, router } from 'expo-router';
+import { useAuth } from '../hooks/useAuth';
 
 export default function AuthScreen() {
   const [isSignUp, setIsSignUp] = useState(false);
@@ -9,6 +10,8 @@ export default function AuthScreen() {
   const [password, setPassword] = useState('');
   const [businessName, setBusinessName] = useState('');
   const [phone, setPhone] = useState('');
+  const [loading, setLoading] = useState(false);
+  const { signIn } = useAuth();
 
   const handleSubmit = async () => {
     if (!email || !password) {
@@ -21,19 +24,29 @@ export default function AuthScreen() {
       return;
     }
 
-    // TODO: Implement actual authentication logic
-    // For now, just navigate to the main app
-    router.replace('/(tabs)');
+    setLoading(true);
+    try {
+      const result = await signIn(email, password);
+      if (result.success) {
+        router.replace('/(tabs)');
+      } else {
+        Alert.alert('Error', result.error || 'Authentication failed');
+      }
+    } catch (error) {
+      Alert.alert('Error', 'Something went wrong. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-background">
-      <View className="flex-1 justify-center px-6">
-        <View className="bg-card rounded-lg p-6">
-          <Text className="text-3xl font-bold text-center text-foreground mb-2">
+    <SafeAreaView style={styles.container}>
+      <View style={styles.content}>
+        <View style={styles.card}>
+          <Text style={styles.title}>
             {isSignUp ? 'Sign Up' : 'Sign In'}
           </Text>
-          <Text className="text-center text-muted-foreground mb-8">
+          <Text style={styles.subtitle}>
             {isSignUp 
               ? 'Create your barber account' 
               : 'Welcome back to Clippr'
@@ -43,14 +56,14 @@ export default function AuthScreen() {
           {isSignUp && (
             <>
               <TextInput
-                className="bg-input border border-border rounded-lg px-4 py-3 mb-4 text-foreground"
+                style={styles.input}
                 placeholder="Business Name"
                 placeholderTextColor="#666"
                 value={businessName}
                 onChangeText={setBusinessName}
               />
               <TextInput
-                className="bg-input border border-border rounded-lg px-4 py-3 mb-4 text-foreground"
+                style={styles.input}
                 placeholder="Phone Number"
                 placeholderTextColor="#666"
                 keyboardType="phone-pad"
@@ -61,7 +74,7 @@ export default function AuthScreen() {
           )}
 
           <TextInput
-            className="bg-input border border-border rounded-lg px-4 py-3 mb-4 text-foreground"
+            style={styles.input}
             placeholder="Email"
             placeholderTextColor="#666"
             keyboardType="email-address"
@@ -71,7 +84,7 @@ export default function AuthScreen() {
           />
 
           <TextInput
-            className="bg-input border border-border rounded-lg px-4 py-3 mb-6 text-foreground"
+            style={styles.input}
             placeholder="Password"
             placeholderTextColor="#666"
             secureTextEntry
@@ -80,19 +93,20 @@ export default function AuthScreen() {
           />
 
           <TouchableOpacity
-            className="bg-primary py-4 rounded-lg mb-4"
+            style={[styles.primaryButton, loading && styles.disabledButton]}
             onPress={handleSubmit}
+            disabled={loading}
           >
-            <Text className="text-primary-foreground text-center font-semibold text-lg">
-              {isSignUp ? 'Create Account' : 'Sign In'}
+            <Text style={styles.primaryButtonText}>
+              {loading ? 'Loading...' : (isSignUp ? 'Create Account' : 'Sign In')}
             </Text>
           </TouchableOpacity>
 
           <TouchableOpacity
-            className="py-2"
+            style={styles.secondaryButton}
             onPress={() => setIsSignUp(!isSignUp)}
           >
-            <Text className="text-center text-primary">
+            <Text style={styles.secondaryButtonText}>
               {isSignUp 
                 ? 'Already have an account? Sign In' 
                 : "Don't have an account? Sign Up"
@@ -101,8 +115,8 @@ export default function AuthScreen() {
           </TouchableOpacity>
 
           <Link href="/" asChild>
-            <TouchableOpacity className="mt-4">
-              <Text className="text-center text-muted-foreground">
+            <TouchableOpacity style={styles.backButton}>
+              <Text style={styles.backButtonText}>
                 ← Back to Welcome
               </Text>
             </TouchableOpacity>
@@ -112,3 +126,75 @@ export default function AuthScreen() {
     </SafeAreaView>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#0F0F0F',
+  },
+  content: {
+    flex: 1,
+    justifyContent: 'center',
+    paddingHorizontal: 24,
+  },
+  card: {
+    backgroundColor: '#1A1A1A',
+    borderRadius: 12,
+    padding: 24,
+    gap: 16,
+  },
+  title: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    textAlign: 'center',
+    color: '#FFFFFF',
+    marginBottom: 8,
+  },
+  subtitle: {
+    textAlign: 'center',
+    color: '#9CA3AF',
+    fontSize: 16,
+    marginBottom: 16,
+  },
+  input: {
+    backgroundColor: '#2A2A2A',
+    borderWidth: 1,
+    borderColor: '#374151',
+    borderRadius: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    color: '#FFFFFF',
+    fontSize: 16,
+  },
+  primaryButton: {
+    backgroundColor: '#22C55E',
+    paddingVertical: 16,
+    borderRadius: 8,
+    marginTop: 8,
+  },
+  primaryButtonText: {
+    color: '#FFFFFF',
+    textAlign: 'center',
+    fontWeight: '600',
+    fontSize: 18,
+  },
+  secondaryButton: {
+    paddingVertical: 8,
+  },
+  secondaryButtonText: {
+    textAlign: 'center',
+    color: '#22C55E',
+    fontSize: 16,
+  },
+  backButton: {
+    marginTop: 16,
+  },
+  backButtonText: {
+    textAlign: 'center',
+    color: '#9CA3AF',
+    fontSize: 16,
+  },
+  disabledButton: {
+    opacity: 0.5,
+  },
+});

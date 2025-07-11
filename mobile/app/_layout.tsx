@@ -1,8 +1,15 @@
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { useAuth } from '../hooks/useAuth';
 
 export default function RootLayout() {
+  const { isAuthenticated, isLoading } = useAuth();
+
+  if (isLoading) {
+    return null; // Show loading screen if needed
+  }
+
   return (
     <SafeAreaProvider>
       <Stack>
