@@ -6,7 +6,7 @@ import { router } from 'expo-router';
 import { useAuth } from '../../hooks/useAuth';
 import { apiRequest } from '../../lib/api';
 import { AppointmentWithRelations } from '../../lib/types';
-import { Card, CardContent } from '@/components/ui/card';
+
 
 export default function Calendar() {
   const [appointments, setAppointments] = useState<AppointmentWithRelations[]>([]);
