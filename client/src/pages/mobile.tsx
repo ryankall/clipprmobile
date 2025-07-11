@@ -54,6 +54,7 @@ export default function MobileApp() {
   const [calendarDate, setCalendarDate] = useState(new Date());
   const [viewMode, setViewMode] = useState<'timeline' | 'list'>('timeline');
   const [showExpired, setShowExpired] = useState(false);
+  const [isWorkingHoursOpen, setIsWorkingHoursOpen] = useState(false);
   const [showWorkingHours, setShowWorkingHours] = useState(false);
 
   // Close notifications when clicking outside
@@ -207,11 +208,6 @@ export default function MobileApp() {
 
   // Mobile Calendar Screen
   const renderCalendar = () => {
-    const [calendarDate, setCalendarDate] = useState(new Date());
-    const [showExpired, setShowExpired] = useState(false);
-    const [selectedAppointment, setSelectedAppointment] = useState<any>(null);
-    const [isWorkingHoursOpen, setIsWorkingHoursOpen] = useState(false);
-    const [viewMode, setViewMode] = useState<'timeline' | 'list'>('timeline');
 
     const workingHours = (userProfile as any)?.workingHours || {
       monday: { enabled: true, start: "09:00", end: "17:00" },
