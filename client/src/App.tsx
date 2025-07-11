@@ -18,6 +18,7 @@ import HelpSupport from "@/pages/help-support";
 import Invoice from "@/pages/invoice";
 import Checkout from "@/pages/checkout";
 import EnhancedBookingPage from "@/pages/book-new";
+import MobileApp from "@/pages/mobile";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -73,6 +74,7 @@ function Router() {
           <Route path="/help" component={HelpSupport} />
           <Route path="/invoice/:id?" component={Invoice} />
           <Route path="/checkout/:invoiceId" component={Checkout} />
+          <Route path="/mobile" component={MobileApp} />
           <Route component={NotFound} />
         </>
       )}
