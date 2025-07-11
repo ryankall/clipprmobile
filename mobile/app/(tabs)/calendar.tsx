@@ -12,6 +12,7 @@ export default function Calendar() {
   const [appointments, setAppointments] = useState<AppointmentWithRelations[]>([]);
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [loading, setLoading] = useState(true);
+  const [viewMode, setViewMode] = useState<'timeline' | 'list'>('timeline');
   const { isAuthenticated } = useAuth();
 
   useEffect(() => {
@@ -40,6 +41,140 @@ export default function Calendar() {
       case 'cancelled': return '#EF4444';
       default: return '#9CA3AF';
     }
+  };
+
+  // Get service-based color for appointments (matching web version)
+  const getServiceColor = (serviceName?: string): string => {
+    if (!serviceName) return '#6B7280'; // gray
+    const name = serviceName.toLowerCase();
+    
+    if (name.includes('haircut') || name.includes('cut')) return '#F59E0B'; // amber
+    if (name.includes('beard') || name.includes('trim')) return '#10B981'; // emerald
+    if (name.includes('shave')) return '#3B82F6'; // blue
+    if (name.includes('styling') || name.includes('wash')) return '#8B5CF6'; // purple
+    if (name.includes('color') || name.includes('dye')) return '#EC4899'; // pink
+    return '#6B7280'; // gray default
+  };
+
+  // Generate timeline view with time indicators
+  const renderTimelineView = () => {
+    const timeSlots = [];
+    const startHour = 8;
+    const endHour = 22;
+    const slotHeight = 80;
+    
+    // Get current time for indicator
+    const now = new Date();
+    const currentHour = now.getHours();
+    const currentMinutes = now.getMinutes();
+    const isToday = selectedDate.toDateString() === now.toDateString();
+    const currentTimePosition = isToday ? 
+      (currentHour - startHour) * slotHeight + (currentMinutes * slotHeight) / 60 : -1;
+    
+    // Generate time slots
+    for (let hour = startHour; hour <= endHour; hour++) {
+      const timeString = hour === 12 ? '12 PM' : 
+        hour === 0 ? '12 AM' :
+        hour < 12 ? `${hour} AM` : `${hour - 12} PM`;
+      
+      // Find appointments for this hour
+      const hourAppointments = appointments.filter(apt => {
+        const aptTime = new Date(apt.scheduledAt);
+        const aptHour = aptTime.getHours();
+        const endTime = new Date(aptTime.getTime() + apt.duration * 60000);
+        const endHour = endTime.getHours();
+        
+        // Appointment spans this hour if it starts in or continues through this hour
+        return aptHour <= hour && (endHour > hour || (endHour === hour && endTime.getMinutes() > 0));
+      });
+      
+      timeSlots.push({
+        hour,
+        timeString,
+        appointments: hourAppointments,
+        isWorkingHour: hour >= 9 && hour <= 18 // Basic working hours
+      });
+    }
+    
+    return (
+      <ScrollView style={styles.timelineContainer} showsVerticalScrollIndicator={false}>
+        <View style={[styles.timeline, { height: (endHour - startHour + 1) * slotHeight }]}>
+          {/* Time slots */}
+          {timeSlots.map((slot, index) => (
+            <View key={slot.hour} style={[styles.timeSlot, { height: slotHeight }]}>
+              {/* Time label */}
+              <View style={styles.timeLabel}>
+                <Text style={styles.timeLabelText}>{slot.timeString}</Text>
+              </View>
+              
+              {/* Working hours background */}
+              <View style={[
+                styles.timeSlotContent,
+                { backgroundColor: slot.isWorkingHour ? '#1F2937' : '#111827' }
+              ]}>
+                {!slot.isWorkingHour && (
+                  <Text style={styles.outsideHoursText}>Outside working hours</Text>
+                )}
+                
+                {/* Half-hour line */}
+                <View style={styles.halfHourLine} />
+              </View>
+            </View>
+          ))}
+          
+          {/* Appointment blocks */}
+          {appointments.map((appointment) => {
+            const startTime = new Date(appointment.scheduledAt);
+            const startHour = startTime.getHours();
+            const startMinutes = startTime.getMinutes();
+            const duration = appointment.duration;
+            
+            // Calculate position
+            const topPosition = (startHour - 8) * slotHeight + (startMinutes * slotHeight) / 60;
+            const height = Math.max((duration * slotHeight) / 60, 40);
+            const color = getServiceColor(appointment.service?.name);
+            
+            return (
+              <TouchableOpacity
+                key={appointment.id}
+                style={[
+                  styles.appointmentBlock,
+                  {
+                    top: topPosition,
+                    height: height,
+                    backgroundColor: color + '20',
+                    borderLeftColor: color,
+                  }
+                ]}
+                onPress={() => router.push(`/appointment-details?id=${appointment.id}`)}
+              >
+                <Text style={[styles.appointmentTitle, { color }]} numberOfLines={1}>
+                  {appointment.service?.name || 'Service'}
+                </Text>
+                <Text style={styles.appointmentClient} numberOfLines={1}>
+                  {appointment.client?.name}
+                </Text>
+                <View style={styles.appointmentMeta}>
+                  <Text style={styles.appointmentDuration}>{appointment.duration}m</Text>
+                  <Text style={styles.appointmentPrice}>${appointment.price}</Text>
+                  {appointment.travelRequired && (
+                    <Ionicons name="car" size={12} color={color} />
+                  )}
+                </View>
+              </TouchableOpacity>
+            );
+          })}
+          
+          {/* Current time indicator */}
+          {isToday && currentTimePosition >= 0 && (
+            <View style={[styles.currentTimeIndicator, { top: currentTimePosition }]}>
+              <View style={styles.currentTimeCircle} />
+              <View style={styles.currentTimeLine} />
+            </View>
+          )}
+        </View>
+      </ScrollView>
+    );
   };
 
   const renderAppointment = (appointment: AppointmentWithRelations) => {
@@ -116,12 +251,30 @@ export default function Calendar() {
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.title}>Calendar</Text>
-        <TouchableOpacity 
-          style={styles.addButton}
-          onPress={() => router.push('/appointments/new')}
-        >
-          <Ionicons name="add" size={24} color="white" />
-        </TouchableOpacity>
+        <View style={styles.headerActions}>
+          <View style={styles.viewModeSelector}>
+            <TouchableOpacity
+              style={[styles.viewModeButton, viewMode === 'timeline' && styles.activeViewMode]}
+              onPress={() => setViewMode('timeline')}
+            >
+              <Ionicons name="time-outline" size={16} color={viewMode === 'timeline' ? '#F59E0B' : '#9CA3AF'} />
+              <Text style={[styles.viewModeText, viewMode === 'timeline' && styles.activeViewModeText]}>Timeline</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.viewModeButton, viewMode === 'list' && styles.activeViewMode]}
+              onPress={() => setViewMode('list')}
+            >
+              <Ionicons name="list-outline" size={16} color={viewMode === 'list' ? '#F59E0B' : '#9CA3AF'} />
+              <Text style={[styles.viewModeText, viewMode === 'list' && styles.activeViewModeText]}>List</Text>
+            </TouchableOpacity>
+          </View>
+          <TouchableOpacity 
+            style={styles.addButton}
+            onPress={() => router.push('/appointments/new')}
+          >
+            <Ionicons name="add" size={24} color="white" />
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* Date Selector */}
@@ -159,29 +312,33 @@ export default function Calendar() {
         </ScrollView>
       </View>
 
-      {/* Appointments List */}
-      <ScrollView style={styles.appointmentsList}>
-        <Text style={styles.sectionTitle}>
-          {selectedDate.toLocaleDateString('en-US', { 
-            weekday: 'long', 
-            year: 'numeric', 
-            month: 'long', 
-            day: 'numeric' 
-          })}
-        </Text>
-        
-        {appointments.length === 0 ? (
-          <View style={styles.emptyState}>
-            <Ionicons name="calendar-outline" size={48} color="#9CA3AF" />
-            <Text style={styles.emptyText}>No appointments</Text>
-            <Text style={styles.emptySubtext}>
-              You have no appointments scheduled for this day
-            </Text>
-          </View>
-        ) : (
-          appointments.map(renderAppointment)
-        )}
-      </ScrollView>
+      {/* Content based on view mode */}
+      {viewMode === 'timeline' ? (
+        renderTimelineView()
+      ) : (
+        <ScrollView style={styles.appointmentsList}>
+          <Text style={styles.sectionTitle}>
+            {selectedDate.toLocaleDateString('en-US', { 
+              weekday: 'long', 
+              year: 'numeric', 
+              month: 'long', 
+              day: 'numeric' 
+            })}
+          </Text>
+          
+          {appointments.length === 0 ? (
+            <View style={styles.emptyState}>
+              <Ionicons name="calendar-outline" size={48} color="#9CA3AF" />
+              <Text style={styles.emptyText}>No appointments</Text>
+              <Text style={styles.emptySubtext}>
+                You have no appointments scheduled for this day
+              </Text>
+            </View>
+          ) : (
+            appointments.map(renderAppointment)
+          )}
+        </ScrollView>
+      )}
     </SafeAreaView>
   );
 }
@@ -198,6 +355,36 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 16,
     paddingBottom: 8,
+  },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  viewModeSelector: {
+    flexDirection: 'row',
+    backgroundColor: '#1F2937',
+    borderRadius: 8,
+    padding: 2,
+  },
+  viewModeButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 6,
+    gap: 4,
+  },
+  activeViewMode: {
+    backgroundColor: '#F59E0B',
+  },
+  viewModeText: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: '#9CA3AF',
+  },
+  activeViewModeText: {
+    color: '#FFFFFF',
   },
   title: {
     fontSize: 28,
@@ -356,5 +543,112 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '600',
+  },
+  
+  // Timeline view styles
+  timelineContainer: {
+    flex: 1,
+    backgroundColor: '#0F0F0F',
+  },
+  timeline: {
+    position: 'relative',
+    minHeight: 1200,
+  },
+  timeSlot: {
+    flexDirection: 'row',
+    borderBottomWidth: 1,
+    borderBottomColor: '#374151',
+  },
+  timeLabel: {
+    width: 64,
+    height: 80,
+    backgroundColor: '#1F2937',
+    borderRightWidth: 1,
+    borderRightColor: '#374151',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  timeLabelText: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: '#D1D5DB',
+  },
+  timeSlotContent: {
+    flex: 1,
+    height: 80,
+    position: 'relative',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  outsideHoursText: {
+    fontSize: 10,
+    color: '#6B7280',
+    fontStyle: 'italic',
+  },
+  halfHourLine: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: 40,
+    height: 1,
+    backgroundColor: '#374151',
+    opacity: 0.5,
+  },
+  appointmentBlock: {
+    position: 'absolute',
+    left: 68,
+    right: 16,
+    borderRadius: 8,
+    borderLeftWidth: 4,
+    padding: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  appointmentTitle: {
+    fontSize: 12,
+    fontWeight: '600',
+    marginBottom: 2,
+  },
+  appointmentClient: {
+    fontSize: 10,
+    color: '#D1D5DB',
+    marginBottom: 4,
+  },
+  appointmentMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  appointmentDuration: {
+    fontSize: 9,
+    color: '#9CA3AF',
+  },
+  appointmentPrice: {
+    fontSize: 9,
+    color: '#9CA3AF',
+  },
+  currentTimeIndicator: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    height: 2,
+    flexDirection: 'row',
+    alignItems: 'center',
+    zIndex: 50,
+  },
+  currentTimeCircle: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: '#EF4444',
+    marginLeft: 4,
+  },
+  currentTimeLine: {
+    flex: 1,
+    height: 2,
+    backgroundColor: '#EF4444',
   },
 });
