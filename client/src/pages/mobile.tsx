@@ -27,9 +27,12 @@ import {
   Camera,
   Plus,
   X,
-  CreditCard
+  CreditCard,
+  ArrowLeft,
+  Search,
+  Filter
 } from "lucide-react";
-import type { DashboardStats, AppointmentWithRelations, GalleryPhoto, User as UserType } from "@shared/schema";
+import type { DashboardStats, AppointmentWithRelations, GalleryPhoto, User as UserType, ClientWithRelations } from "@shared/schema";
 import type { Service } from "@/lib/types";
 
 export default function MobileApp() {
@@ -41,6 +44,7 @@ export default function MobileApp() {
   const [dismissedNotifications, setDismissedNotifications] = useState<string[]>([]);
   const notificationRef = useRef<HTMLDivElement>(null);
   const [, navigate] = useLocation();
+  const [searchTerm, setSearchTerm] = useState("");
 
   // Close notifications when clicking outside
   useEffect(() => {
@@ -84,6 +88,16 @@ export default function MobileApp() {
 
   const { data: stripeStatus } = useQuery({
     queryKey: ["/api/stripe/status"],
+    enabled: isAuthenticated,
+  });
+
+  const { data: clients } = useQuery<ClientWithRelations[]>({
+    queryKey: ["/api/clients"],
+    enabled: isAuthenticated,
+  });
+
+  const { data: allAppointments } = useQuery<AppointmentWithRelations[]>({
+    queryKey: ["/api/appointments"],
     enabled: isAuthenticated,
   });
 
@@ -162,6 +176,199 @@ export default function MobileApp() {
 
   const notifications = generateNotifications().filter(notification => 
     !dismissedNotifications.includes(notification.id)
+  );
+
+  // Filter clients by search term
+  const filteredClients = clients?.filter(client =>
+    client.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    client.phone.includes(searchTerm)
+  ) || [];
+
+  // Mobile Calendar Screen
+  const renderCalendar = () => (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h2 className="text-xl font-bold text-white">Calendar</h2>
+        <Link href="/calendar">
+          <Button variant="outline" className="bg-gray-800 text-white border-gray-600 hover:bg-gray-700">
+            Full Calendar
+          </Button>
+        </Link>
+      </div>
+      
+      <Card className="bg-gray-800 border-gray-700">
+        <CardContent className="p-4">
+          <h3 className="font-semibold text-white mb-3">Today's Appointments</h3>
+          <div className="space-y-2">
+            {confirmedAppointments?.length ? (
+              confirmedAppointments.map((appointment) => (
+                <div key={appointment.id} className="bg-gray-700 p-3 rounded-lg">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <p className="font-medium text-white">{appointment.client?.name}</p>
+                      <p className="text-sm text-gray-400">{appointment.services?.[0]?.name}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm text-amber-500">
+                        {new Date(appointment.scheduledAt).toLocaleTimeString('en-US', { 
+                          hour: 'numeric', 
+                          minute: '2-digit' 
+                        })}
+                      </p>
+                      <p className="text-sm text-gray-400">{appointment.duration}min</p>
+                    </div>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <p className="text-gray-400 text-center py-4">No appointments today</p>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+
+  // Mobile Clients Screen
+  const renderClients = () => (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h2 className="text-xl font-bold text-white">Clients</h2>
+        <Link href="/clients">
+          <Button variant="outline" className="bg-gray-800 text-white border-gray-600 hover:bg-gray-700">
+            Manage Clients
+          </Button>
+        </Link>
+      </div>
+      
+      <div className="relative">
+        <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+        <input
+          type="text"
+          placeholder="Search clients..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="w-full pl-10 pr-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-amber-500"
+        />
+      </div>
+      
+      <div className="space-y-2">
+        {filteredClients?.length ? (
+          filteredClients.map((client) => (
+            <Card key={client.id} className="bg-gray-800 border-gray-700">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="font-medium text-white">{client.name}</p>
+                    <p className="text-sm text-gray-400">{client.phone}</p>
+                    {client.email && <p className="text-sm text-gray-400">{client.email}</p>}
+                  </div>
+                  <div className="text-right">
+                    <Badge className="bg-amber-500 text-gray-900">
+                      {client.appointments?.length || 0} visits
+                    </Badge>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))
+        ) : (
+          <p className="text-gray-400 text-center py-8">
+            {searchTerm ? "No clients match your search" : "No clients yet"}
+          </p>
+        )}
+      </div>
+    </div>
+  );
+
+  // Mobile Services Screen
+  const renderServices = () => (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h2 className="text-xl font-bold text-white">Services</h2>
+        <Link href="/services">
+          <Button variant="outline" className="bg-gray-800 text-white border-gray-600 hover:bg-gray-700">
+            Manage Services
+          </Button>
+        </Link>
+      </div>
+      
+      <div className="space-y-2">
+        {services?.filter(s => s.isActive)?.map((service) => (
+          <Card key={service.id} className="bg-gray-800 border-gray-700">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="font-medium text-white">{service.name}</p>
+                  <p className="text-sm text-gray-400">{service.category}</p>
+                  <p className="text-sm text-gray-400">{service.duration}min</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-lg font-bold text-amber-500">${service.price}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )) || []}
+      </div>
+    </div>
+  );
+
+  // Mobile Settings Screen
+  const renderSettings = () => (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h2 className="text-xl font-bold text-white">Settings</h2>
+        <Link href="/settings">
+          <Button variant="outline" className="bg-gray-800 text-white border-gray-600 hover:bg-gray-700">
+            Full Settings
+          </Button>
+        </Link>
+      </div>
+      
+      <Card className="bg-gray-800 border-gray-700">
+        <CardContent className="p-4">
+          <div className="flex items-center space-x-3 mb-4">
+            <Avatar className="h-12 w-12">
+              <AvatarImage src={user?.photoUrl} />
+              <AvatarFallback className="bg-amber-500 text-gray-900">
+                {user?.firstName?.[0]}{user?.lastName?.[0]}
+              </AvatarFallback>
+            </Avatar>
+            <div>
+              <p className="font-medium text-white">{user?.firstName} {user?.lastName}</p>
+              <p className="text-sm text-gray-400">{user?.email}</p>
+            </div>
+          </div>
+          
+          <div className="space-y-3">
+            <Link href="/settings">
+              <Button variant="ghost" className="w-full justify-start text-white hover:bg-gray-700">
+                <User className="h-4 w-4 mr-2" />
+                Edit Profile
+              </Button>
+            </Link>
+            <Link href="/gallery">
+              <Button variant="ghost" className="w-full justify-start text-white hover:bg-gray-700">
+                <Camera className="h-4 w-4 mr-2" />
+                Portfolio Gallery
+              </Button>
+            </Link>
+            <Link href="/messages">
+              <Button variant="ghost" className="w-full justify-start text-white hover:bg-gray-700">
+                <MessageSquare className="h-4 w-4 mr-2" />
+                Messages
+                {unreadCount > 0 && (
+                  <Badge className="ml-auto bg-red-500 text-white">
+                    {unreadCount}
+                  </Badge>
+                )}
+              </Button>
+            </Link>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
   );
 
   if (!isAuthenticated) {
@@ -292,193 +499,207 @@ export default function MobileApp() {
 
       {/* Main Content */}
       <main className="p-4 space-y-6 pb-24">
-        {/* Daily Summary Card */}
-        <Card className="bg-gray-800 border-gray-700">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-white">Today's Summary</h2>
-              <span className="text-sm text-gray-400">
-                {new Date().toLocaleDateString('en-US', { 
-                  month: 'short', 
-                  day: 'numeric', 
-                  year: 'numeric' 
-                })}
-              </span>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="text-center">
-                <div className="text-2xl font-bold text-amber-500 mb-1">
-                  ${stats?.dailyEarnings || '0'}
+        {activeTab === 'dashboard' && (
+          <>
+            {/* Daily Summary Card */}
+            <Card className="bg-gray-800 border-gray-700">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-lg font-semibold text-white">Today's Summary</h2>
+                  <span className="text-sm text-gray-400">
+                    {new Date().toLocaleDateString('en-US', { 
+                      month: 'short', 
+                      day: 'numeric', 
+                      year: 'numeric' 
+                    })}
+                  </span>
                 </div>
-                <div className="text-sm text-gray-400">Earnings</div>
-              </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-white mb-1">
-                  {stats?.appointmentCount || 0}
-                </div>
-                <div className="text-sm text-gray-400">Appointments</div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Quick Actions */}
-        <div className="grid grid-cols-2 gap-4">
-          <Link href="/clients">
-            <Button className="bg-amber-500 hover:bg-amber-600 text-gray-900 h-auto p-4 font-semibold w-full flex flex-col items-center space-y-2">
-              <Plus className="w-5 h-5" />
-              <span>New Client</span>
-            </Button>
-          </Link>
-          <Link href="/calendar">
-            <Button variant="outline" className="bg-gray-800 text-white border-gray-600 h-auto p-4 font-semibold w-full flex flex-col items-center space-y-2 hover:bg-gray-700">
-              <Calendar className="w-5 h-5 text-amber-500" />
-              <span>Schedule</span>
-            </Button>
-          </Link>
-        </div>
-
-        {/* Current Appointment Preview */}
-        <AppointmentPreview
-          appointment={currentAppointment || undefined}
-          type="current"
-          services={services}
-          onDetailsClick={() => {
-            if (currentAppointment) {
-              setSelectedAppointment(currentAppointment);
-              setIsDetailsDialogOpen(true);
-            }
-          }}
-        />
-
-        {/* Next Appointment Preview */}
-        <AppointmentPreview
-          appointment={nextAppointment || undefined}
-          type="next"
-          services={services}
-          onDetailsClick={() => {
-            if (nextAppointment) {
-              setSelectedAppointment(nextAppointment);
-              setIsDetailsDialogOpen(true);
-            }
-          }}
-        />
-
-        {/* Today's Appointments */}
-        <Card className="bg-gray-800 border-gray-700">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-white">Today's Appointments</h3>
-              <Link href="/calendar">
-                <Button variant="link" className="text-amber-500 text-sm font-medium p-0 h-auto">
-                  View All
-                </Button>
-              </Link>
-            </div>
-            
-            <div className="space-y-3">
-              {appointmentsLoading ? (
-                <div className="flex justify-center py-4">
-                  <div className="animate-spin w-6 h-6 border-2 border-amber-500 border-t-transparent rounded-full" />
-                </div>
-              ) : confirmedAppointments?.length ? (
-                confirmedAppointments.map((appointment) => (
-                  <AppointmentCard 
-                    key={appointment.id} 
-                    appointment={appointment}
-                    onClick={() => {
-                      setSelectedAppointment(appointment);
-                      setIsDetailsDialogOpen(true);
-                    }}
-                    showClickable={true}
-                  />
-                ))
-              ) : (
-                <div className="text-center py-8 text-gray-400">
-                  <Calendar className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                  <p>No confirmed appointments scheduled for today</p>
-                </div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Pending Appointments */}
-        <PendingAppointments />
-
-        {/* Recent Work Gallery */}
-        <Card className="bg-gray-800 border-gray-700">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-white">Recent Work</h3>
-              <Link href="/gallery">
-                <Button variant="link" className="text-amber-500 text-sm font-medium p-0 h-auto">
-                  Gallery
-                </Button>
-              </Link>
-            </div>
-            
-            <div className="grid grid-cols-3 gap-3">
-              {photosLoading ? (
-                <>
-                  {[1, 2, 3].map((i) => (
-                    <div key={i} className="bg-gray-700 rounded-lg p-2">
-                      <div className="w-full h-20 bg-gray-600 rounded animate-pulse" />
-                      <div className="text-xs text-center mt-1 text-gray-400">Loading...</div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-amber-500 mb-1">
+                      ${stats?.dailyEarnings || '0'}
                     </div>
-                  ))}
-                </>
-              ) : recentPhotos?.length ? (
-                recentPhotos.map((photo) => (
-                  <div key={photo.id} className="bg-gray-700 rounded-lg p-2">
-                    <img 
-                      src={photo.photoUrl} 
-                      alt={photo.description || "Portfolio work"} 
-                      className="w-full h-20 object-cover rounded" 
-                    />
-                    <div className="text-xs text-center mt-1 text-gray-400">
-                      {photo.description || 'Styling'}
-                    </div>
+                    <div className="text-sm text-gray-400">Earnings</div>
                   </div>
-                ))
-              ) : (
-                <div className="col-span-3 text-center py-8 text-gray-400">
-                  <Camera className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                  <p>No photos uploaded yet</p>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-white mb-1">
+                      {stats?.appointmentCount || 0}
+                    </div>
+                    <div className="text-sm text-gray-400">Appointments</div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Quick Actions */}
+            <div className="grid grid-cols-2 gap-4">
+              <Button 
+                onClick={() => setActiveTab('clients')}
+                className="bg-amber-500 hover:bg-amber-600 text-gray-900 h-auto p-4 font-semibold w-full flex flex-col items-center space-y-2"
+              >
+                <Plus className="w-5 h-5" />
+                <span>New Client</span>
+              </Button>
+              <Button 
+                onClick={() => setActiveTab('calendar')}
+                variant="outline" 
+                className="bg-gray-800 text-white border-gray-600 h-auto p-4 font-semibold w-full flex flex-col items-center space-y-2 hover:bg-gray-700"
+              >
+                <Calendar className="w-5 h-5 text-amber-500" />
+                <span>Schedule</span>
+              </Button>
+            </div>
+
+            {/* Current Appointment Preview */}
+            <AppointmentPreview
+              appointment={currentAppointment || undefined}
+              type="current"
+              services={services}
+              onDetailsClick={() => {
+                if (currentAppointment) {
+                  setSelectedAppointment(currentAppointment);
+                  setIsDetailsDialogOpen(true);
+                }
+              }}
+            />
+
+            {/* Next Appointment Preview */}
+            <AppointmentPreview
+              appointment={nextAppointment || undefined}
+              type="next"
+              services={services}
+              onDetailsClick={() => {
+                if (nextAppointment) {
+                  setSelectedAppointment(nextAppointment);
+                  setIsDetailsDialogOpen(true);
+                }
+              }}
+            />
+
+            {/* Today's Appointments */}
+            <Card className="bg-gray-800 border-gray-700">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold text-white">Today's Appointments</h3>
+                  <Button 
+                    onClick={() => setActiveTab('calendar')}
+                    variant="link" 
+                    className="text-amber-500 text-sm font-medium p-0 h-auto"
+                  >
+                    View All
+                  </Button>
+                </div>
+                
+                <div className="space-y-3">
+                  {appointmentsLoading ? (
+                    <div className="flex justify-center py-4">
+                      <div className="animate-spin w-6 h-6 border-2 border-amber-500 border-t-transparent rounded-full" />
+                    </div>
+                  ) : confirmedAppointments?.length ? (
+                    confirmedAppointments.map((appointment) => (
+                      <AppointmentCard 
+                        key={appointment.id} 
+                        appointment={appointment}
+                        onClick={() => {
+                          setSelectedAppointment(appointment);
+                          setIsDetailsDialogOpen(true);
+                        }}
+                        showClickable={true}
+                      />
+                    ))
+                  ) : (
+                    <div className="text-center py-8 text-gray-400">
+                      <Calendar className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                      <p>No confirmed appointments scheduled for today</p>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Pending Appointments */}
+            <PendingAppointments />
+
+            {/* Recent Work Gallery */}
+            <Card className="bg-gray-800 border-gray-700">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold text-white">Recent Work</h3>
                   <Link href="/gallery">
-                    <Button variant="link" className="text-amber-500 text-sm mt-2 p-0 h-auto">
-                      Add your first photo
+                    <Button variant="link" className="text-amber-500 text-sm font-medium p-0 h-auto">
+                      Gallery
                     </Button>
                   </Link>
                 </div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
+                
+                <div className="grid grid-cols-3 gap-3">
+                  {photosLoading ? (
+                    <>
+                      {[1, 2, 3].map((i) => (
+                        <div key={i} className="bg-gray-700 rounded-lg p-2">
+                          <div className="w-full h-20 bg-gray-600 rounded animate-pulse" />
+                          <div className="text-xs text-center mt-1 text-gray-400">Loading...</div>
+                        </div>
+                      ))}
+                    </>
+                  ) : recentPhotos?.length ? (
+                    recentPhotos.map((photo) => (
+                      <div key={photo.id} className="bg-gray-700 rounded-lg p-2">
+                        <img 
+                          src={photo.photoUrl} 
+                          alt={photo.description || "Portfolio work"} 
+                          className="w-full h-20 object-cover rounded" 
+                        />
+                        <div className="text-xs text-center mt-1 text-gray-400">
+                          {photo.description || 'Styling'}
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="col-span-3 text-center py-8 text-gray-400">
+                      <Camera className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                      <p>No photos uploaded yet</p>
+                      <Link href="/gallery">
+                        <Button variant="link" className="text-amber-500 text-sm mt-2 p-0 h-auto">
+                          Add your first photo
+                        </Button>
+                      </Link>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </>
+        )}
+
+        {activeTab === 'calendar' && renderCalendar()}
+        {activeTab === 'clients' && renderClients()}
+        {activeTab === 'services' && renderServices()}
+        {activeTab === 'settings' && renderSettings()}
       </main>
 
       {/* Bottom Navigation */}
       <div className="fixed bottom-0 left-0 right-0 bg-gray-800 border-t border-gray-700">
         <div className="flex justify-around py-2">
           {[
-            { id: 'dashboard', icon: Home, label: 'Dashboard', href: '/mobile' },
-            { id: 'calendar', icon: Calendar, label: 'Calendar', href: '/calendar' },
-            { id: 'clients', icon: Users, label: 'Clients', href: '/clients' },
-            { id: 'services', icon: Scissors, label: 'Services', href: '/services' },
-            { id: 'settings', icon: Settings, label: 'Settings', href: '/settings' },
-          ].map(({ id, icon: Icon, label, href }) => (
-            <Link key={id} href={href}>
-              <button
-                className={`flex flex-col items-center p-2 rounded-lg transition-colors ${
-                  id === 'dashboard'
-                    ? 'text-amber-500 bg-amber-500/10'
-                    : 'text-gray-400 hover:text-white'
-                }`}
-              >
-                <Icon className="h-5 w-5" />
-                <span className="text-xs mt-1">{label}</span>
-              </button>
-            </Link>
+            { id: 'dashboard', icon: Home, label: 'Dashboard' },
+            { id: 'calendar', icon: Calendar, label: 'Calendar' },
+            { id: 'clients', icon: Users, label: 'Clients' },
+            { id: 'services', icon: Scissors, label: 'Services' },
+            { id: 'settings', icon: Settings, label: 'Settings' },
+          ].map(({ id, icon: Icon, label }) => (
+            <button
+              key={id}
+              onClick={() => setActiveTab(id as any)}
+              className={`flex flex-col items-center p-2 rounded-lg transition-colors ${
+                activeTab === id
+                  ? 'text-amber-500 bg-amber-500/10'
+                  : 'text-gray-400 hover:text-white'
+              }`}
+            >
+              <Icon className="h-5 w-5" />
+              <span className="text-xs mt-1">{label}</span>
+            </button>
           ))}
         </div>
       </div>
