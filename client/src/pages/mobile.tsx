@@ -427,69 +427,127 @@ export default function MobileApp() {
         {/* Timeline View */}
         {viewMode === 'timeline' && (
           <Card className="bg-gray-800 border-gray-700">
-            <CardContent className="p-4">
+            <CardContent className="p-0">
               {calendarLoadingState ? (
                 <div className="flex justify-center py-8">
                   <div className="animate-spin w-6 h-6 border-2 border-amber-500 border-t-transparent rounded-full" />
                 </div>
               ) : (
-                <div className="space-y-1">
-                  {generateMobileTimeSlots().map((slot) => (
-                    <div
-                      key={slot.hour}
-                      className={`flex items-start p-3 rounded-lg border ${
-                        slot.isBlocked
-                          ? 'bg-gray-700/50 border-gray-600'
-                          : 'bg-gray-700 border-gray-600'
-                      }`}
-                    >
-                      <div className="w-20 text-sm font-medium text-gray-300 flex-shrink-0">
-                        {slot.time}
-                      </div>
-                      <div className="flex-1 ml-4">
-                        {slot.appointments.length > 0 ? (
-                          <div className="space-y-2">
-                            {slot.appointments.map((appointment) => (
-                              <div
-                                key={appointment.id}
-                                onClick={() => {
-                                  setSelectedAppointment(appointment);
-                                  setIsDetailsDialogOpen(true);
-                                }}
-                                className={`p-3 rounded cursor-pointer text-sm border ${
-                                  appointment.status === 'confirmed'
-                                    ? 'bg-green-500/20 text-green-400 border-green-500/30'
-                                    : appointment.status === 'pending'
-                                    ? 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30'
-                                    : appointment.status === 'expired'
-                                    ? 'bg-red-500/20 text-red-400 border-red-500/30'
-                                    : 'bg-gray-500/20 text-gray-400 border-gray-500/30'
-                                }`}
-                              >
-                                <div className="flex items-center justify-between">
-                                  <div className="flex-1">
-                                    <div className="font-medium">
-                                      {appointment.client?.name || 'Unknown Client'}
+                <div className="relative">
+                  <div className="space-y-0">
+                    {generateMobileTimeSlots().map((slot) => {
+                      const now = new Date();
+                      const currentHour = now.getHours();
+                      const currentMinutes = now.getMinutes();
+                      const isToday = calendarDate.toDateString() === now.toDateString();
+                      const isCurrentHour = isToday && slot.hour === currentHour;
+                      
+                      // Get service-based color for appointments
+                      const getServiceColor = (serviceName?: string): string => {
+                        if (!serviceName) return '#6B7280'; // gray
+                        const name = serviceName.toLowerCase();
+                        
+                        if (name.includes('haircut') || name.includes('cut')) return '#F59E0B'; // amber
+                        if (name.includes('beard') || name.includes('trim')) return '#10B981'; // emerald
+                        if (name.includes('shave')) return '#3B82F6'; // blue
+                        if (name.includes('styling') || name.includes('wash')) return '#8B5CF6'; // purple
+                        if (name.includes('color') || name.includes('dye')) return '#EC4899'; // pink
+                        
+                        return '#6B7280'; // gray default
+                      };
+                      
+                      return (
+                        <div
+                          key={slot.hour}
+                          className={`relative flex items-start border-b border-gray-700 ${
+                            slot.isBlocked
+                              ? 'bg-gray-900/50'
+                              : 'bg-gray-800'
+                          }`}
+                          style={{ minHeight: '80px' }}
+                        >
+                          {/* Time Label */}
+                          <div className="w-20 p-4 text-sm font-medium text-gray-300 flex-shrink-0 border-r border-gray-700">
+                            {slot.time}
+                          </div>
+                          
+                          {/* Content Area */}
+                          <div className="flex-1 relative p-4">
+                            {slot.appointments.length > 0 ? (
+                              <div className="space-y-2">
+                                {slot.appointments.map((appointment) => {
+                                  const startTime = new Date(appointment.scheduledAt);
+                                  const appointmentMinutes = startTime.getMinutes();
+                                  const serviceColor = getServiceColor(appointment.service?.name);
+                                  
+                                  return (
+                                    <div
+                                      key={appointment.id}
+                                      onClick={() => {
+                                        setSelectedAppointment(appointment);
+                                        setIsDetailsDialogOpen(true);
+                                      }}
+                                      className="p-3 rounded-lg cursor-pointer text-sm border-l-4 shadow-sm hover:shadow-md transition-shadow"
+                                      style={{ 
+                                        backgroundColor: `${serviceColor}20`,
+                                        borderLeftColor: serviceColor,
+                                        color: serviceColor
+                                      }}
+                                    >
+                                      <div className="flex items-center justify-between">
+                                        <div className="flex-1">
+                                          <div className="font-semibold text-white">
+                                            {appointment.client?.name || 'Unknown Client'}
+                                          </div>
+                                          <div className="text-xs opacity-75 mt-1 text-gray-300">
+                                            {appointment.service?.name || 'No service'} • {appointment.duration}min
+                                          </div>
+                                          {appointmentMinutes > 0 && (
+                                            <div className="text-xs opacity-60 mt-1 text-gray-400">
+                                              {startTime.toLocaleTimeString('en-US', {
+                                                hour: 'numeric',
+                                                minute: '2-digit',
+                                                hour12: true
+                                              })}
+                                            </div>
+                                          )}
+                                        </div>
+                                        <div className="text-xs px-2 py-1 rounded" style={{ backgroundColor: serviceColor, color: 'white' }}>
+                                          {appointment.status.toUpperCase()}
+                                        </div>
+                                      </div>
                                     </div>
-                                    <div className="text-xs opacity-75 mt-1">
-                                      {appointment.service?.name || 'No service'} • {appointment.duration}min
-                                    </div>
-                                  </div>
-                                  <div className="text-xs">
-                                    {appointment.status.toUpperCase()}
-                                  </div>
-                                </div>
+                                  );
+                                })}
                               </div>
-                            ))}
+                            ) : (
+                              <div className="text-sm text-gray-500 py-2">
+                                {slot.isBlocked ? 'Outside working hours' : 'Available'}
+                              </div>
+                            )}
                           </div>
-                        ) : (
-                          <div className="text-sm text-gray-500">
-                            {slot.isBlocked ? 'Outside working hours' : 'Available'}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  ))}
+                          
+                          {/* Current Time Indicator */}
+                          {isCurrentHour && (
+                            <div
+                              className="absolute left-0 right-0 z-50 pointer-events-none"
+                              style={{ 
+                                top: `${(currentMinutes / 60) * 80}px`,
+                                height: '2px'
+                              }}
+                            >
+                              <div className="flex items-center">
+                                <div className="w-20 h-6 bg-red-500 rounded-r-full flex items-center justify-center">
+                                  <div className="w-3 h-3 bg-white rounded-full" />
+                                </div>
+                                <div className="flex-1 h-0.5 bg-red-500" />
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
               )}
             </CardContent>
