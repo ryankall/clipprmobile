@@ -42,7 +42,7 @@ import type { Service } from "@/lib/types";
 
 export default function MobileApp() {
   const { user, isAuthenticated } = useAuth();
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'calendar' | 'clients' | 'services' | 'settings'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'calendar' | 'clients' | 'services' | 'settings' | 'appointment-new'>('dashboard');
   const [showNotifications, setShowNotifications] = useState(false);
   const [selectedAppointment, setSelectedAppointment] = useState<AppointmentWithRelations | null>(null);
   const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false);
@@ -56,6 +56,16 @@ export default function MobileApp() {
   const [viewMode, setViewMode] = useState<'timeline' | 'list'>('timeline');
   const [showExpired, setShowExpired] = useState(false);
   const [isWorkingHoursOpen, setIsWorkingHoursOpen] = useState(false);
+  
+  // Mobile Appointment Creation State
+  const [appointmentForm, setAppointmentForm] = useState({
+    clientId: '',
+    services: [] as { serviceId: number; quantity: number }[],
+    scheduledAt: '',
+    notes: '',
+    address: '',
+    includeTravel: false
+  });
 
   // Calendar appointments query
   const { data: appointments, isLoading: appointmentsLoading } = useQuery<AppointmentWithRelations[]>({
@@ -202,6 +212,57 @@ export default function MobileApp() {
     client.phone.includes(searchTerm)
   ) || [];
 
+  // Mobile Appointment Creation Functions
+  const resetAppointmentForm = () => {
+    setAppointmentForm({
+      clientId: '',
+      services: [],
+      scheduledAt: '',
+      notes: '',
+      address: '',
+      includeTravel: false
+    });
+  };
+
+  const createAppointment = async () => {
+    if (!appointmentForm.clientId || appointmentForm.services.length === 0 || !appointmentForm.scheduledAt) {
+      alert('Please fill in all required fields');
+      return;
+    }
+
+    try {
+      const response = await fetch('/api/appointments', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify({
+          clientId: parseInt(appointmentForm.clientId),
+          services: appointmentForm.services,
+          scheduledAt: appointmentForm.scheduledAt,
+          notes: appointmentForm.notes,
+          address: appointmentForm.address,
+          includeTravel: appointmentForm.includeTravel
+        })
+      });
+
+      if (response.ok) {
+        alert('Appointment created successfully!');
+        resetAppointmentForm();
+        setActiveTab('calendar');
+        // Refresh data
+        window.location.reload();
+      } else {
+        const error = await response.json();
+        alert(`Error: ${error.message || 'Failed to create appointment'}`);
+      }
+    } catch (error) {
+      console.error('Error creating appointment:', error);
+      alert('Failed to create appointment. Please try again.');
+    }
+  };
+
   // Mobile Calendar Queries
   const { data: calendarAppointments, isLoading: calendarLoadingState } = useQuery<AppointmentWithRelations[]>({
     queryKey: ["/api/appointments", calendarDate.toISOString().split('T')[0]],
@@ -212,6 +273,193 @@ export default function MobileApp() {
     queryKey: ["/api/user/profile"],
     enabled: activeTab === 'calendar',
   });
+
+  // Mobile Appointment Creation Screen
+  const renderAppointmentNew = () => {
+    return (
+      <div className="space-y-4">
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-3">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setActiveTab('calendar')}
+              className="text-gray-400 hover:text-white"
+            >
+              <ArrowLeft className="w-4 h-4" />
+            </Button>
+            <h2 className="text-xl font-bold text-white">New Appointment</h2>
+          </div>
+        </div>
+
+        {/* Client Selection */}
+        <Card className="bg-gray-800 border-gray-700">
+          <CardHeader>
+            <CardTitle className="text-white text-lg">Select Client</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <select
+              value={appointmentForm.clientId}
+              onChange={(e) => setAppointmentForm(prev => ({ ...prev, clientId: e.target.value }))}
+              className="w-full p-3 bg-gray-700 text-white rounded-lg border border-gray-600 focus:border-amber-500 focus:outline-none"
+            >
+              <option value="">Choose a client...</option>
+              {clients?.map(client => (
+                <option key={client.id} value={client.id.toString()}>
+                  {client.name} - {client.phone}
+                </option>
+              ))}
+            </select>
+          </CardContent>
+        </Card>
+
+        {/* Service Selection */}
+        <Card className="bg-gray-800 border-gray-700">
+          <CardHeader>
+            <CardTitle className="text-white text-lg">Select Services</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {services?.map(service => (
+              <div key={service.id} className="flex items-center justify-between p-3 bg-gray-700 rounded-lg">
+                <div className="flex-1">
+                  <div className="font-medium text-white">{service.name}</div>
+                  <div className="text-sm text-gray-400">${service.price} • {service.duration}min</div>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      const existing = appointmentForm.services.find(s => s.serviceId === service.id);
+                      if (existing) {
+                        setAppointmentForm(prev => ({
+                          ...prev,
+                          services: prev.services.map(s => 
+                            s.serviceId === service.id ? { ...s, quantity: Math.max(0, s.quantity - 1) } : s
+                          ).filter(s => s.quantity > 0)
+                        }));
+                      }
+                    }}
+                    className="w-8 h-8 p-0 bg-gray-600 text-white border-gray-500"
+                  >
+                    <Minus className="w-4 h-4" />
+                  </Button>
+                  <span className="text-white w-8 text-center">
+                    {appointmentForm.services.find(s => s.serviceId === service.id)?.quantity || 0}
+                  </span>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      const existing = appointmentForm.services.find(s => s.serviceId === service.id);
+                      if (existing) {
+                        setAppointmentForm(prev => ({
+                          ...prev,
+                          services: prev.services.map(s => 
+                            s.serviceId === service.id ? { ...s, quantity: s.quantity + 1 } : s
+                          )
+                        }));
+                      } else {
+                        setAppointmentForm(prev => ({
+                          ...prev,
+                          services: [...prev.services, { serviceId: service.id, quantity: 1 }]
+                        }));
+                      }
+                    }}
+                    className="w-8 h-8 p-0 bg-gray-600 text-white border-gray-500"
+                  >
+                    <Plus className="w-4 h-4" />
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+
+        {/* Date & Time */}
+        <Card className="bg-gray-800 border-gray-700">
+          <CardHeader>
+            <CardTitle className="text-white text-lg">Date & Time</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <input
+              type="datetime-local"
+              value={appointmentForm.scheduledAt}
+              onChange={(e) => setAppointmentForm(prev => ({ ...prev, scheduledAt: e.target.value }))}
+              className="w-full p-3 bg-gray-700 text-white rounded-lg border border-gray-600 focus:border-amber-500 focus:outline-none"
+            />
+          </CardContent>
+        </Card>
+
+        {/* Travel Option */}
+        <Card className="bg-gray-800 border-gray-700">
+          <CardHeader>
+            <CardTitle className="text-white text-lg">Travel Service</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="flex items-center space-x-3">
+              <input
+                type="checkbox"
+                id="includeTravel"
+                checked={appointmentForm.includeTravel}
+                onChange={(e) => setAppointmentForm(prev => ({ ...prev, includeTravel: e.target.checked }))}
+                className="w-4 h-4 text-amber-500 bg-gray-700 border-gray-600 rounded focus:ring-amber-500"
+              />
+              <label htmlFor="includeTravel" className="text-white">
+                Include travel to client location
+              </label>
+            </div>
+            {appointmentForm.includeTravel && (
+              <textarea
+                placeholder="Client address..."
+                value={appointmentForm.address}
+                onChange={(e) => setAppointmentForm(prev => ({ ...prev, address: e.target.value }))}
+                className="w-full p-3 bg-gray-700 text-white rounded-lg border border-gray-600 focus:border-amber-500 focus:outline-none resize-none"
+                rows={2}
+              />
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Notes */}
+        <Card className="bg-gray-800 border-gray-700">
+          <CardHeader>
+            <CardTitle className="text-white text-lg">Notes (Optional)</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <textarea
+              placeholder="Additional notes..."
+              value={appointmentForm.notes}
+              onChange={(e) => setAppointmentForm(prev => ({ ...prev, notes: e.target.value }))}
+              className="w-full p-3 bg-gray-700 text-white rounded-lg border border-gray-600 focus:border-amber-500 focus:outline-none resize-none"
+              rows={3}
+            />
+          </CardContent>
+        </Card>
+
+        {/* Action Buttons */}
+        <div className="flex items-center space-x-3">
+          <Button
+            variant="outline"
+            onClick={() => {
+              resetAppointmentForm();
+              setActiveTab('calendar');
+            }}
+            className="flex-1 bg-gray-700 text-white border-gray-600 hover:bg-gray-600"
+          >
+            Cancel
+          </Button>
+          <Button
+            onClick={createAppointment}
+            className="flex-1 bg-amber-500 hover:bg-amber-600 text-gray-900"
+          >
+            Create Appointment
+          </Button>
+        </div>
+      </div>
+    );
+  };
 
   // Mobile Calendar Screen
   const renderCalendar = () => {
@@ -390,12 +638,14 @@ export default function MobileApp() {
                   List
                 </Button>
               </div>
-              <Link href="/appointments/new">
-                <Button size="sm" className="bg-amber-500 hover:bg-amber-600 text-gray-900">
-                  <Plus className="w-4 h-4 mr-2" />
-                  Add Appt.
-                </Button>
-              </Link>
+              <Button 
+                size="sm" 
+                className="bg-amber-500 hover:bg-amber-600 text-gray-900"
+                onClick={() => setActiveTab('appointment-new')}
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                Add Appt.
+              </Button>
             </div>
           </CardContent>
         </Card>
@@ -1177,6 +1427,7 @@ export default function MobileApp() {
         )}
 
         {activeTab === 'calendar' && renderCalendar()}
+        {activeTab === 'appointment-new' && renderAppointmentNew()}
         {activeTab === 'clients' && renderClients()}
         {activeTab === 'services' && renderServices()}
         {activeTab === 'settings' && renderSettings()}
