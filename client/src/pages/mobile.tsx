@@ -207,6 +207,11 @@ export default function MobileApp() {
 
   // Mobile Calendar Screen
   const renderCalendar = () => {
+    const [calendarDate, setCalendarDate] = useState(new Date());
+    const [showExpired, setShowExpired] = useState(false);
+    const [selectedAppointment, setSelectedAppointment] = useState<any>(null);
+    const [isWorkingHoursOpen, setIsWorkingHoursOpen] = useState(false);
+    const [viewMode, setViewMode] = useState<'timeline' | 'list'>('timeline');
 
     const workingHours = (userProfile as any)?.workingHours || {
       monday: { enabled: true, start: "09:00", end: "17:00" },
@@ -279,177 +284,306 @@ export default function MobileApp() {
           </Button>
         </div>
 
-        {/* Calendar Controls */}
+        {/* Week Navigation */}
         <Card className="bg-gray-800 border-gray-700">
           <CardContent className="p-4">
             <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center space-x-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setCalendarDate(new Date(calendarDate.getTime() - 24 * 60 * 60 * 1000))}
-                  className="bg-gray-700 text-white border-gray-600 hover:bg-gray-600"
-                >
-                  <ArrowLeft className="w-4 h-4" />
-                </Button>
-                <h3 className="text-lg font-semibold text-white">
-                  {calendarDate.toLocaleDateString('en-US', { 
-                    weekday: 'long', 
-                    month: 'long', 
-                    day: 'numeric' 
-                  })}
-                </h3>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setCalendarDate(new Date(calendarDate.getTime() + 24 * 60 * 60 * 1000))}
-                  className="bg-gray-700 text-white border-gray-600 hover:bg-gray-600"
-                >
-                  <ArrowLeft className="w-4 h-4 rotate-180" />
-                </Button>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setShowExpired(!showExpired)}
-                  className="bg-gray-700 text-white border-gray-600 hover:bg-gray-600"
-                >
-                  {showExpired ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                </Button>
-                <Link href="/appointments/new">
-                  <Button size="sm" className="bg-amber-500 hover:bg-amber-600 text-gray-900">
-                    <Plus className="w-4 h-4 mr-1" />
-                    Add
-                  </Button>
-                </Link>
-              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  const newDate = new Date(calendarDate);
+                  newDate.setDate(calendarDate.getDate() - 7);
+                  setCalendarDate(newDate);
+                }}
+                className="text-gray-400 hover:text-white"
+              >
+                <ArrowLeft className="w-4 h-4" />
+              </Button>
+              <h3 className="text-lg font-semibold text-white">
+                {(() => {
+                  const startOfWeek = new Date(calendarDate);
+                  startOfWeek.setDate(calendarDate.getDate() - calendarDate.getDay());
+                  const endOfWeek = new Date(startOfWeek);
+                  endOfWeek.setDate(startOfWeek.getDate() + 6);
+                  return `${startOfWeek.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${endOfWeek.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
+                })()}
+              </h3>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  const newDate = new Date(calendarDate);
+                  newDate.setDate(calendarDate.getDate() + 7);
+                  setCalendarDate(newDate);
+                }}
+                className="text-gray-400 hover:text-white"
+              >
+                <ArrowLeft className="w-4 h-4 rotate-180" />
+              </Button>
             </div>
-
-            <div className="flex flex-wrap gap-2">
-              <Badge className="bg-green-500 text-white">
-                {appointmentCounts.confirmed} Confirmed
-              </Badge>
-              <Badge className="bg-yellow-500 text-gray-900">
-                {appointmentCounts.pending} Pending
-              </Badge>
-              {showExpired && (
-                <>
-                  <Badge className="bg-red-500 text-white">
-                    {appointmentCounts.expired} Expired
-                  </Badge>
-                  <Badge className="bg-gray-500 text-white">
-                    {appointmentCounts.cancelled} Cancelled
-                  </Badge>
-                </>
-              )}
+            
+            {/* Week Days */}
+            <div className="grid grid-cols-7 gap-1">
+              {(() => {
+                const startOfWeek = new Date(calendarDate);
+                startOfWeek.setDate(calendarDate.getDate() - calendarDate.getDay());
+                const dates = [];
+                for (let i = 0; i < 7; i++) {
+                  const date = new Date(startOfWeek);
+                  date.setDate(startOfWeek.getDate() + i);
+                  dates.push(date);
+                }
+                return dates;
+              })().map((date, index) => {
+                const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+                const isSelected = date.toISOString().split('T')[0] === calendarDate.toISOString().split('T')[0];
+                const isToday = date.toISOString().split('T')[0] === new Date().toISOString().split('T')[0];
+                
+                return (
+                  <Button
+                    key={index}
+                    variant={isSelected ? "default" : "ghost"}
+                    size="sm"
+                    onClick={() => setCalendarDate(date)}
+                    className={`flex flex-col p-2 h-auto ${
+                      isSelected 
+                        ? 'bg-amber-500 hover:bg-amber-600 text-gray-900' 
+                        : 'text-gray-400 hover:text-white hover:bg-gray-700'
+                    }`}
+                  >
+                    <span className="text-xs">{dayNames[index]}</span>
+                    <span className={`text-lg font-semibold ${isToday && !isSelected ? 'text-amber-500' : ''}`}>
+                      {date.getDate()}
+                    </span>
+                  </Button>
+                );
+              })}
             </div>
           </CardContent>
         </Card>
 
-
-
-        {/* Timeline View */}
+        {/* Timeline/List/Add Controls */}
         <Card className="bg-gray-800 border-gray-700">
           <CardContent className="p-4">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="font-semibold text-white">Schedule</h3>
+            <div className="flex items-center justify-between space-x-2">
+              <div className="flex items-center space-x-2">
+                <Button
+                  variant={viewMode === 'timeline' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setViewMode('timeline')}
+                  className="bg-gray-700 text-white border-gray-600 hover:bg-gray-600"
+                >
+                  <Calendar className="w-4 h-4 mr-2" />
+                  Timeline
+                </Button>
+                <Button
+                  variant={viewMode === 'list' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setViewMode('list')}
+                  className="bg-gray-700 text-white border-gray-600 hover:bg-gray-600"
+                >
+                  <Calendar className="w-4 h-4 mr-2" />
+                  List
+                </Button>
+              </div>
               <Link href="/appointments/new">
                 <Button size="sm" className="bg-amber-500 hover:bg-amber-600 text-gray-900">
-                  <Plus className="w-4 h-4 mr-1" />
-                  Add
+                  <Plus className="w-4 h-4 mr-2" />
+                  Add Appt.
                 </Button>
               </Link>
             </div>
-            
-            {calendarLoading ? (
-              <div className="flex justify-center py-8">
-                <div className="animate-spin w-6 h-6 border-2 border-amber-500 border-t-transparent rounded-full" />
-              </div>
-            ) : (
-              <div className="space-y-1">
-                {generateMobileTimeSlots().map((slot) => (
-                  <div
-                    key={slot.hour}
-                    className={`flex items-center p-2 rounded-lg ${
-                      slot.isBlocked 
-                        ? 'bg-gray-700/50 border-l-2 border-gray-600' 
-                        : 'bg-gray-700 border-l-2 border-amber-500'
-                    }`}
-                  >
-                    <div className="w-16 text-sm text-gray-400">
-                      {slot.time}
-                    </div>
-                    <div className="flex-1 ml-4">
-                      {slot.appointments.length > 0 ? (
-                        <div className="space-y-1">
-                          {slot.appointments.map((appointment) => (
-                            <div
-                              key={appointment.id}
-                              onClick={() => {
-                                setSelectedAppointment(appointment);
-                                setIsDetailsDialogOpen(true);
-                              }}
-                              className={`p-2 rounded cursor-pointer transition-colors ${
-                                appointment.status === 'confirmed' 
-                                  ? 'bg-green-500/20 border border-green-500/30'
-                                  : appointment.status === 'pending'
-                                  ? 'bg-yellow-500/20 border border-yellow-500/30'
-                                  : 'bg-gray-600/20 border border-gray-600/30'
-                              }`}
-                            >
-                              <div className="flex justify-between items-start">
-                                <div>
-                                  <p className="font-medium text-white text-sm">
-                                    {appointment.client?.name}
-                                  </p>
-                                  <p className="text-xs text-gray-400">
-                                    {appointment.services?.[0]?.name}
-                                  </p>
-                                </div>
-                                <div className="text-right">
-                                  <p className="text-xs text-amber-500">
-                                    {appointment.duration}min
-                                  </p>
-                                  <p className="text-xs text-gray-400">
-                                    ${appointment.services?.[0]?.price || '0'}
-                                  </p>
-                                </div>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <div className="text-sm text-gray-500 italic">
-                          {slot.isBlocked ? 'Outside working hours' : 'Available'}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
           </CardContent>
         </Card>
 
-        {/* Quick Actions */}
-        <div className="grid grid-cols-2 gap-4">
-          <Button
-            variant="outline"
-            onClick={() => setShowWorkingHours(true)}
-            className="bg-gray-800 text-white border-gray-600 hover:bg-gray-700"
-          >
-            <Settings className="w-4 h-4 mr-2" />
-            Working Hours
-          </Button>
-          <Button
-            onClick={() => setCalendarDate(new Date())}
-            className="bg-amber-500 hover:bg-amber-600 text-gray-900"
-          >
-            <Calendar className="w-4 h-4 mr-2" />
-            Today
-          </Button>
-        </div>
+        {/* Selected Day Header */}
+        <Card className="bg-gray-800 border-gray-700">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-semibold text-white flex items-center">
+                <Clock className="w-5 h-5 mr-2" />
+                {calendarDate.toLocaleDateString('en-US', { 
+                  weekday: 'long', 
+                  month: 'long', 
+                  day: 'numeric' 
+                })}
+              </h3>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowExpired(!showExpired)}
+                className="bg-gray-700 text-white border-gray-600 hover:bg-gray-600"
+              >
+                {showExpired ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Timeline View */}
+        {viewMode === 'timeline' && (
+          <Card className="bg-gray-800 border-gray-700">
+            <CardContent className="p-4">
+              {calendarLoading ? (
+                <div className="flex justify-center py-8">
+                  <div className="animate-spin w-6 h-6 border-2 border-amber-500 border-t-transparent rounded-full" />
+                </div>
+              ) : (
+                <div className="space-y-1">
+                  {generateMobileTimeSlots().map((slot) => (
+                    <div
+                      key={slot.hour}
+                      className={`flex items-start p-3 rounded-lg border ${
+                        slot.isBlocked
+                          ? 'bg-gray-700/50 border-gray-600'
+                          : 'bg-gray-700 border-gray-600'
+                      }`}
+                    >
+                      <div className="w-20 text-sm font-medium text-gray-300 flex-shrink-0">
+                        {slot.time}
+                      </div>
+                      <div className="flex-1 ml-4">
+                        {slot.appointments.length > 0 ? (
+                          <div className="space-y-2">
+                            {slot.appointments.map((appointment) => (
+                              <div
+                                key={appointment.id}
+                                onClick={() => {
+                                  setSelectedAppointment(appointment);
+                                  setIsDetailsDialogOpen(true);
+                                }}
+                                className={`p-3 rounded cursor-pointer text-sm border ${
+                                  appointment.status === 'confirmed'
+                                    ? 'bg-green-500/20 text-green-400 border-green-500/30'
+                                    : appointment.status === 'pending'
+                                    ? 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30'
+                                    : appointment.status === 'expired'
+                                    ? 'bg-red-500/20 text-red-400 border-red-500/30'
+                                    : 'bg-gray-500/20 text-gray-400 border-gray-500/30'
+                                }`}
+                              >
+                                <div className="flex items-center justify-between">
+                                  <div className="flex-1">
+                                    <div className="font-medium">
+                                      {appointment.client?.name || 'Unknown Client'}
+                                    </div>
+                                    <div className="text-xs opacity-75 mt-1">
+                                      {appointment.services || 'No services'} • {appointment.duration}min
+                                    </div>
+                                  </div>
+                                  <div className="text-xs">
+                                    {appointment.status.toUpperCase()}
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="text-sm text-gray-500">
+                            {slot.isBlocked ? 'Outside working hours' : 'Available'}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
+        {/* List View */}
+        {viewMode === 'list' && (
+          <Card className="bg-gray-800 border-gray-700">
+            <CardContent className="p-4">
+              <div className="space-y-3">
+                {visibleAppointments.length > 0 ? (
+                  visibleAppointments.map((appointment) => (
+                    <div
+                      key={appointment.id}
+                      onClick={() => {
+                        setSelectedAppointment(appointment);
+                        setIsDetailsDialogOpen(true);
+                      }}
+                      className={`p-4 rounded-lg cursor-pointer border ${
+                        appointment.status === 'confirmed'
+                          ? 'bg-green-500/20 text-green-400 border-green-500/30'
+                          : appointment.status === 'pending'
+                          ? 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30'
+                          : appointment.status === 'expired'
+                          ? 'bg-red-500/20 text-red-400 border-red-500/30'
+                          : 'bg-gray-500/20 text-gray-400 border-gray-500/30'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1">
+                          <div className="font-medium text-lg">
+                            {appointment.client?.name || 'Unknown Client'}
+                          </div>
+                          <div className="text-sm opacity-75 mt-1">
+                            {appointment.services || 'No services'}
+                          </div>
+                          <div className="text-xs opacity-60 mt-1">
+                            {new Date(appointment.scheduledAt).toLocaleTimeString('en-US', {
+                              hour: 'numeric',
+                              minute: '2-digit',
+                              hour12: true
+                            })} • {appointment.duration}min
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <Badge className={`${
+                            appointment.status === 'confirmed' ? 'bg-green-500' :
+                            appointment.status === 'pending' ? 'bg-yellow-500' :
+                            appointment.status === 'expired' ? 'bg-red-500' :
+                            'bg-gray-500'
+                          } text-white`}>
+                            {appointment.status.toUpperCase()}
+                          </Badge>
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-center py-8 text-gray-400">
+                    <Calendar className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                    <p>No appointments for {calendarDate.toLocaleDateString('en-US', { 
+                      weekday: 'long', 
+                      month: 'long', 
+                      day: 'numeric' 
+                    })}</p>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Working Hours Dialog */}
+        <WorkingHoursDialog
+          open={isWorkingHoursOpen}
+          onOpenChange={setIsWorkingHoursOpen}
+          workingHours={workingHours}
+          onSave={(hours) => {
+            setIsWorkingHoursOpen(false);
+          }}
+        />
+
+        {/* Appointment Details Dialog */}
+        <AppointmentDetailsDialog
+          appointment={selectedAppointment}
+          open={isDetailsDialogOpen}
+          onOpenChange={setIsDetailsDialogOpen}
+          onEdit={(appointment) => {
+            setIsDetailsDialogOpen(false);
+            setSelectedAppointment(null);
+          }}
+          onDelete={(appointment) => {
+            setIsDetailsDialogOpen(false);
+            setSelectedAppointment(null);
+          }}
+        />
       </div>
     );
   };
