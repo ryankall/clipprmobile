@@ -10,6 +10,7 @@ import { AppointmentCard } from "@/components/appointment-card";
 import { AppointmentPreview } from "@/components/appointment-preview-simple";
 import { AppointmentDetailsDialog } from "@/components/appointment-details-dialog";
 import { PendingAppointments } from "@/components/pending-appointments";
+import { WorkingHoursDialog } from "@/components/working-hours-dialog";
 import { Link, useLocation } from "wouter";
 import { 
   Home, 
@@ -30,7 +31,10 @@ import {
   CreditCard,
   ArrowLeft,
   Search,
-  Filter
+  Filter,
+  Eye,
+  EyeOff,
+  Heart
 } from "lucide-react";
 import type { DashboardStats, AppointmentWithRelations, GalleryPhoto, User as UserType, ClientWithRelations } from "@shared/schema";
 import type { Service } from "@/lib/types";
@@ -45,6 +49,12 @@ export default function MobileApp() {
   const notificationRef = useRef<HTMLDivElement>(null);
   const [, navigate] = useLocation();
   const [searchTerm, setSearchTerm] = useState("");
+  
+  // Mobile Calendar State
+  const [calendarDate, setCalendarDate] = useState(new Date());
+  const [viewMode, setViewMode] = useState<'timeline' | 'list'>('timeline');
+  const [showExpired, setShowExpired] = useState(false);
+  const [showWorkingHours, setShowWorkingHours] = useState(false);
 
   // Close notifications when clicking outside
   useEffect(() => {
@@ -184,50 +194,268 @@ export default function MobileApp() {
     client.phone.includes(searchTerm)
   ) || [];
 
+  // Mobile Calendar Queries
+  const { data: calendarAppointments, isLoading: calendarLoading } = useQuery<AppointmentWithRelations[]>({
+    queryKey: ["/api/appointments", calendarDate.toISOString().split('T')[0]],
+    enabled: activeTab === 'calendar',
+  });
+
+  const { data: userProfile } = useQuery({
+    queryKey: ["/api/user/profile"],
+    enabled: activeTab === 'calendar',
+  });
+
   // Mobile Calendar Screen
-  const renderCalendar = () => (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h2 className="text-xl font-bold text-white">Calendar</h2>
-        <Link href="/calendar">
-          <Button variant="outline" className="bg-gray-800 text-white border-gray-600 hover:bg-gray-700">
-            Full Calendar
-          </Button>
-        </Link>
-      </div>
+  const renderCalendar = () => {
+
+    const workingHours = (userProfile as any)?.workingHours || {
+      monday: { enabled: true, start: "09:00", end: "17:00" },
+      tuesday: { enabled: true, start: "09:00", end: "17:00" },
+      wednesday: { enabled: true, start: "09:00", end: "17:00" },
+      thursday: { enabled: true, start: "09:00", end: "17:00" },
+      friday: { enabled: true, start: "09:00", end: "17:00" },
+      saturday: { enabled: true, start: "10:00", end: "16:00" },
+      sunday: { enabled: false, start: "09:00", end: "17:00" },
+    };
+
+    const selectedDateAppointments = calendarAppointments?.filter((apt) => {
+      const aptDate = new Date(apt.scheduledAt).toISOString().split('T')[0];
+      const selDate = calendarDate.toISOString().split('T')[0];
+      return aptDate === selDate;
+    }) || [];
+
+    const visibleAppointments = selectedDateAppointments.filter((apt) => {
+      if (showExpired) return true;
+      return apt.status === "confirmed" || apt.status === "pending";
+    });
+
+    const appointmentCounts = {
+      confirmed: selectedDateAppointments.filter(apt => apt.status === "confirmed").length,
+      pending: selectedDateAppointments.filter(apt => apt.status === "pending").length,
+      expired: selectedDateAppointments.filter(apt => apt.status === "expired").length,
+      cancelled: selectedDateAppointments.filter(apt => apt.status === "cancelled").length,
+    };
+
+    const generateMobileTimeSlots = () => {
+      const slots = [];
+      const dayName = calendarDate.toLocaleDateString('en-US', { weekday: 'lowercase' });
+      const dayHours = workingHours[dayName as keyof typeof workingHours] || workingHours.monday;
       
-      <Card className="bg-gray-800 border-gray-700">
-        <CardContent className="p-4">
-          <h3 className="font-semibold text-white mb-3">Today's Appointments</h3>
-          <div className="space-y-2">
-            {confirmedAppointments?.length ? (
-              confirmedAppointments.map((appointment) => (
-                <div key={appointment.id} className="bg-gray-700 p-3 rounded-lg">
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <p className="font-medium text-white">{appointment.client?.name}</p>
-                      <p className="text-sm text-gray-400">{appointment.services?.[0]?.name}</p>
+      for (let hour = 8; hour <= 22; hour++) {
+        const time = hour === 12 ? '12 PM' : hour < 12 ? `${hour} AM` : `${hour - 12} PM`;
+        const isWithinWorkingHours = dayHours.enabled && 
+          hour >= parseInt(dayHours.start.split(':')[0]) && 
+          hour < parseInt(dayHours.end.split(':')[0]);
+        
+        const hourAppointments = visibleAppointments.filter(apt => {
+          const aptHour = new Date(apt.scheduledAt).getHours();
+          return aptHour === hour;
+        });
+
+        slots.push({
+          hour,
+          time,
+          appointments: hourAppointments,
+          isBlocked: !isWithinWorkingHours,
+          isWithinWorkingHours
+        });
+      }
+      return slots;
+    };
+
+    return (
+      <div className="space-y-4">
+        {/* Calendar Header */}
+        <div className="flex items-center justify-between">
+          <h2 className="text-xl font-bold text-white">Calendar</h2>
+          <Link href="/calendar-new">
+            <Button variant="outline" className="bg-gray-800 text-white border-gray-600 hover:bg-gray-700">
+              Full Calendar
+            </Button>
+          </Link>
+        </div>
+
+        {/* Date Navigation */}
+        <Card className="bg-gray-800 border-gray-700">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between mb-4">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setCalendarDate(new Date(calendarDate.getTime() - 24 * 60 * 60 * 1000))}
+                className="text-gray-400 hover:text-white"
+              >
+                <ArrowLeft className="w-4 h-4" />
+              </Button>
+              <div className="text-center">
+                <p className="font-semibold text-white">
+                  {calendarDate.toLocaleDateString('en-US', { 
+                    weekday: 'long', 
+                    month: 'long', 
+                    day: 'numeric' 
+                  })}
+                </p>
+                <p className="text-sm text-gray-400">
+                  {appointmentCounts.confirmed + appointmentCounts.pending} appointments
+                </p>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setCalendarDate(new Date(calendarDate.getTime() + 24 * 60 * 60 * 1000))}
+                className="text-gray-400 hover:text-white"
+              >
+                <ArrowLeft className="w-4 h-4 rotate-180" />
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Status Summary */}
+        {(appointmentCounts.confirmed + appointmentCounts.pending + appointmentCounts.expired + appointmentCounts.cancelled) > 0 && (
+          <Card className="bg-gray-800 border-gray-700">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="font-semibold text-white">Status Summary</h3>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowExpired(!showExpired)}
+                  className="text-gray-400 hover:text-white"
+                >
+                  {showExpired ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </Button>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                {appointmentCounts.confirmed > 0 && (
+                  <Badge className="bg-green-500 text-white justify-center">
+                    {appointmentCounts.confirmed} Confirmed
+                  </Badge>
+                )}
+                {appointmentCounts.pending > 0 && (
+                  <Badge className="bg-yellow-500 text-gray-900 justify-center">
+                    {appointmentCounts.pending} Pending
+                  </Badge>
+                )}
+                {appointmentCounts.expired > 0 && (
+                  <Badge className="bg-red-500 text-white justify-center">
+                    {appointmentCounts.expired} Expired
+                  </Badge>
+                )}
+                {appointmentCounts.cancelled > 0 && (
+                  <Badge className="bg-gray-500 text-white justify-center">
+                    {appointmentCounts.cancelled} Cancelled
+                  </Badge>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Timeline View */}
+        <Card className="bg-gray-800 border-gray-700">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-semibold text-white">Schedule</h3>
+              <Link href="/appointments/new">
+                <Button size="sm" className="bg-amber-500 hover:bg-amber-600 text-gray-900">
+                  <Plus className="w-4 h-4 mr-1" />
+                  Add
+                </Button>
+              </Link>
+            </div>
+            
+            {calendarLoading ? (
+              <div className="flex justify-center py-8">
+                <div className="animate-spin w-6 h-6 border-2 border-amber-500 border-t-transparent rounded-full" />
+              </div>
+            ) : (
+              <div className="space-y-1">
+                {generateMobileTimeSlots().map((slot) => (
+                  <div
+                    key={slot.hour}
+                    className={`flex items-center p-2 rounded-lg ${
+                      slot.isBlocked 
+                        ? 'bg-gray-700/50 border-l-2 border-gray-600' 
+                        : 'bg-gray-700 border-l-2 border-amber-500'
+                    }`}
+                  >
+                    <div className="w-16 text-sm text-gray-400">
+                      {slot.time}
                     </div>
-                    <div className="text-right">
-                      <p className="text-sm text-amber-500">
-                        {new Date(appointment.scheduledAt).toLocaleTimeString('en-US', { 
-                          hour: 'numeric', 
-                          minute: '2-digit' 
-                        })}
-                      </p>
-                      <p className="text-sm text-gray-400">{appointment.duration}min</p>
+                    <div className="flex-1 ml-4">
+                      {slot.appointments.length > 0 ? (
+                        <div className="space-y-1">
+                          {slot.appointments.map((appointment) => (
+                            <div
+                              key={appointment.id}
+                              onClick={() => {
+                                setSelectedAppointment(appointment);
+                                setIsDetailsDialogOpen(true);
+                              }}
+                              className={`p-2 rounded cursor-pointer transition-colors ${
+                                appointment.status === 'confirmed' 
+                                  ? 'bg-green-500/20 border border-green-500/30'
+                                  : appointment.status === 'pending'
+                                  ? 'bg-yellow-500/20 border border-yellow-500/30'
+                                  : 'bg-gray-600/20 border border-gray-600/30'
+                              }`}
+                            >
+                              <div className="flex justify-between items-start">
+                                <div>
+                                  <p className="font-medium text-white text-sm">
+                                    {appointment.client?.name}
+                                  </p>
+                                  <p className="text-xs text-gray-400">
+                                    {appointment.services?.[0]?.name}
+                                  </p>
+                                </div>
+                                <div className="text-right">
+                                  <p className="text-xs text-amber-500">
+                                    {appointment.duration}min
+                                  </p>
+                                  <p className="text-xs text-gray-400">
+                                    ${appointment.services?.[0]?.price || '0'}
+                                  </p>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="text-sm text-gray-500 italic">
+                          {slot.isBlocked ? 'Outside working hours' : 'Available'}
+                        </div>
+                      )}
                     </div>
                   </div>
-                </div>
-              ))
-            ) : (
-              <p className="text-gray-400 text-center py-4">No appointments today</p>
+                ))}
+              </div>
             )}
-          </div>
-        </CardContent>
-      </Card>
-    </div>
-  );
+          </CardContent>
+        </Card>
+
+        {/* Quick Actions */}
+        <div className="grid grid-cols-2 gap-4">
+          <Button
+            variant="outline"
+            onClick={() => setShowWorkingHours(true)}
+            className="bg-gray-800 text-white border-gray-600 hover:bg-gray-700"
+          >
+            <Settings className="w-4 h-4 mr-2" />
+            Working Hours
+          </Button>
+          <Button
+            onClick={() => setCalendarDate(new Date())}
+            className="bg-amber-500 hover:bg-amber-600 text-gray-900"
+          >
+            <Calendar className="w-4 h-4 mr-2" />
+            Today
+          </Button>
+        </div>
+      </div>
+    );
+  };
 
   // Mobile Clients Screen
   const renderClients = () => (
@@ -282,37 +510,124 @@ export default function MobileApp() {
   );
 
   // Mobile Services Screen
-  const renderServices = () => (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h2 className="text-xl font-bold text-white">Services</h2>
-        <Link href="/services">
-          <Button variant="outline" className="bg-gray-800 text-white border-gray-600 hover:bg-gray-700">
-            Manage Services
-          </Button>
-        </Link>
-      </div>
-      
-      <div className="space-y-2">
-        {services?.filter(s => s.isActive)?.map((service) => (
-          <Card key={service.id} className="bg-gray-800 border-gray-700">
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-medium text-white">{service.name}</p>
-                  <p className="text-sm text-gray-400">{service.category}</p>
-                  <p className="text-sm text-gray-400">{service.duration}min</p>
-                </div>
-                <div className="text-right">
-                  <p className="text-lg font-bold text-amber-500">${service.price}</p>
-                </div>
-              </div>
+  const renderServices = () => {
+    const groupedServices = (services || []).reduce((acc, service) => {
+      const category = service.category || 'Other';
+      if (!acc[category]) {
+        acc[category] = [];
+      }
+      acc[category].push(service);
+      return acc;
+    }, {} as Record<string, Service[]>);
+
+    const getCategoryColor = (category: string) => {
+      switch (category.toLowerCase()) {
+        case 'haircut': return 'bg-green-500';
+        case 'beard': return 'bg-amber-500';
+        case 'styling': return 'bg-purple-500';
+        case 'color': return 'bg-red-500';
+        case 'treatment': return 'bg-blue-500';
+        default: return 'bg-gray-500';
+      }
+    };
+
+    const activeServices = services?.filter(s => s.isActive) || [];
+    const inactiveServices = services?.filter(s => !s.isActive) || [];
+
+    return (
+      <div className="space-y-4">
+        {/* Services Header */}
+        <div className="flex items-center justify-between">
+          <h2 className="text-xl font-bold text-white">Services</h2>
+          <Link href="/settings">
+            <Button variant="outline" className="bg-gray-800 text-white border-gray-600 hover:bg-gray-700">
+              Manage Services
+            </Button>
+          </Link>
+        </div>
+
+        {/* Services Summary */}
+        <div className="grid grid-cols-2 gap-4">
+          <Card className="bg-gray-800 border-gray-700">
+            <CardContent className="p-4 text-center">
+              <div className="text-2xl font-bold text-green-500">{activeServices.length}</div>
+              <div className="text-sm text-gray-400">Active Services</div>
             </CardContent>
           </Card>
-        )) || []}
+          <Card className="bg-gray-800 border-gray-700">
+            <CardContent className="p-4 text-center">
+              <div className="text-2xl font-bold text-amber-500">
+                ${activeServices.reduce((sum, s) => sum + parseFloat(s.price), 0).toFixed(0)}
+              </div>
+              <div className="text-sm text-gray-400">Total Revenue Potential</div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Active Services by Category */}
+        {Object.entries(groupedServices).map(([category, categoryServices]) => {
+          const activeInCategory = categoryServices.filter(s => s.isActive);
+          if (activeInCategory.length === 0) return null;
+
+          return (
+            <Card key={category} className="bg-gray-800 border-gray-700">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center space-x-2">
+                    <div className={`${getCategoryColor(category)} p-2 rounded-full text-white`}>
+                      <Scissors className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-white">{category}</h3>
+                      <p className="text-sm text-gray-400">{activeInCategory.length} services</p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-sm text-gray-400">
+                      Avg: ${(activeInCategory.reduce((sum, s) => sum + parseFloat(s.price), 0) / activeInCategory.length).toFixed(0)}
+                    </p>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  {activeInCategory.map((service) => (
+                    <div key={service.id} className="bg-gray-700 p-3 rounded-lg">
+                      <div className="flex justify-between items-start">
+                        <div className="flex-1">
+                          <p className="font-medium text-white">{service.name}</p>
+                          {service.description && (
+                            <p className="text-sm text-gray-400 mt-1">{service.description}</p>
+                          )}
+                        </div>
+                        <div className="text-right ml-4">
+                          <p className="text-lg font-bold text-amber-500">${service.price}</p>
+                          <p className="text-sm text-gray-400">{service.duration}min</p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          );
+        })}
+
+        {/* No Services State */}
+        {!services || services.length === 0 ? (
+          <Card className="bg-gray-800 border-gray-700">
+            <CardContent className="p-8 text-center">
+              <Scissors className="w-12 h-12 mx-auto mb-4 text-gray-500" />
+              <p className="text-gray-400 mb-4">No services created yet</p>
+              <Link href="/settings">
+                <Button className="bg-amber-500 hover:bg-amber-600 text-gray-900">
+                  Create Your First Service
+                </Button>
+              </Link>
+            </CardContent>
+          </Card>
+        ) : null}
       </div>
-    </div>
-  );
+    );
+  };
 
   // Mobile Settings Screen
   const renderSettings = () => (
@@ -712,6 +1027,12 @@ export default function MobileApp() {
           setIsDetailsDialogOpen(false);
           setSelectedAppointment(null);
         }}
+      />
+
+      {/* Working Hours Dialog */}
+      <WorkingHoursDialog
+        open={showWorkingHours}
+        onClose={() => setShowWorkingHours(false)}
       />
     </div>
   );
