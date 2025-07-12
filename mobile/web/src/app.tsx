@@ -31,17 +31,41 @@ import {
 const useAuth = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [user, setUser] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(true);
   
-  // Check if user is authenticated
+  // Check if user is authenticated and fetch user data
   useEffect(() => {
-    const token = localStorage.getItem('token');
-    if (token) {
-      setIsAuthenticated(true);
-      // You could also fetch user data here
-    }
+    const checkAuth = async () => {
+      const token = localStorage.getItem('token');
+      if (token) {
+        try {
+          const response = await fetch('/api/auth/me', {
+            headers: {
+              'Authorization': `Bearer ${token}`
+            }
+          });
+          
+          if (response.ok) {
+            const userData = await response.json();
+            setUser(userData);
+            setIsAuthenticated(true);
+          } else {
+            localStorage.removeItem('token');
+            setIsAuthenticated(false);
+          }
+        } catch (error) {
+          console.error('Auth check failed:', error);
+          localStorage.removeItem('token');
+          setIsAuthenticated(false);
+        }
+      }
+      setIsLoading(false);
+    };
+    
+    checkAuth();
   }, []);
   
-  return { isAuthenticated, user };
+  return { isAuthenticated, user, isLoading };
 };
 
 // Type definitions
@@ -89,7 +113,7 @@ interface Service {
 }
 
 export default function MobileApp() {
-  const { isAuthenticated, user } = useAuth();
+  const { isAuthenticated, user, isLoading } = useAuth();
   const [activeTab, setActiveTab] = useState<'dashboard' | 'calendar' | 'clients' | 'services' | 'settings' | 'appointment-new'>('dashboard');
   const [showNotifications, setShowNotifications] = useState(false);
   const [selectedAppointment, setSelectedAppointment] = useState<AppointmentWithRelations | null>(null);
@@ -310,14 +334,28 @@ export default function MobileApp() {
     return slots;
   };
 
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-900 flex items-center justify-center p-4">
+        <div className="w-full max-w-md bg-gray-800 border border-gray-700 rounded-lg p-6 text-center">
+          <div className="animate-spin w-8 h-8 border-2 border-amber-500 border-t-transparent rounded-full mx-auto mb-4"></div>
+          <p className="text-gray-400">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
   if (!isAuthenticated) {
     return (
       <div className="min-h-screen bg-gray-900 flex items-center justify-center p-4">
         <div className="w-full max-w-md bg-gray-800 border border-gray-700 rounded-lg p-6 text-center">
           <h1 className="text-2xl font-bold text-white mb-4">Clippr Mobile</h1>
           <p className="text-gray-400 mb-6">Please sign in to continue</p>
-          <button className="w-full bg-amber-500 hover:bg-amber-600 text-gray-900 py-2 px-4 rounded-lg font-medium">
-            Sign In
+          <button 
+            onClick={() => window.location.href = '/'}
+            className="w-full bg-amber-500 hover:bg-amber-600 text-gray-900 py-2 px-4 rounded-lg font-medium"
+          >
+            Go to Sign In
           </button>
         </div>
       </div>
