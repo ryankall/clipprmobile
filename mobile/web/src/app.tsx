@@ -281,6 +281,15 @@ function MobileSettingsPage() {
   const [isCodeSent, setIsCodeSent] = useState(false);
   const [countdown, setCountdown] = useState(0);
   const [isChangingPassword, setIsChangingPassword] = useState(false);
+  const [showHelpSupport, setShowHelpSupport] = useState(false);
+  const [expandedFAQ, setExpandedFAQ] = useState<string | null>(null);
+  const [selectedCategory, setSelectedCategory] = useState<string>("All");
+  const [supportForm, setSupportForm] = useState({
+    name: "",
+    email: "",
+    subject: "",
+    message: "",
+  });
   const [notificationSettings, setNotificationSettings] = useState({
     newBookingRequests: true,
     appointmentConfirmations: true,
@@ -304,7 +313,50 @@ function MobileSettingsPage() {
     newPassword: '',
     confirmPassword: ''
   });
+  const [isSubmittingSupport, setIsSubmittingSupport] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // FAQ data
+  const faqData = [
+    {
+      id: "premium-guarantee",
+      question: "What is the Premium Guarantee?",
+      answer: "Try Clippr Pro risk-free for 30 days. If you're not satisfied, request a full refund — no hassle. You can also cancel your subscription anytime directly from the Settings page.",
+      category: "Premium & Billing",
+      icon: "🛡️",
+    },
+    {
+      id: "cancel-subscription",
+      question: "How do I cancel my subscription?",
+      answer: "You can cancel your Premium subscription anytime from Settings → Subscription Management. Your premium access will continue until the end of your current billing period.",
+      category: "Premium & Billing",
+      icon: "💳",
+    },
+    {
+      id: "appointment-limits",
+      question: "What are the appointment limits?",
+      answer: "Basic plan allows 15 appointments per month. Premium plan offers unlimited appointments. The counter resets on the first day of each month.",
+      category: "Features",
+      icon: "📅",
+    },
+    {
+      id: "client-management",
+      question: "How do I manage my clients?",
+      answer: "Go to the Clients page to add, edit, and track your client information. You can store contact details, service history, and notes for each client.",
+      category: "Features",
+      icon: "👥",
+    },
+    {
+      id: "data-security",
+      question: "Is my data secure?",
+      answer: "Yes, we use industry-standard encryption and security measures. Your client data and payment information are protected with bank-level security.",
+      category: "Security",
+      icon: "🔒",
+    },
+  ];
+
+  const categories = ["All", "Premium & Billing", "Features", "Security"];
+  const filteredFAQs = selectedCategory === "All" ? faqData : faqData.filter((faq) => faq.category === selectedCategory);
 
   // Fetch user profile data
   const { data: user, isLoading } = useQuery<any>({
@@ -354,6 +406,37 @@ function MobileSettingsPage() {
       setIsEditingProfile(false);
       setPreviewUrl(null);
       // Show success message
+    },
+  });
+
+  // Change password mutation
+  const changePasswordMutation = useMutation({
+    mutationFn: async (data: any) => {
+      const response = await fetch("/api/auth/change-password", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify(data),
+      });
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Failed to change password");
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      setIsChangingPassword(false);
+      setPasswordFormData({
+        currentPassword: '',
+        newPassword: '',
+        confirmPassword: ''
+      });
+      alert("Password changed successfully!");
+    },
+    onError: (error: any) => {
+      alert(error.message || "Failed to change password");
     },
   });
 
@@ -412,6 +495,60 @@ function MobileSettingsPage() {
       };
       reader.readAsDataURL(file);
     }
+  };
+
+  // Handle FAQ toggle
+  const handleFAQToggle = (id: string) => {
+    setExpandedFAQ(expandedFAQ === id ? null : id);
+  };
+
+  // Handle support form submission
+  const handleSupportSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSubmittingSupport(true);
+
+    try {
+      // Create mailto link for now (can be replaced with actual email service)
+      const mailtoLink = `mailto:support@clippr.com?subject=${encodeURIComponent(supportForm.subject)}&body=${encodeURIComponent(
+        `Name: ${supportForm.name}\nEmail: ${supportForm.email}\n\nMessage:\n${supportForm.message}`,
+      )}`;
+
+      window.open(mailtoLink, "_blank");
+
+      alert("Your email client has been opened. Please send the email to complete your support request.");
+
+      // Reset form
+      setSupportForm({
+        name: "",
+        email: "",
+        subject: "",
+        message: "",
+      });
+    } catch (error) {
+      alert("Failed to open email client. Please email us directly at support@clippr.com");
+    } finally {
+      setIsSubmittingSupport(false);
+    }
+  };
+
+  // Handle change password
+  const handlePasswordChange = (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (passwordFormData.newPassword !== passwordFormData.confirmPassword) {
+      alert("New passwords do not match");
+      return;
+    }
+    
+    if (passwordFormData.newPassword.length < 8) {
+      alert("Password must be at least 8 characters long");
+      return;
+    }
+    
+    changePasswordMutation.mutate({
+      currentPassword: passwordFormData.currentPassword,
+      newPassword: passwordFormData.newPassword,
+    });
   };
 
   // Handle profile update
@@ -1174,10 +1311,7 @@ function MobileSettingsPage() {
           {/* Help & Support */}
           <div className="bg-gray-800 border border-gray-700 rounded-lg p-4">
             <button
-              onClick={() => {
-                // Navigate to help page or show help dialog
-                window.open('/help', '_blank');
-              }}
+              onClick={() => setShowHelpSupport(true)}
               className="w-full flex items-center justify-center space-x-2 bg-blue-600 hover:bg-blue-700 text-white py-3 px-4 rounded-lg transition-colors mb-3"
             >
               <HelpCircle className="w-5 h-5" />
@@ -1238,6 +1372,220 @@ function MobileSettingsPage() {
                   ))}
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Help & Support Modal */}
+      {showHelpSupport && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-gray-800 border border-gray-700 rounded-lg w-full max-w-md max-h-[90vh] overflow-y-auto">
+            <div className="p-4 border-b border-gray-700">
+              <div className="flex items-center justify-between">
+                <h2 className="text-xl font-bold text-white">Help & Support</h2>
+                <button
+                  onClick={() => setShowHelpSupport(false)}
+                  className="text-gray-400 hover:text-white"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+            </div>
+            
+            <div className="p-4 space-y-4">
+              {/* Premium Guarantee */}
+              <div className="bg-gradient-to-r from-amber-500/10 to-yellow-500/10 border border-amber-500/20 rounded-lg p-4">
+                <div className="flex items-start space-x-3">
+                  <div className="bg-amber-500/20 rounded-full p-2">
+                    <Shield className="w-5 h-5 text-amber-500" />
+                  </div>
+                  <div>
+                    <h3 className="text-amber-500 font-bold text-lg mb-2">Premium Guarantee</h3>
+                    <p className="text-white text-sm leading-relaxed">
+                      Try Clippr Pro risk-free for 30 days. If you're not satisfied, request a full refund — no hassle.
+                    </p>
+                    <div className="flex items-center mt-2 text-green-400 text-sm">
+                      <CheckCircle className="w-4 h-4 mr-2" />
+                      <span>30-day money-back guarantee</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* FAQ Categories */}
+              <div className="space-y-2">
+                <div className="flex flex-wrap gap-2">
+                  {categories.map((category) => (
+                    <button
+                      key={category}
+                      onClick={() => setSelectedCategory(category)}
+                      className={`px-3 py-1 rounded-full text-sm transition-colors ${
+                        selectedCategory === category
+                          ? "bg-amber-500 text-gray-900"
+                          : "bg-gray-700 text-gray-300 hover:bg-gray-600"
+                      }`}
+                    >
+                      {category}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* FAQ List */}
+              <div className="space-y-3">
+                {filteredFAQs.map((faq) => (
+                  <div key={faq.id} className="border border-gray-600 rounded-lg">
+                    <button
+                      onClick={() => handleFAQToggle(faq.id)}
+                      className="w-full p-3 text-left hover:bg-gray-700 transition-colors rounded-lg"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-3">
+                          <span className="text-lg">{faq.icon}</span>
+                          <span className="text-white font-medium text-sm">{faq.question}</span>
+                        </div>
+                        <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${
+                          expandedFAQ === faq.id ? 'rotate-180' : ''
+                        }`} />
+                      </div>
+                    </button>
+                    {expandedFAQ === faq.id && (
+                      <div className="px-3 pb-3 border-t border-gray-600">
+                        <p className="text-gray-300 text-sm leading-relaxed mt-2">{faq.answer}</p>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+
+              {/* Contact Support Form */}
+              <div className="border border-gray-600 rounded-lg p-4">
+                <h3 className="text-white font-medium mb-3">Contact Support</h3>
+                <form onSubmit={handleSupportSubmit} className="space-y-3">
+                  <div>
+                    <input
+                      type="text"
+                      placeholder="Your Name"
+                      value={supportForm.name}
+                      onChange={(e) => setSupportForm({ ...supportForm, name: e.target.value })}
+                      className="w-full p-2 bg-gray-700 border border-gray-600 rounded text-white text-sm"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <input
+                      type="email"
+                      placeholder="Your Email"
+                      value={supportForm.email}
+                      onChange={(e) => setSupportForm({ ...supportForm, email: e.target.value })}
+                      className="w-full p-2 bg-gray-700 border border-gray-600 rounded text-white text-sm"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <input
+                      type="text"
+                      placeholder="Subject"
+                      value={supportForm.subject}
+                      onChange={(e) => setSupportForm({ ...supportForm, subject: e.target.value })}
+                      className="w-full p-2 bg-gray-700 border border-gray-600 rounded text-white text-sm"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <textarea
+                      placeholder="Describe your issue..."
+                      value={supportForm.message}
+                      onChange={(e) => setSupportForm({ ...supportForm, message: e.target.value })}
+                      className="w-full p-2 bg-gray-700 border border-gray-600 rounded text-white text-sm h-20 resize-none"
+                      required
+                    />
+                  </div>
+                  <button
+                    type="submit"
+                    disabled={isSubmittingSupport}
+                    className="w-full bg-amber-500 hover:bg-amber-600 text-gray-900 py-2 px-4 rounded font-medium transition-colors disabled:opacity-50"
+                  >
+                    {isSubmittingSupport ? "Sending..." : "Send Support Request"}
+                  </button>
+                </form>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Change Password Modal */}
+      {isChangingPassword && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-gray-800 border border-gray-700 rounded-lg w-full max-w-md">
+            <div className="p-4 border-b border-gray-700">
+              <div className="flex items-center justify-between">
+                <h2 className="text-xl font-bold text-white">Change Password</h2>
+                <button
+                  onClick={() => setIsChangingPassword(false)}
+                  className="text-gray-400 hover:text-white"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+            </div>
+            
+            <div className="p-4">
+              <form onSubmit={handlePasswordChange} className="space-y-4">
+                <div>
+                  <label className="block text-white text-sm font-medium mb-2">Current Password</label>
+                  <input
+                    type="password"
+                    value={passwordFormData.currentPassword}
+                    onChange={(e) => setPasswordFormData(prev => ({ ...prev, currentPassword: e.target.value }))}
+                    className="w-full p-3 bg-gray-700 border border-gray-600 rounded text-white"
+                    required
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-white text-sm font-medium mb-2">New Password</label>
+                  <input
+                    type="password"
+                    value={passwordFormData.newPassword}
+                    onChange={(e) => setPasswordFormData(prev => ({ ...prev, newPassword: e.target.value }))}
+                    className="w-full p-3 bg-gray-700 border border-gray-600 rounded text-white"
+                    minLength={8}
+                    required
+                  />
+                  <p className="text-gray-400 text-xs mt-1">Must be at least 8 characters</p>
+                </div>
+                
+                <div>
+                  <label className="block text-white text-sm font-medium mb-2">Confirm New Password</label>
+                  <input
+                    type="password"
+                    value={passwordFormData.confirmPassword}
+                    onChange={(e) => setPasswordFormData(prev => ({ ...prev, confirmPassword: e.target.value }))}
+                    className="w-full p-3 bg-gray-700 border border-gray-600 rounded text-white"
+                    required
+                  />
+                </div>
+                
+                <div className="flex space-x-3">
+                  <button
+                    type="button"
+                    onClick={() => setIsChangingPassword(false)}
+                    className="flex-1 bg-gray-600 hover:bg-gray-700 text-white py-2 px-4 rounded transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={changePasswordMutation.isPending}
+                    className="flex-1 bg-amber-500 hover:bg-amber-600 text-gray-900 py-2 px-4 rounded font-medium transition-colors disabled:opacity-50"
+                  >
+                    {changePasswordMutation.isPending ? "Changing..." : "Change Password"}
+                  </button>
+                </div>
+              </form>
             </div>
           </div>
         </div>
