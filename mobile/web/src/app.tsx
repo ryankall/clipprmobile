@@ -27,47 +27,6 @@ import {
   Car
 } from "lucide-react";
 
-// Custom hook for authentication
-const useAuth = () => {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [user, setUser] = useState<any>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  
-  // Check if user is authenticated and fetch user data
-  useEffect(() => {
-    const checkAuth = async () => {
-      const token = localStorage.getItem('token');
-      if (token) {
-        try {
-          const response = await fetch('/api/auth/me', {
-            headers: {
-              'Authorization': `Bearer ${token}`
-            }
-          });
-          
-          if (response.ok) {
-            const userData = await response.json();
-            setUser(userData);
-            setIsAuthenticated(true);
-          } else {
-            localStorage.removeItem('token');
-            setIsAuthenticated(false);
-          }
-        } catch (error) {
-          console.error('Auth check failed:', error);
-          localStorage.removeItem('token');
-          setIsAuthenticated(false);
-        }
-      }
-      setIsLoading(false);
-    };
-    
-    checkAuth();
-  }, []);
-  
-  return { isAuthenticated, user, isLoading };
-};
-
 // Type definitions
 interface DashboardStats {
   dailyEarnings: string;
@@ -111,6 +70,231 @@ interface Service {
   category: string;
   isActive: boolean;
 }
+
+// Mobile Authentication Component
+function MobileAuthScreen() {
+  const [isSignUp, setIsSignUp] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [formData, setFormData] = useState({
+    email: '',
+    password: '',
+    firstName: '',
+    lastName: '',
+    phone: '',
+    businessName: ''
+  });
+  const [error, setError] = useState('');
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+    setError('');
+
+    try {
+      const endpoint = isSignUp ? '/api/auth/signup' : '/api/auth/signin';
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(formData),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        localStorage.setItem('token', data.token);
+        window.location.reload();
+      } else {
+        setError(data.message || 'Authentication failed');
+      }
+    } catch (error) {
+      setError('Network error. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleGoogleSignIn = () => {
+    window.location.href = '/api/auth/google';
+  };
+
+  const handleAppleSignIn = () => {
+    window.location.href = '/api/auth/apple';
+  };
+
+  return (
+    <div className="min-h-screen bg-gray-900 flex items-center justify-center p-4">
+      <div className="w-full max-w-md bg-gray-800 border border-gray-700 rounded-lg p-6">
+        <div className="text-center mb-6">
+          <h1 className="text-2xl font-bold text-white mb-2">Clippr Mobile</h1>
+          <p className="text-gray-400">
+            {isSignUp ? 'Create your account' : 'Sign in to your account'}
+          </p>
+        </div>
+
+        {error && (
+          <div className="mb-4 p-3 bg-red-500/20 border border-red-500 rounded-lg">
+            <p className="text-red-400 text-sm">{error}</p>
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {isSignUp && (
+            <>
+              <div className="grid grid-cols-2 gap-3">
+                <input
+                  type="text"
+                  placeholder="First Name"
+                  value={formData.firstName}
+                  onChange={(e) => setFormData(prev => ({ ...prev, firstName: e.target.value }))}
+                  className="w-full p-3 bg-gray-700 text-white rounded-lg border border-gray-600 focus:border-amber-500 focus:outline-none"
+                  required
+                />
+                <input
+                  type="text"
+                  placeholder="Last Name"
+                  value={formData.lastName}
+                  onChange={(e) => setFormData(prev => ({ ...prev, lastName: e.target.value }))}
+                  className="w-full p-3 bg-gray-700 text-white rounded-lg border border-gray-600 focus:border-amber-500 focus:outline-none"
+                  required
+                />
+              </div>
+              <input
+                type="text"
+                placeholder="Business Name"
+                value={formData.businessName}
+                onChange={(e) => setFormData(prev => ({ ...prev, businessName: e.target.value }))}
+                className="w-full p-3 bg-gray-700 text-white rounded-lg border border-gray-600 focus:border-amber-500 focus:outline-none"
+                required
+              />
+              <input
+                type="tel"
+                placeholder="Phone Number"
+                value={formData.phone}
+                onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
+                className="w-full p-3 bg-gray-700 text-white rounded-lg border border-gray-600 focus:border-amber-500 focus:outline-none"
+                required
+              />
+            </>
+          )}
+          
+          <input
+            type="email"
+            placeholder="Email"
+            value={formData.email}
+            onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
+            className="w-full p-3 bg-gray-700 text-white rounded-lg border border-gray-600 focus:border-amber-500 focus:outline-none"
+            required
+          />
+          
+          <input
+            type="password"
+            placeholder="Password"
+            value={formData.password}
+            onChange={(e) => setFormData(prev => ({ ...prev, password: e.target.value }))}
+            className="w-full p-3 bg-gray-700 text-white rounded-lg border border-gray-600 focus:border-amber-500 focus:outline-none"
+            required
+          />
+
+          <button
+            type="submit"
+            disabled={isLoading}
+            className="w-full bg-amber-500 hover:bg-amber-600 disabled:bg-amber-500/50 text-gray-900 py-3 px-4 rounded-lg font-medium transition-colors"
+          >
+            {isLoading ? 'Please wait...' : (isSignUp ? 'Create Account' : 'Sign In')}
+          </button>
+        </form>
+
+        <div className="mt-6 space-y-3">
+          <div className="relative">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-gray-700"></div>
+            </div>
+            <div className="relative flex justify-center text-sm">
+              <span className="px-2 bg-gray-800 text-gray-400">Or continue with</span>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <button
+              onClick={handleGoogleSignIn}
+              className="flex items-center justify-center px-4 py-2 border border-gray-600 rounded-lg bg-gray-700 hover:bg-gray-600 text-white transition-colors"
+            >
+              <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24">
+                <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+                <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+              </svg>
+              Google
+            </button>
+            
+            <button
+              onClick={handleAppleSignIn}
+              className="flex items-center justify-center px-4 py-2 border border-gray-600 rounded-lg bg-gray-700 hover:bg-gray-600 text-white transition-colors"
+            >
+              <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12.017 0C9.396 0 8.924 1.51 8.924 1.51L8.924 4.739C8.924 4.739 9.396 4.292 10.503 4.292C11.61 4.292 12.017 4.865 12.017 4.865L12.017 8.543C12.017 8.543 11.61 8.066 10.503 8.066C9.396 8.066 8.924 8.543 8.924 8.543L8.924 12.221C8.924 12.221 9.396 11.744 10.503 11.744C11.61 11.744 12.017 12.317 12.017 12.317L12.017 15.995C12.017 15.995 11.61 15.518 10.503 15.518C9.396 15.518 8.924 15.995 8.924 15.995L8.924 19.673C8.924 19.673 9.396 19.196 10.503 19.196C11.61 19.196 12.017 19.769 12.017 19.769L12.017 23.447C12.017 23.447 11.61 22.97 10.503 22.97C9.396 22.97 8.924 23.447 8.924 23.447L8.924 24C8.924 24 9.396 24 12.017 24C14.639 24 15.11 22.49 15.11 22.49L15.11 19.261C15.11 19.261 14.639 19.708 13.532 19.708C12.425 19.708 12.017 19.135 12.017 19.135L12.017 15.457C12.017 15.457 12.425 15.934 13.532 15.934C14.639 15.934 15.11 15.457 15.11 15.457L15.11 11.779C15.11 11.779 14.639 12.256 13.532 12.256C12.425 12.256 12.017 11.683 12.017 11.683L12.017 8.005C12.017 8.005 12.425 8.482 13.532 8.482C14.639 8.482 15.11 8.005 15.11 8.005L15.11 4.327C15.11 4.327 14.639 4.804 13.532 4.804C12.425 4.804 12.017 4.231 12.017 4.231L12.017 0.553C12.017 0.553 12.425 1.03 13.532 1.03C14.639 1.03 15.11 0.553 15.11 0.553L15.11 0Z"/>
+              </svg>
+              Apple
+            </button>
+          </div>
+        </div>
+
+        <div className="mt-6 text-center">
+          <button
+            onClick={() => setIsSignUp(!isSignUp)}
+            className="text-amber-500 hover:text-amber-400 text-sm"
+          >
+            {isSignUp ? 'Already have an account? Sign in' : "Don't have an account? Sign up"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Custom hook for authentication
+const useAuth = () => {
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [user, setUser] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  
+  // Check if user is authenticated and fetch user data
+  useEffect(() => {
+    const checkAuth = async () => {
+      const token = localStorage.getItem('token');
+      if (token) {
+        try {
+          const response = await fetch('/api/auth/me', {
+            headers: {
+              'Authorization': `Bearer ${token}`
+            }
+          });
+          
+          if (response.ok) {
+            const userData = await response.json();
+            setUser(userData);
+            setIsAuthenticated(true);
+          } else {
+            localStorage.removeItem('token');
+            setIsAuthenticated(false);
+          }
+        } catch (error) {
+          console.error('Auth check failed:', error);
+          localStorage.removeItem('token');
+          setIsAuthenticated(false);
+        }
+      }
+      setIsLoading(false);
+    };
+    
+    checkAuth();
+  }, []);
+  
+  return { isAuthenticated, user, isLoading };
+};
 
 export default function MobileApp() {
   const { isAuthenticated, user, isLoading } = useAuth();
@@ -346,20 +530,7 @@ export default function MobileApp() {
   }
 
   if (!isAuthenticated) {
-    return (
-      <div className="min-h-screen bg-gray-900 flex items-center justify-center p-4">
-        <div className="w-full max-w-md bg-gray-800 border border-gray-700 rounded-lg p-6 text-center">
-          <h1 className="text-2xl font-bold text-white mb-4">Clippr Mobile</h1>
-          <p className="text-gray-400 mb-6">Please sign in to continue</p>
-          <button 
-            onClick={() => window.location.href = '/'}
-            className="w-full bg-amber-500 hover:bg-amber-600 text-gray-900 py-2 px-4 rounded-lg font-medium"
-          >
-            Go to Sign In
-          </button>
-        </div>
-      </div>
-    );
+    return <MobileAuthScreen />;
   }
 
   return (
