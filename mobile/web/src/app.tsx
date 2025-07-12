@@ -666,6 +666,81 @@ function MobileSettingsPage() {
                     </div>
                   </div>
 
+                  {/* Scheduling Settings */}
+                  <div className="space-y-4 pt-4 border-t border-gray-600">
+                    <h4 className="text-white font-medium">Smart Scheduling Settings</h4>
+
+                    {/* Home Base Address */}
+                    <div>
+                      <label className="text-white text-sm font-medium">Home Base Address</label>
+                      <input
+                        type="text"
+                        value={formData.homeBaseAddress}
+                        onChange={(e) => setFormData(prev => ({ ...prev, homeBaseAddress: e.target.value }))}
+                        className="w-full mt-1 p-3 bg-gray-700 border border-gray-600 rounded-lg text-white"
+                        placeholder="Start typing your address..."
+                      />
+                      <p className="text-gray-400 text-xs mt-1">
+                        Starting point for calculating travel time to your first appointment
+                      </p>
+                    </div>
+
+                    {/* Timezone */}
+                    <div>
+                      <label className="text-white text-sm font-medium">Timezone</label>
+                      <select
+                        value={formData.timezone}
+                        onChange={(e) => setFormData(prev => ({ ...prev, timezone: e.target.value }))}
+                        className="w-full mt-1 p-3 bg-gray-700 border border-gray-600 rounded-lg text-white"
+                      >
+                        <option value="America/New_York">Eastern Time (ET)</option>
+                        <option value="America/Chicago">Central Time (CT)</option>
+                        <option value="America/Denver">Mountain Time (MT)</option>
+                        <option value="America/Los_Angeles">Pacific Time (PT)</option>
+                        <option value="America/Anchorage">Alaska Time (AKT)</option>
+                        <option value="Pacific/Honolulu">Hawaii Time (HST)</option>
+                      </select>
+                      <p className="text-gray-400 text-xs mt-1">
+                        Your local timezone for appointment scheduling
+                      </p>
+                    </div>
+
+                    {/* Grace Time Buffer */}
+                    <div>
+                      <label className="text-white text-sm font-medium">Grace Time Buffer (minutes)</label>
+                      <input
+                        type="number"
+                        min="0"
+                        max="60"
+                        value={formData.defaultGraceTime}
+                        onChange={(e) => setFormData(prev => ({ ...prev, defaultGraceTime: parseInt(e.target.value) || 0 }))}
+                        className="w-full mt-1 p-3 bg-gray-700 border border-gray-600 rounded-lg text-white"
+                        placeholder="5"
+                      />
+                      <p className="text-gray-400 text-xs mt-1">
+                        Extra time added to travel estimates for parking, elevators, etc.
+                      </p>
+                    </div>
+
+                    {/* Transportation Mode */}
+                    <div>
+                      <label className="text-white text-sm font-medium">Transportation Mode</label>
+                      <select
+                        value={formData.transportationMode}
+                        onChange={(e) => setFormData(prev => ({ ...prev, transportationMode: e.target.value }))}
+                        className="w-full mt-1 p-3 bg-gray-700 border border-gray-600 rounded-lg text-white"
+                      >
+                        <option value="driving">🚗 Driving</option>
+                        <option value="walking">🚶 Walking</option>
+                        <option value="cycling">🚴 Cycling</option>
+                        <option value="transit">🚌 Public Transit</option>
+                      </select>
+                      <p className="text-gray-400 text-xs mt-1">
+                        Your preferred transportation method for calculating travel times
+                      </p>
+                    </div>
+                  </div>
+
                   {/* Submit Button */}
                   <div className="flex gap-3 pt-4">
                     <button
@@ -709,30 +784,111 @@ function MobileSettingsPage() {
             </div>
           )}
 
-          {/* Subscription Status */}
-          {subscriptionStatus && (
-            <div className="bg-gray-800 border border-gray-700 rounded-lg p-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center">
-                  <CreditCard className="w-5 h-5 mr-2 text-amber-500" />
-                  <h3 className="text-white font-medium">Subscription</h3>
+          {/* Subscription Plan */}
+          <div className="bg-gray-800 border border-gray-700 rounded-lg">
+            <div className="p-4 border-b border-gray-700">
+              <div className="flex items-center">
+                <CreditCard className="w-5 h-5 mr-2 text-amber-500" />
+                <h3 className="text-white font-medium">Subscription Plan</h3>
+              </div>
+            </div>
+            
+            <div className="p-4 space-y-4">
+              {/* Current Plan Display */}
+              <div className="flex items-center justify-between p-3 bg-gray-700 rounded-lg">
+                <div className="flex items-center space-x-3">
+                  <div className="w-8 h-8 bg-amber-500 rounded-full flex items-center justify-center">
+                    <CheckCircle className="w-4 h-4 text-gray-900" />
+                  </div>
+                  <div>
+                    <p className="text-white font-medium">Basic Plan</p>
+                    <p className="text-gray-400 text-sm">Currently Active</p>
+                  </div>
                 </div>
-                <div className={`px-3 py-1 rounded text-sm ${
-                  subscriptionStatus.status === 'premium' 
-                    ? 'bg-green-500/20 text-green-400' 
-                    : 'bg-gray-700 text-gray-300'
-                }`}>
-                  {subscriptionStatus.status === 'premium' ? 'Premium' : 'Basic'}
+                <div className="text-right">
+                  <p className="text-white font-medium">Free</p>
+                  <p className="text-gray-400 text-xs">Forever</p>
                 </div>
               </div>
-              
-              {subscriptionStatus.status === 'basic' && (
-                <p className="text-gray-400 text-sm mt-2">
-                  Upgrade to Premium for unlimited appointments, advanced features, and priority support.
-                </p>
-              )}
+
+              {/* Basic Plan Features */}
+              <div className="bg-gray-700 p-3 rounded-lg">
+                <h4 className="text-white font-medium text-sm mb-2">Basic Plan includes:</h4>
+                <ul className="text-gray-400 text-sm space-y-1">
+                  <li>• 15 appointments per month</li>
+                  <li>• 3 active services</li>
+                  <li>• 15 SMS messages per month</li>
+                  <li>• 50MB photo storage</li>
+                  <li>• Basic calendar features</li>
+                </ul>
+              </div>
+
+              {/* Premium Plan Offer */}
+              <div className="bg-gradient-to-br from-amber-500/20 to-amber-500/10 border-2 border-amber-500/30 p-4 rounded-lg">
+                <div className="mb-3">
+                  <h4 className="text-white font-bold text-lg">Premium Plan</h4>
+                </div>
+
+                {/* Monthly Option */}
+                <div className="bg-gray-700 p-3 rounded-lg border border-amber-500/20 mb-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-3">
+                      <div>
+                        <div className="text-amber-500 font-bold text-lg">$19.99</div>
+                        <div className="text-amber-500 text-sm">/month</div>
+                      </div>
+                      <div className="text-gray-400 text-sm">Monthly billing</div>
+                    </div>
+                    <button className="bg-amber-500 text-gray-900 px-4 py-2 rounded-lg font-medium text-sm">
+                      Choose Monthly
+                    </button>
+                  </div>
+                </div>
+
+                {/* Yearly Option */}
+                <div className="bg-gray-700 p-3 rounded-lg border border-green-500/30 relative">
+                  <div className="absolute -top-2 left-1/2 transform -translate-x-1/2">
+                    <span className="bg-green-500 text-white text-xs px-2 py-1 rounded-full font-bold">
+                      SAVE 16%
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-3">
+                      <div>
+                        <div className="text-gray-400 text-xs line-through">$239.88/year</div>
+                        <div className="text-green-400 font-bold text-lg">$199.99</div>
+                        <div className="text-green-400 text-sm">/year</div>
+                      </div>
+                      <div className="text-gray-400 text-sm">Annual billing</div>
+                    </div>
+                    <button className="bg-green-500 text-white px-4 py-2 rounded-lg font-medium text-sm">
+                      Choose Yearly
+                    </button>
+                  </div>
+                </div>
+
+                {/* Premium Features Grid */}
+                <div className="grid grid-cols-2 gap-2 mt-3">
+                  <div className="bg-gray-700 p-2 rounded border border-amber-500/20">
+                    <div className="text-amber-500 font-bold text-sm">∞</div>
+                    <div className="text-white text-xs">Appointments</div>
+                  </div>
+                  <div className="bg-gray-700 p-2 rounded border border-amber-500/20">
+                    <div className="text-amber-500 font-bold text-sm">1GB</div>
+                    <div className="text-white text-xs">Photo Storage</div>
+                  </div>
+                  <div className="bg-gray-700 p-2 rounded border border-amber-500/20">
+                    <div className="text-amber-500 font-bold text-sm">∞</div>
+                    <div className="text-white text-xs">Services</div>
+                  </div>
+                  <div className="bg-gray-700 p-2 rounded border border-amber-500/20">
+                    <div className="text-amber-500 font-bold text-sm">∞</div>
+                    <div className="text-white text-xs">SMS Messages</div>
+                  </div>
+                </div>
+              </div>
             </div>
-          )}
+          </div>
 
           {/* Public Booking Link */}
           {user?.phone && (
@@ -851,6 +1007,151 @@ function MobileSettingsPage() {
             )}
           </div>
 
+          {/* Quick Action Settings */}
+          <div className="bg-gray-800 border border-gray-700 rounded-lg">
+            <div className="p-4 border-b border-gray-700">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center">
+                  <MessageSquare className="w-5 h-5 mr-2 text-amber-500" />
+                  <h3 className="text-white font-medium">Quick Action Messages</h3>
+                </div>
+                <button
+                  onClick={() => setShowQuickActionCard(!showQuickActionCard)}
+                  className="text-gray-400 hover:text-white"
+                >
+                  {showQuickActionCard ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                </button>
+              </div>
+            </div>
+            
+            {showQuickActionCard && (
+              <div className="p-4 space-y-4">
+                <div>
+                  <h4 className="text-white text-sm font-medium">Default Messages</h4>
+                  <p className="text-gray-400 text-xs">Pre-built messages for common situations</p>
+                </div>
+
+                <div className="space-y-3">
+                  <div className="bg-gray-700 p-3 rounded-lg border border-gray-600">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-white text-sm font-medium">On My Way</span>
+                      <span className="text-gray-400 text-xs">Default</span>
+                    </div>
+                    <p className="text-gray-400 text-xs">
+                      "Hi [Client Name], I'm on my way to your appointment at [Time]. See you soon!"
+                    </p>
+                  </div>
+
+                  <div className="bg-gray-700 p-3 rounded-lg border border-gray-600">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-white text-sm font-medium">Running Late</span>
+                      <span className="text-gray-400 text-xs">Default</span>
+                    </div>
+                    <p className="text-gray-400 text-xs">
+                      "Hi [Client Name], I'm running about [Minutes] minutes late for your [Time] appointment. Sorry for the delay!"
+                    </p>
+                  </div>
+                </div>
+
+                <button className="w-full bg-gray-700 text-white py-2 px-4 rounded-lg hover:bg-gray-600 border border-gray-600">
+                  <Bell className="w-4 h-4 mr-2 inline" />
+                  Create Custom Message
+                </button>
+
+                <div className="bg-blue-900/20 border border-blue-700/30 p-3 rounded-lg">
+                  <h4 className="text-blue-300 font-medium text-sm mb-1">How Quick Actions Work</h4>
+                  <p className="text-blue-200 text-xs">
+                    Quick actions appear on your dashboard when you have appointments coming up within the next hour. 
+                    Tap a message to instantly send it to your client via SMS or email.
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Payment Settings */}
+          <div className="bg-gray-800 border border-gray-700 rounded-lg">
+            <div className="p-4 border-b border-gray-700">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center">
+                  <CreditCard className="w-5 h-5 mr-2 text-amber-500" />
+                  <h3 className="text-white font-medium">Payment Settings</h3>
+                </div>
+                <button
+                  onClick={() => setShowPaymentSettingsCard(!showPaymentSettingsCard)}
+                  className="text-gray-400 hover:text-white"
+                >
+                  {showPaymentSettingsCard ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                </button>
+              </div>
+            </div>
+            
+            {showPaymentSettingsCard && (
+              <div className="p-4 space-y-4">
+                {stripeStatus && stripeStatus.connected ? (
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between p-3 bg-green-900/20 border border-green-700/30 rounded-lg">
+                      <div className="flex items-center space-x-3">
+                        <CheckCircle className="w-5 h-5 text-green-400" />
+                        <div>
+                          <p className="text-white font-medium">Stripe Connected</p>
+                          <p className="text-green-300 text-sm">Ready to receive payments</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4 text-sm">
+                      <div>
+                        <p className="text-gray-400">Account Status</p>
+                        <p className="text-white capitalize">{stripeStatus?.status || "Active"}</p>
+                      </div>
+                      <div>
+                        <p className="text-gray-400">Country</p>
+                        <p className="text-white">{stripeStatus?.country || "US"}</p>
+                      </div>
+                    </div>
+
+                    <div className="flex gap-2">
+                      <button className="flex-1 bg-gray-700 text-white py-2 px-4 rounded-lg hover:bg-gray-600 border border-gray-600">
+                        <DollarSign className="w-4 h-4 mr-2 inline" />
+                        View Dashboard
+                      </button>
+                      <button className="flex-1 bg-gray-700 text-white py-2 px-4 rounded-lg hover:bg-gray-600 border border-gray-600">
+                        Update Settings
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between p-3 bg-amber-900/20 border border-amber-700/30 rounded-lg">
+                      <div className="flex items-center space-x-3">
+                        <AlertCircle className="w-5 h-5 text-amber-400" />
+                        <div>
+                          <p className="text-white font-medium">Stripe Not Connected</p>
+                          <p className="text-amber-300 text-sm">Connect to accept payments</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <button className="w-full bg-amber-500 text-gray-900 py-2 px-4 rounded-lg hover:bg-amber-600 font-medium">
+                      Connect Stripe Account
+                    </button>
+
+                    <div className="bg-gray-700 p-3 rounded-lg">
+                      <h4 className="text-white font-medium text-sm mb-2">Why Connect Stripe?</h4>
+                      <ul className="text-gray-400 text-sm space-y-1">
+                        <li>• Accept credit card payments</li>
+                        <li>• Automatic invoice processing</li>
+                        <li>• Secure payment handling</li>
+                        <li>• Direct deposits to your bank</li>
+                      </ul>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
           {/* Security */}
           <div className="bg-gray-800 border border-gray-700 rounded-lg p-4">
             <div className="flex items-center justify-between">
@@ -868,6 +1169,20 @@ function MobileSettingsPage() {
             <p className="text-gray-400 text-sm mt-2">
               Keep your account secure with a strong password.
             </p>
+          </div>
+
+          {/* Help & Support */}
+          <div className="bg-gray-800 border border-gray-700 rounded-lg p-4">
+            <button
+              onClick={() => {
+                // Navigate to help page or show help dialog
+                window.open('/help', '_blank');
+              }}
+              className="w-full flex items-center justify-center space-x-2 bg-blue-600 hover:bg-blue-700 text-white py-3 px-4 rounded-lg transition-colors mb-3"
+            >
+              <HelpCircle className="w-5 h-5" />
+              <span>Help & Support</span>
+            </button>
           </div>
 
           {/* Sign Out */}
