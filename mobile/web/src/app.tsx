@@ -40,7 +40,9 @@ import {
   ChevronUp,
   Receipt,
   Trash2,
-  Banknote
+  Banknote,
+  MessageCircle,
+  Scissors
 } from "lucide-react";
 
 // Type definitions
@@ -1673,6 +1675,68 @@ export default function MobileApp() {
   const [showExpired, setShowExpired] = useState(false);
   const [isWorkingHoursOpen, setIsWorkingHoursOpen] = useState(false);
   
+  // Mobile Client State
+  const [showClientStats, setShowClientStats] = useState(false);
+  const [isClientDialogOpen, setIsClientDialogOpen] = useState(false);
+  const [clientForm, setClientForm] = useState({
+    name: "",
+    phone: "",
+    email: "",
+    address: "",
+    preferredStyle: "",
+    notes: "",
+    loyaltyStatus: "regular",
+  });
+
+  // Client Mutations
+  const createClientMutation = useMutation({
+    mutationFn: async (clientData: any) => {
+      const response = await fetch("/api/clients", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(clientData),
+      });
+      if (!response.ok) {
+        throw new Error("Failed to create client");
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      // Invalidate and refetch clients
+      queryClient.invalidateQueries({ queryKey: ["/api/clients"] });
+      setIsClientDialogOpen(false);
+      setClientForm({
+        name: "",
+        phone: "",
+        email: "",
+        address: "",
+        preferredStyle: "",
+        notes: "",
+        loyaltyStatus: "regular",
+      });
+    },
+    onError: (error) => {
+      console.error("Failed to create client:", error);
+    },
+  });
+
+  // Client filters
+  const filteredClients = clients?.filter(client =>
+    client.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    client.phone?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    client.email?.toLowerCase().includes(searchTerm.toLowerCase())
+  ) || [];
+
+  // Client form handlers
+  const handleCreateClient = () => {
+    if (!clientForm.name) return;
+    createClientMutation.mutate(clientForm);
+  };
+
+  const handleClientFormChange = (field: string, value: string) => {
+    setClientForm(prev => ({ ...prev, [field]: value }));
+  };
+  
   // Mobile Appointment Creation State
   const [appointmentForm, setAppointmentForm] = useState({
     clientId: '',
@@ -2087,129 +2151,286 @@ export default function MobileApp() {
       <main className="p-4">
         {/* Dashboard */}
         {activeTab === 'dashboard' && (
-          <div className="space-y-6">
-            {/* Header */}
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-3">
-                <div className="w-12 h-12 bg-amber-500 rounded-full flex items-center justify-center">
-                  <User className="w-6 h-6 text-gray-900" />
+          <div className="space-y-6 pb-4">
+            {/* Header with Notifications */}
+            <div className="bg-gray-800 rounded-lg border border-gray-700 mx-4 mt-4">
+              <div className="p-4 flex items-center justify-between">
+                <div className="flex items-center space-x-3">
+                  <div className="w-10 h-10 bg-amber-500 rounded-full flex items-center justify-center">
+                    <Scissors className="w-5 h-5 text-gray-900" />
+                  </div>
+                  <div>
+                    <h1 className="text-lg font-bold text-amber-500">Clippr</h1>
+                    <p className="text-sm text-gray-400">Mobile Barber Dashboard</p>
+                  </div>
                 </div>
-                <div>
-                  <h1 className="text-xl font-bold text-white">Welcome Back!</h1>
-                  <p className="text-gray-400 text-sm">Your mobile workspace</p>
+                <div className="flex items-center space-x-2">
+                  <div className="relative" ref={notificationRef}>
+                    <button 
+                      onClick={() => setShowNotifications(!showNotifications)}
+                      className="relative text-gray-400 hover:text-white p-2"
+                    >
+                      <Bell className="h-5 w-5" />
+                      {unreadNotifications.length > 0 && (
+                        <span className="absolute -top-1 -right-1 bg-amber-500 text-gray-900 text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">
+                          {unreadNotifications.length}
+                        </span>
+                      )}
+                    </button>
+                    
+                    {/* Notifications Dropdown */}
+                    {showNotifications && (
+                      <div className="absolute right-0 top-full mt-2 w-80 bg-gray-800 border border-gray-700 rounded-lg shadow-xl z-50">
+                        <div className="p-4 border-b border-gray-700">
+                          <h3 className="font-semibold text-white">Notifications</h3>
+                        </div>
+                        <div className="max-h-64 overflow-y-auto">
+                          {unreadNotifications.length > 0 ? (
+                            unreadNotifications.map((notification) => (
+                              <div key={notification.id} className="p-4 border-b border-gray-700 hover:bg-gray-700">
+                                <div className="flex justify-between items-start">
+                                  <div className="flex-1">
+                                    <p className="text-sm text-white">{notification.message}</p>
+                                    <p className="text-xs text-gray-400 mt-1">{notification.time}</p>
+                                  </div>
+                                  <button
+                                    onClick={() => setDismissedNotifications(prev => [...prev, notification.id])}
+                                    className="text-gray-400 hover:text-white p-1"
+                                  >
+                                    <X className="h-3 w-3" />
+                                  </button>
+                                </div>
+                              </div>
+                            ))
+                          ) : (
+                            <div className="p-4 text-center text-gray-400">
+                              <Bell className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                              <p>No new notifications</p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
-              
-              <div className="relative" ref={notificationRef}>
-                <button 
-                  onClick={() => setShowNotifications(!showNotifications)}
-                  className="relative text-gray-400 hover:text-white p-2"
+            </div>
+
+            {/* Today's Summary */}
+            <div className="bg-gray-800 rounded-lg border border-gray-700 mx-4">
+              <div className="p-4 border-b border-gray-700">
+                <h3 className="text-white font-semibold">Today's Summary</h3>
+                <p className="text-sm text-gray-400">
+                  {new Date().toLocaleDateString('en-US', { 
+                    weekday: 'long', 
+                    month: 'long', 
+                    day: 'numeric' 
+                  })}
+                </p>
+              </div>
+              <div className="p-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-amber-500 mb-1">
+                      ${stats?.dailyEarnings || '0'}
+                    </div>
+                    <div className="text-sm text-gray-400">Earnings</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-white mb-1">
+                      {stats?.appointmentCount || 0}
+                    </div>
+                    <div className="text-sm text-gray-400">Appointments</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Quick Actions */}
+            <div className="mx-4">
+              <div className="grid grid-cols-2 gap-4">
+                <button
+                  onClick={() => setActiveTab('clients')}
+                  className="bg-amber-500 hover:bg-amber-600 text-gray-900 p-4 rounded-lg font-medium flex flex-col items-center space-y-2"
                 >
-                  <Bell className="h-5 w-5" />
-                  {unreadNotifications.length > 0 && (
-                    <span className="absolute -top-1 -right-1 bg-amber-500 text-gray-900 text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">
-                      {unreadNotifications.length}
-                    </span>
-                  )}
+                  <Plus className="w-5 h-5" />
+                  <span>New Client</span>
                 </button>
                 
-                {/* Notifications Dropdown */}
-                {showNotifications && (
-                  <div className="absolute right-0 top-full mt-2 w-80 bg-gray-800 border border-gray-700 rounded-lg shadow-xl z-50">
-                    <div className="p-4 border-b border-gray-700">
-                      <h3 className="font-semibold text-white">Notifications</h3>
-                    </div>
-                    <div className="max-h-64 overflow-y-auto">
-                      {unreadNotifications.length > 0 ? (
-                        unreadNotifications.map((notification) => (
-                          <div key={notification.id} className="p-4 border-b border-gray-700 hover:bg-gray-700">
-                            <div className="flex justify-between items-start">
-                              <div className="flex-1">
-                                <p className="text-sm text-white">{notification.message}</p>
-                                <p className="text-xs text-gray-400 mt-1">{notification.time}</p>
-                              </div>
-                              <button
-                                onClick={() => setDismissedNotifications(prev => [...prev, notification.id])}
-                                className="text-gray-400 hover:text-white p-1"
-                              >
-                                <X className="h-3 w-3" />
-                              </button>
-                            </div>
-                          </div>
-                        ))
-                      ) : (
-                        <div className="p-4 text-center text-gray-400">
-                          <Bell className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                          <p>No new notifications</p>
+                <button
+                  onClick={() => setActiveTab('calendar')}
+                  className="bg-gray-700 hover:bg-gray-600 text-white border border-gray-600 p-4 rounded-lg font-medium flex flex-col items-center space-y-2"
+                >
+                  <Calendar className="w-5 h-5 text-amber-500" />
+                  <span>Schedule</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Current/Next Appointments */}
+            <div className="mx-4 space-y-4">
+              {currentAppointment && (
+                <div className="bg-gray-800 rounded-lg border border-gray-700">
+                  <div className="p-4">
+                    <h3 className="text-amber-500 font-medium mb-3 flex items-center">
+                      <Clock className="w-4 h-4 mr-2" />
+                      Current Appointment
+                    </h3>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-3">
+                        <div className="w-10 h-10 bg-amber-500 rounded-full flex items-center justify-center">
+                          <span className="text-gray-900 font-medium text-sm">
+                            {currentAppointment.client?.name?.split(' ').map(n => n[0]).join('') || 'U'}
+                          </span>
                         </div>
-                      )}
+                        <div>
+                          <div className="font-medium text-white">{currentAppointment.client?.name}</div>
+                          <div className="text-sm text-gray-400">{currentAppointment.service?.name}</div>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-sm text-gray-400">
+                          {new Date(currentAppointment.scheduledAt).toLocaleTimeString([], {
+                            hour: '2-digit',
+                            minute: '2-digit',
+                          })}
+                        </div>
+                        <div className="text-xs text-amber-500">In Progress</div>
+                      </div>
                     </div>
+                  </div>
+                </div>
+              )}
+
+              {nextAppointment && (
+                <div className="bg-gray-800 rounded-lg border border-gray-700">
+                  <div className="p-4">
+                    <h3 className="text-white font-medium mb-3 flex items-center">
+                      <Calendar className="w-4 h-4 mr-2 text-gray-400" />
+                      Next Appointment
+                    </h3>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-3">
+                        <div className="w-10 h-10 bg-gray-600 rounded-full flex items-center justify-center">
+                          <span className="text-white font-medium text-sm">
+                            {nextAppointment.client?.name?.split(' ').map(n => n[0]).join('') || 'U'}
+                          </span>
+                        </div>
+                        <div>
+                          <div className="font-medium text-white">{nextAppointment.client?.name}</div>
+                          <div className="text-sm text-gray-400">{nextAppointment.service?.name}</div>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-sm text-gray-400">
+                          {new Date(nextAppointment.scheduledAt).toLocaleTimeString([], {
+                            hour: '2-digit',
+                            minute: '2-digit',
+                          })}
+                        </div>
+                        <div className="text-xs text-gray-500">Upcoming</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+              
+              {!currentAppointment && !nextAppointment && (
+                <div className="bg-gray-800 rounded-lg border border-gray-700">
+                  <div className="p-4 text-center">
+                    <Calendar className="w-12 h-12 mx-auto mb-3 text-gray-600" />
+                    <p className="text-gray-400">No appointments scheduled for today</p>
+                    <button
+                      onClick={() => setActiveTab('calendar')}
+                      className="text-amber-500 text-sm mt-2 hover:text-amber-400"
+                    >
+                      Schedule an appointment
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Messages Card */}
+            <div className="bg-gray-800 rounded-lg border border-gray-700 mx-4">
+              <div className="p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center space-x-2">
+                    <MessageSquare className="h-5 w-5 text-amber-500" />
+                    <h3 className="font-semibold text-white">Messages</h3>
+                    {unreadCount?.count > 0 && (
+                      <span className="bg-amber-500 text-gray-900 text-xs font-bold px-2 py-1 rounded-full">
+                        {unreadCount.count}
+                      </span>
+                    )}
+                  </div>
+                  <button className="text-amber-500 text-sm">View All</button>
+                </div>
+                <p className="text-sm text-gray-400">
+                  {unreadCount?.count > 0 
+                    ? `${unreadCount.count} new message${unreadCount.count > 1 ? 's' : ''} waiting`
+                    : 'No new messages'
+                  }
+                </p>
+              </div>
+            </div>
+
+            {/* Recent Gallery */}
+            <div className="bg-gray-800 rounded-lg border border-gray-700 mx-4">
+              <div className="p-4 border-b border-gray-700">
+                <h3 className="text-white font-semibold">Recent Work</h3>
+              </div>
+              <div className="p-4">
+                {recentPhotos && recentPhotos.length > 0 ? (
+                  <div className="grid grid-cols-3 gap-3">
+                    {recentPhotos.map((photo) => (
+                      <div key={photo.id} className="aspect-square bg-gray-700 rounded-lg overflow-hidden">
+                        <img 
+                          src={photo.photoUrl} 
+                          alt="Recent work" 
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-8 text-gray-400">
+                    <Camera className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                    <p>No recent photos</p>
+                    <p className="text-xs mt-1">Upload photos to showcase your work</p>
                   </div>
                 )}
               </div>
             </div>
 
-            {/* Dashboard Stats */}
-            <div className="grid grid-cols-2 gap-4">
-              <div className="bg-gray-800 border border-gray-700 rounded-lg p-4 text-center">
-                <DollarSign className="h-8 w-8 text-amber-500 mx-auto mb-2" />
-                <p className="text-2xl font-bold text-white">
-                  {statsLoading ? '...' : `$${stats?.dailyEarnings || '0'}`}
-                </p>
-                <p className="text-sm text-gray-400">Today's Earnings</p>
+            {/* Business Stats */}
+            <div className="bg-gray-800 rounded-lg border border-gray-700 mx-4">
+              <div className="p-4 border-b border-gray-700">
+                <h3 className="text-white font-semibold">Business Overview</h3>
               </div>
-              
-              <div className="bg-gray-800 border border-gray-700 rounded-lg p-4 text-center">
-                <Calendar className="h-8 w-8 text-amber-500 mx-auto mb-2" />
-                <p className="text-2xl font-bold text-white">
-                  {statsLoading ? '...' : stats?.appointmentCount || '0'}
-                </p>
-                <p className="text-sm text-gray-400">Appointments</p>
-              </div>
-            </div>
-
-            {/* Quick Messages */}
-            <div className="bg-gray-800 border border-gray-700 rounded-lg p-4">
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center space-x-2">
-                  <MessageSquare className="h-5 w-5 text-amber-500" />
-                  <h3 className="font-semibold text-white">Messages</h3>
-                  {unreadCount?.count > 0 && (
-                    <span className="bg-amber-500 text-gray-900 text-xs font-bold px-2 py-1 rounded-full">
-                      {unreadCount.count}
-                    </span>
-                  )}
-                </div>
-                <button className="text-amber-500 text-sm">View All</button>
-              </div>
-              <p className="text-sm text-gray-400">
-                {unreadCount?.count > 0 
-                  ? `${unreadCount.count} new message${unreadCount.count > 1 ? 's' : ''} waiting`
-                  : 'No new messages'
-                }
-              </p>
-            </div>
-
-            {/* Today's Appointments */}
-            <div className="bg-gray-800 border border-gray-700 rounded-lg p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-white">Today's Appointments</h3>
-                <button 
-                  onClick={() => setActiveTab('calendar')}
-                  className="text-amber-500 text-sm font-medium"
-                >
-                  View All
-                </button>
-              </div>
-              
-              <div className="space-y-3">
-                {todayLoading ? (
-                  <div className="flex justify-center py-4">
-                    <div className="animate-spin w-6 h-6 border-2 border-amber-500 border-t-transparent rounded-full" />
+              <div className="p-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="text-center">
+                    <div className="text-lg font-bold text-amber-500">{clients?.length || 0}</div>
+                    <div className="text-xs text-gray-400">Total Clients</div>
                   </div>
-                ) : confirmedAppointments?.length ? (
-                  confirmedAppointments.map((appointment) => (
-                    <div key={appointment.id} className="p-3 bg-gray-700 rounded-lg">
+                  <div className="text-center">
+                    <div className="text-lg font-bold text-amber-500">{services?.length || 0}</div>
+                    <div className="text-xs text-gray-400">Active Services</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-lg font-bold text-amber-500">{unreadCount?.count || 0}</div>
+                    <div className="text-xs text-gray-400">Unread Messages</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-lg font-bold text-amber-500">{recentPhotos?.length || 0}</div>
+                    <div className="text-xs text-gray-400">Portfolio Photos</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
                       <div className="flex justify-between items-start">
                         <div>
                           <p className="font-medium text-white">{appointment.client?.name}</p>
@@ -2704,16 +2925,179 @@ export default function MobileApp() {
 
         {/* Clients */}
         {activeTab === 'clients' && (
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h2 className="text-xl font-bold text-white">Clients</h2>
-              <button className="bg-amber-500 hover:bg-amber-600 text-gray-900 py-2 px-4 rounded-lg font-medium">
-                <Plus className="w-4 h-4 mr-2 inline" />
-                Add Client
-              </button>
+          <div className="space-y-6 pb-4">
+            {/* Client Stats Card */}
+            <div className="bg-gray-800 rounded-lg border border-gray-700 mx-4 mt-4">
+              <div className="p-4 border-b border-gray-700 flex justify-between items-center">
+                <h3 className="text-white font-semibold">Client Analytics</h3>
+                <button
+                  className="text-gray-400 hover:text-white p-1"
+                  onClick={() => setShowClientStats(!showClientStats)}
+                >
+                  {showClientStats ? (
+                    <ChevronDown className="w-4 h-4" />
+                  ) : (
+                    <ChevronUp className="w-4 h-4" />
+                  )}
+                </button>
+              </div>
+              {showClientStats && (
+                <div className="p-4">
+                  <div className="grid grid-cols-3 gap-4 mb-6">
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-amber-500">{clients?.length || 0}</div>
+                      <div className="text-xs text-gray-400">Total Clients</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-amber-500">
+                        {clients?.filter(c => c.loyaltyStatus === 'vip').length || 0}
+                      </div>
+                      <div className="text-xs text-gray-400">VIP Clients</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-amber-500">
+                        {clients?.filter(c => c.totalVisits && c.totalVisits > 0).length || 0}
+                      </div>
+                      <div className="text-xs text-gray-400">Active</div>
+                    </div>
+                  </div>
+                  
+                  {/* Top Clients */}
+                  {clients && clients.length > 0 && (
+                    <div className="space-y-3">
+                      <h4 className="text-sm font-medium text-white">Top Clients</h4>
+                      {clients
+                        .sort((a, b) => (b.totalSpent || 0) - (a.totalSpent || 0))
+                        .slice(0, 3)
+                        .map((client, index) => (
+                          <div key={client.id} className="flex items-center justify-between p-3 bg-gray-700 rounded-lg">
+                            <div className="flex items-center space-x-3">
+                              <div className="w-6 h-6 bg-amber-500 rounded-full flex items-center justify-center text-xs font-bold text-gray-900">
+                                {index + 1}
+                              </div>
+                              <div className="w-8 h-8 bg-amber-500 rounded-full flex items-center justify-center">
+                                <span className="text-gray-900 font-medium text-xs">
+                                  {client.name.split(' ').map(n => n[0]).join('')}
+                                </span>
+                              </div>
+                              <div>
+                                <div className="font-medium text-white text-sm">{client.name}</div>
+                                <div className="text-xs text-gray-400">{client.totalVisits || 0} visits</div>
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <div className="text-amber-500 font-medium text-sm">${client.totalSpent || '0'}</div>
+                            </div>
+                          </div>
+                        ))}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
-            <div className="bg-gray-800 border border-gray-700 rounded-lg p-6">
-              <p className="text-gray-400 text-center">Mobile clients interface coming soon...</p>
+            
+            {/* Search and Add Client */}
+            <div className="mx-4 space-y-4">
+              <div className="flex items-center space-x-3">
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
+                  <input
+                    type="text"
+                    placeholder="Search clients..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="w-full pl-10 pr-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-400"
+                  />
+                </div>
+                <button 
+                  className="bg-amber-500 hover:bg-amber-600 text-gray-900 py-2 px-4 rounded-lg font-medium flex items-center space-x-2"
+                  onClick={() => setIsClientDialogOpen(true)}
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Add</span>
+                </button>
+              </div>
+            </div>
+            
+            {/* Client List */}
+            <div className="mx-4">
+              <div className="bg-gray-800 border border-gray-700 rounded-lg">
+                {clientsLoading ? (
+                  <div className="flex justify-center py-8">
+                    <div className="animate-spin w-6 h-6 border-2 border-amber-500 border-t-transparent rounded-full" />
+                  </div>
+                ) : filteredClients.length > 0 ? (
+                  <div className="divide-y divide-gray-700">
+                    {filteredClients.map((client) => (
+                      <div key={client.id} className="p-4 hover:bg-gray-700 transition-colors">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center space-x-3">
+                            <div className="w-10 h-10 bg-amber-500 rounded-full flex items-center justify-center">
+                              <span className="text-gray-900 font-medium text-sm">
+                                {client.name.split(' ').map(n => n[0]).join('')}
+                              </span>
+                            </div>
+                            <div>
+                              <div className="flex items-center space-x-2">
+                                <div className="font-medium text-white">{client.name}</div>
+                                {client.loyaltyStatus === 'vip' && (
+                                  <div className="bg-amber-500 text-gray-900 px-2 py-1 rounded text-xs font-medium">
+                                    VIP
+                                  </div>
+                                )}
+                              </div>
+                              <div className="text-sm text-gray-400">{client.phone}</div>
+                              {client.email && (
+                                <div className="text-xs text-gray-500">{client.email}</div>
+                              )}
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <div className="text-sm text-amber-500 font-medium">
+                              ${client.totalSpent || '0'}
+                            </div>
+                            <div className="text-xs text-gray-400">
+                              {client.totalVisits || 0} visits
+                            </div>
+                            {client.lastVisit && (
+                              <div className="text-xs text-gray-500">
+                                Last: {new Date(client.lastVisit).toLocaleDateString()}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                        
+                        {/* Client Actions */}
+                        <div className="flex items-center space-x-2 mt-3">
+                          <button className="flex items-center space-x-1 text-xs text-gray-400 hover:text-white">
+                            <Phone className="w-3 h-3" />
+                            <span>Call</span>
+                          </button>
+                          <button className="flex items-center space-x-1 text-xs text-gray-400 hover:text-white">
+                            <MessageSquare className="w-3 h-3" />
+                            <span>Message</span>
+                          </button>
+                          <button className="flex items-center space-x-1 text-xs text-gray-400 hover:text-white">
+                            <Plus className="w-3 h-3" />
+                            <span>Book</span>
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-8 text-gray-400">
+                    <User className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                    <p>No clients found</p>
+                    <button 
+                      className="text-amber-500 text-sm mt-2 hover:text-amber-400"
+                      onClick={() => setIsClientDialogOpen(true)}
+                    >
+                      Add your first client
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         )}
@@ -3122,6 +3506,118 @@ export default function MobileApp() {
           <MobileSettingsPage />
         )}
       </main>
+
+      {/* Add Client Dialog */}
+      {isClientDialogOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-gray-800 rounded-lg border border-gray-700 w-full max-w-md max-h-[80vh] overflow-y-auto">
+            <div className="p-4 border-b border-gray-700 flex justify-between items-center">
+              <h3 className="text-white font-semibold">Add New Client</h3>
+              <button
+                onClick={() => setIsClientDialogOpen(false)}
+                className="text-gray-400 hover:text-white p-1"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="p-4 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-white mb-1">Name *</label>
+                <input
+                  type="text"
+                  value={clientForm.name}
+                  onChange={(e) => handleClientFormChange('name', e.target.value)}
+                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-amber-500"
+                  placeholder="Client's full name"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-white mb-1">Phone</label>
+                <input
+                  type="tel"
+                  value={clientForm.phone}
+                  onChange={(e) => handleClientFormChange('phone', e.target.value)}
+                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-amber-500"
+                  placeholder="(555) 123-4567"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-white mb-1">Email</label>
+                <input
+                  type="email"
+                  value={clientForm.email}
+                  onChange={(e) => handleClientFormChange('email', e.target.value)}
+                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-amber-500"
+                  placeholder="client@example.com"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-white mb-1">Address</label>
+                <input
+                  type="text"
+                  value={clientForm.address}
+                  onChange={(e) => handleClientFormChange('address', e.target.value)}
+                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-amber-500"
+                  placeholder="123 Main St, City, State"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-white mb-1">Preferred Style</label>
+                <input
+                  type="text"
+                  value={clientForm.preferredStyle}
+                  onChange={(e) => handleClientFormChange('preferredStyle', e.target.value)}
+                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-amber-500"
+                  placeholder="e.g., Fade, Buzz cut, etc."
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-white mb-1">Notes</label>
+                <textarea
+                  value={clientForm.notes}
+                  onChange={(e) => handleClientFormChange('notes', e.target.value)}
+                  rows={3}
+                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-amber-500 resize-none"
+                  placeholder="Any special notes about this client..."
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-white mb-1">Loyalty Status</label>
+                <select
+                  value={clientForm.loyaltyStatus}
+                  onChange={(e) => handleClientFormChange('loyaltyStatus', e.target.value)}
+                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-amber-500"
+                >
+                  <option value="regular">Regular</option>
+                  <option value="vip">VIP</option>
+                </select>
+              </div>
+              
+              <div className="flex items-center space-x-3 pt-4">
+                <button
+                  onClick={() => setIsClientDialogOpen(false)}
+                  className="flex-1 bg-gray-700 text-white border border-gray-600 hover:bg-gray-600 py-2 px-4 rounded-lg font-medium"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleCreateClient}
+                  disabled={!clientForm.name || createClientMutation.isPending}
+                  className="flex-1 bg-amber-500 hover:bg-amber-600 text-gray-900 py-2 px-4 rounded-lg font-medium disabled:opacity-50"
+                >
+                  {createClientMutation.isPending ? 'Adding...' : 'Add Client'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Bottom Navigation */}
       <div className="fixed bottom-0 left-0 right-0 bg-gray-800 border-t border-gray-700">
