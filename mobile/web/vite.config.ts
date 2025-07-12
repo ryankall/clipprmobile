@@ -12,7 +12,7 @@ export default defineConfig({
   server: {
     port: 5001,
     host: '0.0.0.0',
-    allowedHosts: ['all'],
+    allowedHosts: ['all', 'b22f0720-93ab-4faa-a11e-f9419792ac50-00-3m9qdub93g7mz.kirk.replit.dev'],
     proxy: {
       '/api': {
         target: 'http://localhost:5000',
