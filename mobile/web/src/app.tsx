@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { 
   Home, 
   Calendar, 
@@ -24,7 +24,20 @@ import {
   Eye,
   EyeOff,
   Heart,
-  Car
+  Car,
+  Shield,
+  ShieldOff,
+  HelpCircle,
+  LogOut,
+  Edit3,
+  Upload,
+  CheckCircle,
+  AlertCircle,
+  Share,
+  Copy,
+  Smartphone,
+  ChevronDown,
+  ChevronUp
 } from "lucide-react";
 
 // Type definitions
@@ -251,6 +264,669 @@ function MobileAuthScreen() {
           </button>
         </div>
       </div>
+    </div>
+  );
+}
+
+// Mobile Settings Page Component
+function MobileSettingsPage() {
+  const [activeTab, setActiveTab] = useState("profile");
+  const [showNotificationCard, setShowNotificationCard] = useState(false);
+  const [showPaymentSettingsCard, setShowPaymentSettingsCard] = useState(false);
+  const [showQuickActionCard, setShowQuickActionCard] = useState(false);
+  const [isEditingProfile, setIsEditingProfile] = useState(false);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [isVerifyingPhone, setIsVerifyingPhone] = useState(false);
+  const [verificationCode, setVerificationCode] = useState("");
+  const [isCodeSent, setIsCodeSent] = useState(false);
+  const [countdown, setCountdown] = useState(0);
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
+  const [notificationSettings, setNotificationSettings] = useState({
+    newBookingRequests: true,
+    appointmentConfirmations: true,
+    appointmentCancellations: true,
+    upcomingReminders: true,
+    soundEffects: true,
+  });
+  const [formData, setFormData] = useState({
+    businessName: '',
+    email: '',
+    phone: '',
+    serviceArea: '',
+    about: '',
+    homeBaseAddress: '',
+    timezone: 'America/New_York',
+    defaultGraceTime: 5,
+    transportationMode: 'driving'
+  });
+  const [passwordFormData, setPasswordFormData] = useState({
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: ''
+  });
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Fetch user profile data
+  const { data: user, isLoading } = useQuery<any>({
+    queryKey: ["/api/user/profile"],
+    staleTime: 1000 * 60 * 5, // 5 minutes
+  });
+
+  // Fetch blocked clients
+  const { data: blockedClients = [] } = useQuery<any[]>({
+    queryKey: ["/api/anti-spam/blocked-clients"],
+    staleTime: 1000 * 60 * 2, // 2 minutes
+  });
+
+  // Get Stripe account status
+  const { data: stripeStatus } = useQuery<any>({
+    queryKey: ["/api/stripe/status"],
+    retry: false,
+  });
+
+  const { data: subscriptionStatus } = useQuery<any>({
+    queryKey: ["/api/stripe/subscription-status"],
+    retry: false,
+  });
+
+  // Push notification subscription status
+  const { data: pushSubscriptionStatus } = useQuery<any>({
+    queryKey: ["/api/push/subscription"],
+    retry: false,
+    staleTime: 1000 * 60 * 5, // 5 minutes
+  });
+
+  // Profile update mutation
+  const updateProfileMutation = useMutation({
+    mutationFn: async (data: any) => {
+      const response = await fetch("/api/user/profile", {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify(data),
+      });
+      if (!response.ok) throw new Error("Failed to update profile");
+      return response.json();
+    },
+    onSuccess: () => {
+      setIsEditingProfile(false);
+      setPreviewUrl(null);
+      // Show success message
+    },
+  });
+
+  // Unblock client mutation
+  const unblockClientMutation = useMutation({
+    mutationFn: async ({ phoneNumber }: { phoneNumber: string }) => {
+      const response = await fetch("/api/anti-spam/unblock", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify({ phoneNumber }),
+      });
+      if (!response.ok) throw new Error("Failed to unblock client");
+      return response.json();
+    },
+  });
+
+  // Initialize form data when user data loads
+  useEffect(() => {
+    if (user) {
+      setFormData({
+        businessName: user.businessName || '',
+        email: user.email || '',
+        phone: user.phone || '',
+        serviceArea: user.serviceArea || '',
+        about: user.about || '',
+        homeBaseAddress: user.homeBaseAddress || '',
+        timezone: user.timezone || 'America/New_York',
+        defaultGraceTime: user.defaultGraceTime || 5,
+        transportationMode: user.transportationMode || 'driving'
+      });
+    }
+  }, [user]);
+
+  // Phone number formatting
+  const formatPhoneNumber = (value: string): string => {
+    if (!value) return value;
+    const phoneNumber = value.replace(/[^\d]/g, "");
+    if (phoneNumber.length < 4) return phoneNumber;
+    if (phoneNumber.length < 7) {
+      return `(${phoneNumber.slice(0, 3)}) ${phoneNumber.slice(3)}`;
+    }
+    return `(${phoneNumber.slice(0, 3)}) ${phoneNumber.slice(3, 6)}-${phoneNumber.slice(6, 10)}`;
+  };
+
+  // Handle file upload
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      // Handle file upload logic here
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setPreviewUrl(e.target?.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  // Handle profile update
+  const handleProfileUpdate = (e: React.FormEvent) => {
+    e.preventDefault();
+    updateProfileMutation.mutate(formData);
+  };
+
+  // Handle sign out
+  const handleSignOut = () => {
+    localStorage.removeItem('token');
+    window.location.reload();
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-gray-400">Loading profile...</div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center space-x-3">
+          <Settings className="w-6 h-6 text-amber-500" />
+          <h1 className="text-xl font-bold text-white">Settings</h1>
+        </div>
+      </div>
+
+      {/* Tab Navigation */}
+      <div className="flex space-x-1">
+        <button
+          onClick={() => setActiveTab("profile")}
+          className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+            activeTab === "profile"
+              ? "bg-amber-500 text-gray-900"
+              : "text-gray-400 hover:text-white hover:bg-gray-700"
+          }`}
+        >
+          Profile
+        </button>
+        <button
+          onClick={() => setActiveTab("blocked")}
+          className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+            activeTab === "blocked"
+              ? "bg-amber-500 text-gray-900"
+              : "text-gray-400 hover:text-white hover:bg-gray-700"
+          }`}
+        >
+          Blocked Clients
+        </button>
+      </div>
+
+      {/* Profile Tab */}
+      {activeTab === "profile" && (
+        <div className="space-y-6">
+          {/* Profile Settings */}
+          <div className="bg-gray-800 border border-gray-700 rounded-lg">
+            <div className="p-4 border-b border-gray-700">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center">
+                  <User className="w-5 h-5 mr-2 text-amber-500" />
+                  <h3 className="text-white font-medium">Profile & Business Info</h3>
+                </div>
+                <button
+                  onClick={() => setIsEditingProfile(true)}
+                  className="text-amber-500 hover:text-amber-400 p-2"
+                >
+                  <Edit3 className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+            
+            {/* Profile Display */}
+            <div className="p-4 space-y-4">
+              <div className="flex items-center space-x-4">
+                {user?.photoUrl ? (
+                  <img
+                    src={user.photoUrl}
+                    alt="Profile"
+                    className="w-16 h-16 rounded-full object-cover border border-gray-600"
+                  />
+                ) : (
+                  <div className="w-16 h-16 rounded-full bg-gray-700 flex items-center justify-center">
+                    <User className="w-8 h-8 text-gray-400" />
+                  </div>
+                )}
+                <div>
+                  <h4 className="text-white font-medium">{user?.businessName || "No business name"}</h4>
+                  <p className="text-gray-400 text-sm">{user?.email || "No email"}</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-gray-400 text-sm">Phone</label>
+                  <div className="flex items-center space-x-2">
+                    <p className="text-white">{user?.phone || "Not set"}</p>
+                    {user?.phoneVerified ? (
+                      <CheckCircle className="w-4 h-4 text-green-500" />
+                    ) : (
+                      <AlertCircle className="w-4 h-4 text-amber-500" />
+                    )}
+                  </div>
+                </div>
+                <div>
+                  <label className="text-gray-400 text-sm">Service Area</label>
+                  <p className="text-white">{user?.serviceArea || "Not set"}</p>
+                </div>
+              </div>
+
+              {user?.about && (
+                <div>
+                  <label className="text-gray-400 text-sm">About</label>
+                  <p className="text-white">{user.about}</p>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Profile Edit Modal */}
+          {isEditingProfile && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+              <div className="bg-gray-800 rounded-lg p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-white font-medium">Edit Profile</h3>
+                  <button
+                    onClick={() => setIsEditingProfile(false)}
+                    className="text-gray-400 hover:text-white"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+
+                <form onSubmit={handleProfileUpdate} className="space-y-4">
+                  {/* Photo Upload */}
+                  <div>
+                    <label className="text-white text-sm font-medium">Profile Photo</label>
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/jpeg,image/jpg,image/png,image/webp"
+                      onChange={handleFileChange}
+                      className="hidden"
+                    />
+                    
+                    {previewUrl ? (
+                      <div className="relative mt-2">
+                        <img
+                          src={previewUrl}
+                          alt="Profile preview"
+                          className="w-24 h-24 object-cover rounded-full border border-gray-600"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setPreviewUrl(null)}
+                          className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="border-2 border-dashed border-gray-600 rounded-lg p-4 text-center mt-2">
+                        <Camera className="w-8 h-8 mx-auto mb-2 text-gray-400" />
+                        <p className="text-gray-400 text-sm mb-3">Add a profile photo</p>
+                        <div className="flex gap-2">
+                          <button
+                            type="button"
+                            onClick={() => fileInputRef.current?.click()}
+                            className="flex-1 bg-gray-700 text-white py-2 px-3 rounded text-sm hover:bg-gray-600"
+                          >
+                            <Upload className="w-4 h-4 mr-1 inline" />
+                            Upload
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Business Name */}
+                  <div>
+                    <label className="text-white text-sm font-medium">Business Name</label>
+                    <input
+                      type="text"
+                      value={formData.businessName}
+                      onChange={(e) => setFormData(prev => ({ ...prev, businessName: e.target.value }))}
+                      className="w-full mt-1 p-3 bg-gray-700 border border-gray-600 rounded-lg text-white"
+                      placeholder="Your barbershop name"
+                      maxLength={60}
+                    />
+                    <div className="text-right text-xs text-gray-400 mt-1">
+                      {formData.businessName.length}/60
+                    </div>
+                  </div>
+
+                  {/* Phone and Email */}
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-white text-sm font-medium">Phone</label>
+                      <input
+                        type="tel"
+                        value={formData.phone}
+                        onChange={(e) => setFormData(prev => ({ ...prev, phone: formatPhoneNumber(e.target.value) }))}
+                        className="w-full mt-1 p-3 bg-gray-700 border border-gray-600 rounded-lg text-white"
+                        placeholder="(555) 123-4567"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-white text-sm font-medium">Email</label>
+                      <input
+                        type="email"
+                        value={formData.email}
+                        onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
+                        className="w-full mt-1 p-3 bg-gray-700 border border-gray-600 rounded-lg text-white"
+                        placeholder="Email address"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Service Area */}
+                  <div>
+                    <label className="text-white text-sm font-medium">Service Area</label>
+                    <input
+                      type="text"
+                      value={formData.serviceArea}
+                      onChange={(e) => setFormData(prev => ({ ...prev, serviceArea: e.target.value }))}
+                      className="w-full mt-1 p-3 bg-gray-700 border border-gray-600 rounded-lg text-white"
+                      placeholder="Your service area"
+                      maxLength={100}
+                    />
+                    <div className="text-right text-xs text-gray-400 mt-1">
+                      {formData.serviceArea.length}/100
+                    </div>
+                  </div>
+
+                  {/* About */}
+                  <div>
+                    <label className="text-white text-sm font-medium">About</label>
+                    <textarea
+                      value={formData.about}
+                      onChange={(e) => setFormData(prev => ({ ...prev, about: e.target.value }))}
+                      className="w-full mt-1 p-3 bg-gray-700 border border-gray-600 rounded-lg text-white"
+                      placeholder="Tell clients about your services"
+                      maxLength={300}
+                      rows={4}
+                    />
+                    <div className="text-right text-xs text-gray-400 mt-1">
+                      {formData.about.length}/300
+                    </div>
+                  </div>
+
+                  {/* Submit Button */}
+                  <div className="flex gap-3 pt-4">
+                    <button
+                      type="button"
+                      onClick={() => setIsEditingProfile(false)}
+                      className="flex-1 bg-gray-700 text-white py-2 px-4 rounded-lg hover:bg-gray-600"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={updateProfileMutation.isPending}
+                      className="flex-1 bg-amber-500 text-gray-900 py-2 px-4 rounded-lg hover:bg-amber-600 disabled:opacity-50"
+                    >
+                      {updateProfileMutation.isPending ? "Saving..." : "Save Changes"}
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          )}
+
+          {/* Phone Verification */}
+          {user?.phone && !user?.phoneVerified && (
+            <div className="bg-gray-800 border border-gray-700 rounded-lg p-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center">
+                  <Smartphone className="w-5 h-5 mr-2 text-amber-500" />
+                  <h3 className="text-white font-medium">Phone Verification</h3>
+                </div>
+                <button
+                  onClick={() => setIsVerifyingPhone(true)}
+                  className="bg-amber-500 text-gray-900 px-3 py-1 rounded text-sm hover:bg-amber-600"
+                >
+                  Verify Phone
+                </button>
+              </div>
+              <p className="text-gray-400 text-sm mt-2">
+                Verify your phone number to receive SMS confirmations and enable all features.
+              </p>
+            </div>
+          )}
+
+          {/* Subscription Status */}
+          {subscriptionStatus && (
+            <div className="bg-gray-800 border border-gray-700 rounded-lg p-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center">
+                  <CreditCard className="w-5 h-5 mr-2 text-amber-500" />
+                  <h3 className="text-white font-medium">Subscription</h3>
+                </div>
+                <div className={`px-3 py-1 rounded text-sm ${
+                  subscriptionStatus.status === 'premium' 
+                    ? 'bg-green-500/20 text-green-400' 
+                    : 'bg-gray-700 text-gray-300'
+                }`}>
+                  {subscriptionStatus.status === 'premium' ? 'Premium' : 'Basic'}
+                </div>
+              </div>
+              
+              {subscriptionStatus.status === 'basic' && (
+                <p className="text-gray-400 text-sm mt-2">
+                  Upgrade to Premium for unlimited appointments, advanced features, and priority support.
+                </p>
+              )}
+            </div>
+          )}
+
+          {/* Public Booking Link */}
+          {user?.phone && (
+            <div className="bg-gray-800 border border-gray-700 rounded-lg p-4">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center">
+                  <Share className="w-5 h-5 mr-2 text-amber-500" />
+                  <h3 className="text-white font-medium">Public Booking Link</h3>
+                </div>
+              </div>
+              <p className="text-gray-400 text-sm mb-3">
+                Share this link with clients so they can book appointments directly.
+              </p>
+              
+              <div className="bg-gray-700 rounded-lg p-3 border border-gray-600">
+                <div className="flex items-center space-x-2">
+                  <code className="text-amber-500 text-sm flex-1 break-all">
+                    {window.location.origin}/book/{user.phone?.replace(/\D/g, "") || ""}-clipcutman
+                  </code>
+                  <button
+                    onClick={() => {
+                      if (user?.phone) {
+                        const cleanPhone = user.phone.replace(/\D/g, "");
+                        const bookingUrl = `${window.location.origin}/book/${cleanPhone}-clipcutman`;
+                        navigator.clipboard.writeText(bookingUrl);
+                      }
+                    }}
+                    className="bg-gray-600 text-white p-2 rounded hover:bg-gray-500"
+                  >
+                    <Copy className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Notifications */}
+          <div className="bg-gray-800 border border-gray-700 rounded-lg">
+            <div className="p-4 border-b border-gray-700">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center">
+                  <Bell className="w-5 h-5 mr-2 text-amber-500" />
+                  <h3 className="text-white font-medium">Notifications</h3>
+                </div>
+                <button
+                  onClick={() => setShowNotificationCard(!showNotificationCard)}
+                  className="text-gray-400 hover:text-white"
+                >
+                  {showNotificationCard ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                </button>
+              </div>
+            </div>
+            
+            {showNotificationCard && (
+              <div className="p-4 space-y-4">
+                {/* Push Notifications Toggle */}
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-white">Push Notifications</p>
+                    <p className="text-xs text-gray-400">Enable browser notifications</p>
+                  </div>
+                  <div className={`w-12 h-6 rounded-full relative cursor-pointer transition-colors ${
+                    pushSubscriptionStatus?.subscribed ? 'bg-amber-500' : 'bg-gray-600'
+                  }`}>
+                    <div className={`w-5 h-5 rounded-full bg-white absolute top-0.5 transition-transform ${
+                      pushSubscriptionStatus?.subscribed ? 'translate-x-6' : 'translate-x-0.5'
+                    }`} />
+                  </div>
+                </div>
+
+                {/* Individual notification types */}
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-white text-sm">New Booking Requests</p>
+                      <p className="text-xs text-gray-400">When clients request appointments</p>
+                    </div>
+                    <div className={`w-12 h-6 rounded-full relative cursor-pointer transition-colors ${
+                      notificationSettings.newBookingRequests ? 'bg-amber-500' : 'bg-gray-600'
+                    }`}>
+                      <div className={`w-5 h-5 rounded-full bg-white absolute top-0.5 transition-transform ${
+                        notificationSettings.newBookingRequests ? 'translate-x-6' : 'translate-x-0.5'
+                      }`} />
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-white text-sm">Appointment Confirmations</p>
+                      <p className="text-xs text-gray-400">When clients confirm appointments</p>
+                    </div>
+                    <div className={`w-12 h-6 rounded-full relative cursor-pointer transition-colors ${
+                      notificationSettings.appointmentConfirmations ? 'bg-amber-500' : 'bg-gray-600'
+                    }`}>
+                      <div className={`w-5 h-5 rounded-full bg-white absolute top-0.5 transition-transform ${
+                        notificationSettings.appointmentConfirmations ? 'translate-x-6' : 'translate-x-0.5'
+                      }`} />
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-white text-sm">Sound Effects</p>
+                      <p className="text-xs text-gray-400">Play sounds for app interactions</p>
+                    </div>
+                    <div className={`w-12 h-6 rounded-full relative cursor-pointer transition-colors ${
+                      notificationSettings.soundEffects ? 'bg-amber-500' : 'bg-gray-600'
+                    }`}>
+                      <div className={`w-5 h-5 rounded-full bg-white absolute top-0.5 transition-transform ${
+                        notificationSettings.soundEffects ? 'translate-x-6' : 'translate-x-0.5'
+                      }`} />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Security */}
+          <div className="bg-gray-800 border border-gray-700 rounded-lg p-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center">
+                <Shield className="w-5 h-5 mr-2 text-amber-500" />
+                <h3 className="text-white font-medium">Security</h3>
+              </div>
+              <button
+                onClick={() => setIsChangingPassword(true)}
+                className="text-amber-500 hover:text-amber-400 text-sm"
+              >
+                Change Password
+              </button>
+            </div>
+            <p className="text-gray-400 text-sm mt-2">
+              Keep your account secure with a strong password.
+            </p>
+          </div>
+
+          {/* Sign Out */}
+          <div className="bg-gray-800 border border-gray-700 rounded-lg p-4">
+            <button
+              onClick={handleSignOut}
+              className="flex items-center text-red-400 hover:text-red-300"
+            >
+              <LogOut className="w-5 h-5 mr-2" />
+              Sign Out
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Blocked Clients Tab */}
+      {activeTab === "blocked" && (
+        <div className="space-y-4">
+          <div className="bg-gray-800 border border-gray-700 rounded-lg">
+            <div className="p-4 border-b border-gray-700">
+              <div className="flex items-center">
+                <ShieldOff className="w-5 h-5 mr-2 text-red-400" />
+                <h3 className="text-white font-medium">Blocked Clients</h3>
+              </div>
+            </div>
+            
+            <div className="p-4">
+              {blockedClients.length === 0 ? (
+                <p className="text-gray-400 text-center py-8">
+                  No blocked clients. You can block clients from booking by going to Messages and clicking "Block Client".
+                </p>
+              ) : (
+                <div className="space-y-3">
+                  {blockedClients.map((client: any) => (
+                    <div key={client.id} className="flex items-center justify-between p-3 bg-gray-700 rounded-lg">
+                      <div>
+                        <p className="text-white font-medium">{client.phoneNumber}</p>
+                        <p className="text-gray-400 text-sm">
+                          Blocked {new Date(client.blockedAt).toLocaleDateString()}
+                        </p>
+                        {client.reason && (
+                          <p className="text-gray-400 text-sm">Reason: {client.reason}</p>
+                        )}
+                      </div>
+                      <button
+                        onClick={() => unblockClientMutation.mutate({ phoneNumber: client.phoneNumber })}
+                        disabled={unblockClientMutation.isPending}
+                        className="bg-green-600 text-white px-3 py-1 rounded text-sm hover:bg-green-700 disabled:opacity-50"
+                      >
+                        {unblockClientMutation.isPending ? "Unblocking..." : "Unblock"}
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -1188,12 +1864,7 @@ export default function MobileApp() {
 
         {/* Settings */}
         {activeTab === 'settings' && (
-          <div className="space-y-4">
-            <h2 className="text-xl font-bold text-white">Settings</h2>
-            <div className="bg-gray-800 border border-gray-700 rounded-lg p-6">
-              <p className="text-gray-400 text-center">Mobile settings interface coming soon...</p>
-            </div>
-          </div>
+          <MobileSettingsPage />
         )}
       </main>
 
