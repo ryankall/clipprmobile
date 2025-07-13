@@ -41,8 +41,7 @@ import {
   Receipt,
   Trash2,
   Banknote,
-  MessageCircle,
-  Scissors
+  MessageCircle
 } from "lucide-react";
 
 // Type definitions
