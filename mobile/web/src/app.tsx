@@ -15,6 +15,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import MobileDashboard from "./components/mobile-dashboard";
 import MobileSettings from "./components/mobile-settings";
+import MobileCalendar from "./components/mobile-calendar";
+import MobileClients from "./components/mobile-clients";
+import MobileInvoice from "./components/mobile-invoice";
 
 // Create a query client
 const queryClient = new QueryClient({
@@ -250,61 +253,6 @@ function MobileAuthScreen() {
   );
 }
 
-// Placeholder components for other pages
-function MobileCalendarPage() {
-  return (
-    <div className="min-h-screen bg-dark-bg text-white">
-      <div className="bg-dark-card border-b border-steel/20 px-4 py-4">
-        <h1 className="text-xl font-bold text-white">Calendar</h1>
-        <p className="text-sm text-steel">Manage your appointments</p>
-      </div>
-      <div className="p-4">
-        <div className="bg-dark-card rounded-lg border border-steel/20 p-6 text-center">
-          <Calendar className="w-12 h-12 mx-auto mb-3 text-gold" />
-          <h3 className="text-lg font-semibold text-white mb-2">Calendar Coming Soon</h3>
-          <p className="text-steel">Full calendar functionality will be available soon</p>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function MobileClientsPage() {
-  return (
-    <div className="min-h-screen bg-dark-bg text-white">
-      <div className="bg-dark-card border-b border-steel/20 px-4 py-4">
-        <h1 className="text-xl font-bold text-white">Clients</h1>
-        <p className="text-sm text-steel">Manage your client relationships</p>
-      </div>
-      <div className="p-4">
-        <div className="bg-dark-card rounded-lg border border-steel/20 p-6 text-center">
-          <Users className="w-12 h-12 mx-auto mb-3 text-gold" />
-          <h3 className="text-lg font-semibold text-white mb-2">Clients Coming Soon</h3>
-          <p className="text-steel">Client management features will be available soon</p>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function MobileInvoicePage() {
-  return (
-    <div className="min-h-screen bg-dark-bg text-white">
-      <div className="bg-dark-card border-b border-steel/20 px-4 py-4">
-        <h1 className="text-xl font-bold text-white">Invoices</h1>
-        <p className="text-sm text-steel">Manage your billing and payments</p>
-      </div>
-      <div className="p-4">
-        <div className="bg-dark-card rounded-lg border border-steel/20 p-6 text-center">
-          <Receipt className="w-12 h-12 mx-auto mb-3 text-gold" />
-          <h3 className="text-lg font-semibold text-white mb-2">Invoices Coming Soon</h3>
-          <p className="text-steel">Invoice management features will be available soon</p>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 // Main mobile app component
 function MobileApp() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -337,9 +285,9 @@ function MobileApp() {
       {/* Main Content */}
       <div className="pb-16"> {/* Bottom margin for navigation */}
         {currentPage === 'dashboard' && <MobileDashboard />}
-        {currentPage === 'calendar' && <MobileCalendarPage />}
-        {currentPage === 'clients' && <MobileClientsPage />}
-        {currentPage === 'invoice' && <MobileInvoicePage />}
+        {currentPage === 'calendar' && <MobileCalendar />}
+        {currentPage === 'clients' && <MobileClients />}
+        {currentPage === 'invoice' && <MobileInvoice />}
         {currentPage === 'settings' && <MobileSettings />}
       </div>
 
