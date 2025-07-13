@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { 
   Home, 
   Calendar, 
@@ -119,7 +119,9 @@ function MobileAuthScreen() {
       }
       return response.json();
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      // Store token in localStorage
+      localStorage.setItem('token', data.token);
       window.location.reload();
     },
   });
@@ -143,7 +145,9 @@ function MobileAuthScreen() {
       }
       return response.json();
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      // Store token in localStorage
+      localStorage.setItem('token', data.token);
       window.location.reload();
     },
   });
@@ -309,13 +313,24 @@ function MobileSettingsPage() {
 
   const { data: user } = useQuery<User>({
     queryKey: ['/api/user/profile'],
+    queryFn: () => makeAuthenticatedRequest('/api/user/profile'),
+    enabled: isAuthenticated,
   });
 
   const signOutMutation = useMutation({
     mutationFn: async () => {
-      await fetch('/api/auth/signout', { method: 'POST' });
+      const token = localStorage.getItem('token');
+      await fetch('/api/auth/signout', { 
+        method: 'POST',
+        headers: {
+          ...(token && { Authorization: `Bearer ${token}` })
+        }
+      });
     },
     onSuccess: () => {
+      // Clear token from localStorage
+      localStorage.removeItem('token');
+      queryClient.clear();
       window.location.reload();
     },
   });
@@ -462,11 +477,32 @@ function MobileSettingsPage() {
   );
 }
 
+// Helper function for authenticated requests
+const makeAuthenticatedRequest = async (url: string, options: RequestInit = {}) => {
+  const token = localStorage.getItem('token');
+  const headers = {
+    ...options.headers,
+    ...(token && { Authorization: `Bearer ${token}` })
+  };
+  
+  const response = await fetch(url, {
+    ...options,
+    headers
+  });
+  
+  if (!response.ok) {
+    throw new Error(`HTTP error! status: ${response.status}`);
+  }
+  
+  return response.json();
+};
+
 // Main Mobile App Component
 export default function MobileApp() {
   // Authentication state
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const queryClient = useQueryClient();
 
   // Mobile app states
   const [activeTab, setActiveTab] = useState<'dashboard' | 'calendar' | 'clients' | 'services' | 'settings'>('dashboard');
@@ -490,12 +526,27 @@ export default function MobileApp() {
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        const response = await fetch('/api/auth/me');
+        const token = localStorage.getItem('token');
+        if (!token) {
+          setIsLoading(false);
+          return;
+        }
+        
+        const response = await fetch('/api/auth/me', {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        
         if (response.ok) {
           setIsAuthenticated(true);
+        } else {
+          // Clear invalid token
+          localStorage.removeItem('token');
         }
       } catch (error) {
         console.error('Auth check failed:', error);
+        localStorage.removeItem('token');
       } finally {
         setIsLoading(false);
       }
@@ -519,26 +570,31 @@ export default function MobileApp() {
   // Data queries
   const { data: dashboardStats } = useQuery<DashboardStats>({
     queryKey: ['/api/dashboard'],
+    queryFn: () => makeAuthenticatedRequest('/api/dashboard'),
     enabled: isAuthenticated,
   });
 
   const { data: todaysAppointments } = useQuery<AppointmentWithRelations[]>({
     queryKey: ['/api/appointments/today'],
+    queryFn: () => makeAuthenticatedRequest('/api/appointments/today'),
     enabled: isAuthenticated,
   });
 
   const { data: clients } = useQuery<ClientWithRelations[]>({
     queryKey: ['/api/clients'],
+    queryFn: () => makeAuthenticatedRequest('/api/clients'),
     enabled: isAuthenticated,
   });
 
   const { data: services } = useQuery<Service[]>({
     queryKey: ['/api/services'],
+    queryFn: () => makeAuthenticatedRequest('/api/services'),
     enabled: isAuthenticated,
   });
 
   const { data: recentPhotos } = useQuery<GalleryPhoto[]>({
     queryKey: ['/api/gallery'],
+    queryFn: () => makeAuthenticatedRequest('/api/gallery'),
     enabled: isAuthenticated,
   });
 
