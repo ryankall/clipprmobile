@@ -1827,12 +1827,6 @@ export default function MobileApp() {
     );
   }) || [];
 
-  // Filter clients by search term
-  const filteredClients = clients?.filter(client =>
-    client.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    client.phone.includes(searchTerm)
-  ) || [];
-
   // Handle clicks outside notifications dropdown
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
