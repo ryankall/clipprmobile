@@ -23,12 +23,15 @@ export function useAuth() {
   const checkAuth = async () => {
     try {
       const token = await getToken();
+      console.log('Token check:', token ? 'Found' : 'Not found');
+      
       if (token) {
-        const user = await apiRequest<User>('GET', '/api/auth/me');
+        // Skip API call for now to avoid network issues
+        // const user = await apiRequest<User>('GET', '/api/auth/me');
         setAuthState({
-          user,
+          user: null, // Set to null for now
           isLoading: false,
-          isAuthenticated: true,
+          isAuthenticated: false, // Set to false for now
         });
       } else {
         setAuthState({

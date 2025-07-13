@@ -4,6 +4,8 @@ import { Link } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function Welcome() {
+  console.log('Welcome screen rendered');
+  
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.content}>

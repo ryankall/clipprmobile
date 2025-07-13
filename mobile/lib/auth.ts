@@ -1,35 +1,17 @@
-const TOKEN_KEY = 'auth_token';
+// Simple in-memory token storage for development
+// In production, you would use SecureStore or AsyncStorage
+let authToken: string | null = null;
 
 export async function getToken(): Promise<string | null> {
-  try {
-    if (typeof window !== 'undefined' && window.localStorage) {
-      return localStorage.getItem(TOKEN_KEY);
-    }
-    return null;
-  } catch (error) {
-    console.error('Error getting token:', error);
-    return null;
-  }
+  return authToken;
 }
 
 export async function setToken(newToken: string): Promise<void> {
-  try {
-    if (typeof window !== 'undefined' && window.localStorage) {
-      localStorage.setItem(TOKEN_KEY, newToken);
-    }
-  } catch (error) {
-    console.error('Error setting token:', error);
-  }
+  authToken = newToken;
 }
 
 export async function removeToken(): Promise<void> {
-  try {
-    if (typeof window !== 'undefined' && window.localStorage) {
-      localStorage.removeItem(TOKEN_KEY);
-    }
-  } catch (error) {
-    console.error('Error removing token:', error);
-  }
+  authToken = null;
 }
 
 export async function isAuthenticated(): Promise<boolean> {

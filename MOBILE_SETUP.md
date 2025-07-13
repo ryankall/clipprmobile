@@ -1,185 +1,54 @@
-# Clippr Mobile App Setup Guide
+# Clippr Mobile App Setup
 
-This project now includes a complete mobile application built with Expo and React Native, designed to work alongside your existing web application.
+## Quick Start
 
-## 🚀 Quick Start
+The mobile app shows a blank screen? Follow these steps to get it running:
 
-### Prerequisites
-- Node.js (v18 or higher)
-- npm or yarn
-- Expo CLI (optional, but recommended)
-- iOS Simulator (Mac) or Android Studio (for testing)
-
-### 1. Install Expo CLI (Optional)
+### 1. Start the Backend API
 ```bash
-npm install -g @expo/cli
+npm run dev
 ```
+This starts the backend server on port 5000.
 
-### 2. Set up the Mobile App
+### 2. Start the Mobile App
 ```bash
 cd mobile
-npm install
+npx expo start
 ```
 
-### 3. Start Development
-```bash
-# Start the Expo development server
-npm start
+### 3. Open in Expo Go
+- Install "Expo Go" app on your phone
+- Scan the QR code from the terminal
+- The app should load showing the welcome screen
 
-# Or run directly:
-npx expo start --localhost
-```
+## If Still Blank Screen
 
-### 4. Testing Your App
-The development server will show a QR code that you can scan with:
-- **iOS**: Camera app (built-in QR scanner)
-- **Android**: Expo Go app (download from Play Store)
-- **Web Browser**: Press 'w' to open in browser at localhost:8081
+The most common issues:
 
-### 5. Run on Device/Simulator
-When the development server is running, you can:
-- **Physical Device**: Install Expo Go app and scan the QR code
-- **iOS Simulator**: Press `i` in the terminal
-- **Android Simulator**: Press `a` in the terminal
-- **Web Browser**: Press `w` to test the web version
+1. **Missing Dependencies**: Make sure you're in the `mobile/` directory when running `npx expo start`
 
-## 📱 App Features
+2. **Network Issues**: The mobile app tries to connect to the backend. Make sure:
+   - Backend is running on port 5000
+   - Your phone and computer are on the same network
+   - The API_BASE_URL in `mobile/lib/api.ts` is correct
 
-### Core Functionality
-- **Dashboard**: Overview of daily statistics and quick actions
-- **Calendar**: View and manage appointments by time slots
-- **Clients**: Browse and search client database
-- **Services**: Manage service offerings and pricing
-- **Settings**: User profile and app configuration
+3. **Console Logs**: Check the Expo developer console for error messages
 
-### Technical Features
-- **Dark Theme**: Consistent with web app styling
-- **Native Navigation**: Tab-based navigation optimized for mobile
-- **Responsive Design**: Optimized for both iOS and Android
-- **TypeScript**: Full type safety throughout the app
-- **NativeWind**: Tailwind CSS styling for React Native
+## Testing Without Backend
 
-## 🛠 Development Structure
+For quick testing, you can use the "Continue as Guest" button on the welcome screen to bypass authentication and see the app interface.
+
+## Development Tips
+
+- Use `console.log` statements to debug
+- Check the Expo developer console for errors
+- The app starts with a welcome screen that has "Get Started" and "Continue as Guest" buttons
+- All screens are designed with dark theme and golden accents
+
+## Architecture
 
 ```
-mobile/
-├── app/                    # Main app screens (Expo Router)
-│   ├── _layout.tsx        # Root layout with navigation
-│   ├── index.tsx          # Welcome screen
-│   ├── auth.tsx           # Authentication screen
-│   └── (tabs)/            # Tab navigation
-│       ├── _layout.tsx    # Tab layout configuration
-│       ├── index.tsx      # Dashboard
-│       ├── calendar.tsx   # Calendar view
-│       ├── clients.tsx    # Client management
-│       ├── services.tsx   # Service management
-│       └── settings.tsx   # Settings
-├── assets/                # App icons and images
-├── app.json              # Expo configuration
-├── package.json          # Dependencies and scripts
-├── tailwind.config.js    # Tailwind CSS configuration
-├── metro.config.js       # Metro bundler configuration
-├── babel.config.js       # Babel configuration
-└── tsconfig.json         # TypeScript configuration
+Mobile App (React Native/Expo) ←→ Backend API (Node.js/Express)
 ```
 
-## 🔧 Configuration
-
-### Expo Configuration (app.json)
-- **App Name**: Clippr
-- **Bundle ID**: com.clippr.app
-- **Platform Support**: iOS, Android, Web
-- **Theme**: Dark mode optimized
-- **Navigation**: Expo Router with typed routes
-
-### Styling
-- **NativeWind**: Tailwind CSS for React Native
-- **Color Scheme**: Matches web app dark theme
-- **Icons**: Expo Vector Icons (Ionicons)
-
-## 📦 Building for Production
-
-### Development Builds
-```bash
-# iOS
-npx expo run:ios
-
-# Android
-npx expo run:android
-```
-
-### Production Builds
-```bash
-# Build for app stores
-npx expo build:ios
-npx expo build:android
-
-# Or using EAS Build (recommended)
-npx eas build --platform ios
-npx eas build --platform android
-```
-
-## 🔄 API Integration
-
-The mobile app is designed to connect to your existing Clippr web application's API endpoints:
-
-- Authentication endpoints
-- Client management
-- Appointment scheduling
-- Service management
-- Settings and preferences
-
-### Configuration
-Update the API base URL in the mobile app configuration to point to your web application's backend.
-
-## 🎨 Customization
-
-### Brand Colors
-Update `tailwind.config.js` to match your brand:
-
-```javascript
-colors: {
-  primary: "#22c55e",      // Your brand primary color
-  background: "#0F0F0F",   // Dark background
-  // ... other colors
-}
-```
-
-### App Icons
-Replace the SVG files in `mobile/assets/` with your custom icons:
-- `icon.svg` - App icon
-- `splash.svg` - Splash screen
-- `adaptive-icon.svg` - Android adaptive icon
-- `favicon.svg` - Web favicon
-
-## 🚀 Next Steps
-
-1. **API Integration**: Connect mobile app to your web backend
-2. **Authentication**: Implement OAuth and JWT token handling
-3. **Push Notifications**: Add native push notification support
-4. **Camera Integration**: Add photo capture for client gallery
-5. **Maps Integration**: Add location services for travel appointments
-6. **Offline Support**: Implement offline data caching
-
-## 📝 Development Notes
-
-- The mobile app shares the same data models as your web application
-- UI components are optimized for touch interactions
-- Navigation uses native patterns for each platform
-- All screens support both light and dark themes
-- The app is PWA-ready for web deployment
-
-## 🐛 Troubleshooting
-
-### Common Issues
-1. **Metro bundler errors**: Clear cache with `npx expo start --clear`
-2. **iOS simulator issues**: Reset simulator or update Xcode
-3. **Android emulator**: Ensure Android Studio is properly configured
-4. **Dependency conflicts**: Delete `node_modules` and reinstall
-
-### Support
-For issues specific to Expo development, consult the [Expo Documentation](https://docs.expo.dev/).
-
----
-
-Your Clippr mobile app is now ready for development! The app provides a solid foundation that mirrors your web application's functionality while offering a native mobile experience.
+The mobile app is completely separate from the backend and communicates via HTTP requests.
