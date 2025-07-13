@@ -72,64 +72,9 @@ html, body, #root {
   height: 100%;
   margin: 0;
   padding: 0;
-  background-color: #0a0a0a;
+  background-color: #111827;
   color: white;
   font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
-}
-
-/* Custom dark theme variables matching web version */
-:root {
-  --dark-bg: #0a0a0a;
-  --dark-card: #1a1a1a;
-  --dark-border: #2a2a2a;
-  --gold: #F59E0B;
-  --steel: #94A3B8;
-  --dark-text: #ffffff;
-  --dark-muted: #6b7280;
-}
-
-/* Mobile-specific dark theme classes */
-.bg-dark-bg {
-  background-color: var(--dark-bg);
-}
-
-.bg-dark-card {
-  background-color: var(--dark-card);
-}
-
-.border-steel {
-  border-color: var(--steel);
-}
-
-.text-gold {
-  color: var(--gold);
-}
-
-.text-steel {
-  color: var(--steel);
-}
-
-.text-dark-text {
-  color: var(--dark-text);
-}
-
-.text-dark-muted {
-  color: var(--dark-muted);
-}
-
-.text-white {
-  color: #ffffff;
-}
-
-/* Mobile responsive tweaks */
-@media (max-width: 768px) {
-  .mobile-responsive {
-    padding: 1rem;
-  }
-  
-  .mobile-card {
-    margin: 0.5rem;
-  }
 }
 
 .scrollbar-hide {
@@ -139,14 +84,4 @@ html, body, #root {
 
 .scrollbar-hide::-webkit-scrollbar {
   display: none;
-}
-
-/* Tap feedback for mobile */
-.tap-feedback {
-  transition: all 0.1s ease;
-}
-
-.tap-feedback:active {
-  transform: scale(0.98);
-  opacity: 0.9;
 }
