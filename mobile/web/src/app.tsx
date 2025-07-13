@@ -304,12 +304,13 @@ function MobileAuthScreen() {
 }
 
 // Settings page component
-function MobileSettingsPage() {
+function MobileSettingsPage({ isAuthenticated }: { isAuthenticated: boolean }) {
   const [showAccountSettings, setShowAccountSettings] = useState(false);
   const [showBusinessSettings, setShowBusinessSettings] = useState(false);
   const [showNotificationSettings, setShowNotificationSettings] = useState(false);
   const [showSoundSettings, setShowSoundSettings] = useState(false);
   const [showSecuritySettings, setShowSecuritySettings] = useState(false);
+  const queryClient = useQueryClient();
 
   const { data: user } = useQuery<User>({
     queryKey: ['/api/user/profile'],
@@ -931,7 +932,7 @@ export default function MobileApp() {
 
         {/* Settings */}
         {activeTab === 'settings' && (
-          <MobileSettingsPage />
+          <MobileSettingsPage isAuthenticated={isAuthenticated} />
         )}
       </main>
 
