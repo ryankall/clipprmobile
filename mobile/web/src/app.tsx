@@ -2424,77 +2424,50 @@ export default function MobileApp() {
             </div>
           </div>
         )}
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <p className="font-medium text-white">{appointment.client?.name}</p>
-                          <p className="text-sm text-gray-400">{appointment.service?.name}</p>
-                          <p className="text-sm text-gray-400">
-                            {new Date(appointment.scheduledAt).toLocaleTimeString('en-US', { 
-                              hour: 'numeric', 
-                              minute: '2-digit',
-                              hour12: true 
-                            })}
-                          </p>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-sm font-medium text-amber-500">{appointment.price}</p>
-                          <p className="text-xs text-gray-400">{appointment.duration}min</p>
-                        </div>
-                      </div>
-                    </div>
-                  ))
-                ) : (
-                  <div className="text-center py-8 text-gray-400">
-                    <Calendar className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                    <p>No confirmed appointments scheduled for today</p>
-                  </div>
-                )}
-              </div>
-            </div>
 
-            {/* Recent Work Gallery */}
-            <div className="bg-gray-800 border border-gray-700 rounded-lg p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-white">Recent Work</h3>
-                <button className="text-amber-500 text-sm font-medium">Gallery</button>
-              </div>
-              
-              <div className="grid grid-cols-3 gap-3">
-                {photosLoading ? (
-                  <>
-                    {[1, 2, 3].map((i) => (
-                      <div key={i} className="bg-gray-700 rounded-lg p-2">
-                        <div className="w-full h-20 bg-gray-600 rounded animate-pulse" />
-                        <div className="text-xs text-center mt-1 text-gray-400">Loading...</div>
-                      </div>
-                    ))}
-                  </>
-                ) : recentPhotos?.length ? (
-                  recentPhotos.map((photo) => (
-                    <div key={photo.id} className="bg-gray-700 rounded-lg p-2">
-                      <img 
-                        src={photo.photoUrl} 
-                        alt={photo.description || "Portfolio work"} 
-                        className="w-full h-20 object-cover rounded" 
-                      />
-                      <div className="text-xs text-center mt-1 text-gray-400">
-                        {photo.description || 'Styling'}
-                      </div>
-                    </div>
-                  ))
-                ) : (
-                  <div className="col-span-3 text-center py-8 text-gray-400">
-                    <Camera className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                    <p>No photos uploaded yet</p>
-                    <button className="text-amber-500 text-sm mt-2">
-                      Add your first photo
-                    </button>
-                  </div>
-                )}
-              </div>
-            </div>
+        {/* Recent Work Gallery */}
+        <div className="bg-gray-800 border border-gray-700 rounded-lg p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold text-white">Recent Work</h3>
+            <button className="text-amber-500 text-sm font-medium">Gallery</button>
           </div>
-        )}
+          
+          <div className="grid grid-cols-3 gap-3">
+            {photosLoading ? (
+              <>
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="bg-gray-700 rounded-lg p-2">
+                    <div className="w-full h-20 bg-gray-600 rounded animate-pulse" />
+                    <div className="text-xs text-center mt-1 text-gray-400">Loading...</div>
+                  </div>
+                ))}
+              </>
+            ) : recentPhotos?.length ? (
+              recentPhotos.map((photo) => (
+                <div key={photo.id} className="bg-gray-700 rounded-lg p-2">
+                  <img 
+                    src={photo.photoUrl} 
+                    alt={photo.description || "Portfolio work"} 
+                    className="w-full h-20 object-cover rounded" 
+                  />
+                  <div className="text-xs text-center mt-1 text-gray-400">
+                    {photo.description || 'Styling'}
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="col-span-3 text-center py-8 text-gray-400">
+                <Camera className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                <p>No photos uploaded yet</p>
+                <button className="text-amber-500 text-sm mt-2">
+                  Add your first photo
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    )}
 
         {/* Calendar */}
         {activeTab === 'calendar' && (
