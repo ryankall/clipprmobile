@@ -18,6 +18,7 @@ import HelpSupport from "@/pages/help-support";
 import Invoice from "@/pages/invoice";
 import Checkout from "@/pages/checkout";
 import EnhancedBookingPage from "@/pages/book-new";
+import MobileApp from "@/pages/mobile";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -52,6 +53,9 @@ function Router() {
     <Switch>
       {/* Public booking page - accessible without authentication */}
       <Route path="/book/:barberInfo" component={EnhancedBookingPage} />
+      
+      {/* Mobile interface - accessible without authentication */}
+      <Route path="/mobile" component={MobileApp} />
       
       {/* Show auth page when not authenticated */}
       {!isAuthenticated ? (
