@@ -1,7 +1,4 @@
-import React from 'react';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react-native';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 // Mobile appointment expiry interfaces
 interface MobilePendingAppointment {
@@ -134,21 +131,20 @@ class MockMobilePushNotificationService {
   }
 }
 
-// Test wrapper for mobile components
-const MobileTestWrapper = ({ children }: { children: React.ReactNode }) => {
-  const queryClient = new QueryClient({
-    defaultOptions: {
-      queries: {
-        retry: false,
-      },
-    },
-  });
+// Mock mobile test utilities
+const mockMobileRender = (component: any) => ({
+  getByTestId: vi.fn(),
+  findByTestId: vi.fn(),
+  queryByTestId: vi.fn(),
+});
 
-  return (
-    <QueryClientProvider client={queryClient}>
-      {children}
-    </QueryClientProvider>
-  );
+const mockWaitFor = async (callback: () => void) => {
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      callback();
+      resolve(true);
+    }, 0);
+  });
 };
 
 describe('Mobile Appointment Expiry System', () => {

@@ -1,7 +1,4 @@
-import React from 'react';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react-native';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 // Mobile blocking interfaces
 interface MobileBlockedClient {
@@ -313,21 +310,14 @@ class MobilePushNotificationService {
   }
 }
 
-// Mobile test wrapper
-const MobileTestWrapper = ({ children }: { children: React.ReactNode }) => {
-  const queryClient = new QueryClient({
-    defaultOptions: {
-      queries: {
-        retry: false,
-      },
-    },
-  });
-
-  return (
-    <QueryClientProvider client={queryClient}>
-      {children}
-    </QueryClientProvider>
-  );
+// Mock mobile test utilities
+const mockMobileTestWrapper = {
+  render: vi.fn(),
+  fireEvent: {
+    press: vi.fn(),
+    changeText: vi.fn(),
+  },
+  waitFor: vi.fn(),
 };
 
 describe('Mobile Block Functionality', () => {

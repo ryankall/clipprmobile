@@ -1,8 +1,4 @@
-import React from 'react';
-import { describe, it, expect, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react-native';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import CalendarTab from '../app/(tabs)/calendar';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 
 // Mock appointment data structure for mobile
 interface MobileAppointment {
@@ -114,21 +110,18 @@ function getMobileCalendarView(appointments: MobileAppointment[], viewMode: Mobi
   }
 }
 
-// Test wrapper component
-const TestWrapper = ({ children }: { children: React.ReactNode }) => {
-  const queryClient = new QueryClient({
-    defaultOptions: {
-      queries: {
-        retry: false,
-      },
-    },
-  });
+// Mock test utilities for mobile
+const mockRender = (component: any) => ({
+  getByTestId: vi.fn(),
+  findByTestId: vi.fn(),
+  queryByTestId: vi.fn(),
+});
 
-  return (
-    <QueryClientProvider client={queryClient}>
-      {children}
-    </QueryClientProvider>
-  );
+const mockFireEvent = {
+  press: vi.fn(),
+  changeText: vi.fn(),
+  scroll: vi.fn(),
+  swipe: vi.fn(),
 };
 
 describe('Mobile Calendar Features', () => {
@@ -248,7 +241,7 @@ describe('Mobile Calendar Features', () => {
 
   describe('Mobile Calendar Touch Interactions', () => {
     it('should handle mobile touch events for appointments', () => {
-      const mockTouchHandler = jest.fn();
+      const mockTouchHandler = vi.fn();
       
       // Simulate mobile touch event
       const touchEvent = {
@@ -262,7 +255,7 @@ describe('Mobile Calendar Features', () => {
     });
 
     it('should support mobile swipe gestures for date navigation', () => {
-      const mockSwipeHandler = jest.fn();
+      const mockSwipeHandler = vi.fn();
       
       // Simulate swipe left (next day)
       const swipeLeftEvent = {

@@ -1,8 +1,14 @@
-import React from 'react';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react-native';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+
+// Mock AsyncStorage
+const AsyncStorage = {
+  setItem: vi.fn(),
+  getItem: vi.fn(),
+  removeItem: vi.fn(),
+  clear: vi.fn(),
+  multiSet: vi.fn(),
+  multiRemove: vi.fn(),
+};
 
 // Mobile authentication failure interfaces
 interface MobileAuthFailureScenario {
@@ -275,8 +281,8 @@ class MobileAuthFailureHandler {
   private toastService: any;
 
   constructor(
-    asyncStorage: typeof AsyncStorage,
-    queryClient: QueryClient,
+    asyncStorage: any,
+    queryClient: any,
     router: any,
     hapticFeedback: any,
     toastService: any
@@ -371,28 +377,21 @@ class MobileAuthFailureHandler {
   }
 }
 
-// Test wrapper for mobile authentication
-const MobileAuthTestWrapper = ({ children }: { children: React.ReactNode }) => {
-  const queryClient = new QueryClient({
-    defaultOptions: {
-      queries: {
-        retry: false,
-      },
-    },
-  });
-
-  return (
-    <QueryClientProvider client={queryClient}>
-      {children}
-    </QueryClientProvider>
-  );
+// Mock mobile auth test utilities
+const mockMobileAuthWrapper = {
+  render: vi.fn(),
+  fireEvent: {
+    press: vi.fn(),
+    changeText: vi.fn(),
+  },
+  waitFor: vi.fn(),
 };
 
 describe('Mobile Authentication Failure Handling', () => {
   let mockApiHandler: MobileApiHandler;
   let mockAuthFailureHandler: MobileAuthFailureHandler;
   let authService: MobileAuthService;
-  let queryClient: QueryClient;
+  let queryClient: any;
   let mockRouter: any;
   let mockHapticFeedback: any;
   let mockToastService: any;
@@ -401,13 +400,10 @@ describe('Mobile Authentication Failure Handling', () => {
     // Setup mocks
     mockApiHandler = new MobileApiHandler();
     authService = mockApiHandler.getAuthService();
-    queryClient = new QueryClient({
-      defaultOptions: {
-        queries: {
-          retry: false,
-        },
-      },
-    });
+    queryClient = {
+      clear: vi.fn(),
+      invalidateQueries: vi.fn(),
+    };
     
     mockRouter = {
       replace: vi.fn(),
@@ -431,7 +427,7 @@ describe('Mobile Authentication Failure Handling', () => {
     
     mockAuthFailureHandler = new MobileAuthFailureHandler(
       AsyncStorage,
-      queryClient,
+      { clear: vi.fn() }, // mock queryClient
       mockRouter,
       mockHapticFeedback,
       mockToastService

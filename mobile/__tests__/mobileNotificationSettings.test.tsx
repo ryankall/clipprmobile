@@ -1,8 +1,15 @@
-import React from 'react';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react-native';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import * as Notifications from 'expo-notifications';
+
+// Mock Expo Notifications
+const Notifications = {
+  requestPermissionsAsync: vi.fn(),
+  getPermissionsAsync: vi.fn(),
+  scheduleNotificationAsync: vi.fn(),
+  cancelNotificationAsync: vi.fn(),
+  cancelAllScheduledNotificationsAsync: vi.fn(),
+  getBadgeCountAsync: vi.fn(),
+  setBadgeCountAsync: vi.fn(),
+};
 
 // Mobile notification settings interfaces
 interface MobileNotificationSettings {
@@ -345,21 +352,15 @@ const MockMobileNotificationSettings = ({
   );
 };
 
-// Test wrapper for mobile notification components
-const MobileNotificationTestWrapper = ({ children }: { children: React.ReactNode }) => {
-  const queryClient = new QueryClient({
-    defaultOptions: {
-      queries: {
-        retry: false,
-      },
-    },
-  });
-
-  return (
-    <QueryClientProvider client={queryClient}>
-      {children}
-    </QueryClientProvider>
-  );
+// Mock mobile notification test utilities
+const mockMobileNotificationWrapper = {
+  render: vi.fn(),
+  fireEvent: {
+    press: vi.fn(),
+    changeText: vi.fn(),
+    toggle: vi.fn(),
+  },
+  waitFor: vi.fn(),
 };
 
 describe('Mobile Notification Settings', () => {
