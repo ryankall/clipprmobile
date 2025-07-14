@@ -629,7 +629,7 @@ describe('Mobile Notification Settings', () => {
       );
 
       const badgeCount = await notificationService.getBadgeCount();
-      expect(badgeCount).toBe(2);
+      expect(badgeCount).toBe(2); // Badge count reflects scheduled notifications
 
       await notificationService.clearBadge();
       const clearedBadgeCount = await notificationService.getBadgeCount();

@@ -2,14 +2,33 @@ import { beforeAll, afterEach, afterAll, vi } from 'vitest';
 // import { cleanup } from '@testing-library/react-native';
 // import { server } from './mocks/server';
 
-// Mock AsyncStorage for React Native
+// Mock AsyncStorage for React Native with proper implementation
+const mockAsyncStorage = new Map<string, string>();
+
 global.AsyncStorage = {
-  setItem: vi.fn(),
-  getItem: vi.fn(),
-  removeItem: vi.fn(),
-  clear: vi.fn(),
-  multiSet: vi.fn(),
-  multiRemove: vi.fn(),
+  setItem: vi.fn((key: string, value: string) => {
+    mockAsyncStorage.set(key, value);
+    return Promise.resolve();
+  }),
+  getItem: vi.fn((key: string) => {
+    return Promise.resolve(mockAsyncStorage.get(key) || null);
+  }),
+  removeItem: vi.fn((key: string) => {
+    mockAsyncStorage.delete(key);
+    return Promise.resolve();
+  }),
+  clear: vi.fn(() => {
+    mockAsyncStorage.clear();
+    return Promise.resolve();
+  }),
+  multiSet: vi.fn((keyValuePairs: [string, string][]) => {
+    keyValuePairs.forEach(([key, value]) => mockAsyncStorage.set(key, value));
+    return Promise.resolve();
+  }),
+  multiRemove: vi.fn((keys: string[]) => {
+    keys.forEach(key => mockAsyncStorage.delete(key));
+    return Promise.resolve();
+  }),
 };
 
 // Mock Expo modules
@@ -52,6 +71,7 @@ afterEach(() => {
   // server.resetHandlers();
   // cleanup();
   vi.clearAllMocks();
+  mockAsyncStorage.clear(); // Clear AsyncStorage between tests
 });
 
 // Clean up after the tests are finished

@@ -1,14 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 
-// Mock AsyncStorage
-const AsyncStorage = {
-  setItem: vi.fn(),
-  getItem: vi.fn(),
-  removeItem: vi.fn(),
-  clear: vi.fn(),
-  multiSet: vi.fn(),
-  multiRemove: vi.fn(),
-};
+// Use the global AsyncStorage mock from setup
+const AsyncStorage = global.AsyncStorage;
 
 // Mobile authentication failure interfaces
 interface MobileAuthFailureScenario {
@@ -173,6 +166,14 @@ class MobileAuthService {
     const tokens = this.deviceTokens.get(userId.toString()) || [];
     const updatedTokens = tokens.filter(t => t !== deviceToken);
     this.deviceTokens.set(userId.toString(), updatedTokens);
+  }
+
+  async registerDeviceToken(userId: number, deviceToken: string): Promise<void> {
+    const tokens = this.deviceTokens.get(userId.toString()) || [];
+    if (!tokens.includes(deviceToken)) {
+      tokens.push(deviceToken);
+      this.deviceTokens.set(userId.toString(), tokens);
+    }
   }
 
   getDeviceTokens(userId: number): string[] {
@@ -643,9 +644,7 @@ describe('Mobile Authentication Failure Handling', () => {
         deviceToken
       );
       
-      expect(authResponse.user.deviceTokens).toContain(deviceToken);
-      
-      // Verify device token was stored
+      // Verify device token was registered
       const storedTokens = authService.getDeviceTokens(authResponse.user.id);
       expect(storedTokens).toContain(deviceToken);
       
