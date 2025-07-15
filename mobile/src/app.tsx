@@ -1041,7 +1041,21 @@ export default function MobileApp() {
     </div>
   );
 
-  const renderSettings = () => <MobileSettings />;
+  const renderSettings = () => {
+    // Import the comprehensive mobile settings component
+    const MobileSettings = React.lazy(() => import('./pages/settings'));
+    return (
+      <React.Suspense fallback={
+        <div className="space-y-4 p-4">
+          <div className="flex items-center justify-center py-8">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-amber-500"></div>
+          </div>
+        </div>
+      }>
+        <MobileSettings />
+      </React.Suspense>
+    );
+  };
 
   if (!isAuthenticated) {
     return (

@@ -262,21 +262,16 @@ export default function MobileApp() {
   );
 
   // Settings Content
-  const renderSettings = () => {
-    // Import and use the comprehensive mobile settings component
-    const MobileSettings = React.lazy(() => import('./mobile-settings'));
-    return (
-      <React.Suspense fallback={
-        <div className="space-y-4 p-4">
-          <div className="flex items-center justify-center py-8">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-amber-500"></div>
-          </div>
-        </div>
-      }>
-        <MobileSettings />
-      </React.Suspense>
-    );
-  };
+  const renderSettings = () => (
+    <div className="space-y-4 p-4">
+      <h2 className="text-xl font-bold text-white">Settings</h2>
+      <Card className="bg-gray-900 border-gray-700">
+        <CardContent className="p-6">
+          <p className="text-gray-400 text-center">Mobile settings interface coming soon...</p>
+        </CardContent>
+      </Card>
+    </div>
+  );
 
   const renderContent = () => {
     switch (activeTab) {
