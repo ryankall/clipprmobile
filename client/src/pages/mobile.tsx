@@ -41,7 +41,12 @@ import {
   EyeOff,
   LogOut,
   Mail,
-  Lock
+  Lock,
+  CreditCard,
+  HelpCircle,
+  CheckCircle,
+  AlertCircle,
+  ExternalLink
 } from 'lucide-react';
 
 interface AppointmentWithRelations {
@@ -97,7 +102,7 @@ interface UserProfile {
 
 export default function MobileApp() {
   const [activeTab, setActiveTab] = useState<'dashboard' | 'calendar' | 'clients' | 'services' | 'settings'>('dashboard');
-  const [settingsTab, setSettingsTab] = useState<'profile' | 'notifications' | 'blocked'>('profile');
+  const [settingsTab, setSettingsTab] = useState<'profile' | 'notifications' | 'blocked' | 'payment' | 'subscription' | 'help'>('profile');
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [isChangingPassword, setIsChangingPassword] = useState(false);
   const [blockedClients, setBlockedClients] = useState<BlockedClient[]>([]);
@@ -133,6 +138,14 @@ export default function MobileApp() {
     password: '',
   });
   const [showLoginPassword, setShowLoginPassword] = useState(false);
+  const [isConnectingStripe, setIsConnectingStripe] = useState(false);
+  const [expandedFAQ, setExpandedFAQ] = useState<string | null>(null);
+  const [supportForm, setSupportForm] = useState({
+    name: '',
+    email: '',
+    subject: '',
+    message: '',
+  });
   
   const { toast } = useToast();
 
@@ -169,6 +182,17 @@ export default function MobileApp() {
 
   const { data: nextAppointment } = useQuery<AppointmentWithRelations>({
     queryKey: ["/api/appointments/next"],
+    enabled: isAuthenticated,
+  });
+
+  // Payment and subscription data
+  const { data: stripeStatus } = useQuery<any>({
+    queryKey: ["/api/stripe/status"],
+    enabled: isAuthenticated,
+  });
+
+  const { data: subscriptionStatus } = useQuery<any>({
+    queryKey: ["/api/stripe/subscription-status"],
     enabled: isAuthenticated,
   });
 
@@ -400,6 +424,95 @@ export default function MobileApp() {
     loginMutation.mutate(loginForm);
   };
 
+  // Stripe connection mutation
+  const connectStripeMutation = useMutation({
+    mutationFn: async () => {
+      return await apiRequest('POST', '/api/stripe/connect');
+    },
+    onSuccess: (data: any) => {
+      if (data.accountLinkUrl) {
+        window.location.href = data.accountLinkUrl;
+      }
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to connect Stripe account",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Stripe checkout mutation
+  const stripeCheckoutMutation = useMutation({
+    mutationFn: async (interval: 'monthly' | 'yearly') => {
+      return await apiRequest('POST', '/api/stripe/create-checkout', { interval });
+    },
+    onSuccess: (data: any) => {
+      if (data.url) {
+        window.location.href = data.url;
+      }
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to create checkout session",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Cancel subscription mutation
+  const cancelSubscriptionMutation = useMutation({
+    mutationFn: async () => {
+      return await apiRequest('POST', '/api/stripe/cancel-subscription');
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/stripe/subscription-status"] });
+      toast({
+        title: "Subscription Cancelled",
+        description: "Your subscription has been cancelled. Premium access continues until the end of your billing period.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to cancel subscription",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Request refund mutation
+  const requestRefundMutation = useMutation({
+    mutationFn: async () => {
+      return await apiRequest('POST', '/api/stripe/request-refund');
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/stripe/subscription-status"] });
+      toast({
+        title: "Refund Processed",
+        description: "Your refund has been processed. You've been downgraded to the Basic plan.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to process refund",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleConnectStripe = () => {
+    setIsConnectingStripe(true);
+    connectStripeMutation.mutate();
+  };
+
+  const handleStripeCheckout = (interval: 'monthly' | 'yearly') => {
+    stripeCheckoutMutation.mutate(interval);
+  };
+
   // Dashboard Content
   const renderDashboard = () => (
     <div className="space-y-6 p-4">
@@ -609,39 +722,72 @@ export default function MobileApp() {
       <h2 className="text-xl font-bold text-white">Settings</h2>
       
       {/* Settings Tab Navigation */}
-      <div className="flex space-x-2 mb-4">
+      <div className="grid grid-cols-3 gap-2 mb-4">
         <button
           onClick={() => setSettingsTab('profile')}
-          className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-colors ${
+          className={`py-2 px-3 rounded-lg text-sm font-medium transition-colors ${
             settingsTab === 'profile' 
               ? 'bg-amber-500 text-gray-900' 
               : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
           }`}
         >
-          <User className="w-4 h-4 inline mr-2" />
+          <User className="w-4 h-4 inline mr-1" />
           Profile
         </button>
         <button
           onClick={() => setSettingsTab('notifications')}
-          className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-colors ${
+          className={`py-2 px-3 rounded-lg text-sm font-medium transition-colors ${
             settingsTab === 'notifications' 
               ? 'bg-amber-500 text-gray-900' 
               : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
           }`}
         >
-          <Bell className="w-4 h-4 inline mr-2" />
+          <Bell className="w-4 h-4 inline mr-1" />
           Notifications
         </button>
         <button
           onClick={() => setSettingsTab('blocked')}
-          className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-colors ${
+          className={`py-2 px-3 rounded-lg text-sm font-medium transition-colors ${
             settingsTab === 'blocked' 
               ? 'bg-amber-500 text-gray-900' 
               : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
           }`}
         >
-          <Shield className="w-4 h-4 inline mr-2" />
+          <Shield className="w-4 h-4 inline mr-1" />
           Blocked
+        </button>
+        <button
+          onClick={() => setSettingsTab('payment')}
+          className={`py-2 px-3 rounded-lg text-sm font-medium transition-colors ${
+            settingsTab === 'payment' 
+              ? 'bg-amber-500 text-gray-900' 
+              : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+          }`}
+        >
+          <CreditCard className="w-4 h-4 inline mr-1" />
+          Payment
+        </button>
+        <button
+          onClick={() => setSettingsTab('subscription')}
+          className={`py-2 px-3 rounded-lg text-sm font-medium transition-colors ${
+            settingsTab === 'subscription' 
+              ? 'bg-amber-500 text-gray-900' 
+              : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+          }`}
+        >
+          <DollarSign className="w-4 h-4 inline mr-1" />
+          Subscription
+        </button>
+        <button
+          onClick={() => setSettingsTab('help')}
+          className={`py-2 px-3 rounded-lg text-sm font-medium transition-colors ${
+            settingsTab === 'help' 
+              ? 'bg-amber-500 text-gray-900' 
+              : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+          }`}
+        >
+          <HelpCircle className="w-4 h-4 inline mr-1" />
+          Help
         </button>
       </div>
 
@@ -833,6 +979,288 @@ export default function MobileApp() {
                   ))}
                 </div>
               )}
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Payment Settings Tab */}
+      {settingsTab === 'payment' && (
+        <div className="space-y-4">
+          <Card className="bg-gray-900 border-gray-700">
+            <CardHeader>
+              <CardTitle className="text-white">Payment Settings</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {stripeStatus?.connected ? (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between bg-green-900/20 border border-green-700/30 rounded-lg p-3">
+                    <div className="flex items-center space-x-3">
+                      <CheckCircle className="w-5 h-5 text-green-400" />
+                      <div>
+                        <p className="text-white font-medium">Stripe Connected</p>
+                        <p className="text-green-300 text-sm">Ready to receive payments</p>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex space-x-2">
+                    <Button
+                      variant="outline"
+                      onClick={() => window.open(stripeStatus?.dashboardUrl, '_blank')}
+                      className="flex-1 border-gray-600 text-gray-300 hover:bg-gray-800"
+                    >
+                      <DollarSign className="w-4 h-4 mr-2" />
+                      View Dashboard
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={handleConnectStripe}
+                      disabled={isConnectingStripe}
+                      className="flex-1 border-gray-600 text-gray-300 hover:bg-gray-800"
+                    >
+                      Update Settings
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between bg-amber-900/20 border border-amber-700/30 rounded-lg p-3">
+                    <div className="flex items-center space-x-3">
+                      <AlertCircle className="w-5 h-5 text-amber-400" />
+                      <div>
+                        <p className="text-white font-medium">Payment Setup Required</p>
+                        <p className="text-amber-300 text-sm">Connect Stripe to receive payments</p>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="bg-gray-800 p-3 rounded-lg">
+                    <p className="text-gray-300 text-sm mb-2">
+                      Connect your Stripe account to start accepting credit card payments from clients.
+                    </p>
+                    <ul className="text-gray-400 text-sm space-y-1">
+                      <li>• Secure credit card processing</li>
+                      <li>• Automatic payment tracking</li>
+                      <li>• Direct deposits to your bank</li>
+                    </ul>
+                  </div>
+                  <Button
+                    onClick={handleConnectStripe}
+                    disabled={isConnectingStripe}
+                    className="w-full bg-amber-500 hover:bg-amber-600 text-gray-900"
+                  >
+                    {isConnectingStripe ? 'Connecting...' : 'Connect Stripe Account'}
+                  </Button>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Subscription Settings Tab */}
+      {settingsTab === 'subscription' && (
+        <div className="space-y-4">
+          <Card className="bg-gray-900 border-gray-700">
+            <CardHeader>
+              <CardTitle className="text-white">Subscription Plan</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center justify-between bg-gray-800 rounded-lg p-3 mb-4">
+                <div className="flex items-center space-x-3">
+                  <div className="w-8 h-8 bg-amber-500 rounded-full flex items-center justify-center">
+                    <CheckCircle className="w-4 h-4 text-gray-900" />
+                  </div>
+                  <div>
+                    <p className="text-white font-medium">Basic Plan</p>
+                    <p className="text-gray-400 text-sm">Currently Active</p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <p className="text-white font-medium">Free</p>
+                  <p className="text-gray-400 text-sm">Forever</p>
+                </div>
+              </div>
+              
+              {subscriptionStatus?.status === 'basic' && (
+                <div className="space-y-4">
+                  <div className="bg-gradient-to-r from-amber-500/20 to-amber-600/20 p-4 rounded-lg border border-amber-500/30">
+                    <h4 className="text-white font-bold mb-2">Upgrade to Premium</h4>
+                    <div className="space-y-3">
+                      <div className="bg-gray-800 p-3 rounded-lg">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <div className="text-amber-500 font-bold text-lg">$19.99</div>
+                            <div className="text-amber-400 text-sm">/month</div>
+                          </div>
+                          <Button
+                            onClick={() => handleStripeCheckout('monthly')}
+                            className="bg-amber-500 hover:bg-amber-600 text-gray-900"
+                          >
+                            Choose Monthly
+                          </Button>
+                        </div>
+                      </div>
+                      <div className="bg-gray-800 p-3 rounded-lg border border-emerald-500/30">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <div className="text-emerald-400 font-bold text-lg">$199.99</div>
+                            <div className="text-emerald-400 text-sm">/year - Save 16%</div>
+                          </div>
+                          <Button
+                            onClick={() => handleStripeCheckout('yearly')}
+                            className="bg-emerald-500 hover:bg-emerald-600 text-white"
+                          >
+                            Choose Yearly
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="bg-gray-800 p-3 rounded-lg">
+                      <div className="text-amber-500 font-bold text-lg">∞</div>
+                      <div className="text-white text-sm">Appointments</div>
+                    </div>
+                    <div className="bg-gray-800 p-3 rounded-lg">
+                      <div className="text-amber-500 font-bold text-lg">1GB</div>
+                      <div className="text-white text-sm">Photo Storage</div>
+                    </div>
+                  </div>
+                </div>
+              )}
+              
+              {subscriptionStatus?.status === 'premium' && (
+                <div className="space-y-4">
+                  <div className="bg-emerald-900/20 border border-emerald-700/30 rounded-lg p-3">
+                    <h4 className="text-white font-semibold mb-2">Premium Plan Active</h4>
+                    <p className="text-gray-400 text-sm">
+                      Next billing: {subscriptionStatus.endDate ? new Date(subscriptionStatus.endDate).toLocaleDateString() : 'N/A'}
+                    </p>
+                  </div>
+                  
+                  <div className="flex space-x-2">
+                    <Button
+                      variant="outline"
+                      onClick={() => cancelSubscriptionMutation.mutate()}
+                      disabled={cancelSubscriptionMutation.isPending}
+                      className="flex-1 border-gray-600 text-gray-300 hover:bg-gray-800"
+                    >
+                      {cancelSubscriptionMutation.isPending ? 'Cancelling...' : 'Cancel Subscription'}
+                    </Button>
+                    
+                    {subscriptionStatus.isEligibleForRefund && (
+                      <Button
+                        variant="outline"
+                        onClick={() => requestRefundMutation.mutate()}
+                        disabled={requestRefundMutation.isPending}
+                        className="flex-1 border-blue-600 text-blue-400 hover:bg-blue-900/20"
+                      >
+                        {requestRefundMutation.isPending ? 'Processing...' : 'Request Refund'}
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Help & Support Tab */}
+      {settingsTab === 'help' && (
+        <div className="space-y-4">
+          <Card className="bg-gray-900 border-gray-700">
+            <CardHeader>
+              <CardTitle className="text-white">Help & Support</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="bg-gradient-to-r from-amber-500/20 to-amber-600/20 p-4 rounded-lg border border-amber-500/30">
+                <h4 className="text-white font-bold mb-2">Need Help?</h4>
+                <p className="text-gray-300 text-sm mb-3">
+                  Get quick answers to common questions or contact our support team.
+                </p>
+                <div className="space-y-2">
+                  <button
+                    onClick={() => window.open('mailto:support@clippr.com', '_blank')}
+                    className="w-full bg-amber-500 hover:bg-amber-600 text-gray-900 py-2 px-4 rounded-lg font-medium transition-colors"
+                  >
+                    <Mail className="w-4 h-4 inline mr-2" />
+                    Contact Support
+                  </button>
+                  <button
+                    onClick={() => window.open('https://docs.clippr.com', '_blank')}
+                    className="w-full bg-gray-800 hover:bg-gray-700 text-gray-300 py-2 px-4 rounded-lg font-medium transition-colors"
+                  >
+                    <ExternalLink className="w-4 h-4 inline mr-2" />
+                    Documentation
+                  </button>
+                </div>
+              </div>
+              
+              <div className="space-y-3">
+                <h4 className="text-white font-medium">Common Questions</h4>
+                
+                <div className="space-y-2">
+                  <button
+                    onClick={() => setExpandedFAQ(expandedFAQ === 'billing' ? null : 'billing')}
+                    className="w-full bg-gray-800 hover:bg-gray-700 text-left p-3 rounded-lg transition-colors"
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-white font-medium">Billing & Subscriptions</span>
+                      <span className="text-gray-400">{expandedFAQ === 'billing' ? '−' : '+'}</span>
+                    </div>
+                  </button>
+                  {expandedFAQ === 'billing' && (
+                    <div className="bg-gray-800 p-3 rounded-lg">
+                      <p className="text-gray-300 text-sm">
+                        Premium plans include unlimited appointments, 1GB photo storage, and priority support. 
+                        You can cancel anytime and get a full refund within 30 days.
+                      </p>
+                    </div>
+                  )}
+                </div>
+                
+                <div className="space-y-2">
+                  <button
+                    onClick={() => setExpandedFAQ(expandedFAQ === 'appointments' ? null : 'appointments')}
+                    className="w-full bg-gray-800 hover:bg-gray-700 text-left p-3 rounded-lg transition-colors"
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-white font-medium">Managing Appointments</span>
+                      <span className="text-gray-400">{expandedFAQ === 'appointments' ? '−' : '+'}</span>
+                    </div>
+                  </button>
+                  {expandedFAQ === 'appointments' && (
+                    <div className="bg-gray-800 p-3 rounded-lg">
+                      <p className="text-gray-300 text-sm">
+                        Use the Calendar tab to view and manage appointments. You can create new appointments, 
+                        modify existing ones, and track client information all in one place.
+                      </p>
+                    </div>
+                  )}
+                </div>
+                
+                <div className="space-y-2">
+                  <button
+                    onClick={() => setExpandedFAQ(expandedFAQ === 'clients' ? null : 'clients')}
+                    className="w-full bg-gray-800 hover:bg-gray-700 text-left p-3 rounded-lg transition-colors"
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-white font-medium">Client Management</span>
+                      <span className="text-gray-400">{expandedFAQ === 'clients' ? '−' : '+'}</span>
+                    </div>
+                  </button>
+                  {expandedFAQ === 'clients' && (
+                    <div className="bg-gray-800 p-3 rounded-lg">
+                      <p className="text-gray-300 text-sm">
+                        The Clients tab lets you store contact information, service history, and preferences 
+                        for each client. You can also block clients from booking if needed.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
             </CardContent>
           </Card>
         </div>
