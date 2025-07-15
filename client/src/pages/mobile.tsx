@@ -1,8 +1,21 @@
-import React, { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import React, { useState, useEffect } from 'react';
+import { useQuery, useMutation } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Switch } from '@/components/ui/switch';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { 
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog';
+import { useToast } from '@/hooks/use-toast';
+import { apiRequest, queryClient } from '@/lib/queryClient';
 import { 
   Home, 
   Calendar, 
@@ -14,7 +27,19 @@ import {
   TrendingUp,
   Phone,
   MapPin,
-  Star
+  Star,
+  User,
+  Bell,
+  Shield,
+  ShieldOff,
+  Edit,
+  Camera,
+  Upload,
+  X,
+  Copy,
+  Eye,
+  EyeOff,
+  LogOut
 } from 'lucide-react';
 
 interface AppointmentWithRelations {
@@ -42,8 +67,67 @@ interface DashboardStats {
   monthlyEarnings: number;
 }
 
+interface NotificationSettings {
+  newBookingRequests: boolean;
+  appointmentConfirmations: boolean;
+  appointmentCancellations: boolean;
+  upcomingReminders: boolean;
+  soundEffects: boolean;
+}
+
+interface BlockedClient {
+  id: number;
+  phoneNumber: string;
+  blockedAt: string;
+  reason?: string;
+}
+
+interface UserProfile {
+  id: number;
+  businessName?: string;
+  email?: string;
+  phone?: string;
+  serviceArea?: string;
+  about?: string;
+  photoUrl?: string;
+  timezone?: string;
+}
+
 export default function MobileApp() {
   const [activeTab, setActiveTab] = useState<'dashboard' | 'calendar' | 'clients' | 'services' | 'settings'>('dashboard');
+  const [settingsTab, setSettingsTab] = useState<'profile' | 'notifications' | 'blocked'>('profile');
+  const [isEditingProfile, setIsEditingProfile] = useState(false);
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
+  const [blockedClients, setBlockedClients] = useState<BlockedClient[]>([]);
+  const [notificationSettings, setNotificationSettings] = useState<NotificationSettings>({
+    newBookingRequests: true,
+    appointmentConfirmations: true,
+    appointmentCancellations: true,
+    upcomingReminders: true,
+    soundEffects: true,
+  });
+  const [pushNotificationsEnabled, setPushNotificationsEnabled] = useState(false);
+  const [profileForm, setProfileForm] = useState({
+    businessName: '',
+    email: '',
+    phone: '',
+    serviceArea: '',
+    about: '',
+    photoUrl: '',
+    timezone: 'America/New_York',
+  });
+  const [passwordForm, setPasswordForm] = useState({
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: '',
+  });
+  const [showPassword, setShowPassword] = useState({
+    current: false,
+    new: false,
+    confirm: false,
+  });
+  
+  const { toast } = useToast();
 
   // Fetch dashboard data
   const { data: stats } = useQuery<DashboardStats>({
@@ -57,6 +141,198 @@ export default function MobileApp() {
   const { data: nextAppointment } = useQuery<AppointmentWithRelations>({
     queryKey: ["/api/appointments/next"],
   });
+
+  // User profile query
+  const { data: user } = useQuery<UserProfile>({
+    queryKey: ["/api/user/profile"],
+  });
+
+  // Load settings data
+  useEffect(() => {
+    if (user) {
+      setProfileForm({
+        businessName: user.businessName || '',
+        email: user.email || '',
+        phone: user.phone || '',
+        serviceArea: user.serviceArea || '',
+        about: user.about || '',
+        photoUrl: user.photoUrl || '',
+        timezone: user.timezone || 'America/New_York',
+      });
+    }
+  }, [user]);
+
+  // Load blocked clients
+  useEffect(() => {
+    if (activeTab === 'settings' && settingsTab === 'blocked') {
+      loadBlockedClients();
+    }
+  }, [activeTab, settingsTab]);
+
+  // Load notification settings
+  useEffect(() => {
+    if (activeTab === 'settings' && settingsTab === 'notifications') {
+      loadNotificationSettings();
+    }
+  }, [activeTab, settingsTab]);
+
+  const loadBlockedClients = async () => {
+    try {
+      const data = await apiRequest<BlockedClient[]>('GET', '/api/anti-spam/blocked-clients');
+      setBlockedClients(data);
+    } catch (error) {
+      console.error('Failed to load blocked clients:', error);
+    }
+  };
+
+  const loadNotificationSettings = async () => {
+    try {
+      // Load from localStorage or API
+      const settings = {
+        newBookingRequests: localStorage.getItem('notification_newBookingRequests') !== 'false',
+        appointmentConfirmations: localStorage.getItem('notification_appointmentConfirmations') !== 'false',
+        appointmentCancellations: localStorage.getItem('notification_appointmentCancellations') !== 'false',
+        upcomingReminders: localStorage.getItem('notification_upcomingReminders') !== 'false',
+        soundEffects: localStorage.getItem('notification_soundEffects') !== 'false',
+      };
+      setNotificationSettings(settings);
+      
+      // Check push notification status
+      try {
+        const pushStatus = await apiRequest<{subscribed: boolean}>('GET', '/api/push/subscription');
+        setPushNotificationsEnabled(pushStatus.subscribed);
+      } catch (error) {
+        console.error('Failed to check push notification status:', error);
+      }
+    } catch (error) {
+      console.error('Failed to load notification settings:', error);
+    }
+  };
+
+  const profileUpdateMutation = useMutation({
+    mutationFn: async (data: any) => {
+      return await apiRequest('PATCH', '/api/user/profile', data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/user/profile"] });
+      setIsEditingProfile(false);
+      toast({
+        title: "Profile Updated",
+        description: "Your profile has been updated successfully.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update profile",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const passwordChangeMutation = useMutation({
+    mutationFn: async (data: any) => {
+      return await apiRequest('POST', '/api/auth/change-password', data);
+    },
+    onSuccess: () => {
+      setIsChangingPassword(false);
+      setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
+      toast({
+        title: "Password Changed",
+        description: "Your password has been changed successfully.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to change password",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleProfileSave = () => {
+    profileUpdateMutation.mutate(profileForm);
+  };
+
+  const handlePasswordChange = () => {
+    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+      toast({
+        title: "Error",
+        description: "New passwords do not match",
+        variant: "destructive",
+      });
+      return;
+    }
+    if (passwordForm.newPassword.length < 8) {
+      toast({
+        title: "Error",
+        description: "New password must be at least 8 characters",
+        variant: "destructive",
+      });
+      return;
+    }
+    passwordChangeMutation.mutate(passwordForm);
+  };
+
+  const handleNotificationToggle = async (enabled: boolean) => {
+    try {
+      if (enabled) {
+        await apiRequest('POST', '/api/push/subscribe', {});
+      } else {
+        await apiRequest('POST', '/api/push/unsubscribe', {});
+      }
+      setPushNotificationsEnabled(enabled);
+      toast({
+        title: "Success",
+        description: `Push notifications ${enabled ? 'enabled' : 'disabled'}`,
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to update notification settings",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleNotificationTypeToggle = (type: keyof NotificationSettings, value: boolean) => {
+    setNotificationSettings(prev => ({ ...prev, [type]: value }));
+    localStorage.setItem(`notification_${type}`, value.toString());
+  };
+
+  const handleUnblockClient = async (phoneNumber: string) => {
+    try {
+      await apiRequest('POST', '/api/anti-spam/unblock', { phoneNumber });
+      loadBlockedClients();
+      toast({
+        title: "Success",
+        description: "Client unblocked successfully",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to unblock client",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const copyBookingLink = () => {
+    if (user?.phone) {
+      const bookingUrl = `${window.location.origin}/book/${user.phone.replace(/\D/g, '')}-${user.businessName?.toLowerCase().replace(/\s+/g, '') || 'clipcutman'}`;
+      navigator.clipboard.writeText(bookingUrl);
+      toast({
+        title: "Copied",
+        description: "Booking link copied to clipboard",
+      });
+    }
+  };
+
+  const handleSignOut = () => {
+    localStorage.removeItem('token');
+    window.location.href = '/';
+  };
 
   // Dashboard Content
   const renderDashboard = () => (
@@ -265,11 +541,386 @@ export default function MobileApp() {
   const renderSettings = () => (
     <div className="space-y-4 p-4">
       <h2 className="text-xl font-bold text-white">Settings</h2>
-      <Card className="bg-gray-900 border-gray-700">
-        <CardContent className="p-6">
-          <p className="text-gray-400 text-center">Mobile settings interface coming soon...</p>
-        </CardContent>
-      </Card>
+      
+      {/* Settings Tab Navigation */}
+      <div className="flex space-x-2 mb-4">
+        <button
+          onClick={() => setSettingsTab('profile')}
+          className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-colors ${
+            settingsTab === 'profile' 
+              ? 'bg-amber-500 text-gray-900' 
+              : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+          }`}
+        >
+          <User className="w-4 h-4 inline mr-2" />
+          Profile
+        </button>
+        <button
+          onClick={() => setSettingsTab('notifications')}
+          className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-colors ${
+            settingsTab === 'notifications' 
+              ? 'bg-amber-500 text-gray-900' 
+              : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+          }`}
+        >
+          <Bell className="w-4 h-4 inline mr-2" />
+          Notifications
+        </button>
+        <button
+          onClick={() => setSettingsTab('blocked')}
+          className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-colors ${
+            settingsTab === 'blocked' 
+              ? 'bg-amber-500 text-gray-900' 
+              : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+          }`}
+        >
+          <Shield className="w-4 h-4 inline mr-2" />
+          Blocked
+        </button>
+      </div>
+
+      {/* Settings Tab Content */}
+      {settingsTab === 'profile' && (
+        <div className="space-y-4">
+          {/* Profile Section */}
+          <Card className="bg-gray-900 border-gray-700">
+            <CardHeader className="flex flex-row items-center justify-between">
+              <CardTitle className="text-white">Profile & Business Info</CardTitle>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setIsEditingProfile(true)}
+                className="text-amber-500 hover:text-amber-400"
+              >
+                <Edit className="w-4 h-4" />
+              </Button>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center space-x-4">
+                <div className="w-16 h-16 bg-gray-800 rounded-full flex items-center justify-center">
+                  {user?.photoUrl ? (
+                    <img src={user.photoUrl} alt="Profile" className="w-full h-full rounded-full object-cover" />
+                  ) : (
+                    <User className="w-8 h-8 text-gray-400" />
+                  )}
+                </div>
+                <div>
+                  <p className="text-white font-medium">{user?.businessName || 'Business Name'}</p>
+                  <p className="text-gray-400 text-sm">{user?.email || 'No email set'}</p>
+                  <p className="text-gray-400 text-sm">{user?.phone || 'No phone set'}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Booking Link Section */}
+          <Card className="bg-gray-900 border-gray-700">
+            <CardHeader>
+              <CardTitle className="text-white">Public Booking Link</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {user?.phone ? (
+                <div className="space-y-3">
+                  <p className="text-gray-400 text-sm">
+                    Share this link with clients to let them book appointments
+                  </p>
+                  <div className="flex items-center space-x-2 bg-gray-800 rounded-lg p-3">
+                    <code className="flex-1 text-white text-xs break-all">
+                      {`${window.location.origin}/book/${user.phone.replace(/\D/g, '')}-${user.businessName?.toLowerCase().replace(/\s+/g, '') || 'clipcutman'}`}
+                    </code>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={copyBookingLink}
+                      className="text-amber-500 hover:text-amber-400"
+                    >
+                      <Copy className="w-4 h-4" />
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <p className="text-gray-400 text-center">Add your phone number to generate your booking link</p>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Security Section */}
+          <Card className="bg-gray-900 border-gray-700">
+            <CardHeader>
+              <CardTitle className="text-white">Security</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-white font-medium">Password</p>
+                  <p className="text-gray-400 text-sm">Last updated: {new Date().toLocaleDateString()}</p>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setIsChangingPassword(true)}
+                  className="text-amber-500 hover:text-amber-400"
+                >
+                  <Edit className="w-4 h-4" />
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Sign Out */}
+          <Button
+            variant="destructive"
+            onClick={handleSignOut}
+            className="w-full bg-red-600 hover:bg-red-700"
+          >
+            <LogOut className="w-4 h-4 mr-2" />
+            Sign Out
+          </Button>
+        </div>
+      )}
+
+      {settingsTab === 'notifications' && (
+        <div className="space-y-4">
+          <Card className="bg-gray-900 border-gray-700">
+            <CardHeader>
+              <CardTitle className="text-white">Push Notifications</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-white font-medium">Push Notifications</p>
+                  <p className="text-gray-400 text-sm">Receive notifications from this device</p>
+                </div>
+                <Switch
+                  checked={pushNotificationsEnabled}
+                  onCheckedChange={handleNotificationToggle}
+                />
+              </div>
+
+              {Object.entries(notificationSettings).map(([key, value]) => (
+                <div key={key} className="flex items-center justify-between">
+                  <div>
+                    <p className="text-white font-medium">
+                      {key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}
+                    </p>
+                    <p className="text-gray-400 text-sm">
+                      {key === 'newBookingRequests' && 'When clients request appointments'}
+                      {key === 'appointmentConfirmations' && 'When clients confirm appointments'}
+                      {key === 'appointmentCancellations' && 'When clients cancel appointments'}
+                      {key === 'upcomingReminders' && 'Reminders for upcoming appointments'}
+                      {key === 'soundEffects' && 'Sound effects for notifications'}
+                    </p>
+                  </div>
+                  <Switch
+                    checked={value}
+                    onCheckedChange={(checked) => handleNotificationTypeToggle(key as keyof NotificationSettings, checked)}
+                  />
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {settingsTab === 'blocked' && (
+        <div className="space-y-4">
+          <Card className="bg-gray-900 border-gray-700">
+            <CardHeader>
+              <CardTitle className="text-white">Blocked Clients</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {blockedClients.length === 0 ? (
+                <div className="text-center py-8">
+                  <Shield className="w-16 h-16 mx-auto text-green-500 mb-4" />
+                  <p className="text-white font-medium mb-2">No Blocked Clients</p>
+                  <p className="text-gray-400 text-sm">
+                    You haven't blocked any clients yet. When you block a client, they will appear here.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {blockedClients.map((client) => (
+                    <div key={client.id} className="flex items-center justify-between bg-gray-800 rounded-lg p-3">
+                      <div className="flex items-center space-x-3">
+                        <div className="w-10 h-10 bg-red-500/20 rounded-full flex items-center justify-center">
+                          <ShieldOff className="w-5 h-5 text-red-400" />
+                        </div>
+                        <div>
+                          <p className="text-white font-medium">{client.phoneNumber}</p>
+                          <p className="text-gray-400 text-sm">
+                            Blocked {new Date(client.blockedAt).toLocaleDateString()}
+                          </p>
+                          {client.reason && (
+                            <p className="text-gray-400 text-xs">Reason: {client.reason}</p>
+                          )}
+                        </div>
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleUnblockClient(client.phoneNumber)}
+                        className="border-green-500 text-green-500 hover:bg-green-500 hover:text-white"
+                      >
+                        Unblock
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Profile Edit Dialog */}
+      <Dialog open={isEditingProfile} onOpenChange={setIsEditingProfile}>
+        <DialogContent className="bg-gray-900 border-gray-700 text-white max-w-md">
+          <DialogHeader>
+            <DialogTitle>Edit Profile</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 max-h-96 overflow-y-auto">
+            <div className="space-y-2">
+              <Label htmlFor="businessName">Business Name</Label>
+              <Input
+                id="businessName"
+                value={profileForm.businessName}
+                onChange={(e) => setProfileForm({ ...profileForm, businessName: e.target.value })}
+                className="bg-gray-800 border-gray-600"
+                placeholder="e.g., ClipCutMan Barber Shop"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="email">Email Address</Label>
+              <Input
+                id="email"
+                type="email"
+                value={profileForm.email}
+                onChange={(e) => setProfileForm({ ...profileForm, email: e.target.value })}
+                className="bg-gray-800 border-gray-600"
+                placeholder="your.email@example.com"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="phone">Phone Number</Label>
+              <Input
+                id="phone"
+                value={profileForm.phone}
+                onChange={(e) => setProfileForm({ ...profileForm, phone: e.target.value })}
+                className="bg-gray-800 border-gray-600"
+                placeholder="(555) 123-4567"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="serviceArea">Service Area</Label>
+              <Input
+                id="serviceArea"
+                value={profileForm.serviceArea}
+                onChange={(e) => setProfileForm({ ...profileForm, serviceArea: e.target.value })}
+                className="bg-gray-800 border-gray-600"
+                placeholder="e.g., Downtown Manhattan, Brooklyn"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="about">About You</Label>
+              <Textarea
+                id="about"
+                value={profileForm.about}
+                onChange={(e) => setProfileForm({ ...profileForm, about: e.target.value })}
+                className="bg-gray-800 border-gray-600"
+                placeholder="Tell clients about your experience, specialties, and what makes you unique..."
+                rows={3}
+              />
+            </div>
+          </div>
+          <div className="flex justify-end space-x-2">
+            <Button variant="ghost" onClick={() => setIsEditingProfile(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleProfileSave} disabled={profileUpdateMutation.isPending}>
+              {profileUpdateMutation.isPending ? 'Saving...' : 'Save'}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Password Change Dialog */}
+      <Dialog open={isChangingPassword} onOpenChange={setIsChangingPassword}>
+        <DialogContent className="bg-gray-900 border-gray-700 text-white max-w-md">
+          <DialogHeader>
+            <DialogTitle>Change Password</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="currentPassword">Current Password</Label>
+              <div className="relative">
+                <Input
+                  id="currentPassword"
+                  type={showPassword.current ? "text" : "password"}
+                  value={passwordForm.currentPassword}
+                  onChange={(e) => setPasswordForm({ ...passwordForm, currentPassword: e.target.value })}
+                  className="bg-gray-800 border-gray-600 pr-10"
+                  placeholder="Enter current password"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword({ ...showPassword, current: !showPassword.current })}
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-white"
+                >
+                  {showPassword.current ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="newPassword">New Password</Label>
+              <div className="relative">
+                <Input
+                  id="newPassword"
+                  type={showPassword.new ? "text" : "password"}
+                  value={passwordForm.newPassword}
+                  onChange={(e) => setPasswordForm({ ...passwordForm, newPassword: e.target.value })}
+                  className="bg-gray-800 border-gray-600 pr-10"
+                  placeholder="Enter new password"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword({ ...showPassword, new: !showPassword.new })}
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-white"
+                >
+                  {showPassword.new ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="confirmPassword">Confirm New Password</Label>
+              <div className="relative">
+                <Input
+                  id="confirmPassword"
+                  type={showPassword.confirm ? "text" : "password"}
+                  value={passwordForm.confirmPassword}
+                  onChange={(e) => setPasswordForm({ ...passwordForm, confirmPassword: e.target.value })}
+                  className="bg-gray-800 border-gray-600 pr-10"
+                  placeholder="Confirm new password"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword({ ...showPassword, confirm: !showPassword.confirm })}
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-white"
+                >
+                  {showPassword.confirm ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+            </div>
+          </div>
+          <div className="flex justify-end space-x-2">
+            <Button variant="ghost" onClick={() => setIsChangingPassword(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handlePasswordChange} disabled={passwordChangeMutation.isPending}>
+              {passwordChangeMutation.isPending ? 'Changing...' : 'Change Password'}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 
