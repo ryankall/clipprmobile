@@ -39,7 +39,9 @@ import {
   Copy,
   Eye,
   EyeOff,
-  LogOut
+  LogOut,
+  Mail,
+  Lock
 } from 'lucide-react';
 
 interface AppointmentWithRelations {
@@ -126,25 +128,48 @@ export default function MobileApp() {
     new: false,
     confirm: false,
   });
+  const [loginForm, setLoginForm] = useState({
+    email: '',
+    password: '',
+  });
+  const [showLoginPassword, setShowLoginPassword] = useState(false);
   
   const { toast } = useToast();
 
-  // Fetch dashboard data
+  // Check authentication status without triggering redirects
+  const hasToken = typeof window !== "undefined" && !!localStorage.getItem("token");
+  
+  // Get current user with proper error handling for mobile
+  const { data: user, isLoading: isLoadingUser, error: authError } = useQuery<UserProfile>({
+    queryKey: ["/api/auth/me"],
+    retry: false,
+    staleTime: 5 * 60 * 1000,
+    enabled: hasToken,
+    onError: (error: any) => {
+      // Don't redirect on mobile interface - handle authentication inline
+      if (error?.message?.includes('401') || error?.message?.includes('Authentication')) {
+        localStorage.removeItem("token");
+        queryClient.clear();
+      }
+    },
+  });
+
+  const isAuthenticated = !!user && !authError && hasToken;
+
+  // Fetch dashboard data - only when authenticated
   const { data: stats } = useQuery<DashboardStats>({
     queryKey: ["/api/dashboard/stats"],
+    enabled: isAuthenticated,
   });
 
   const { data: todayAppointments } = useQuery<AppointmentWithRelations[]>({
     queryKey: ["/api/appointments/today"],
+    enabled: isAuthenticated,
   });
 
   const { data: nextAppointment } = useQuery<AppointmentWithRelations>({
     queryKey: ["/api/appointments/next"],
-  });
-
-  // User profile query
-  const { data: user } = useQuery<UserProfile>({
-    queryKey: ["/api/user/profile"],
+    enabled: isAuthenticated,
   });
 
   // Load settings data
@@ -164,17 +189,17 @@ export default function MobileApp() {
 
   // Load blocked clients
   useEffect(() => {
-    if (activeTab === 'settings' && settingsTab === 'blocked') {
+    if (isAuthenticated && activeTab === 'settings' && settingsTab === 'blocked') {
       loadBlockedClients();
     }
-  }, [activeTab, settingsTab]);
+  }, [isAuthenticated, activeTab, settingsTab]);
 
   // Load notification settings
   useEffect(() => {
-    if (activeTab === 'settings' && settingsTab === 'notifications') {
+    if (isAuthenticated && activeTab === 'settings' && settingsTab === 'notifications') {
       loadNotificationSettings();
     }
-  }, [activeTab, settingsTab]);
+  }, [isAuthenticated, activeTab, settingsTab]);
 
   const loadBlockedClients = async () => {
     try {
@@ -331,8 +356,48 @@ export default function MobileApp() {
 
   const handleSignOut = () => {
     localStorage.removeItem('token');
+    queryClient.clear();
     // Stay in mobile interface after sign out
     window.location.href = '/mobile';
+  };
+
+  // Login mutation
+  const loginMutation = useMutation({
+    mutationFn: async (credentials: { email: string; password: string }) => {
+      return await apiRequest('POST', '/api/auth/signin', credentials);
+    },
+    onSuccess: (response: any) => {
+      if (response.token) {
+        localStorage.setItem('token', response.token);
+        queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
+        toast({
+          title: "Success",
+          description: "Signed in successfully",
+        });
+        // Refresh to load authenticated data
+        window.location.reload();
+      }
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to sign in",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleLogin = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!loginForm.email || !loginForm.password) {
+      toast({
+        title: "Error",
+        description: "Please fill in all fields",
+        variant: "destructive",
+      });
+      return;
+    }
+    loginMutation.mutate(loginForm);
   };
 
   // Dashboard Content
@@ -942,75 +1007,171 @@ export default function MobileApp() {
     }
   };
 
+  // Show loading state
+  if (isLoadingUser && hasToken) {
+    return (
+      <div className="min-h-screen bg-gray-950 text-white flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-8 h-8 border-4 border-amber-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-400">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show login form if not authenticated
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen bg-gray-950 text-white flex items-center justify-center p-4">
+        <div className="max-w-md w-full">
+          <div className="text-center mb-8">
+            <h1 className="text-3xl font-bold text-amber-500 mb-2">Clippr</h1>
+            <p className="text-gray-400">Mobile Business Management</p>
+          </div>
+
+          <Card className="bg-gray-900 border-gray-700">
+            <CardHeader>
+              <CardTitle className="text-white text-center">Sign In</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handleLogin} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="email" className="text-gray-300">Email</Label>
+                  <div className="relative">
+                    <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                    <Input
+                      id="email"
+                      type="email"
+                      value={loginForm.email}
+                      onChange={(e) => setLoginForm({ ...loginForm, email: e.target.value })}
+                      className="bg-gray-800 border-gray-600 text-white pl-10"
+                      placeholder="Enter your email"
+                      required
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="password" className="text-gray-300">Password</Label>
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                    <Input
+                      id="password"
+                      type={showLoginPassword ? "text" : "password"}
+                      value={loginForm.password}
+                      onChange={(e) => setLoginForm({ ...loginForm, password: e.target.value })}
+                      className="bg-gray-800 border-gray-600 text-white pl-10 pr-10"
+                      placeholder="Enter your password"
+                      required
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowLoginPassword(!showLoginPassword)}
+                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-white"
+                    >
+                      {showLoginPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                </div>
+                <Button
+                  type="submit"
+                  className="w-full bg-amber-500 hover:bg-amber-600 text-gray-900"
+                  disabled={loginMutation.isPending}
+                >
+                  {loginMutation.isPending ? 'Signing In...' : 'Sign In'}
+                </Button>
+              </form>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gray-950 text-white">
-      {/* Main Content */}
-      <div className="pb-20">
-        {renderContent()}
-      </div>
+      <div className="max-w-md mx-auto">
+        {/* Header */}
+        <div className="flex items-center justify-between p-4 bg-gray-900 border-b border-gray-800">
+          <h1 className="text-xl font-bold text-amber-500">Clippr</h1>
+          <div className="flex items-center space-x-2">
+            <div className="w-8 h-8 bg-amber-500 rounded-full flex items-center justify-center">
+              {user?.photoUrl ? (
+                <img src={user.photoUrl} alt="Profile" className="w-full h-full rounded-full object-cover" />
+              ) : (
+                <User className="w-5 h-5 text-gray-900" />
+              )}
+            </div>
+          </div>
+        </div>
 
-      {/* Bottom Navigation */}
-      <div className="fixed bottom-0 left-0 right-0 bg-gray-900 border-t border-gray-700">
-        <div className="flex items-center justify-around p-3">
-          <button
-            onClick={() => setActiveTab('dashboard')}
-            className={`flex flex-col items-center space-y-1 p-2 rounded-lg transition-colors ${
-              activeTab === 'dashboard' 
-                ? 'text-amber-500' 
-                : 'text-gray-400 hover:text-white'
-            }`}
-          >
-            <Home className="w-5 h-5" />
-            <span className="text-xs">Dashboard</span>
-          </button>
-          
-          <button
-            onClick={() => setActiveTab('calendar')}
-            className={`flex flex-col items-center space-y-1 p-2 rounded-lg transition-colors ${
-              activeTab === 'calendar' 
-                ? 'text-amber-500' 
-                : 'text-gray-400 hover:text-white'
-            }`}
-          >
-            <Calendar className="w-5 h-5" />
-            <span className="text-xs">Calendar</span>
-          </button>
-          
-          <button
-            onClick={() => setActiveTab('clients')}
-            className={`flex flex-col items-center space-y-1 p-2 rounded-lg transition-colors ${
-              activeTab === 'clients' 
-                ? 'text-amber-500' 
-                : 'text-gray-400 hover:text-white'
-            }`}
-          >
-            <Users className="w-5 h-5" />
-            <span className="text-xs">Clients</span>
-          </button>
-          
-          <button
-            onClick={() => setActiveTab('services')}
-            className={`flex flex-col items-center space-y-1 p-2 rounded-lg transition-colors ${
-              activeTab === 'services' 
-                ? 'text-amber-500' 
-                : 'text-gray-400 hover:text-white'
-            }`}
-          >
-            <Star className="w-5 h-5" />
-            <span className="text-xs">Services</span>
-          </button>
-          
-          <button
-            onClick={() => setActiveTab('settings')}
-            className={`flex flex-col items-center space-y-1 p-2 rounded-lg transition-colors ${
-              activeTab === 'settings' 
-                ? 'text-amber-500' 
-                : 'text-gray-400 hover:text-white'
-            }`}
-          >
-            <Settings className="w-5 h-5" />
-            <span className="text-xs">Settings</span>
-          </button>
+        {/* Main Content */}
+        <div className="pb-20">
+          {renderContent()}
+        </div>
+
+        {/* Bottom Navigation */}
+        <div className="fixed bottom-0 left-0 right-0 bg-gray-900 border-t border-gray-700">
+          <div className="max-w-md mx-auto flex items-center justify-around p-3">
+            <button
+              onClick={() => setActiveTab('dashboard')}
+              className={`flex flex-col items-center space-y-1 p-2 rounded-lg transition-colors ${
+                activeTab === 'dashboard' 
+                  ? 'text-amber-500' 
+                  : 'text-gray-400 hover:text-white'
+              }`}
+            >
+              <Home className="w-5 h-5" />
+              <span className="text-xs">Dashboard</span>
+            </button>
+            
+            <button
+              onClick={() => setActiveTab('calendar')}
+              className={`flex flex-col items-center space-y-1 p-2 rounded-lg transition-colors ${
+                activeTab === 'calendar' 
+                  ? 'text-amber-500' 
+                  : 'text-gray-400 hover:text-white'
+              }`}
+            >
+              <Calendar className="w-5 h-5" />
+              <span className="text-xs">Calendar</span>
+            </button>
+            
+            <button
+              onClick={() => setActiveTab('clients')}
+              className={`flex flex-col items-center space-y-1 p-2 rounded-lg transition-colors ${
+                activeTab === 'clients' 
+                  ? 'text-amber-500' 
+                  : 'text-gray-400 hover:text-white'
+              }`}
+            >
+              <Users className="w-5 h-5" />
+              <span className="text-xs">Clients</span>
+            </button>
+            
+            <button
+              onClick={() => setActiveTab('services')}
+              className={`flex flex-col items-center space-y-1 p-2 rounded-lg transition-colors ${
+                activeTab === 'services' 
+                  ? 'text-amber-500' 
+                  : 'text-gray-400 hover:text-white'
+              }`}
+            >
+              <Star className="w-5 h-5" />
+              <span className="text-xs">Services</span>
+            </button>
+            
+            <button
+              onClick={() => setActiveTab('settings')}
+              className={`flex flex-col items-center space-y-1 p-2 rounded-lg transition-colors ${
+                activeTab === 'settings' 
+                  ? 'text-amber-500' 
+                  : 'text-gray-400 hover:text-white'
+              }`}
+            >
+              <Settings className="w-5 h-5" />
+              <span className="text-xs">Settings</span>
+            </button>
+          </div>
         </div>
       </div>
     </div>
