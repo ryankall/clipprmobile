@@ -42,7 +42,7 @@ interface BlockedClient {
 export default function Settings() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'profile' | 'notifications' | 'blocked'>('profile');
+  const [activeTab, setActiveTab] = useState<'profile' | 'notifications' | 'blocked' | 'payment' | 'subscription' | 'help'>('profile');
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [isChangingPassword, setIsChangingPassword] = useState(false);
   const [blockedClients, setBlockedClients] = useState<BlockedClient[]>([]);
@@ -68,6 +68,10 @@ export default function Settings() {
     newPassword: '',
     confirmPassword: '',
   });
+  const [stripeStatus, setStripeStatus] = useState<any>(null);
+  const [subscriptionStatus, setSubscriptionStatus] = useState<any>(null);
+  const [isConnectingStripe, setIsConnectingStripe] = useState(false);
+  const [expandedFAQ, setExpandedFAQ] = useState<string | null>(null);
 
   const { isAuthenticated, signOut } = useAuth();
 
@@ -76,6 +80,8 @@ export default function Settings() {
       loadUserProfile();
       loadBlockedClients();
       loadNotificationSettings();
+      loadPaymentSettings();
+      loadSubscriptionStatus();
     }
   }, [isAuthenticated]);
 
@@ -263,7 +269,96 @@ export default function Settings() {
     }
   };
 
-  const renderTabButton = (tab: 'profile' | 'notifications' | 'blocked', title: string, icon: string) => (
+  const loadPaymentSettings = async () => {
+    try {
+      const data = await apiRequest<any>('GET', '/api/stripe/status');
+      setStripeStatus(data);
+    } catch (error) {
+      console.error('Failed to load payment settings:', error);
+    }
+  };
+
+  const loadSubscriptionStatus = async () => {
+    try {
+      const data = await apiRequest<any>('GET', '/api/stripe/subscription-status');
+      setSubscriptionStatus(data);
+    } catch (error) {
+      console.error('Failed to load subscription status:', error);
+    }
+  };
+
+  const handleConnectStripe = async () => {
+    setIsConnectingStripe(true);
+    try {
+      const data = await apiRequest<any>('POST', '/api/stripe/connect');
+      if (data.accountLinkUrl) {
+        Linking.openURL(data.accountLinkUrl);
+      }
+    } catch (error: any) {
+      Alert.alert('Error', error.message || 'Failed to connect Stripe account');
+    } finally {
+      setIsConnectingStripe(false);
+    }
+  };
+
+  const handleStripeCheckout = async (interval: 'monthly' | 'yearly') => {
+    try {
+      const data = await apiRequest<any>('POST', '/api/stripe/create-checkout', { interval });
+      if (data.url) {
+        Linking.openURL(data.url);
+      }
+    } catch (error: any) {
+      Alert.alert('Error', error.message || 'Failed to create checkout session');
+    }
+  };
+
+  const handleCancelSubscription = async () => {
+    Alert.alert(
+      'Cancel Subscription',
+      'Are you sure you want to cancel your subscription? Your premium access will continue until the end of your billing period.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Confirm',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await apiRequest('POST', '/api/stripe/cancel-subscription');
+              loadSubscriptionStatus();
+              Alert.alert('Success', 'Subscription cancelled successfully');
+            } catch (error: any) {
+              Alert.alert('Error', error.message || 'Failed to cancel subscription');
+            }
+          }
+        }
+      ]
+    );
+  };
+
+  const handleRequestRefund = async () => {
+    Alert.alert(
+      'Request Refund',
+      'Are you sure you want to request a full refund? You will be immediately downgraded to the Basic plan.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Request Refund',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await apiRequest('POST', '/api/stripe/request-refund');
+              loadSubscriptionStatus();
+              Alert.alert('Success', 'Refund processed successfully');
+            } catch (error: any) {
+              Alert.alert('Error', error.message || 'Failed to process refund');
+            }
+          }
+        }
+      ]
+    );
+  };
+
+  const renderTabButton = (tab: 'profile' | 'notifications' | 'blocked' | 'payment' | 'subscription' | 'help', title: string, icon: string) => (
     <TouchableOpacity
       key={tab}
       style={[styles.tabButton, activeTab === tab && styles.activeTab]}
@@ -434,6 +529,266 @@ export default function Settings() {
     </ScrollView>
   );
 
+  const renderPaymentTab = () => (
+    <ScrollView style={styles.tabContent}>
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>Payment Settings</Text>
+        {stripeStatus?.connected ? (
+          <View style={styles.paymentConnected}>
+            <View style={styles.paymentStatus}>
+              <Ionicons name="checkmark-circle" size={24} color="#10B981" />
+              <View style={styles.paymentStatusText}>
+                <Text style={styles.paymentStatusTitle}>Stripe Connected</Text>
+                <Text style={styles.paymentStatusSubtitle}>Ready to receive payments</Text>
+              </View>
+            </View>
+            <View style={styles.paymentActions}>
+              <TouchableOpacity
+                style={[styles.paymentButton, styles.paymentButtonOutline]}
+                onPress={() => stripeStatus?.dashboardUrl && Linking.openURL(stripeStatus.dashboardUrl)}
+              >
+                <Ionicons name="stats-chart-outline" size={16} color="#F59E0B" />
+                <Text style={styles.paymentButtonOutlineText}>View Dashboard</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.paymentButton, styles.paymentButtonOutline]}
+                onPress={handleConnectStripe}
+                disabled={isConnectingStripe}
+              >
+                <Text style={styles.paymentButtonOutlineText}>
+                  {isConnectingStripe ? 'Connecting...' : 'Update Settings'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        ) : (
+          <View style={styles.paymentDisconnected}>
+            <View style={styles.paymentStatus}>
+              <Ionicons name="warning-outline" size={24} color="#F59E0B" />
+              <View style={styles.paymentStatusText}>
+                <Text style={styles.paymentStatusTitle}>Payment Setup Required</Text>
+                <Text style={styles.paymentStatusSubtitle}>Connect Stripe to receive payments</Text>
+              </View>
+            </View>
+            <View style={styles.paymentInfo}>
+              <Text style={styles.paymentInfoText}>
+                Connect your Stripe account to start accepting credit card payments from clients.
+              </Text>
+              <View style={styles.paymentFeatures}>
+                <Text style={styles.paymentFeature}>• Secure credit card processing</Text>
+                <Text style={styles.paymentFeature}>• Automatic payment tracking</Text>
+                <Text style={styles.paymentFeature}>• Direct deposits to your bank</Text>
+              </View>
+            </View>
+            <TouchableOpacity
+              style={styles.paymentButton}
+              onPress={handleConnectStripe}
+              disabled={isConnectingStripe}
+            >
+              <Text style={styles.paymentButtonText}>
+                {isConnectingStripe ? 'Connecting...' : 'Connect Stripe Account'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        )}
+      </View>
+    </ScrollView>
+  );
+
+  const renderSubscriptionTab = () => (
+    <ScrollView style={styles.tabContent}>
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>Subscription Plan</Text>
+        <View style={styles.currentPlan}>
+          <View style={styles.planHeader}>
+            <View style={styles.planIcon}>
+              <Ionicons name="checkmark-circle" size={24} color="#F59E0B" />
+            </View>
+            <View style={styles.planInfo}>
+              <Text style={styles.planTitle}>Basic Plan</Text>
+              <Text style={styles.planSubtitle}>Currently Active</Text>
+            </View>
+            <View style={styles.planPrice}>
+              <Text style={styles.planPriceText}>Free</Text>
+              <Text style={styles.planPriceSubtext}>Forever</Text>
+            </View>
+          </View>
+        </View>
+        
+        {subscriptionStatus?.status === 'basic' && (
+          <View style={styles.upgradeSection}>
+            <View style={styles.upgradeHeader}>
+              <Text style={styles.upgradeTitle}>Upgrade to Premium</Text>
+            </View>
+            <View style={styles.pricingOptions}>
+              <View style={styles.pricingOption}>
+                <View style={styles.pricingInfo}>
+                  <Text style={styles.pricingPrice}>$19.99</Text>
+                  <Text style={styles.pricingInterval}>/month</Text>
+                </View>
+                <TouchableOpacity
+                  style={styles.pricingButton}
+                  onPress={() => handleStripeCheckout('monthly')}
+                >
+                  <Text style={styles.pricingButtonText}>Choose Monthly</Text>
+                </TouchableOpacity>
+              </View>
+              <View style={[styles.pricingOption, styles.pricingOptionPopular]}>
+                <View style={styles.pricingInfo}>
+                  <Text style={styles.pricingPrice}>$199.99</Text>
+                  <Text style={styles.pricingInterval}>/year - Save 16%</Text>
+                </View>
+                <TouchableOpacity
+                  style={[styles.pricingButton, styles.pricingButtonPopular]}
+                  onPress={() => handleStripeCheckout('yearly')}
+                >
+                  <Text style={styles.pricingButtonPopularText}>Choose Yearly</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+            <View style={styles.premiumFeatures}>
+              <View style={styles.premiumFeature}>
+                <Text style={styles.premiumFeatureValue}>∞</Text>
+                <Text style={styles.premiumFeatureLabel}>Appointments</Text>
+              </View>
+              <View style={styles.premiumFeature}>
+                <Text style={styles.premiumFeatureValue}>1GB</Text>
+                <Text style={styles.premiumFeatureLabel}>Photo Storage</Text>
+              </View>
+            </View>
+          </View>
+        )}
+        
+        {subscriptionStatus?.status === 'premium' && (
+          <View style={styles.premiumActive}>
+            <View style={styles.premiumStatus}>
+              <Text style={styles.premiumStatusTitle}>Premium Plan Active</Text>
+              <Text style={styles.premiumStatusSubtitle}>
+                Next billing: {subscriptionStatus.endDate ? new Date(subscriptionStatus.endDate).toLocaleDateString() : 'N/A'}
+              </Text>
+            </View>
+            <View style={styles.premiumActions}>
+              <TouchableOpacity
+                style={[styles.premiumButton, styles.premiumButtonOutline]}
+                onPress={handleCancelSubscription}
+              >
+                <Text style={styles.premiumButtonOutlineText}>Cancel Subscription</Text>
+              </TouchableOpacity>
+              {subscriptionStatus.isEligibleForRefund && (
+                <TouchableOpacity
+                  style={[styles.premiumButton, styles.premiumButtonRefund]}
+                  onPress={handleRequestRefund}
+                >
+                  <Text style={styles.premiumButtonRefundText}>Request Refund</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          </View>
+        )}
+      </View>
+    </ScrollView>
+  );
+
+  const renderHelpTab = () => (
+    <ScrollView style={styles.tabContent}>
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>Help & Support</Text>
+        <View style={styles.helpHeader}>
+          <Text style={styles.helpTitle}>Need Help?</Text>
+          <Text style={styles.helpSubtitle}>
+            Get quick answers to common questions or contact our support team.
+          </Text>
+          <View style={styles.helpActions}>
+            <TouchableOpacity
+              style={styles.helpButton}
+              onPress={() => Linking.openURL('mailto:support@clippr.com')}
+            >
+              <Ionicons name="mail-outline" size={16} color="#1F2937" />
+              <Text style={styles.helpButtonText}>Contact Support</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.helpButton, styles.helpButtonOutline]}
+              onPress={() => Linking.openURL('https://docs.clippr.com')}
+            >
+              <Ionicons name="book-outline" size={16} color="#6B7280" />
+              <Text style={styles.helpButtonOutlineText}>Documentation</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+        
+        <View style={styles.faqSection}>
+          <Text style={styles.faqTitle}>Common Questions</Text>
+          
+          <View style={styles.faqItem}>
+            <TouchableOpacity
+              style={styles.faqQuestion}
+              onPress={() => setExpandedFAQ(expandedFAQ === 'billing' ? null : 'billing')}
+            >
+              <Text style={styles.faqQuestionText}>Billing & Subscriptions</Text>
+              <Ionicons
+                name={expandedFAQ === 'billing' ? 'chevron-up' : 'chevron-down'}
+                size={20}
+                color="#6B7280"
+              />
+            </TouchableOpacity>
+            {expandedFAQ === 'billing' && (
+              <View style={styles.faqAnswer}>
+                <Text style={styles.faqAnswerText}>
+                  Premium plans include unlimited appointments, 1GB photo storage, and priority support.
+                  You can cancel anytime and get a full refund within 30 days.
+                </Text>
+              </View>
+            )}
+          </View>
+          
+          <View style={styles.faqItem}>
+            <TouchableOpacity
+              style={styles.faqQuestion}
+              onPress={() => setExpandedFAQ(expandedFAQ === 'appointments' ? null : 'appointments')}
+            >
+              <Text style={styles.faqQuestionText}>Managing Appointments</Text>
+              <Ionicons
+                name={expandedFAQ === 'appointments' ? 'chevron-up' : 'chevron-down'}
+                size={20}
+                color="#6B7280"
+              />
+            </TouchableOpacity>
+            {expandedFAQ === 'appointments' && (
+              <View style={styles.faqAnswer}>
+                <Text style={styles.faqAnswerText}>
+                  Use the Calendar tab to view and manage appointments. You can create new appointments,
+                  modify existing ones, and track client information all in one place.
+                </Text>
+              </View>
+            )}
+          </View>
+          
+          <View style={styles.faqItem}>
+            <TouchableOpacity
+              style={styles.faqQuestion}
+              onPress={() => setExpandedFAQ(expandedFAQ === 'clients' ? null : 'clients')}
+            >
+              <Text style={styles.faqQuestionText}>Client Management</Text>
+              <Ionicons
+                name={expandedFAQ === 'clients' ? 'chevron-up' : 'chevron-down'}
+                size={20}
+                color="#6B7280"
+              />
+            </TouchableOpacity>
+            {expandedFAQ === 'clients' && (
+              <View style={styles.faqAnswer}>
+                <Text style={styles.faqAnswerText}>
+                  The Clients tab lets you store contact information, service history, and preferences
+                  for each client. You can also block clients from booking if needed.
+                </Text>
+              </View>
+            )}
+          </View>
+        </View>
+      </View>
+    </ScrollView>
+  );
+
   if (loading) {
     return (
       <SafeAreaView style={styles.loadingContainer}>
@@ -460,12 +815,18 @@ export default function Settings() {
         {renderTabButton('profile', 'Profile', 'person-outline')}
         {renderTabButton('notifications', 'Notifications', 'notifications-outline')}
         {renderTabButton('blocked', 'Blocked', 'shield-outline')}
+        {renderTabButton('payment', 'Payment', 'card-outline')}
+        {renderTabButton('subscription', 'Subscription', 'diamond-outline')}
+        {renderTabButton('help', 'Help', 'help-circle-outline')}
       </View>
 
       {/* Tab Content */}
       {activeTab === 'profile' && renderProfileTab()}
       {activeTab === 'notifications' && renderNotificationsTab()}
       {activeTab === 'blocked' && renderBlockedTab()}
+      {activeTab === 'payment' && renderPaymentTab()}
+      {activeTab === 'subscription' && renderSubscriptionTab()}
+      {activeTab === 'help' && renderHelpTab()}
 
       {/* Profile Edit Modal */}
       <Modal visible={isEditingProfile} animationType="slide" presentationStyle="pageSheet">
@@ -652,6 +1013,7 @@ const styles = StyleSheet.create({
   },
   tabContainer: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     paddingHorizontal: 16,
     paddingTop: 16,
     gap: 8,
@@ -659,17 +1021,20 @@ const styles = StyleSheet.create({
   tabButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 16,
+    paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 8,
     backgroundColor: '#374151',
-    gap: 8,
+    gap: 6,
+    flex: 1,
+    minWidth: '30%',
+    maxWidth: '32%',
   },
   activeTab: {
     backgroundColor: '#F59E0B',
   },
   tabText: {
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: '500',
     color: '#6B7280',
   },
@@ -983,5 +1348,329 @@ const styles = StyleSheet.create({
   textArea: {
     height: 100,
     textAlignVertical: 'top',
+  },
+  // Payment styles
+  paymentConnected: {
+    gap: 16,
+  },
+  paymentDisconnected: {
+    gap: 16,
+  },
+  paymentStatus: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#374151',
+    borderRadius: 8,
+    padding: 12,
+    gap: 12,
+  },
+  paymentStatusText: {
+    flex: 1,
+  },
+  paymentStatusTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  paymentStatusSubtitle: {
+    fontSize: 14,
+    color: '#6B7280',
+  },
+  paymentInfo: {
+    gap: 8,
+  },
+  paymentInfoText: {
+    fontSize: 14,
+    color: '#6B7280',
+  },
+  paymentFeatures: {
+    gap: 4,
+  },
+  paymentFeature: {
+    fontSize: 14,
+    color: '#9CA3AF',
+  },
+  paymentActions: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  paymentButton: {
+    flex: 1,
+    backgroundColor: '#F59E0B',
+    borderRadius: 8,
+    paddingVertical: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  paymentButtonOutline: {
+    backgroundColor: 'transparent',
+    borderWidth: 1,
+    borderColor: '#374151',
+  },
+  paymentButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#1F2937',
+  },
+  paymentButtonOutlineText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#6B7280',
+  },
+  // Subscription styles
+  currentPlan: {
+    marginBottom: 16,
+  },
+  planHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#374151',
+    borderRadius: 8,
+    padding: 12,
+    gap: 12,
+  },
+  planIcon: {
+    width: 32,
+    height: 32,
+    backgroundColor: '#F59E0B',
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  planInfo: {
+    flex: 1,
+  },
+  planTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  planSubtitle: {
+    fontSize: 14,
+    color: '#6B7280',
+  },
+  planPrice: {
+    alignItems: 'flex-end',
+  },
+  planPriceText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  planPriceSubtext: {
+    fontSize: 12,
+    color: '#6B7280',
+  },
+  upgradeSection: {
+    gap: 16,
+  },
+  upgradeHeader: {
+    backgroundColor: '#374151',
+    borderRadius: 8,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#F59E0B',
+  },
+  upgradeTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  pricingOptions: {
+    gap: 12,
+  },
+  pricingOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#374151',
+    borderRadius: 8,
+    padding: 12,
+    gap: 12,
+  },
+  pricingOptionPopular: {
+    borderWidth: 1,
+    borderColor: '#10B981',
+  },
+  pricingInfo: {
+    flex: 1,
+  },
+  pricingPrice: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#F59E0B',
+  },
+  pricingInterval: {
+    fontSize: 14,
+    color: '#6B7280',
+  },
+  pricingButton: {
+    backgroundColor: '#F59E0B',
+    borderRadius: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+  },
+  pricingButtonPopular: {
+    backgroundColor: '#10B981',
+  },
+  pricingButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#1F2937',
+  },
+  pricingButtonPopularText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  premiumFeatures: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  premiumFeature: {
+    flex: 1,
+    backgroundColor: '#374151',
+    borderRadius: 8,
+    padding: 12,
+    alignItems: 'center',
+  },
+  premiumFeatureValue: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#F59E0B',
+  },
+  premiumFeatureLabel: {
+    fontSize: 14,
+    color: '#FFFFFF',
+  },
+  premiumActive: {
+    gap: 16,
+  },
+  premiumStatus: {
+    backgroundColor: '#065F46',
+    borderRadius: 8,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#10B981',
+  },
+  premiumStatusTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  premiumStatusSubtitle: {
+    fontSize: 14,
+    color: '#6B7280',
+  },
+  premiumActions: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  premiumButton: {
+    flex: 1,
+    borderRadius: 8,
+    paddingVertical: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  premiumButtonOutline: {
+    backgroundColor: 'transparent',
+    borderWidth: 1,
+    borderColor: '#374151',
+  },
+  premiumButtonRefund: {
+    backgroundColor: 'transparent',
+    borderWidth: 1,
+    borderColor: '#3B82F6',
+  },
+  premiumButtonOutlineText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#6B7280',
+  },
+  premiumButtonRefundText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#3B82F6',
+  },
+  // Help styles
+  helpHeader: {
+    backgroundColor: '#374151',
+    borderRadius: 8,
+    padding: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#F59E0B',
+  },
+  helpTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#FFFFFF',
+    marginBottom: 8,
+  },
+  helpSubtitle: {
+    fontSize: 14,
+    color: '#6B7280',
+    marginBottom: 16,
+  },
+  helpActions: {
+    gap: 8,
+  },
+  helpButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#F59E0B',
+    borderRadius: 8,
+    paddingVertical: 12,
+    gap: 8,
+  },
+  helpButtonOutline: {
+    backgroundColor: 'transparent',
+    borderWidth: 1,
+    borderColor: '#374151',
+  },
+  helpButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#1F2937',
+  },
+  helpButtonOutlineText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#6B7280',
+  },
+  faqSection: {
+    gap: 8,
+  },
+  faqTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FFFFFF',
+    marginBottom: 8,
+  },
+  faqItem: {
+    backgroundColor: '#374151',
+    borderRadius: 8,
+    overflow: 'hidden',
+  },
+  faqQuestion: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 12,
+  },
+  faqQuestionText: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#FFFFFF',
+  },
+  faqAnswer: {
+    padding: 12,
+    paddingTop: 0,
+  },
+  faqAnswerText: {
+    fontSize: 14,
+    color: '#6B7280',
+    lineHeight: 20,
   },
 });
