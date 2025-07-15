@@ -12,6 +12,7 @@ import { AppointmentDetailsDialog } from "./components/appointment-details-dialo
 import { PendingAppointments } from "./components/pending-appointments";
 import { WorkingHoursDialog } from "./components/working-hours-dialog";
 import { TimelineCalendar } from "./components/timeline-calendar";
+import MobileSettings from "./pages/settings";
 import { 
   Home, 
   Calendar, 
@@ -1040,16 +1041,7 @@ export default function MobileApp() {
     </div>
   );
 
-  const renderSettings = () => (
-    <div className="space-y-4">
-      <h2 className="text-xl font-bold text-white">Settings</h2>
-      <Card className="bg-gray-800 border-gray-700">
-        <CardContent className="p-6">
-          <p className="text-gray-400 text-center">Mobile settings interface coming soon...</p>
-        </CardContent>
-      </Card>
-    </div>
-  );
+  const renderSettings = () => <MobileSettings />;
 
   if (!isAuthenticated) {
     return (
