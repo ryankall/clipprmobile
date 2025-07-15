@@ -331,7 +331,8 @@ export default function MobileApp() {
 
   const handleSignOut = () => {
     localStorage.removeItem('token');
-    window.location.href = '/';
+    // Stay in mobile interface after sign out
+    window.location.href = '/mobile';
   };
 
   // Dashboard Content
