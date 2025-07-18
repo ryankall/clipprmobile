@@ -26,13 +26,22 @@ export function useAuth() {
       console.log('Token check:', token ? 'Found' : 'Not found');
       
       if (token) {
-        // Skip API call for now to avoid network issues
-        // const user = await apiRequest<User>('GET', '/api/auth/me');
-        setAuthState({
-          user: null, // Set to null for now
-          isLoading: false,
-          isAuthenticated: false, // Set to false for now
-        });
+        try {
+          const user = await apiRequest<User>('GET', '/api/auth/me');
+          setAuthState({
+            user,
+            isLoading: false,
+            isAuthenticated: true,
+          });
+        } catch (error) {
+          console.error('Failed to fetch user:', error);
+          await removeToken();
+          setAuthState({
+            user: null,
+            isLoading: false,
+            isAuthenticated: false,
+          });
+        }
       } else {
         setAuthState({
           user: null,

@@ -1,17 +1,30 @@
-// Simple in-memory token storage for development
-// In production, you would use SecureStore or AsyncStorage
-let authToken: string | null = null;
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+const TOKEN_KEY = '@clippr_auth_token';
 
 export async function getToken(): Promise<string | null> {
-  return authToken;
+  try {
+    return await AsyncStorage.getItem(TOKEN_KEY);
+  } catch (error) {
+    console.error('Failed to get token:', error);
+    return null;
+  }
 }
 
 export async function setToken(newToken: string): Promise<void> {
-  authToken = newToken;
+  try {
+    await AsyncStorage.setItem(TOKEN_KEY, newToken);
+  } catch (error) {
+    console.error('Failed to set token:', error);
+  }
 }
 
 export async function removeToken(): Promise<void> {
-  authToken = null;
+  try {
+    await AsyncStorage.removeItem(TOKEN_KEY);
+  } catch (error) {
+    console.error('Failed to remove token:', error);
+  }
 }
 
 export async function isAuthenticated(): Promise<boolean> {
