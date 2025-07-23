@@ -69,6 +69,7 @@ export async function apiRequest<T = any>(
       throw new Error(errorData.message || `HTTP ${response.status}`);
     }
 
+    console.log(url)
     // Read response as text, then try to parse as JSON
     const responseText = await response.text();
     console.log(responseText)

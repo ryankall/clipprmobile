@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Alert } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Alert, Dimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useAuth } from '../../hooks/useAuth';
 import { apiRequest } from '../../lib/api';
 import { AppointmentWithRelations } from '../../lib/types';
+
 
 
 export default function Calendar() {
@@ -56,38 +57,102 @@ export default function Calendar() {
     return '#6B7280'; // gray default
   };
 
+  // --- Overlap grouping and positioning logic adapted from web ---
+  function calculateAppointmentPositions(
+    appointments: AppointmentWithRelations[],
+    startHour: number,
+    slotHeight: number,
+    timelineWidth: number
+  ) {
+    // Sort by start time
+    const sorted = [...appointments].sort(
+      (a, b) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime()
+    );
+    // Group overlapping appointments
+    const groups: AppointmentWithRelations[][] = [];
+    sorted.forEach((apt) => {
+      const aptStart = new Date(apt.scheduledAt);
+      const aptEnd = new Date(aptStart.getTime() + apt.duration * 60000);
+      let found = false;
+      for (const group of groups) {
+        if (
+          group.some((existing) => {
+            const exStart = new Date(existing.scheduledAt);
+            const exEnd = new Date(exStart.getTime() + existing.duration * 60000);
+            return aptStart < exEnd && aptEnd > exStart;
+          })
+        ) {
+          group.push(apt);
+          found = true;
+          break;
+        }
+      }
+      if (!found) groups.push([apt]);
+    });
+    // Assign positions
+    const positions: {
+      appointment: AppointmentWithRelations;
+      top: number;
+      height: number;
+      left: number;
+      width: number;
+      zIndex: number;
+    }[] = [];
+    groups.forEach((group) => {
+      const groupWidth = timelineWidth / group.length;
+      group.forEach((apt, idx) => {
+        const startTime = new Date(apt.scheduledAt);
+        const hour = startTime.getHours();
+        const min = startTime.getMinutes();
+        const top = (hour - startHour) * slotHeight + (min * slotHeight) / 60;
+        const height = Math.max((apt.duration * slotHeight) / 60, 40);
+        const left = idx * groupWidth;
+        const width = groupWidth - 8; // leave a small gap
+        positions.push({
+          appointment: apt,
+          top,
+          height,
+          left,
+          width,
+          zIndex: 10 + idx,
+        });
+      });
+    });
+    return positions;
+  }
+
   // Generate timeline view with time indicators
   const renderTimelineView = () => {
     const timeSlots = [];
     const startHour = 8;
     const endHour = 22;
     const slotHeight = 80;
-    
+
     // Get current time for indicator
     const now = new Date();
     const currentHour = now.getHours();
     const currentMinutes = now.getMinutes();
     const isToday = selectedDate.toDateString() === now.toDateString();
-    const currentTimePosition = isToday ? 
+    const currentTimePosition = isToday ?
       (currentHour - startHour) * slotHeight + (currentMinutes * slotHeight) / 60 : -1;
-    
+
     // Generate time slots
     for (let hour = startHour; hour <= endHour; hour++) {
-      const timeString = hour === 12 ? '12 PM' : 
+      const timeString = hour === 12 ? '12 PM' :
         hour === 0 ? '12 AM' :
         hour < 12 ? `${hour} AM` : `${hour - 12} PM`;
-      
+
       // Find appointments for this hour
       const hourAppointments = appointments.filter(apt => {
         const aptTime = new Date(apt.scheduledAt);
         const aptHour = aptTime.getHours();
         const endTime = new Date(aptTime.getTime() + apt.duration * 60000);
         const endHour = endTime.getHours();
-        
+
         // Appointment spans this hour if it starts in or continues through this hour
         return aptHour <= hour && (endHour > hour || (endHour === hour && endTime.getMinutes() > 0));
       });
-      
+
       timeSlots.push({
         hour,
         timeString,
@@ -95,7 +160,14 @@ export default function Calendar() {
         isWorkingHour: hour >= 9 && hour <= 18 // Basic working hours
       });
     }
-    
+
+    // --- Calculate positions for all appointments for the day ---
+    // Timeline width: screen width - left label (68) - right margin (16)
+    const screenWidth = Dimensions.get('window').width;
+    const timelineWidth = Math.max(screenWidth - 68 - 16, 60); // fallback min width
+
+    const appointmentPositions = calculateAppointmentPositions(appointments, startHour, slotHeight, timelineWidth);
+
     return (
       <ScrollView style={styles.timelineContainer} showsVerticalScrollIndicator={false}>
         <View style={[styles.timeline, { height: (endHour - startHour + 1) * slotHeight }]}>
@@ -106,7 +178,7 @@ export default function Calendar() {
               <View style={styles.timeLabel}>
                 <Text style={styles.timeLabelText}>{slot.timeString}</Text>
               </View>
-              
+
               {/* Working hours background */}
               <View style={[
                 styles.timeSlotContent,
@@ -115,38 +187,34 @@ export default function Calendar() {
                 {!slot.isWorkingHour && (
                   <Text style={styles.outsideHoursText}>Outside working hours</Text>
                 )}
-                
+
                 {/* Half-hour line */}
                 <View style={styles.halfHourLine} />
               </View>
             </View>
           ))}
-          
-          {/* Appointment blocks */}
-          {appointments.map((appointment) => {
-            const startTime = new Date(appointment.scheduledAt);
-            const startHour = startTime.getHours();
-            const startMinutes = startTime.getMinutes();
-            const duration = appointment.duration;
-            
-            // Calculate position
-            const topPosition = (startHour - 8) * slotHeight + (startMinutes * slotHeight) / 60;
-            const height = Math.max((duration * slotHeight) / 60, 40);
+
+          {/* Appointment blocks (side-by-side for overlaps) */}
+          {appointmentPositions.map((pos, idx) => {
+            const appointment = pos.appointment;
             const color = getServiceColor(appointment.service?.name);
-            
             return (
               <TouchableOpacity
-                key={appointment.id}
+                key={appointment.id + '-' + idx}
+                testID={`appointment-block-${appointment.id}`}
                 style={[
                   styles.appointmentBlock,
                   {
-                    top: topPosition,
-                    height: height,
+                    top: pos.top,
+                    height: pos.height,
+                    left: 68 + pos.left,
+                    width: pos.width,
                     backgroundColor: color + '20',
                     borderLeftColor: color,
+                    zIndex: pos.zIndex,
                   }
                 ]}
-                onPress={() => router.push(`/appointment-details?id=${appointment.id}`)}
+                onPress={() => router.push(`/clients/${appointment.id}`)}
               >
                 <Text style={[styles.appointmentTitle, { color }]} numberOfLines={1}>
                   {appointment.service?.name || 'Service'}
@@ -164,7 +232,7 @@ export default function Calendar() {
               </TouchableOpacity>
             );
           })}
-          
+
           {/* Current time indicator */}
           {isToday && currentTimePosition >= 0 && (
             <View style={[styles.currentTimeIndicator, { top: currentTimePosition }]}>
@@ -184,6 +252,7 @@ export default function Calendar() {
     return (
       <TouchableOpacity
         key={appointment.id}
+        testID={`appointment-card-${appointment.id}`}
         style={styles.appointmentCard}
         onPress={() => router.push(`/appointment-details?id=${appointment.id}`)}
       >
@@ -270,6 +339,7 @@ export default function Calendar() {
           </View>
           <TouchableOpacity 
             style={styles.addButton}
+            testID="add-appointment-btn"
             onPress={() => router.push('/appointments/new')}
           >
             <Ionicons name="add" size={24} color="white" />
@@ -596,8 +666,7 @@ const styles = StyleSheet.create({
   },
   appointmentBlock: {
     position: 'absolute',
-    left: 68,
-    right: 16,
+    // left and width will be set dynamically for overlap logic
     borderRadius: 8,
     borderLeftWidth: 4,
     padding: 8,
@@ -606,6 +675,8 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.25,
     shadowRadius: 4,
     elevation: 5,
+    minWidth: 60,
+    maxWidth: 240,
   },
   appointmentTitle: {
     fontSize: 12,

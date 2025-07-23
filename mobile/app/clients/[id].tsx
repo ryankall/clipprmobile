@@ -217,11 +217,16 @@ export default function ClientProfile() {
 
   // Render
   return (
+    
     <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 32 }}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.iconButton} accessibilityLabel="Back">
-          <Ionicons name="arrow-back" size={24} color="#FFD700" />
+        <TouchableOpacity
+          style={styles.iconButton}
+          onPress={() => router.back()}
+          accessibilityLabel="Go back"
+        >
+          <Ionicons name="arrow-back" size={22} color="#FFD700" />
         </TouchableOpacity>
         <Text style={styles.headerTitle} numberOfLines={1}>{client.name}</Text>
         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
@@ -597,12 +602,17 @@ export default function ClientProfile() {
   );
 }
 
+// Hide the default navigation header/title
+export const screenOptions = {
+  headerShown: false,
+};
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#0F0F0F',
     paddingHorizontal: 12,
-    paddingTop: Platform.OS === 'android' ? 32 : 16,
+    paddingTop: Platform.OS === 'android' ? 50 : 50,
   },
   centered: {
     flex: 1,
@@ -614,8 +624,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 18,
-    marginTop: 4,
+    marginTop: 20,
     justifyContent: 'space-between',
+    backgroundColor: '#0F0F0F',
   },
   headerTitle: {
     flex: 1,
