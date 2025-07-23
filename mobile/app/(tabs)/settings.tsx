@@ -1,20 +1,25 @@
+/**
+ * NOTE: Requires @react-native-picker/picker
+ * Install with: npm install @react-native-picker/picker
+ */
 import React, { useState, useEffect } from 'react';
-import { 
-  View, 
-  Text, 
-  ScrollView, 
-  TouchableOpacity, 
-  StyleSheet, 
-  Alert, 
-  Switch, 
-  TextInput, 
-  Image, 
-  Modal, 
+import {
+  View,
+  Text,
+  ScrollView,
+  TouchableOpacity,
+  StyleSheet,
+  Alert,
+  Switch,
+  TextInput,
+  Image,
+  Modal,
   ActivityIndicator,
   Clipboard,
   StatusBar,
   Platform,
-  Linking
+  Linking,
+  FlatList
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -45,6 +50,93 @@ export default function Settings() {
   const [activeTab, setActiveTab] = useState<'profile' | 'notifications' | 'blocked' | 'payment' | 'subscription' | 'help'>('profile');
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [isChangingPassword, setIsChangingPassword] = useState(false);
+  const [showPhoneVerifyModal, setShowPhoneVerifyModal] = useState(false);
+
+  // Phone verification modal state
+  const [phoneVerifyStep, setPhoneVerifyStep] = useState<'idle' | 'codeSent' | 'verifying'>('idle');
+  const [verificationCode, setVerificationCode] = useState('');
+  const [verifyLoading, setVerifyLoading] = useState(false);
+  const [sendLoading, setSendLoading] = useState(false);
+  const [verifyError, setVerifyError] = useState<string | null>(null);
+  const [sendError, setSendError] = useState<string | null>(null);
+  const [countdown, setCountdown] = useState(0);
+  const [resendLoading, setResendLoading] = useState(false);
+
+  // --- Contact Support Modal State ---
+  const [showSupportModal, setShowSupportModal] = useState(false);
+  const [supportMessage, setSupportMessage] = useState('');
+  const [supportSending, setSupportSending] = useState(false);
+
+  // Timer for resend
+  useEffect(() => {
+    if (countdown > 0) {
+      const timer = setTimeout(() => setCountdown(countdown - 1), 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [countdown]);
+
+  // Reset modal state when closed
+  useEffect(() => {
+    if (!showPhoneVerifyModal) {
+      setPhoneVerifyStep('idle');
+      setVerificationCode('');
+      setVerifyLoading(false);
+      setSendLoading(false);
+      setVerifyError(null);
+      setSendError(null);
+      setCountdown(0);
+      setResendLoading(false);
+    }
+  }, [showPhoneVerifyModal]);
+
+  // Send verification code
+  const handleSendVerificationCode = async () => {
+    setSendLoading(true);
+    setSendError(null);
+    try {
+      await apiRequest('POST', '/api/auth/send-verification-code', {});
+      setPhoneVerifyStep('codeSent');
+      setCountdown(60);
+    } catch (e: any) {
+      setSendError(e?.message || 'Failed to send verification code');
+    } finally {
+      setSendLoading(false);
+    }
+  };
+
+  // Resend code
+  const handleResendCode = async () => {
+    setResendLoading(true);
+    setSendError(null);
+    try {
+      await apiRequest('POST', '/api/auth/send-verification-code', {});
+      setCountdown(60);
+    } catch (e: any) {
+      setSendError(e?.message || 'Failed to resend code');
+    } finally {
+      setResendLoading(false);
+    }
+  };
+
+  // Verify code
+  const handleVerifyCode = async () => {
+    setVerifyLoading(true);
+    setVerifyError(null);
+    try {
+      await apiRequest('POST', '/api/auth/verify-phone', { code: verificationCode });
+      setShowPhoneVerifyModal(false);
+      setPhoneVerifyStep('idle');
+      setVerificationCode('');
+      setCountdown(0);
+      // Refresh user profile to update verified status
+      await loadUserProfile();
+      Alert.alert('Success', 'Your phone number has been verified!');
+    } catch (e: any) {
+      setVerifyError(e?.message || 'Invalid or expired verification code');
+    } finally {
+      setVerifyLoading(false);
+    }
+  };
   const [blockedClients, setBlockedClients] = useState<BlockedClient[]>([]);
   const [notificationSettings, setNotificationSettings] = useState<NotificationSettings>({
     newBookingRequests: true,
@@ -61,7 +153,19 @@ export default function Settings() {
     serviceArea: '',
     about: '',
     photoUrl: '',
+    // Smart Scheduling fields
+    homeBaseAddress: '',
     timezone: 'America/New_York',
+    defaultGraceTime: 5,
+    transportationMode: 'driving',
+  });
+
+  // Validation state for Smart Scheduling fields
+  const [smartErrors, setSmartErrors] = useState({
+    homeBaseAddress: '',
+    timezone: '',
+    defaultGraceTime: '',
+    transportationMode: '',
   });
   const [passwordForm, setPasswordForm] = useState({
     currentPassword: '',
@@ -72,6 +176,13 @@ export default function Settings() {
   const [subscriptionStatus, setSubscriptionStatus] = useState<any>(null);
   const [isConnectingStripe, setIsConnectingStripe] = useState(false);
   const [expandedFAQ, setExpandedFAQ] = useState<string | null>(null);
+
+  // --- Profile Photo State for Error/Preview Logic ---
+  const [photoError, setPhotoError] = useState<string | null>(null);
+
+  // Supported types and max size (10MB)
+  const SUPPORTED_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+  const MAX_FILE_SIZE = 10 * 1024 * 1024;
 
   const { isAuthenticated, signOut } = useAuth();
 
@@ -96,7 +207,12 @@ export default function Settings() {
         serviceArea: data.serviceArea || '',
         about: data.about || '',
         photoUrl: data.photoUrl || '',
-        timezone: (data as any).timezone || 'America/New_York',
+        homeBaseAddress: data.homeBaseAddress || '',
+        timezone: data.timezone || 'America/New_York',
+        defaultGraceTime: typeof data.defaultGraceTime === 'number' && !isNaN(data.defaultGraceTime)
+          ? data.defaultGraceTime
+          : 5,
+        transportationMode: data.transportationMode || 'driving',
       });
     } catch (error) {
       console.error('Failed to load user profile:', error);
@@ -153,7 +269,55 @@ export default function Settings() {
     );
   };
 
+  // Smart Scheduling validation logic
+  const validateSmartScheduling = () => {
+    let valid = true;
+    const errors: typeof smartErrors = {
+      homeBaseAddress: '',
+      timezone: '',
+      defaultGraceTime: '',
+      transportationMode: '',
+    };
+
+    // Home Base Address: required, min 10 chars
+    if (!profileForm.homeBaseAddress || profileForm.homeBaseAddress.trim().length < 10) {
+      errors.homeBaseAddress = 'Please enter your full address (min 10 characters)';
+      valid = false;
+    }
+    // Timezone: required, must be one of allowed
+    const allowedTimezones = [
+      'America/New_York',
+      'America/Chicago',
+      'America/Denver',
+      'America/Los_Angeles',
+      'America/Anchorage',
+      'Pacific/Honolulu',
+    ];
+    if (!profileForm.timezone || !allowedTimezones.includes(profileForm.timezone)) {
+      errors.timezone = 'Please select a valid timezone';
+      valid = false;
+    }
+    // Grace Time Buffer: required, 0-60
+    const grace = Number(profileForm.defaultGraceTime);
+    if (isNaN(grace) || grace < 0 || grace > 60) {
+      errors.defaultGraceTime = 'Grace time must be between 0 and 60';
+      valid = false;
+    }
+    // Transportation Mode: required, must be one of allowed
+    const allowedModes = ['driving', 'walking', 'cycling', 'transit'];
+    if (!profileForm.transportationMode || !allowedModes.includes(profileForm.transportationMode)) {
+      errors.transportationMode = 'Please select a transportation mode';
+      valid = false;
+    }
+    setSmartErrors(errors);
+    return valid;
+  };
+
   const handleProfileSave = async () => {
+    if (!validateSmartScheduling()) {
+      Alert.alert('Validation Error', 'Please correct the Smart Scheduling fields.');
+      return;
+    }
     try {
       await apiRequest('PATCH', '/api/user/profile', profileForm);
       setIsEditingProfile(false);
@@ -184,7 +348,51 @@ export default function Settings() {
     }
   };
 
+  // --- Unified image validation and base64 conversion ---
+  const validateAndConvertImage = async (asset: any): Promise<string | null> => {
+    setPhotoError(null);
+    try {
+      // Get file info
+      const { uri, fileSize, type } = asset;
+      // On iOS, type may be undefined, so infer from uri
+      let mimeType = type;
+      if (!mimeType && uri) {
+        if (uri.endsWith('.jpg') || uri.endsWith('.jpeg')) mimeType = 'image/jpeg';
+        else if (uri.endsWith('.png')) mimeType = 'image/png';
+        else if (uri.endsWith('.webp')) mimeType = 'image/webp';
+        else if (uri.endsWith('.heic') || uri.endsWith('.heif')) mimeType = 'image/heic';
+      }
+      if (!mimeType || !SUPPORTED_TYPES.includes(mimeType.toLowerCase())) {
+        setPhotoError('Unsupported file format. Please select a JPEG, PNG, or WEBP image.');
+        return null;
+      }
+      // File size: try asset.fileSize, else fetch blob and check size
+      let size = fileSize;
+      if (!size && uri) {
+        const response = await fetch(uri);
+        const blob = await response.blob();
+        size = blob.size;
+      }
+      if (size && size > MAX_FILE_SIZE) {
+        setPhotoError('File is too large. Please select an image under 10MB.');
+        return null;
+      }
+      // Convert to base64
+      const response = await fetch(uri);
+      const blob = await response.blob();
+      return await new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result as string);
+        reader.readAsDataURL(blob);
+      });
+    } catch (e) {
+      setPhotoError('Failed to process image. Please try again.');
+      return null;
+    }
+  };
+
   const handlePhotoUpload = async () => {
+    setPhotoError(null);
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
@@ -193,21 +401,16 @@ export default function Settings() {
     });
 
     if (!result.canceled && result.assets[0]) {
-      const imageUri = result.assets[0].uri;
-      // Convert to base64 for API
-      const base64 = await fetch(imageUri)
-        .then(res => res.blob())
-        .then(blob => new Promise((resolve) => {
-          const reader = new FileReader();
-          reader.onloadend = () => resolve(reader.result);
-          reader.readAsDataURL(blob);
-        }));
-      
-      setProfileForm({ ...profileForm, photoUrl: base64 as string });
+      const asset = result.assets[0];
+      const base64 = await validateAndConvertImage(asset);
+      if (base64) {
+        setProfileForm({ ...profileForm, photoUrl: base64 });
+      }
     }
   };
 
   const handleCameraCapture = async () => {
+    setPhotoError(null);
     const result = await ImagePicker.launchCameraAsync({
       allowsEditing: true,
       aspect: [1, 1],
@@ -215,17 +418,11 @@ export default function Settings() {
     });
 
     if (!result.canceled && result.assets[0]) {
-      const imageUri = result.assets[0].uri;
-      // Convert to base64 for API
-      const base64 = await fetch(imageUri)
-        .then(res => res.blob())
-        .then(blob => new Promise((resolve) => {
-          const reader = new FileReader();
-          reader.onloadend = () => resolve(reader.result);
-          reader.readAsDataURL(blob);
-        }));
-      
-      setProfileForm({ ...profileForm, photoUrl: base64 as string });
+      const asset = result.assets[0];
+      const base64 = await validateAndConvertImage(asset);
+      if (base64) {
+        setProfileForm({ ...profileForm, photoUrl: base64 });
+      }
     }
   };
 
@@ -291,11 +488,35 @@ export default function Settings() {
     setIsConnectingStripe(true);
     try {
       const data = await apiRequest<any>('POST', '/api/stripe/connect');
-      if (data.accountLinkUrl) {
-        Linking.openURL(data.accountLinkUrl);
+      // Support both url and accountLinkUrl for compatibility
+      const onboardingUrl = data.url || data.accountLinkUrl;
+      if (onboardingUrl) {
+        Linking.openURL(onboardingUrl);
+      } else {
+        Alert.alert('Error', 'No onboarding URL received from server.');
       }
     } catch (error: any) {
-      Alert.alert('Error', error.message || 'Failed to connect Stripe account');
+      // Try to parse error message as JSON for setupRequired and message
+      let errorData: any = {};
+      try {
+        errorData = JSON.parse(
+          (error.message || '').replace(/^400: /, '').replace(/^500: /, '')
+        );
+      } catch {
+        // Not JSON, fallback to string
+      }
+      if (errorData.setupRequired) {
+        Alert.alert(
+          'Stripe Connect Setup Required',
+          'Please enable Stripe Connect in your Stripe dashboard first.\n\n1. Go to your Stripe Dashboard\n2. Navigate to Connect → Overview\n3. Complete the Connect setup process\n4. Return here to connect your account',
+          [{ text: 'Open Stripe Connect Setup', onPress: () => Linking.openURL('https://dashboard.stripe.com/connect/overview') }, { text: 'OK' }]
+        );
+      } else {
+        Alert.alert(
+          'Connection Failed',
+          errorData.message || error.message || 'Failed to connect Stripe account'
+        );
+      }
     } finally {
       setIsConnectingStripe(false);
     }
@@ -393,6 +614,33 @@ export default function Settings() {
             <Text style={styles.profileName}>{user?.businessName || 'Business Name'}</Text>
             <Text style={styles.profileEmail}>{user?.email || 'No email set'}</Text>
             <Text style={styles.profilePhone}>{user?.phone || 'No phone set'}</Text>
+            {user?.phone ? (
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4 }}>
+                {user.phoneVerified ? (
+                  <>
+                    <Ionicons name="checkmark-circle" size={16} color="#10B981" style={{ marginRight: 4 }} />
+                    <Text style={{ color: '#10B981', fontSize: 13 }}>Verified</Text>
+                  </>
+                ) : (
+                  <>
+                    <Ionicons name="alert-circle" size={16} color="#EF4444" style={{ marginRight: 4 }} />
+                    <Text style={{ color: '#EF4444', fontSize: 13, marginRight: 8 }}>Not Verified</Text>
+                    <TouchableOpacity
+                      style={{
+                        backgroundColor: '#F59E0B',
+                        borderRadius: 6,
+                        paddingHorizontal: 10,
+                        paddingVertical: 4,
+                        marginLeft: 4,
+                      }}
+                      onPress={() => setShowPhoneVerifyModal(true)}
+                    >
+                      <Text style={{ color: '#1F2937', fontWeight: '600', fontSize: 13 }}>Verify Phone</Text>
+                    </TouchableOpacity>
+                  </>
+                )}
+              </View>
+            ) : null}
           </View>
         </View>
       </View>
@@ -417,6 +665,60 @@ export default function Settings() {
         ) : (
           <Text style={styles.noLinkText}>Add your phone number to generate your booking link</Text>
         )}
+      </View>
+
+      {/* Quick Action Messages Section */}
+      <View style={styles.card}>
+        <View style={styles.cardHeader}>
+          <Text style={styles.cardTitle}>Quick Action Messages</Text>
+        </View>
+        <View style={{ gap: 12 }}>
+          <View>
+            <Text style={styles.quickActionLabel}>Default Messages</Text>
+            <Text style={styles.quickActionSubLabel}>Pre-built messages for common situations</Text>
+          </View>
+          <View style={{ gap: 8 }}>
+            {/* On My Way Card */}
+            <View style={styles.quickActionMessageCard}>
+              <View style={styles.quickActionMessageHeader}>
+                <Text style={styles.quickActionMessageTitle}>On My Way</Text>
+                <View style={styles.quickActionBadge}>
+                  <Text style={styles.quickActionBadgeText}>Default</Text>
+                </View>
+              </View>
+              <Text style={styles.quickActionMessageText}>
+                Hi [Client Name], I'm on my way to your appointment at [Time]. See you soon!
+              </Text>
+            </View>
+            {/* Running Late Card */}
+            <View style={styles.quickActionMessageCard}>
+              <View style={styles.quickActionMessageHeader}>
+                <Text style={styles.quickActionMessageTitle}>Running Late</Text>
+                <View style={styles.quickActionBadge}>
+                  <Text style={styles.quickActionBadgeText}>Default</Text>
+                </View>
+              </View>
+              <Text style={styles.quickActionMessageText}>
+                Hi [Client Name], I'm running about [Minutes] minutes late for your [Time] appointment. Sorry for the delay!
+              </Text>
+            </View>
+          </View>
+          <View style={{ borderTopWidth: 1, borderTopColor: '#374151', paddingTop: 16 }}>
+            <TouchableOpacity
+              style={styles.quickActionButton}
+              onPress={() => Alert.alert('Feature Coming Soon', 'Custom quick action messages will be available in a future update.')}
+            >
+              <Ionicons name="add-circle-outline" size={20} color="#F59E0B" style={{ marginRight: 8 }} />
+              <Text style={styles.quickActionButtonText}>Create Custom Message</Text>
+            </TouchableOpacity>
+          </View>
+          <View style={styles.quickActionInfoBox}>
+            <Text style={styles.quickActionInfoTitle}>How Quick Actions Work</Text>
+            <Text style={styles.quickActionInfoText}>
+              Quick actions appear on your dashboard when you have appointments coming up within the next hour. Tap a message to instantly send it to your client via SMS or email.
+            </Text>
+          </View>
+        </View>
       </View>
 
       {/* Security Section */}
@@ -445,7 +747,7 @@ export default function Settings() {
   );
 
   const renderNotificationsTab = () => (
-    <ScrollView style={styles.tabContent}>
+    <View style={styles.tabContent}>
       <View style={styles.card}>
         <Text style={styles.cardTitle}>Push Notifications</Text>
         <View style={styles.notificationItem}>
@@ -484,24 +786,31 @@ export default function Settings() {
           </View>
         ))}
       </View>
-    </ScrollView>
+    </View>
   );
 
   const renderBlockedTab = () => (
-    <ScrollView style={styles.tabContent}>
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>Blocked Clients</Text>
-        {blockedClients.length === 0 ? (
-          <View style={styles.emptyState}>
+    <View style={styles.tabContent}>
+      <FlatList
+        data={blockedClients}
+        keyExtractor={(client: BlockedClient) => client.id.toString()}
+        ListHeaderComponent={
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>Blocked Clients</Text>
+          </View>
+        }
+        ListEmptyComponent={
+          <View style={[styles.card, styles.emptyState]}>
             <Ionicons name="shield-checkmark-outline" size={64} color="#10B981" />
             <Text style={styles.emptyStateTitle}>No Blocked Clients</Text>
             <Text style={styles.emptyStateText}>
               You haven't blocked any clients yet. When you block a client, they will appear here.
             </Text>
           </View>
-        ) : (
-          blockedClients.map((client) => (
-            <View key={client.id} style={styles.blockedClientItem}>
+        }
+        renderItem={({ item: client }: { item: BlockedClient }) => (
+          <View style={styles.card}>
+            <View style={styles.blockedClientItem}>
               <View style={styles.blockedClientInfo}>
                 <View style={styles.blockedClientIcon}>
                   <Ionicons name="shield-outline" size={24} color="#EF4444" />
@@ -523,10 +832,11 @@ export default function Settings() {
                 <Text style={styles.unblockButtonText}>Unblock</Text>
               </TouchableOpacity>
             </View>
-          ))
+          </View>
         )}
-      </View>
-    </ScrollView>
+        contentContainerStyle={{ paddingBottom: 16 }}
+      />
+    </View>
   );
 
   const renderPaymentTab = () => (
@@ -540,6 +850,21 @@ export default function Settings() {
               <View style={styles.paymentStatusText}>
                 <Text style={styles.paymentStatusTitle}>Stripe Connected</Text>
                 <Text style={styles.paymentStatusSubtitle}>Ready to receive payments</Text>
+              </View>
+            </View>
+            {/* Stripe account details */}
+            <View style={{ flexDirection: 'row', gap: 16, marginTop: 8 }}>
+              <View style={{ flex: 1 }}>
+                <Text style={{ color: '#6B7280', fontSize: 13 }}>Account Status</Text>
+                <Text style={{ color: '#fff', fontSize: 15, textTransform: 'capitalize' }}>
+                  {stripeStatus?.status || 'Active'}
+                </Text>
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={{ color: '#6B7280', fontSize: 13 }}>Country</Text>
+                <Text style={{ color: '#fff', fontSize: 15 }}>
+                  {stripeStatus?.country || 'US'}
+                </Text>
               </View>
             </View>
             <View style={styles.paymentActions}>
@@ -570,14 +895,38 @@ export default function Settings() {
                 <Text style={styles.paymentStatusSubtitle}>Connect Stripe to receive payments</Text>
               </View>
             </View>
+            {/* Onboarding instructions */}
+            <View style={[styles.paymentInfo, { backgroundColor: '#78350F20', borderRadius: 8, padding: 10, marginTop: 8 }]}>
+              <Text style={[styles.paymentInfoText, { color: '#F59E0B', fontWeight: '600', marginBottom: 4 }]}>
+                Setup Required:
+              </Text>
+              <Text style={[styles.paymentInfoText, { color: '#FBBF24', fontSize: 13 }]}>
+                Before connecting, you need to enable Stripe Connect in your Stripe dashboard:
+              </Text>
+              <Text style={[styles.paymentInfoText, { color: '#FBBF24', fontSize: 13, marginTop: 4 }]}>
+                1. Go to your Stripe Dashboard{'\n'}
+                2. Navigate to Connect → Overview{'\n'}
+                3. Complete the Connect setup process{'\n'}
+                4. Return here to connect your account
+              </Text>
+              <TouchableOpacity
+                style={[styles.paymentButton, styles.paymentButtonOutline, { marginTop: 8, borderColor: '#F59E0B' }]}
+                onPress={() => Linking.openURL('https://dashboard.stripe.com/connect/overview')}
+              >
+                <Text style={[styles.paymentButtonOutlineText, { color: '#F59E0B' }]}>
+                  Open Stripe Connect Setup →
+                </Text>
+              </TouchableOpacity>
+            </View>
             <View style={styles.paymentInfo}>
               <Text style={styles.paymentInfoText}>
-                Connect your Stripe account to start accepting credit card payments from clients.
+                Connect your Stripe account to start accepting credit card payments from clients. Stripe handles all payment processing securely.
               </Text>
               <View style={styles.paymentFeatures}>
                 <Text style={styles.paymentFeature}>• Secure credit card processing</Text>
                 <Text style={styles.paymentFeature}>• Automatic payment tracking</Text>
                 <Text style={styles.paymentFeature}>• Direct deposits to your bank</Text>
+                <Text style={styles.paymentFeature}>• Transaction history and reports</Text>
               </View>
             </View>
             <TouchableOpacity
@@ -656,8 +1005,43 @@ export default function Settings() {
                 <Text style={styles.premiumFeatureLabel}>Photo Storage</Text>
               </View>
             </View>
+            <View style={styles.premiumFeatures}>
+              <View style={styles.premiumFeature}>
+                <Text style={styles.premiumFeatureValue}>∞</Text>
+                <Text style={styles.premiumFeatureLabel}>Services</Text>
+              </View>
+              <View style={styles.premiumFeature}>
+                <Text style={styles.premiumFeatureValue}>∞</Text>
+                <Text style={styles.premiumFeatureLabel}>SMS</Text>
+              </View>
+            </View>
           </View>
-        )}
+          )}
+          {/* Premium Features Card */}
+          <View style={styles.premiumFeaturesCard}>
+            <View style={styles.premiumFeaturesCardHeader}>
+              <Ionicons name="checkmark-circle" size={40} color="#10B981" style={styles.premiumFeaturesMainCheck} />
+              <Text style={styles.premiumFeaturesCardTitle}>Premium Features</Text>
+            </View>
+            <View style={styles.premiumFeaturesList}>
+              <View style={styles.premiumFeaturesListItem}>
+                <Ionicons name="checkmark-circle" size={22} color="#10B981" style={styles.premiumFeaturesListCheck} />
+                <Text style={styles.premiumFeaturesListText}>Advanced calendar with custom working hours</Text>
+              </View>
+              <View style={styles.premiumFeaturesListItem}>
+                <Ionicons name="checkmark-circle" size={22} color="#10B981" style={styles.premiumFeaturesListCheck} />
+                <Text style={styles.premiumFeaturesListText}>Client analytics and business insights</Text>
+              </View>
+              <View style={styles.premiumFeaturesListItem}>
+                <Ionicons name="checkmark-circle" size={22} color="#10B981" style={styles.premiumFeaturesListCheck} />
+                <Text style={styles.premiumFeaturesListText}>Priority customer support</Text>
+              </View>
+            </View>
+            <Text style={styles.premiumFeaturesGuarantee}>
+              ✨ 30-day money-back guarantee • Cancel anytime
+            </Text>
+          </View>
+        
         
         {subscriptionStatus?.status === 'premium' && (
           <View style={styles.premiumActive}>
@@ -701,7 +1085,7 @@ export default function Settings() {
           <View style={styles.helpActions}>
             <TouchableOpacity
               style={styles.helpButton}
-              onPress={() => Linking.openURL('mailto:support@clippr.com')}
+              onPress={() => setShowSupportModal(true)}
             >
               <Ionicons name="mail-outline" size={16} color="#1F2937" />
               <Text style={styles.helpButtonText}>Contact Support</Text>
@@ -828,104 +1212,458 @@ export default function Settings() {
       {activeTab === 'subscription' && renderSubscriptionTab()}
       {activeTab === 'help' && renderHelpTab()}
 
+      {/* Contact Support Modal */}
+      <ContactSupportModal
+        visible={showSupportModal}
+        onClose={() => setShowSupportModal(false)}
+        message={supportMessage}
+        setMessage={setSupportMessage}
+        sending={supportSending}
+        setSending={setSupportSending}
+      />
+
       {/* Profile Edit Modal */}
-      <Modal visible={isEditingProfile} animationType="slide" presentationStyle="pageSheet">
-        <SafeAreaView style={styles.modalContainer}>
-          <View style={styles.modalHeader}>
-            <TouchableOpacity onPress={() => setIsEditingProfile(false)}>
-              <Text style={styles.modalCancelButton}>Cancel</Text>
-            </TouchableOpacity>
-            <Text style={styles.modalTitle}>Edit Profile</Text>
-            <TouchableOpacity onPress={handleProfileSave}>
-              <Text style={styles.modalSaveButton}>Save</Text>
-            </TouchableOpacity>
-          </View>
-          <ScrollView style={styles.modalContent}>
-            {/* Photo Upload */}
-            <View style={styles.photoSection}>
-              <Text style={styles.fieldLabel}>Profile Photo</Text>
-              <View style={styles.photoContainer}>
-                {profileForm.photoUrl ? (
-                  <Image source={{ uri: profileForm.photoUrl }} style={styles.photoPreview} />
-                ) : (
-                  <View style={styles.photoPlaceholder}>
-                    <Ionicons name="person-outline" size={32} color="#6B7280" />
+      <Modal
+        visible={isEditingProfile}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setIsEditingProfile(false)}
+      >
+        <SafeAreaView style={{
+          flex: 1,
+          backgroundColor: 'rgba(30,30,30,0.95)',
+          justifyContent: 'center',
+          alignItems: 'center',
+        }}>
+          <View style={{
+            backgroundColor: '#2e2e2e',
+            borderRadius: 18,
+            paddingVertical: 28,
+            paddingHorizontal: 22,
+            width: '92%',
+            maxWidth: 420,
+            alignItems: 'center',
+            borderWidth: 1,
+            borderColor: '#737b89',
+            marginVertical: 12,
+            shadowColor: '#000',
+            shadowOpacity: 0.12,
+            shadowRadius: 8,
+            shadowOffset: { width: 0, height: 2 },
+            elevation: 3,
+          }}>
+            <View style={{
+              width: '100%',
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              marginBottom: 16,
+              paddingHorizontal: 2,
+            }}>
+              <TouchableOpacity onPress={() => setIsEditingProfile(false)} style={{ padding: 4 }}>
+                <Ionicons name="close" size={24} color="#6B7280" />
+              </TouchableOpacity>
+              <Text style={{
+                color: '#fff',
+                fontWeight: '700',
+                letterSpacing: 0.1,
+                marginBottom: 2,
+                fontSize: 22,
+              }}>Edit Profile</Text>
+              <TouchableOpacity onPress={handleProfileSave} style={{ padding: 4 }}>
+                <Ionicons name="checkmark" size={24} color="#F59E0B" />
+              </TouchableOpacity>
+            </View>
+            <ScrollView style={{ width: '100%' }} contentContainerStyle={{ alignItems: 'center' }}>
+              {/* Photo Upload */}
+              <View style={styles.photoSection}>
+                <Text style={styles.fieldLabel}>Profile Photo</Text>
+                <View style={styles.photoContainer}>
+                  {profileForm.photoUrl ? (
+                    <View>
+                      <Image source={{ uri: profileForm.photoUrl }} style={styles.photoPreview} />
+                      <TouchableOpacity
+                        style={[styles.photoButton, { alignSelf: 'center', marginTop: 8, borderColor: '#EF4444' }]}
+                        onPress={() => {
+                          setProfileForm({ ...profileForm, photoUrl: '' });
+                          setPhotoError(null);
+                        }}
+                      >
+                        <Ionicons name="close-circle-outline" size={20} color="#EF4444" />
+                        <Text style={[styles.photoButtonText, { color: '#EF4444' }]}>Remove</Text>
+                      </TouchableOpacity>
+                    </View>
+                  ) : (
+                    <View style={styles.photoPlaceholder}>
+                      <Ionicons name="person-outline" size={32} color="#6B7280" />
+                    </View>
+                  )}
+                  <View style={styles.photoButtons}>
+                    <TouchableOpacity style={styles.photoButton} onPress={handlePhotoUpload}>
+                      <Ionicons name="image-outline" size={20} color="#F59E0B" />
+                      <Text style={styles.photoButtonText}>Upload</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.photoButton} onPress={handleCameraCapture}>
+                      <Ionicons name="camera-outline" size={20} color="#F59E0B" />
+                      <Text style={styles.photoButtonText}>Camera</Text>
+                    </TouchableOpacity>
                   </View>
-                )}
-                <View style={styles.photoButtons}>
-                  <TouchableOpacity style={styles.photoButton} onPress={handlePhotoUpload}>
-                    <Ionicons name="image-outline" size={20} color="#F59E0B" />
-                    <Text style={styles.photoButtonText}>Upload</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity style={styles.photoButton} onPress={handleCameraCapture}>
-                    <Ionicons name="camera-outline" size={20} color="#F59E0B" />
-                    <Text style={styles.photoButtonText}>Camera</Text>
-                  </TouchableOpacity>
+                  {photoError ? (
+                    <Text style={{ color: '#EF4444', marginTop: 8, textAlign: 'center' }}>{photoError}</Text>
+                  ) : null}
                 </View>
               </View>
-            </View>
 
-            {/* Form Fields */}
-            <View style={styles.fieldGroup}>
-              <Text style={styles.fieldLabel}>Business Name</Text>
-              <TextInput
-                style={styles.textInput}
-                value={profileForm.businessName}
-                onChangeText={(text) => setProfileForm({ ...profileForm, businessName: text })}
-                placeholder="e.g., ClipCutMan Barber Shop"
-                placeholderTextColor="#6B7280"
-              />
-            </View>
+              {/* Form Fields */}
+              <View style={styles.fieldGroup}>
+                <Text style={styles.fieldLabel}>Business Name</Text>
+                <TextInput
+                  style={styles.textInput}
+                  value={profileForm.businessName}
+                  onChangeText={(text) => setProfileForm({ ...profileForm, businessName: text })}
+                  placeholder="e.g., ClipCutMan Barber Shop"
+                  placeholderTextColor="#6B7280"
+                />
+              </View>
 
-            <View style={styles.fieldGroup}>
-              <Text style={styles.fieldLabel}>Email Address</Text>
-              <TextInput
-                style={styles.textInput}
-                value={profileForm.email}
-                onChangeText={(text) => setProfileForm({ ...profileForm, email: text })}
-                placeholder="your.email@example.com"
-                placeholderTextColor="#6B7280"
-                keyboardType="email-address"
-                autoCapitalize="none"
-              />
-            </View>
+              {/* --- SMART SCHEDULING SETTINGS SECTION --- */}
+              <View style={[styles.fieldGroup, { borderTopWidth: 1, borderTopColor: '#374151', paddingTop: 20, marginTop: 8 }]}>
+                <Text style={[styles.fieldLabel, { fontSize: 17, marginBottom: 12 }]}>Smart Scheduling Settings</Text>
 
-            <View style={styles.fieldGroup}>
-              <Text style={styles.fieldLabel}>Phone Number</Text>
-              <TextInput
-                style={styles.textInput}
-                value={profileForm.phone}
-                onChangeText={(text) => setProfileForm({ ...profileForm, phone: text })}
-                placeholder="(555) 123-4567"
-                placeholderTextColor="#6B7280"
-                keyboardType="phone-pad"
-              />
-            </View>
+                {/* Home Base Address */}
+                <View style={{ marginBottom: 16 }}>
+                  <Text style={styles.fieldLabel}>Home Base Address</Text>
+                  <TextInput
+                    style={styles.textInput}
+                    value={profileForm.homeBaseAddress}
+                    onChangeText={(text) => {
+                      setProfileForm({ ...profileForm, homeBaseAddress: text });
+                      setSmartErrors((e) => ({ ...e, homeBaseAddress: '' }));
+                    }}
+                    placeholder="Start typing your address..."
+                    placeholderTextColor="#6B7280"
+                    autoCapitalize="words"
+                  />
+                  <Text style={{ color: '#6B7280', fontSize: 12, marginTop: 4 }}>
+                    Starting point for calculating travel time to your first appointment. Enter your full address including city and state.
+                  </Text>
+                  {smartErrors.homeBaseAddress ? (
+                    <Text style={{ color: '#EF4444', fontSize: 12, marginTop: 2 }}>{smartErrors.homeBaseAddress}</Text>
+                  ) : null}
+                </View>
 
-            <View style={styles.fieldGroup}>
-              <Text style={styles.fieldLabel}>Service Area</Text>
-              <TextInput
-                style={styles.textInput}
-                value={profileForm.serviceArea}
-                onChangeText={(text) => setProfileForm({ ...profileForm, serviceArea: text })}
-                placeholder="e.g., Downtown Manhattan, Brooklyn"
-                placeholderTextColor="#6B7280"
-              />
-            </View>
+                {/* Timezone */}
+                <View style={{ marginBottom: 16 }}>
+                  <Text style={styles.fieldLabel}>Timezone</Text>
+                  {/* Picker is lazy-imported to avoid breaking web */}
+                  <TimezonePicker
+                    value={profileForm.timezone}
+                    onChange={(val) => {
+                      setProfileForm({ ...profileForm, timezone: val });
+                      setSmartErrors((e) => ({ ...e, timezone: '' }));
+                    }}
+                  />
+                  <Text style={{ color: '#6B7280', fontSize: 12, marginTop: 4 }}>
+                    Your local timezone for appointment scheduling and display
+                  </Text>
+                  {smartErrors.timezone ? (
+                    <Text style={{ color: '#EF4444', fontSize: 12, marginTop: 2 }}>{smartErrors.timezone}</Text>
+                  ) : null}
+                </View>
 
-            <View style={styles.fieldGroup}>
-              <Text style={styles.fieldLabel}>About You</Text>
-              <TextInput
-                style={[styles.textInput, styles.textArea]}
-                value={profileForm.about}
-                onChangeText={(text) => setProfileForm({ ...profileForm, about: text })}
-                placeholder="Tell clients about your experience, specialties, and what makes you unique..."
-                placeholderTextColor="#6B7280"
-                multiline
-                numberOfLines={4}
-              />
-            </View>
-          </ScrollView>
+                {/* Grace Time Buffer */}
+                <View style={{ marginBottom: 16 }}>
+                  <Text style={styles.fieldLabel}>Grace Time Buffer (minutes)</Text>
+                  <TextInput
+                    style={styles.textInput}
+                    value={String(profileForm.defaultGraceTime)}
+                    onChangeText={(text) => {
+                      // Only allow numbers
+                      const num = text.replace(/[^0-9]/g, '');
+                      setProfileForm({ ...profileForm, defaultGraceTime: num === '' ? 0 : Math.max(0, Math.min(60, parseInt(num))) });
+                      setSmartErrors((e) => ({ ...e, defaultGraceTime: '' }));
+                    }}
+                    placeholder="5"
+                    placeholderTextColor="#6B7280"
+                    keyboardType="numeric"
+                    maxLength={2}
+                  />
+                  <Text style={{ color: '#6B7280', fontSize: 12, marginTop: 4 }}>
+                    Extra time added to travel estimates for parking, elevators, etc.
+                  </Text>
+                  {smartErrors.defaultGraceTime ? (
+                    <Text style={{ color: '#EF4444', fontSize: 12, marginTop: 2 }}>{smartErrors.defaultGraceTime}</Text>
+                  ) : null}
+                </View>
+
+                {/* Transportation Mode */}
+                <View style={{ marginBottom: 8 }}>
+                  <Text style={styles.fieldLabel}>Transportation Mode</Text>
+                  <TransportationModePicker
+                    value={profileForm.transportationMode}
+                    onChange={(val) => {
+                      setProfileForm({ ...profileForm, transportationMode: val });
+                      setSmartErrors((e) => ({ ...e, transportationMode: '' }));
+                    }}
+                  />
+                  <Text style={{ color: '#6B7280', fontSize: 12, marginTop: 4 }}>
+                    Your preferred transportation method for calculating travel times between appointments
+                  </Text>
+                  {smartErrors.transportationMode ? (
+                    <Text style={{ color: '#EF4444', fontSize: 12, marginTop: 2 }}>{smartErrors.transportationMode}</Text>
+                  ) : null}
+                </View>
+              </View>
+
+              <View style={styles.fieldGroup}>
+                <Text style={styles.fieldLabel}>Email Address</Text>
+                <TextInput
+                  style={styles.textInput}
+                  value={profileForm.email}
+                  onChangeText={(text) => setProfileForm({ ...profileForm, email: text })}
+                  placeholder="your.email@example.com"
+                  placeholderTextColor="#6B7280"
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                />
+              </View>
+
+              <View style={styles.fieldGroup}>
+                <Text style={styles.fieldLabel}>Phone Number</Text>
+                <TextInput
+                  style={styles.textInput}
+                  value={profileForm.phone}
+                  onChangeText={(text) => setProfileForm({ ...profileForm, phone: text })}
+                  placeholder="(555) 123-4567"
+                  placeholderTextColor="#6B7280"
+                  keyboardType="phone-pad"
+                />
+              </View>
+
+              <View style={styles.fieldGroup}>
+                <Text style={styles.fieldLabel}>Service Area</Text>
+                <TextInput
+                  style={styles.textInput}
+                  value={profileForm.serviceArea}
+                  onChangeText={(text) => {
+                    // Enforce max length
+                    if (text.length <= 100) {
+                      setProfileForm({ ...profileForm, serviceArea: text });
+                    }
+                  }}
+                  placeholder="Your service area"
+                  placeholderTextColor="#6B7280"
+                  maxLength={100}
+                />
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 }}>
+                  <Text style={{ color: '#6B7280', fontSize: 12 }}>
+                    {profileForm.serviceArea.length}/100
+                  </Text>
+                  {(profileForm.serviceArea.length === 0) ? (
+                    <Text style={{ color: '#EF4444', fontSize: 12 }}>
+                      Service area is required
+                    </Text>
+                  ) : null}
+                  {(profileForm.serviceArea.length > 100) ? (
+                    <Text style={{ color: '#EF4444', fontSize: 12 }}>
+                      Max 100 characters
+                    </Text>
+                  ) : null}
+                </View>
+              </View>
+
+              <View style={styles.fieldGroup}>
+                <Text style={styles.fieldLabel}>About You</Text>
+                <TextInput
+                  style={[styles.textInput, styles.textArea]}
+                  value={profileForm.about}
+                  onChangeText={(text) => setProfileForm({ ...profileForm, about: text })}
+                  placeholder="Tell clients about your experience, specialties, and what makes you unique..."
+                  placeholderTextColor="#6B7280"
+                  multiline
+                  numberOfLines={4}
+                />
+              </View>
+            </ScrollView>
+          </View>
+        </SafeAreaView>
+      </Modal>
+
+      {/* Phone Verification Modal */}
+      <Modal
+        visible={showPhoneVerifyModal}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setShowPhoneVerifyModal(false)}
+      >
+        <SafeAreaView style={{
+          flex: 1,
+          backgroundColor: 'rgba(30,30,30,0.95)',
+          justifyContent: 'center',
+          alignItems: 'center',
+        }}>
+          <View style={{
+            backgroundColor: '#2e2e2e',
+            borderRadius: 18,
+            paddingVertical: 28,
+            paddingHorizontal: 22,
+            width: '92%',
+            maxWidth: 420,
+            alignItems: 'center',
+            borderWidth: 1,
+            borderColor: '#737b89',
+            marginVertical: 12,
+            shadowColor: '#000',
+            shadowOpacity: 0.12,
+            shadowRadius: 8,
+            shadowOffset: { width: 0, height: 2 },
+            elevation: 3,
+          }}>
+            <Text style={{
+              color: '#fff',
+              fontWeight: '700',
+              fontSize: 22,
+              marginBottom: 12,
+              letterSpacing: 0.1,
+            }}>
+              Verify Phone Number
+            </Text>
+            <Text style={{ color: '#9CA3AF', fontSize: 15, marginBottom: 16, textAlign: 'center' }}>
+              We'll send a verification code to:
+              {'\n'}
+              <Text style={{ color: '#fff', fontWeight: '600' }}>{user?.phone}</Text>
+            </Text>
+            {phoneVerifyStep === 'idle' && (
+              <>
+                {sendError ? (
+                  <Text style={{ color: '#EF4444', fontSize: 14, marginBottom: 8, textAlign: 'center' }}>{sendError}</Text>
+                ) : null}
+                <TouchableOpacity
+                  style={{
+                    backgroundColor: '#F59E0B',
+                    borderRadius: 8,
+                    paddingVertical: 12,
+                    paddingHorizontal: 32,
+                    marginTop: 8,
+                    width: 220,
+                    alignItems: 'center',
+                  }}
+                  onPress={handleSendVerificationCode}
+                  disabled={sendLoading}
+                >
+                  {sendLoading ? (
+                    <ActivityIndicator color="#1F2937" />
+                  ) : (
+                    <Text style={{ color: '#1F2937', fontWeight: '700', fontSize: 16 }}>Send Verification Code</Text>
+                  )}
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={{
+                    marginTop: 18,
+                    backgroundColor: '#374151',
+                    borderRadius: 8,
+                    paddingVertical: 10,
+                    paddingHorizontal: 24,
+                  }}
+                  onPress={() => setShowPhoneVerifyModal(false)}
+                >
+                  <Text style={{ color: '#fff', fontWeight: '600', fontSize: 16 }}>Cancel</Text>
+                </TouchableOpacity>
+              </>
+            )}
+            {phoneVerifyStep === 'codeSent' && (
+              <>
+                <Text style={{ color: '#9CA3AF', fontSize: 15, marginBottom: 10, textAlign: 'center' }}>
+                  Enter the 6-digit code sent to your phone.
+                </Text>
+                <TextInput
+                  style={{
+                    backgroundColor: '#374151',
+                    borderRadius: 8,
+                    borderWidth: 1,
+                    borderColor: '#4B5563',
+                    paddingHorizontal: 16,
+                    paddingVertical: 12,
+                    fontSize: 20,
+                    color: '#fff',
+                    letterSpacing: 8,
+                    textAlign: 'center',
+                    width: 180,
+                    marginBottom: 8,
+                  }}
+                  value={verificationCode}
+                  onChangeText={setVerificationCode}
+                  placeholder="------"
+                  placeholderTextColor="#6B7280"
+                  keyboardType="number-pad"
+                  maxLength={6}
+                  autoFocus
+                />
+                {verifyError ? (
+                  <Text style={{ color: '#EF4444', fontSize: 14, marginBottom: 8, textAlign: 'center' }}>{verifyError}</Text>
+                ) : null}
+                <TouchableOpacity
+                  style={{
+                    backgroundColor: '#F59E0B',
+                    borderRadius: 8,
+                    paddingVertical: 12,
+                    paddingHorizontal: 32,
+                    marginTop: 4,
+                    width: 220,
+                    alignItems: 'center',
+                    opacity: verificationCode.length === 6 && !verifyLoading ? 1 : 0.7,
+                  }}
+                  onPress={handleVerifyCode}
+                  disabled={verificationCode.length !== 6 || verifyLoading}
+                >
+                  {verifyLoading ? (
+                    <ActivityIndicator color="#1F2937" />
+                  ) : (
+                    <Text style={{ color: '#1F2937', fontWeight: '700', fontSize: 16 }}>Verify Code</Text>
+                  )}
+                </TouchableOpacity>
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 16 }}>
+                  {countdown > 0 ? (
+                    <Text style={{ color: '#9CA3AF', fontSize: 14 }}>
+                      Resend code in {countdown}s
+                    </Text>
+                  ) : (
+                    <TouchableOpacity
+                      onPress={handleResendCode}
+                      disabled={resendLoading}
+                      style={{
+                        paddingHorizontal: 8,
+                        paddingVertical: 4,
+                        borderRadius: 6,
+                        backgroundColor: '#374151',
+                      }}
+                    >
+                      {resendLoading ? (
+                        <ActivityIndicator color="#F59E0B" size="small" />
+                      ) : (
+                        <Text style={{ color: '#F59E0B', fontWeight: '600', fontSize: 14 }}>Resend Code</Text>
+                      )}
+                    </TouchableOpacity>
+                  )}
+                </View>
+                {sendError ? (
+                  <Text style={{ color: '#EF4444', fontSize: 14, marginTop: 8, textAlign: 'center' }}>{sendError}</Text>
+                ) : null}
+                <TouchableOpacity
+                  style={{
+                    marginTop: 18,
+                    backgroundColor: '#374151',
+                    borderRadius: 8,
+                    paddingVertical: 10,
+                    paddingHorizontal: 24,
+                  }}
+                  onPress={() => setShowPhoneVerifyModal(false)}
+                >
+                  <Text style={{ color: '#fff', fontWeight: '600', fontSize: 16 }}>Cancel</Text>
+                </TouchableOpacity>
+              </>
+            )}
+          </View>
         </SafeAreaView>
       </Modal>
 
@@ -984,10 +1722,208 @@ export default function Settings() {
   );
 }
 
+// --- Contact Support Modal Component ---
+function ContactSupportModal({
+  visible,
+  onClose,
+  message,
+  setMessage,
+  sending,
+  setSending,
+}: {
+  visible: boolean;
+  onClose: () => void;
+  message: string;
+  setMessage: (msg: string) => void;
+  sending: boolean;
+  setSending: (b: boolean) => void;
+}) {
+  // Compose mailto link
+  const subject = encodeURIComponent('Clippr Support Request');
+  const body = encodeURIComponent(
+    message
+      ? `User message:\n${message}\n\n---\n(Describe your issue above. Please include any relevant details.)`
+      : ''
+  );
+  const mailto = `mailto:support@clippr.com?subject=${subject}&body=${body}`;
+
+  const handleSend = async () => {
+    setSending(true);
+    try {
+      await Linking.openURL(mailto);
+      setMessage('');
+      onClose();
+    } catch (e) {
+      Alert.alert('Error', 'Could not open email client.');
+    } finally {
+      setSending(false);
+    }
+  };
+
+  return (
+    <Modal
+      visible={visible}
+      animationType="slide"
+      transparent
+      onRequestClose={onClose}
+    >
+      <SafeAreaView style={{
+        flex: 1,
+        backgroundColor: 'rgba(17,24,39,0.95)',
+        justifyContent: 'center',
+        alignItems: 'center',
+      }}>
+        <View style={{
+          backgroundColor: '#1F2937',
+          borderRadius: 16,
+          padding: 24,
+          width: '90%',
+          maxWidth: 400,
+          alignItems: 'center',
+          borderWidth: 1,
+          borderColor: '#374151',
+        }}>
+          <Text style={{ color: '#fff', fontSize: 20, fontWeight: '700', marginBottom: 12 }}>
+            Contact Support
+          </Text>
+          <Text style={{ color: '#9CA3AF', fontSize: 15, marginBottom: 16, textAlign: 'center' }}>
+            Need help? Our support team is here for you. Email us at support@clippr.com or describe your issue below.
+          </Text>
+          <TextInput
+            style={{
+              backgroundColor: '#374151',
+              borderRadius: 8,
+              borderWidth: 1,
+              borderColor: '#4B5563',
+              paddingHorizontal: 16,
+              paddingVertical: 12,
+              fontSize: 16,
+              color: '#fff',
+              minHeight: 80,
+              width: '100%',
+              marginBottom: 16,
+              textAlignVertical: 'top',
+            }}
+            value={message}
+            onChangeText={setMessage}
+            placeholder="Describe your issue (optional)"
+            placeholderTextColor="#6B7280"
+            multiline
+            numberOfLines={4}
+            autoFocus
+          />
+          <TouchableOpacity
+            style={{
+              backgroundColor: '#F59E0B',
+              borderRadius: 8,
+              paddingVertical: 12,
+              paddingHorizontal: 32,
+              width: '100%',
+              alignItems: 'center',
+              marginBottom: 10,
+              opacity: sending ? 0.7 : 1,
+            }}
+            onPress={handleSend}
+            disabled={sending}
+          >
+            {sending ? (
+              <ActivityIndicator color="#1F2937" />
+            ) : (
+              <Text style={{ color: '#1F2937', fontWeight: '700', fontSize: 16 }}>
+                Send Email
+              </Text>
+            )}
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={{
+              marginTop: 2,
+              backgroundColor: '#374151',
+              borderRadius: 8,
+              paddingVertical: 10,
+              paddingHorizontal: 24,
+              width: '100%',
+              alignItems: 'center',
+            }}
+            onPress={onClose}
+            disabled={sending}
+          >
+            <Text style={{ color: '#fff', fontWeight: '600', fontSize: 16 }}>Cancel</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    </Modal>
+  );
+}
+
+// --- Timezone Picker Component ---
+import { Picker } from '@react-native-picker/picker';
+function TimezonePicker({ value, onChange }: { value: string, onChange: (val: string) => void }) {
+  return (
+    <View style={{
+      backgroundColor: '#374151',
+      borderRadius: 8,
+      borderWidth: 1,
+      borderColor: '#4B5563',
+      marginTop: 2,
+    }}>
+      <Picker
+        selectedValue={value}
+        onValueChange={onChange}
+        style={{ color: '#fff', fontSize: 16 }}
+        dropdownIconColor="#F59E0B"
+      >
+        <Picker.Item label="Eastern Time (ET)" value="America/New_York" />
+        <Picker.Item label="Central Time (CT)" value="America/Chicago" />
+        <Picker.Item label="Mountain Time (MT)" value="America/Denver" />
+        <Picker.Item label="Pacific Time (PT)" value="America/Los_Angeles" />
+        <Picker.Item label="Alaska Time (AKT)" value="America/Anchorage" />
+        <Picker.Item label="Hawaii Time (HST)" value="Pacific/Honolulu" />
+      </Picker>
+    </View>
+  );
+}
+
+// --- Transportation Mode Picker Component ---
+const TRANSPORTATION_OPTIONS = [
+  { value: 'driving', label: 'Driving', icon: 'car-outline' },
+  { value: 'walking', label: 'Walking', icon: 'walk-outline' },
+  { value: 'cycling', label: 'Cycling', icon: 'bicycle-outline' },
+  { value: 'transit', label: 'Public Transit', icon: 'bus-outline' },
+];
+
+function TransportationModePicker({ value, onChange }: { value: string, onChange: (val: string) => void }) {
+  return (
+    <View style={{
+      backgroundColor: '#374151',
+      borderRadius: 8,
+      borderWidth: 1,
+      borderColor: '#4B5563',
+      marginTop: 2,
+    }}>
+      <Picker
+        selectedValue={value}
+        onValueChange={onChange}
+        style={{ color: '#fff', fontSize: 16 }}
+        dropdownIconColor="#F59E0B"
+      >
+        {TRANSPORTATION_OPTIONS.map(opt => (
+          <Picker.Item
+            key={opt.value}
+            label={`${opt.label}`}
+            value={opt.value}
+          />
+        ))}
+      </Picker>
+      {/* Optionally, show icon next to selected value */}
+      {/* Could add icon in label if Picker supports, or show icon above */}
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#111827',
+    backgroundColor: '#121212', // match Invoice tab dark background
   },
   loadingContainer: {
     flex: 1,
@@ -1028,7 +1964,6 @@ const styles = StyleSheet.create({
     gap: 6,
     flex: 1,
     minWidth: '30%',
-    maxWidth: '32%',
   },
   activeTab: {
     backgroundColor: '#F59E0B',
@@ -1046,12 +1981,17 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   card: {
-    backgroundColor: '#1F2937',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 16,
+    backgroundColor: '#2e2e2e', // match Invoice tab card
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 20,
     borderWidth: 1,
-    borderColor: '#374151',
+    borderColor: '#232323',
+    shadowColor: '#000',
+    shadowOpacity: 0.10,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
   },
   cardHeader: {
     flexDirection: 'row',
@@ -1060,9 +2000,11 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   cardTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#FFFFFF',
+    fontSize: 22,
+    fontWeight: '700',
+    color: '#fff',
+    letterSpacing: 0.1,
+    marginBottom: 2,
   },
   profileInfo: {
     flexDirection: 'row',
@@ -1243,18 +2185,25 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#1F2937',
-    borderRadius: 12,
-    padding: 16,
-    marginTop: 16,
+    backgroundColor: '#2e2e2e',
+    borderRadius: 20,
+    paddingVertical: 14,
+    paddingHorizontal: 24,
+    marginTop: 20,
     borderWidth: 1,
-    borderColor: '#374151',
+    borderColor: '#232323',
     gap: 8,
+    shadowColor: '#000',
+    shadowOpacity: 0.10,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
   },
   signOutText: {
     fontSize: 16,
-    fontWeight: '500',
+    fontWeight: '700',
     color: '#EF4444',
+    letterSpacing: 0.1,
   },
   modalContainer: {
     flex: 1,
@@ -1274,13 +2223,15 @@ const styles = StyleSheet.create({
     color: '#6B7280',
   },
   modalTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#FFFFFF',
+    fontSize: 22,
+    fontWeight: '700',
+    color: '#fff',
+    letterSpacing: 0.1,
+    marginBottom: 2,
   },
   modalSaveButton: {
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: '700',
     color: '#F59E0B',
   },
   modalContent: {
@@ -1288,7 +2239,7 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   photoSection: {
-    marginBottom: 24,
+    marginBottom: 28,
   },
   fieldLabel: {
     fontSize: 16,
@@ -1320,17 +2271,24 @@ const styles = StyleSheet.create({
   photoButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 8,
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+    borderRadius: 20,
     borderWidth: 1,
-    borderColor: '#374151',
+    borderColor: '#232323',
     gap: 8,
+    backgroundColor: '#232323',
+    shadowColor: '#000',
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 1,
   },
   photoButtonText: {
-    fontSize: 14,
-    fontWeight: '500',
+    fontSize: 15,
+    fontWeight: '700',
     color: '#F59E0B',
+    letterSpacing: 0.1,
   },
   fieldGroup: {
     marginBottom: 20,
@@ -1396,21 +2354,31 @@ const styles = StyleSheet.create({
   },
   paymentButton: {
     flex: 1,
-    backgroundColor: '#F59E0B',
-    borderRadius: 8,
+    backgroundColor: '#f59e0b',
+    borderRadius: 20,
     paddingVertical: 12,
+    paddingHorizontal: 18,
     alignItems: 'center',
     justifyContent: 'center',
+    shadowColor: '#f59e0b',
+    shadowOpacity: 0.12,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
   },
   paymentButtonOutline: {
     backgroundColor: 'transparent',
     borderWidth: 1,
     borderColor: '#374151',
+    borderRadius: 20,
+    paddingVertical: 12,
+    paddingHorizontal: 18,
   },
   paymentButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#1F2937',
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#1e1e1e',
+    letterSpacing: 0.1,
   },
   paymentButtonOutlineText: {
     fontSize: 14,
@@ -1619,20 +2587,30 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#F59E0B',
-    borderRadius: 8,
+    backgroundColor: '#f59e0b',
+    borderRadius: 20,
     paddingVertical: 12,
+    paddingHorizontal: 18,
     gap: 8,
+    shadowColor: '#f59e0b',
+    shadowOpacity: 0.12,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
   },
   helpButtonOutline: {
     backgroundColor: 'transparent',
     borderWidth: 1,
     borderColor: '#374151',
+    borderRadius: 20,
+    paddingVertical: 12,
+    paddingHorizontal: 18,
   },
   helpButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#1F2937',
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#1e1e1e',
+    letterSpacing: 0.1,
   },
   helpButtonOutlineText: {
     fontSize: 14,
@@ -1672,5 +2650,153 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#6B7280',
     lineHeight: 20,
+  },
+  premiumFeaturesCard: {
+    backgroundColor: '#181F2A',
+    borderRadius: 16,
+    borderWidth: 1.5,
+    borderColor: '#10B981',
+    padding: 20,
+    marginTop: 12,
+    marginBottom: 16,
+    alignItems: 'center',
+    shadowColor: '#10B981',
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 },
+  },
+  premiumFeaturesCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 14,
+    gap: 10,
+  },
+  premiumFeaturesMainCheck: {
+    marginRight: 8,
+  },
+  premiumFeaturesCardTitle: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: '#10B981',
+    letterSpacing: 0.2,
+  },
+  premiumFeaturesList: {
+    width: '100%',
+    marginBottom: 14,
+    gap: 10,
+  },
+  premiumFeaturesListItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 2,
+  },
+  premiumFeaturesListCheck: {
+    marginRight: 2,
+  },
+  premiumFeaturesListText: {
+    fontSize: 16,
+    color: '#FFFFFF',
+    fontWeight: '500',
+    flexShrink: 1,
+  },
+  premiumFeaturesGuarantee: {
+    marginTop: 6,
+    fontSize: 13,
+    color: '#A7F3D0',
+    textAlign: 'center',
+    fontWeight: '400',
+    opacity: 0.85,
+  },
+  // ...rest of styles...
+
+  quickActionLabel: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '600',
+    marginBottom: 2,
+  },
+  quickActionSubLabel: {
+    color: '#6B7280',
+    fontSize: 12,
+    marginBottom: 8,
+  },
+  quickActionMessageCard: {
+    backgroundColor: '#232B39',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#374151',
+    padding: 12,
+    marginBottom: 0,
+  },
+  quickActionMessageHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  quickActionMessageTitle: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  quickActionBadge: {
+    backgroundColor: '#374151',
+    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  quickActionBadgeText: {
+    color: '#6B7280',
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  quickActionMessageText: {
+    color: '#9CA3AF',
+    fontSize: 13,
+    marginTop: 2,
+  },
+  quickActionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f59e0b',
+    borderWidth: 0,
+    borderRadius: 20,
+    paddingVertical: 12,
+    paddingHorizontal: 18,
+    justifyContent: 'center',
+    marginBottom: 0,
+    shadowColor: '#f59e0b',
+    shadowOpacity: 0.12,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
+  },
+  quickActionButtonText: {
+    color: '#1e1e1e',
+    fontSize: 15,
+    fontWeight: '700',
+    letterSpacing: 0.1,
+  },
+  quickActionInfoBox: {
+    backgroundColor: 'rgba(37, 99, 235, 0.10)',
+    borderColor: '#2563EB',
+    borderWidth: 1,
+    borderRadius: 10,
+    padding: 12,
+    marginTop: 4,
+  },
+  quickActionInfoTitle: {
+    color: '#60A5FA',
+    fontSize: 14,
+    fontWeight: '600',
+    marginBottom: 2,
+  },
+  quickActionInfoText: {
+    color: '#BFDBFE',
+    fontSize: 12,
+    marginTop: 0,
   },
 });

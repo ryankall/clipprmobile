@@ -5,8 +5,17 @@ export interface User {
   firstName: string;
   lastName: string;
   phone: string;
+  phoneVerified?: boolean;
   businessName?: string;
-  profilePhoto?: string;
+  // --- Added for profile modal compatibility ---
+  photoUrl?: string; // base64 or url
+  serviceArea?: string;
+  about?: string;
+  homeBaseAddress?: string;
+  timezone?: string;
+  defaultGraceTime?: number;
+  transportationMode?: string;
+  // --------------------------------------------
   createdAt: string;
   updatedAt: string;
 }
@@ -30,6 +39,12 @@ export interface ClientWithStats extends Client {
   totalVisits: number;
   lastVisit: Date | null;
   vipStatus?: string;
+}
+
+export interface ClientAnalytics {
+  bigSpenders: Array<{ name: string; totalSpent: string; appointmentCount: number }>;
+  mostVisited: Array<{ name: string; totalVisits: number; lastVisit: string | null }>;
+  biggestTippers: Array<{ name: string; totalTips: string; tipPercentage: number }>;
 }
 
 export interface Service {
