@@ -4,7 +4,7 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { requireAuth, setupAuth } from './auth';
 import multer from 'multer';
-import { insertClientSchema, insertServiceSchema, insertAppointmentSchema, insertInvoiceSchema, insertGalleryPhotoSchema, insertMessageSchema, appointments, reservations, rateLimitEntries, blockedClients, bookingRequestLogs, insertBlockedClientSchema } from "@shared/schema";
+import { insertClientSchema, insertServiceSchema, insertAppointmentSchema, insertInvoiceSchema, insertGalleryPhotoSchema, insertMessageSchema, appointments, reservations, rateLimitEntries, blockedClients, bookingRequestLogs, insertBlockedClientSchema } from "../shared/schema.js";
 import { db } from "./db";
 import { and, eq, sql } from "drizzle-orm";
 import { z } from "zod";
@@ -1049,6 +1049,63 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const clientId = parseInt(req.params.id);
       await storage.deleteClient(clientId);
       res.json({ message: "Client deleted successfully" });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Client-specific endpoints for mobile app
+  app.get("/api/clients/:id/appointments", requireAuth, async (req, res) => {
+    try {
+      const userId = (req.user as any).id;
+      const clientId = parseInt(req.params.id);
+      const limit = req.query.limit ? parseInt(req.query.limit as string) : undefined;
+      
+      // Verify client belongs to this user
+      const client = await storage.getClient(clientId);
+      if (!client || client.userId !== userId) {
+        return res.status(404).json({ message: "Client not found" });
+      }
+      
+      const appointments = await storage.getAppointmentsByClientId(clientId, limit);
+      res.json(appointments);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/clients/:id/messages", requireAuth, async (req, res) => {
+    try {
+      const userId = (req.user as any).id;
+      const clientId = parseInt(req.params.id);
+      const limit = req.query.limit ? parseInt(req.query.limit as string) : undefined;
+      
+      // Verify client belongs to this user
+      const client = await storage.getClient(clientId);
+      if (!client || client.userId !== userId) {
+        return res.status(404).json({ message: "Client not found" });
+      }
+      
+      const messages = await storage.getMessagesByClientId(clientId, limit);
+      res.json(messages);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/clients/:id/gallery", requireAuth, async (req, res) => {
+    try {
+      const userId = (req.user as any).id;
+      const clientId = parseInt(req.params.id);
+      
+      // Verify client belongs to this user
+      const client = await storage.getClient(clientId);
+      if (!client || client.userId !== userId) {
+        return res.status(404).json({ message: "Client not found" });
+      }
+      
+      const photos = await storage.getGalleryPhotosByClientId(clientId);
+      res.json(photos);
     } catch (error: any) {
       res.status(500).json({ message: error.message });
     }

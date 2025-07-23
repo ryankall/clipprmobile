@@ -32,7 +32,7 @@ import {
   type AppointmentWithRelations,
   type ClientWithStats,
   type DashboardStats,
-} from "@shared/schema";
+} from "../shared/schema.js";
 import { db } from "./db";
 import { eq, and, gte, lte, desc, sql, count } from "drizzle-orm";
 
@@ -92,18 +92,23 @@ export interface IStorage {
 
   // Gallery
   getGalleryPhotosByUserId(userId: number): Promise<GalleryPhoto[]>;
+  getGalleryPhotosByClientId(clientId: number): Promise<GalleryPhoto[]>;
   getGalleryPhoto(id: number): Promise<GalleryPhoto | undefined>;
   createGalleryPhoto(photo: InsertGalleryPhoto): Promise<GalleryPhoto>;
   deleteGalleryPhoto(id: number): Promise<void>;
 
   // Messages
   getMessagesByUserId(userId: number): Promise<Message[]>;
+  getMessagesByClientId(clientId: number, limit?: number): Promise<Message[]>;
   getMessage(id: number): Promise<Message | undefined>;
   createMessage(message: InsertMessage): Promise<Message>;
   updateMessage(id: number, message: Partial<InsertMessage>): Promise<Message>;
   deleteMessage(id: number): Promise<void>;
   markMessageAsRead(id: number): Promise<Message>;
   getUnreadMessageCount(userId: number): Promise<number>;
+
+  // Client-specific endpoints
+  getAppointmentsByClientId(clientId: number, limit?: number): Promise<AppointmentWithRelations[]>;
 
   // Reservations
   createReservation(reservation: InsertReservation): Promise<Reservation>;
@@ -945,6 +950,68 @@ export class DatabaseStorage implements IStorage {
       })),
       biggestTippers,
     };
+  }
+
+  // Client-specific methods for mobile app
+  async getAppointmentsByClientId(clientId: number, limit?: number): Promise<AppointmentWithRelations[]> {
+    let query = db
+      .select({
+        id: appointments.id,
+        userId: appointments.userId,
+        clientId: appointments.clientId,
+        serviceId: appointments.serviceId,
+        scheduledAt: appointments.scheduledAt,
+        duration: appointments.duration,
+        price: appointments.price,
+        status: appointments.status,
+        notes: appointments.notes,
+        travelTime: appointments.travelTime,
+        client: {
+          id: clients.id,
+          name: clients.name,
+          phone: clients.phone,
+          email: clients.email,
+        },
+        service: {
+          id: services.id,
+          name: services.name,
+          price: services.price,
+          duration: services.duration,
+        },
+      })
+      .from(appointments)
+      .leftJoin(clients, eq(appointments.clientId, clients.id))
+      .leftJoin(services, eq(appointments.serviceId, services.id))
+      .where(eq(appointments.clientId, clientId))
+      .orderBy(desc(appointments.scheduledAt));
+
+    if (limit) {
+      query = query.limit(limit);
+    }
+
+    return await query;
+  }
+
+  async getMessagesByClientId(clientId: number, limit?: number): Promise<Message[]> {
+    let query = db
+      .select()
+      .from(messages)
+      .where(eq(messages.clientId, clientId))
+      .orderBy(desc(messages.createdAt));
+
+    if (limit) {
+      query = query.limit(limit);
+    }
+
+    return await query;
+  }
+
+  async getGalleryPhotosByClientId(clientId: number): Promise<GalleryPhoto[]> {
+    return await db
+      .select()
+      .from(galleryPhotos)
+      .where(eq(galleryPhotos.clientId, clientId))
+      .orderBy(desc(galleryPhotos.createdAt));
   }
 }
 

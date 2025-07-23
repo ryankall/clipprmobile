@@ -1,5 +1,5 @@
 import { db } from "./db";
-import { users, appointments, clients } from "@shared/schema";
+import { users, appointments, clients } from "../shared/schema.js";
 import { eq, and } from "drizzle-orm";
 import { format } from "date-fns";
 

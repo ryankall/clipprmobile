@@ -7,7 +7,7 @@ import { Strategy as AppleStrategy } from 'passport-apple';
 import session from 'express-session';
 import type { Express, Request, Response, NextFunction } from 'express';
 import { storage } from './storage';
-import type { User } from '@shared/schema';
+import type { User } from '../shared/schema.js';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-jwt-secret-key';
 const SESSION_SECRET = process.env.SESSION_SECRET || 'your-session-secret';
