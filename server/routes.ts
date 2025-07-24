@@ -177,6 +177,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   );
 
+  // Get current user endpoint for mobile auth
+  app.get('/api/auth/me', requireAuth, async (req: Request, res: Response) => {
+    try {
+      const userId = (req.user as any)?.id;
+      if (!userId) {
+        return res.status(401).json({ message: 'User not authenticated' });
+      }
+
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: 'User not found' });
+      }
+
+      res.json({
+        id: user.id,
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        phone: user.phone,
+        businessName: user.businessName,
+        photoUrl: user.photoUrl,
+        serviceArea: user.serviceArea,
+        about: user.about,
+        phoneVerified: user.phoneVerified
+      });
+    } catch (error) {
+      console.error('Get current user error:', error);
+      res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+
   // Phone verification endpoints
   app.post('/api/auth/send-verification-code', requireAuth, async (req: Request, res: Response) => {
     try {
