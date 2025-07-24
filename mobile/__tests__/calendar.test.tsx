@@ -163,3 +163,48 @@ describe('Mobile Calendar Page', () => {
     expect(await findByText('No appointments')).toBeTruthy();
   });
 });
+import AppointmentDetails from '../app/appointment-details';
+
+describe('Appointment Details Screen', () => {
+  it('shows correct details after navigating from calendar', async () => {
+    // Mock API for appointments list
+    server.use(
+      rest.get('/api/appointments', (req, res, ctx) => res(ctx.json(makeAppointments())))
+    );
+    // Mock API for appointment details
+    server.use(
+      rest.get('/api/appointments/1', (req, res, ctx) =>
+        res(ctx.json({
+          id: 1,
+          scheduledAt: new Date('2025-07-24T10:00:00Z').toISOString(),
+          status: 'confirmed',
+          duration: 60,
+          price: 45,
+          client: { id: 1, name: 'John Doe' },
+          service: { id: 1, name: 'Haircut' },
+          travelRequired: false,
+        }))
+      )
+    );
+
+    // Render calendar and tap appointment
+    const { findByTestId } = render(<Calendar />);
+    const apt1 = await findByTestId('appointment-block-1');
+    fireEvent.press(apt1);
+
+    // Render appointment details screen for id=1
+    // Mock useLocalSearchParams to return id=1
+    vi.mock('expo-router', () => ({
+      useLocalSearchParams: () => ({ id: '1' }),
+      useRouter: () => ({ back: vi.fn(), push: vi.fn() }),
+    }));
+
+    const { findByText } = render(<AppointmentDetails />);
+    // Wait for details to load
+    expect(await findByText('Appointment Details')).toBeTruthy();
+    expect(await findByText('Haircut')).toBeTruthy();
+    expect(await findByText('John Doe')).toBeTruthy();
+    expect(await findByText('confirmed')).toBeTruthy();
+    expect(await findByText('$45')).toBeTruthy();
+  });
+});

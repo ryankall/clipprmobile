@@ -9,6 +9,45 @@ import { AppointmentWithRelations } from '../../lib/types';
 
 
 
+
+// --- Working hours types (copied from working-hours.tsx) ---
+type BreakTime = {
+  start: string;
+  end: string;
+  label: string;
+};
+
+type DayHours = {
+  start: string;
+  end: string;
+  enabled: boolean;
+  breaks?: BreakTime[];
+};
+
+type WorkingHours = {
+  monday: DayHours;
+  tuesday: DayHours;
+  wednesday: DayHours;
+  thursday: DayHours;
+  friday: DayHours;
+  saturday: DayHours;
+  sunday: DayHours;
+};
+
+const defaultWorkingHours: WorkingHours = {
+  monday: { start: '09:00', end: '18:00', enabled: true, breaks: [] },
+  tuesday: { start: '09:00', end: '18:00', enabled: true, breaks: [] },
+  wednesday: { start: '09:00', end: '18:00', enabled: true, breaks: [] },
+  thursday: { start: '09:00', end: '18:00', enabled: true, breaks: [] },
+  friday: { start: '09:00', end: '18:00', enabled: true, breaks: [] },
+  saturday: { start: '10:00', end: '16:00', enabled: true, breaks: [] },
+  sunday: { start: '10:00', end: '16:00', enabled: false, breaks: [] },
+};
+
+/**
+ * Working hours types (copied from working-hours.tsx)
+ */
+
 export default function Calendar() {
   const [appointments, setAppointments] = useState<AppointmentWithRelations[]>([]);
   const [selectedDate, setSelectedDate] = useState(new Date());
@@ -16,11 +55,35 @@ export default function Calendar() {
   const [viewMode, setViewMode] = useState<'timeline' | 'list'>('timeline');
   const { isAuthenticated } = useAuth();
 
+  // --- Working hours state ---
+  const [workingHours, setWorkingHours] = useState<WorkingHours | null>(null);
+  const [workingHoursLoading, setWorkingHoursLoading] = useState(true);
+
   useEffect(() => {
     if (isAuthenticated) {
       loadAppointments();
     }
   }, [isAuthenticated, selectedDate]);
+
+  // Fetch working hours on mount
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    (async () => {
+      try {
+        setWorkingHoursLoading(true);
+        const profile = await apiRequest<any>('GET', '/api/user/profile');
+        if (profile && profile.workingHours) {
+          setWorkingHours({ ...defaultWorkingHours, ...profile.workingHours });
+        } else {
+          setWorkingHours(defaultWorkingHours);
+        }
+      } catch (e) {
+        setWorkingHours(defaultWorkingHours);
+      } finally {
+        setWorkingHoursLoading(false);
+      }
+    })();
+  }, [isAuthenticated]);
 
   const loadAppointments = async () => {
     try {
@@ -214,7 +277,7 @@ export default function Calendar() {
                     zIndex: pos.zIndex,
                   }
                 ]}
-                onPress={() => router.push(`/clients/${appointment.id}`)}
+                onPress={() => router.push(`/appointment-details?id=${appointment.id}`)}
               >
                 <Text style={[styles.appointmentTitle, { color }]} numberOfLines={1}>
                   {appointment.service?.name || 'Service'}
@@ -321,23 +384,16 @@ export default function Calendar() {
       <View style={styles.header}>
         <Text style={styles.title}>Calendar</Text>
         <View style={styles.headerActions}>
-          <View style={styles.viewModeSelector}>
-            <TouchableOpacity
-              style={[styles.viewModeButton, viewMode === 'timeline' && styles.activeViewMode]}
-              onPress={() => setViewMode('timeline')}
-            >
-              <Ionicons name="time-outline" size={16} color={viewMode === 'timeline' ? '#F59E0B' : '#9CA3AF'} />
-              <Text style={[styles.viewModeText, viewMode === 'timeline' && styles.activeViewModeText]}>Timeline</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.viewModeButton, viewMode === 'list' && styles.activeViewMode]}
-              onPress={() => setViewMode('list')}
-            >
-              <Ionicons name="list-outline" size={16} color={viewMode === 'list' ? '#F59E0B' : '#9CA3AF'} />
-              <Text style={[styles.viewModeText, viewMode === 'list' && styles.activeViewModeText]}>List</Text>
-            </TouchableOpacity>
-          </View>
-          <TouchableOpacity 
+          
+          <TouchableOpacity
+            style={styles.hoursButton}
+            testID="working-hours-btn"
+            onPress={() => router.push('/working-hours')}
+          >
+            <Ionicons name="calendar-outline" size={20} color="#F59E0B" />
+            <Text style={styles.hoursButtonText}>Hours</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
             style={styles.addButton}
             testID="add-appointment-btn"
             onPress={() => router.push('/appointments/new')}
@@ -381,7 +437,22 @@ export default function Calendar() {
           })}
         </ScrollView>
       </View>
-
+      <View style={styles.viewModeSelector}>
+            <TouchableOpacity
+              style={[styles.viewModeButton, viewMode === 'timeline' && styles.activeViewMode]}
+              onPress={() => setViewMode('timeline')}
+            >
+              <Ionicons name="time-outline" size={16} color={viewMode === 'timeline' ? '#F59E0B' : '#9CA3AF'} />
+              <Text style={[styles.viewModeText, viewMode === 'timeline' && styles.activeViewModeText]}>Timeline</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.viewModeButton, viewMode === 'list' && styles.activeViewMode]}
+              onPress={() => setViewMode('list')}
+            >
+              <Ionicons name="list-outline" size={16} color={viewMode === 'list' ? '#F59E0B' : '#9CA3AF'} />
+              <Text style={[styles.viewModeText, viewMode === 'list' && styles.activeViewModeText]}>List</Text>
+            </TouchableOpacity>
+      </View>
       {/* Content based on view mode */}
       {viewMode === 'timeline' ? (
         renderTimelineView()
@@ -431,11 +502,30 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 12,
   },
-  viewModeSelector: {
+  hoursButton: {
     flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: '#1F2937',
     borderRadius: 8,
-    padding: 2,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    marginLeft: 8,
+    marginRight: 0,
+    gap: 4,
+  },
+  hoursButtonText: {
+    color: '#F59E0B',
+    fontSize: 14,
+    fontWeight: '600',
+    marginLeft: 4,
+  },
+  viewModeSelector: {
+    flexDirection: 'row',
+    alignItems: "stretch",
+    backgroundColor: '#0F0F0F',
+    borderRadius: 8,
+    padding: 10,
+    paddingBottom: 10,
   },
   viewModeButton: {
     flexDirection: 'row',
