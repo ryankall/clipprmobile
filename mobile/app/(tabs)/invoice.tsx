@@ -56,6 +56,15 @@ const CreateInvoiceModalContent: React.FC<CreateInvoiceModalContentProps> = ({
   const [selectedClientId, setSelectedClientId] = useState<number | null>(
     selectedTemplate?.clientId ?? null
   );
+  const [showClientModal, setShowClientModal] = useState(false);
+  const [clientSearch, setClientSearch] = useState('');
+  const filteredClients = clients.filter(
+    (c) =>
+      c.name.toLowerCase().includes(clientSearch.toLowerCase()) ||
+      c.phone.includes(clientSearch) ||
+      (c.email && c.email.toLowerCase().includes(clientSearch.toLowerCase()))
+  );
+
   const [selectedServices, setSelectedServices] = useState<{ id: number; quantity: number }[]>(
     selectedTemplate?.services?.length
       ? selectedTemplate.services.map((s: any) => ({ id: s.id, quantity: 1 }))
@@ -142,40 +151,87 @@ const CreateInvoiceModalContent: React.FC<CreateInvoiceModalContentProps> = ({
     }
   };
 
+
+
   return (
     <View style={{ width: '100%', alignItems: 'center' }}>
       {/* Client Selection */}
       <Text style={[styles.modalPlaceholderText, { alignSelf: 'flex-start', marginBottom: 4 }]}>Client</Text>
-      <View style={{ width: '100%', marginBottom: 12 }}>
-        <FlatList
-          data={clients}
-          keyExtractor={(item) => item.id.toString()}
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          renderItem={({ item }) => (
-            <TouchableOpacity
-              style={[
-                styles.categoryChip,
-                selectedClientId === item.id && styles.categoryChipSelected,
-                { marginRight: 8, marginBottom: 0 },
-              ]}
-              onPress={() => setSelectedClientId(item.id)}
-            >
-              <Text
-                style={[
-                  styles.categoryChipText,
-                  selectedClientId === item.id && styles.categoryChipTextSelected,
-                ]}
+      {/* Client Selection Field */}
+      <TouchableOpacity
+        style={[
+          styles.input,
+          { width: '100%', marginBottom: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }
+        ]}
+        onPress={() => setShowClientModal(true)}
+        activeOpacity={0.8}
+      >
+        <Text style={{ color: selectedClientId ? '#fff' : '#9CA3AF', fontSize: 16 }}>
+          {selectedClientId
+            ? clients.find((c) => c.id === selectedClientId)?.name || 'Unknown Client'
+            : 'Select client...'}
+        </Text>
+        <Ionicons name="chevron-down" size={20} color="#9CA3AF" />
+      </TouchableOpacity>
+
+      {/* Client Search Modal */}
+      <Modal
+        visible={showClientModal}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setShowClientModal(false)}
+      >
+        <SafeAreaView style={styles.modalOverlay}>
+          <View style={styles.modalContentBox}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Select Client</Text>
+              <TouchableOpacity
+                onPress={() => setShowClientModal(false)}
+                style={styles.modalCloseButton}
               >
-                {item.name}
-              </Text>
-            </TouchableOpacity>
-          )}
-          ListEmptyComponent={
-            <Text style={{ color: '#9CA3AF', fontSize: 14 }}>No clients found</Text>
-          }
-        />
-      </View>
+                <Ionicons name="close" size={24} color="#6B7280" />
+              </TouchableOpacity>
+            </View>
+            <View style={styles.modalBody}>
+              <TextInput
+                style={[styles.input, { marginBottom: 8 }]}
+                placeholder="Search clients..."
+                placeholderTextColor="#9CA3AF"
+                value={clientSearch}
+                onChangeText={setClientSearch}
+                autoFocus
+              />
+              <FlatList
+                data={filteredClients}
+                keyExtractor={(item) => item.id.toString()}
+                style={{ maxHeight: 220, width: '100%' }}
+                renderItem={({ item }) => (
+                  <TouchableOpacity
+                    style={[
+                      styles.serviceSelectItem,
+                      selectedClientId === item.id && styles.serviceSelectItemSelected,
+                    ]}
+                    onPress={() => {
+                      setSelectedClientId(item.id);
+                      setShowClientModal(false);
+                      setClientSearch('');
+                    }}
+                  >
+                    <Text style={{ color: '#fff', flex: 1 }}>{item.name}</Text>
+                    <Text style={{ color: '#9CA3AF', marginLeft: 8, fontSize: 13 }}>{item.phone}</Text>
+                    {selectedClientId === item.id && (
+                      <Ionicons name="checkmark-circle" size={20} color="#22C55E" style={{ marginLeft: 8 }} />
+                    )}
+                  </TouchableOpacity>
+                )}
+                ListEmptyComponent={
+                  <Text style={{ color: '#9CA3AF', textAlign: 'center', marginTop: 8 }}>No clients found</Text>
+                }
+              />
+            </View>
+          </View>
+        </SafeAreaView>
+      </Modal>
 
       {/* Service Selection */}
       <Text style={[styles.modalPlaceholderText, { alignSelf: 'flex-start', marginBottom: 4 }]}>Services</Text>
@@ -327,6 +383,8 @@ export default function Invoice() {
   const [services, setServices] = useState<Service[]>([]);
   const [loading, setLoading] = useState(true);
   const { isAuthenticated } = useAuth();
+
+  const [activeTab, setActiveTab] = useState<'recentInvoice' | 'export' | 'blocked' | 'services' | 'stats' >('stats');
 
   // --- Recent Invoices State ---
   const [invoices, setInvoices] = useState<Invoice[]>([]);
@@ -539,6 +597,325 @@ export default function Invoice() {
     }
   };
 
+  const renderTabButton = (tab: 'recentInvoice' | 'export' | 'services' | 'stats', title: string, icon: string) => (
+    <TouchableOpacity
+      key={tab}
+      style={[styles.tabButton, activeTab === tab && styles.activeTab]}
+      onPress={() => setActiveTab(tab)}
+    >
+      <Ionicons name={icon as any} size={16} color={activeTab === tab ? '#1F2937' : '#6B7280'} />
+      <Text style={[styles.tabText, activeTab === tab && styles.activeTabText]}>{title}</Text>
+    </TouchableOpacity>
+  );
+
+  const renderRecentInvoiceTab = () => (
+    <ScrollView style={styles.tabContent}>
+      {/* --- Recent Invoices Section --- */}
+        <View style={{ marginBottom: 24 }}>
+          <Text style={styles.title}>
+            Recent Invoices
+          </Text>
+          <View style={{ backgroundColor: '#1A1A1A', borderRadius: 12, padding: 0, borderWidth: 1, borderColor: '#232323' }}>
+            {invoicesLoading ? (
+              <View style={{ alignItems: 'center', padding: 24 }}>
+                <ActivityIndicator size="small" color="#F59E0B" />
+              </View>
+            ) : invoices.length === 0 ? (
+              <View style={{ alignItems: 'center', padding: 24 }}>
+                <Ionicons name="receipt-outline" size={32} color="#737b89" style={{ marginBottom: 8 }} />
+                <Text style={styles.emptyText}>No invoices created yet</Text>
+              </View>
+            ) : (
+              invoices
+                .slice(0, 10)
+                .map((invoice) => {
+                  const client = clients.find((c) => c.id === invoice.clientId);
+                  let statusColor = '#F59E0B';
+                  let statusBg = '#232323';
+                  if (invoice.status === 'paid') {
+                    statusColor = '#22C55E';
+                    statusBg = '#193a2f';
+                  } else if (invoice.status === 'pending') {
+                    statusColor = '#F59E0B';
+                    statusBg = '#2d230f';
+                  } else if (invoice.status === 'cancelled') {
+                    statusColor = '#EF4444';
+                    statusBg = '#3a1919';
+                  }
+                  let iconName: any = 'receipt-outline';
+                  if (invoice.paymentMethod === 'stripe') iconName = 'card-outline';
+                  else if (invoice.paymentMethod === 'apple_pay') iconName = 'phone-portrait-outline';
+                  else if (invoice.paymentMethod === 'cash') iconName = 'cash-outline';
+
+                  // Format date
+                  const date = new Date(invoice.createdAt);
+                  const dateStr = `${date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })} • ${date.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}`;
+
+                  return (
+                    <TouchableOpacity
+                      key={invoice.id}
+                      style={{
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        paddingVertical: 16,
+                        paddingHorizontal: 16,
+                        borderBottomWidth: 1,
+                        borderBottomColor: '#232323',
+                        backgroundColor: '#1A1A1A',
+                      }}
+                      activeOpacity={0.85}
+                      onPress={() => {
+                        setSelectedInvoice(invoice);
+                        setShowInvoiceModal(true);
+                      }}
+                    >
+                      <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+                        <View style={{
+                          width: 38, height: 38, borderRadius: 19, backgroundColor: '#232323',
+                          alignItems: 'center', justifyContent: 'center', marginRight: 12
+                        }}>
+                          <Ionicons name={iconName} size={20} color="#f59e0b" />
+                        </View>
+                        <View style={{ flex: 1 }}>
+                          <Text style={{ color: '#fff', fontWeight: '600', fontSize: 16 }}>
+                            {client?.name || 'Unknown Client'}
+                          </Text>
+                          <Text style={{ color: '#9CA3AF', fontSize: 13, marginTop: 2 }}>
+                            {dateStr}
+                          </Text>
+                        </View>
+                      </View>
+                      <View style={{ alignItems: 'flex-end', minWidth: 90 }}>
+                        <Text style={{ color: '#F59E0B', fontWeight: '700', fontSize: 16 }}>
+                          ${invoice.total}
+                        </Text>
+                        <View style={{
+                          marginTop: 4,
+                          alignSelf: 'flex-end',
+                          backgroundColor: statusBg,
+                          borderRadius: 8,
+                          paddingHorizontal: 8,
+                          paddingVertical: 2,
+                        }}>
+                          <Text style={{ color: statusColor, fontWeight: '600', fontSize: 12, textTransform: 'capitalize' }}>
+                            {invoice.status}
+                          </Text>
+                        </View>
+                      </View>
+                    </TouchableOpacity>
+                  );
+                })
+            )}
+          </View>
+        </View>
+
+    </ScrollView>
+  );
+
+  const renderExportTab = () => (
+    <ScrollView style={styles.tabContent}>
+      {/* --- Export Invoices Section --- */}
+        <View style={{
+          backgroundColor: '#1A1A1A',
+          borderRadius: 12,
+          borderWidth: 1,
+          borderColor: '#232323',
+          padding: 20,
+          marginBottom: 24,
+          alignItems: 'center',
+        }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10, width: '100%', justifyContent: 'space-between' }}>
+            <Text style={styles.title}>Export Invoices</Text>
+            <Ionicons name="mail-outline" size={22} color="#f59e0b" />
+          </View>
+          <Text style={{ color: '#9CA3AF', fontSize: 14, marginBottom: 18, width: '100%' }}>
+            Export all invoices to your email as a CSV file.
+          </Text>
+          <TouchableOpacity
+            style={[
+              styles.createButton,
+              { width: '100%', justifyContent: 'center', opacity: invoices.length === 0 ? 0.5 : 1 }
+            ]}
+            onPress={async () => {
+              if (invoices.length === 0) {
+                Alert.alert('No invoices to export', 'Create invoices first to enable export.');
+                return;
+              }
+              try {
+                await apiRequest('POST', '/api/invoices/export');
+                Alert.alert('Export Sent', 'Invoice export sent to your email successfully');
+              } catch (error: any) {
+                Alert.alert('Export Failed', error.message || 'Failed to export invoices');
+              }
+            }}
+            disabled={invoices.length === 0}
+            activeOpacity={0.7}
+          >
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
+              <Ionicons name="mail-outline" size={20} color="#f59e0b" style={{ marginRight: 8 }} />
+              <Text style={styles.createButtonText}>
+                {invoices.length === 0 ? 'No Invoices to Export' : 'Email CSV'}
+              </Text>
+            </View>
+          </TouchableOpacity>
+        </View>
+    </ScrollView>
+  );
+  
+  const renderServicesTab = () => (
+    <ScrollView style={styles.tabContent}>
+       {/* Add Service Button */}
+        <TouchableOpacity
+          style={styles.addServiceButton}
+          onPress={() => setShowServiceModal(true)}
+          activeOpacity={0.7}
+        >
+          <Ionicons name="add" size={20} color="#f59e0b" style={{ marginRight: 6 }} />
+          <Text style={styles.addServiceButtonText}>Add Service</Text>
+        </TouchableOpacity>
+
+        {/* Services by Category */}
+        {Object.entries(groupedServices).map(([category, categoryServices]) => (
+          <View key={category} style={styles.categorySection}>
+            <View style={styles.categoryHeader}>
+              <View style={styles.categoryTitleContainer}>
+                <Ionicons
+                  name={getCategoryIcon(category) as any}
+                  size={20}
+                  color={getCategoryColor(category)}
+                />
+                <Text style={styles.categoryTitle}>{category}</Text>
+              </View>
+              <Text style={styles.categoryCount}>{categoryServices.length} invoices</Text>
+            </View>
+
+            {categoryServices.map((service) => (
+              <TouchableOpacity
+                key={service.id}
+                style={[
+                  styles.serviceCard,
+                  !service.isActive && styles.inactiveServiceCard
+                ]}
+                onPress={() => {
+                  setEditingService(service);
+                  setServiceName(service.name);
+                  setServiceDescription(service.description || '');
+                  setServicePrice(service.price.toString());
+                  setServiceDuration(service.duration.toString());
+                  setServiceCategory(service.category);
+                  setShowServiceModal(true);
+                }}
+              >
+                <View style={styles.serviceHeader}>
+                  <Text style={[
+                    styles.serviceName,
+                    !service.isActive && styles.inactiveServiceName
+                  ]}>
+                    {service.name}
+                  </Text>
+                  <TouchableOpacity
+                    style={styles.statusToggle}
+                    onPress={() => toggleServiceStatus(service.id, service.isActive)}
+                  >
+                    <Ionicons
+                      name={service.isActive ? "checkmark-circle" : "close-circle"}
+                      size={22}
+                      color={service.isActive ? "#22C55E" : "#EF4444"}
+                    />
+                  </TouchableOpacity>
+                  {/* Delete button */}
+                  <TouchableOpacity
+                    style={{ marginLeft: 12, padding: 4 }}
+                    onPress={() => {
+                      Alert.alert(
+                        'Delete Service',
+                        'Are you sure you want to delete this service? This action cannot be undone.',
+                        [
+                          { text: 'Cancel', style: 'cancel' },
+                          {
+                            text: 'Delete',
+                            style: 'destructive',
+                            onPress: async () => {
+                              try {
+                                await apiRequest('DELETE', `/api/services/${service.id}`);
+                                await loadServices();
+                              } catch (error) {
+                                Alert.alert('Error', 'Failed to delete service');
+                              }
+                            },
+                          },
+                        ]
+                      );
+                    }}
+                  >
+                    <Ionicons name="trash" size={20} color="#EF4444" />
+                  </TouchableOpacity>
+                </View>
+
+                {service.description && (
+                  <Text style={[
+                    styles.serviceDescription,
+                    !service.isActive && styles.inactiveServiceDescription
+                  ]}>
+                    {service.description}
+                  </Text>
+                )}
+
+                <View style={styles.serviceFooter}>
+                  <View style={styles.priceContainer}>
+                    <Text style={[
+                      styles.servicePrice,
+                      !service.isActive && styles.inactiveServicePrice
+                    ]}>
+                      ${service.price}
+                    </Text>
+                  </View>
+                  <Text style={[
+                    styles.serviceDuration,
+                    !service.isActive && styles.inactiveServiceDuration
+                  ]}>
+                    {service.duration} min
+                  </Text>
+                </View>
+              </TouchableOpacity>
+            ))}
+          </View>
+        ))}
+
+        {services.length === 0 && (
+          <View style={styles.emptyState}>
+            <Ionicons name="construct-outline" size={36} color="#737b89" />
+            <Text style={styles.emptyText}>No invoices added yet</Text>
+            <Text style={styles.emptySubtext}>
+              Add your first invoice to get started
+            </Text>
+          </View>
+        )}
+    </ScrollView>
+  );
+
+  const renderStatsTab = () => (
+    <ScrollView style={styles.tabContent}>
+      {/* Overview Stats */}
+      <View style={styles.statsContainer}>
+        <View style={styles.statCard}>
+          <Text style={styles.statValue}>{services.length}</Text>
+          <Text style={styles.statLabel}>Total Invoices</Text>
+        </View>
+        <View style={styles.statCard}>
+          <Text style={styles.statValue}>{services.filter(s => s.isActive).length}</Text>
+          <Text style={styles.statLabel}>Active</Text>
+        </View>
+        <View style={styles.statCard}>
+          <Text style={styles.statValue}>
+            ${services.reduce((sum, s) => sum + parseFloat(s.price), 0) / services.length || 0}
+          </Text>
+          <Text style={styles.statLabel}>Avg Price</Text>
+        </View>
+      </View>
+    </ScrollView>
+  );
   return (
     <SafeAreaView style={styles.container}>
       {/* Service Modal */}
@@ -810,298 +1187,21 @@ export default function Invoice() {
           </View>
         </SafeAreaView>
       </Modal>
-      <ScrollView style={styles.content}>
-        {/* --- Recent Invoices Section --- */}
-        <View style={{ marginBottom: 24 }}>
-          <Text style={styles.title}>
-            Recent Invoices
-          </Text>
-          <View style={{ backgroundColor: '#1A1A1A', borderRadius: 12, padding: 0, borderWidth: 1, borderColor: '#232323' }}>
-            {invoicesLoading ? (
-              <View style={{ alignItems: 'center', padding: 24 }}>
-                <ActivityIndicator size="small" color="#F59E0B" />
-              </View>
-            ) : invoices.length === 0 ? (
-              <View style={{ alignItems: 'center', padding: 24 }}>
-                <Ionicons name="receipt-outline" size={32} color="#737b89" style={{ marginBottom: 8 }} />
-                <Text style={styles.emptyText}>No invoices created yet</Text>
-              </View>
-            ) : (
-              invoices
-                .slice(0, 10)
-                .map((invoice) => {
-                  const client = clients.find((c) => c.id === invoice.clientId);
-                  let statusColor = '#F59E0B';
-                  let statusBg = '#232323';
-                  if (invoice.status === 'paid') {
-                    statusColor = '#22C55E';
-                    statusBg = '#193a2f';
-                  } else if (invoice.status === 'pending') {
-                    statusColor = '#F59E0B';
-                    statusBg = '#2d230f';
-                  } else if (invoice.status === 'cancelled') {
-                    statusColor = '#EF4444';
-                    statusBg = '#3a1919';
-                  }
-                  let iconName: any = 'receipt-outline';
-                  if (invoice.paymentMethod === 'stripe') iconName = 'card-outline';
-                  else if (invoice.paymentMethod === 'apple_pay') iconName = 'phone-portrait-outline';
-                  else if (invoice.paymentMethod === 'cash') iconName = 'cash-outline';
 
-                  // Format date
-                  const date = new Date(invoice.createdAt);
-                  const dateStr = `${date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })} • ${date.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}`;
+      {/* Tab Navigation */}
+      <View style={styles.tabContainer}>
+        {renderTabButton('recentInvoice', 'Recent Invoice', 'receipt')}
+        {renderTabButton('export', 'Export Invoices', 'folder')}
+        {renderTabButton('services', 'Services', 'cut')}
+        {renderTabButton('stats', 'Stats', 'calculator')}
+      </View>
 
-                  return (
-                    <TouchableOpacity
-                      key={invoice.id}
-                      style={{
-                        flexDirection: 'row',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        paddingVertical: 16,
-                        paddingHorizontal: 16,
-                        borderBottomWidth: 1,
-                        borderBottomColor: '#232323',
-                        backgroundColor: '#1A1A1A',
-                      }}
-                      activeOpacity={0.85}
-                      onPress={() => {
-                        setSelectedInvoice(invoice);
-                        setShowInvoiceModal(true);
-                      }}
-                    >
-                      <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
-                        <View style={{
-                          width: 38, height: 38, borderRadius: 19, backgroundColor: '#232323',
-                          alignItems: 'center', justifyContent: 'center', marginRight: 12
-                        }}>
-                          <Ionicons name={iconName} size={20} color="#f59e0b" />
-                        </View>
-                        <View style={{ flex: 1 }}>
-                          <Text style={{ color: '#fff', fontWeight: '600', fontSize: 16 }}>
-                            {client?.name || 'Unknown Client'}
-                          </Text>
-                          <Text style={{ color: '#9CA3AF', fontSize: 13, marginTop: 2 }}>
-                            {dateStr}
-                          </Text>
-                        </View>
-                      </View>
-                      <View style={{ alignItems: 'flex-end', minWidth: 90 }}>
-                        <Text style={{ color: '#F59E0B', fontWeight: '700', fontSize: 16 }}>
-                          ${invoice.total}
-                        </Text>
-                        <View style={{
-                          marginTop: 4,
-                          alignSelf: 'flex-end',
-                          backgroundColor: statusBg,
-                          borderRadius: 8,
-                          paddingHorizontal: 8,
-                          paddingVertical: 2,
-                        }}>
-                          <Text style={{ color: statusColor, fontWeight: '600', fontSize: 12, textTransform: 'capitalize' }}>
-                            {invoice.status}
-                          </Text>
-                        </View>
-                      </View>
-                    </TouchableOpacity>
-                  );
-                })
-            )}
-          </View>
-        </View>
-
-        {/* --- Export Invoices Section --- */}
-        <View style={{
-          backgroundColor: '#1A1A1A',
-          borderRadius: 12,
-          borderWidth: 1,
-          borderColor: '#232323',
-          padding: 20,
-          marginBottom: 24,
-          alignItems: 'center',
-        }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10, width: '100%', justifyContent: 'space-between' }}>
-            <Text style={styles.title}>Export Invoices</Text>
-            <Ionicons name="mail-outline" size={22} color="#f59e0b" />
-          </View>
-          <Text style={{ color: '#9CA3AF', fontSize: 14, marginBottom: 18, width: '100%' }}>
-            Export all invoices to your email as a CSV file.
-          </Text>
-          <TouchableOpacity
-            style={[
-              styles.createButton,
-              { width: '100%', justifyContent: 'center', opacity: invoices.length === 0 ? 0.5 : 1 }
-            ]}
-            onPress={async () => {
-              if (invoices.length === 0) {
-                Alert.alert('No invoices to export', 'Create invoices first to enable export.');
-                return;
-              }
-              try {
-                await apiRequest('POST', '/api/invoices/export');
-                Alert.alert('Export Sent', 'Invoice export sent to your email successfully');
-              } catch (error: any) {
-                Alert.alert('Export Failed', error.message || 'Failed to export invoices');
-              }
-            }}
-            disabled={invoices.length === 0}
-            activeOpacity={0.7}
-          >
-            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
-              <Ionicons name="mail-outline" size={20} color="#f59e0b" style={{ marginRight: 8 }} />
-              <Text style={styles.createButtonText}>
-                {invoices.length === 0 ? 'No Invoices to Export' : 'Email CSV'}
-              </Text>
-            </View>
-          </TouchableOpacity>
-        </View>
-        {/* Overview Stats */}
-        <View style={styles.statsContainer}>
-          <View style={styles.statCard}>
-            <Text style={styles.statValue}>{services.length}</Text>
-            <Text style={styles.statLabel}>Total Invoices</Text>
-          </View>
-          <View style={styles.statCard}>
-            <Text style={styles.statValue}>{services.filter(s => s.isActive).length}</Text>
-            <Text style={styles.statLabel}>Active</Text>
-          </View>
-          <View style={styles.statCard}>
-            <Text style={styles.statValue}>
-              ${services.reduce((sum, s) => sum + parseFloat(s.price), 0) / services.length || 0}
-            </Text>
-            <Text style={styles.statLabel}>Avg Price</Text>
-          </View>
-        </View>
-
-        {/* Add Service Button */}
-        <TouchableOpacity
-          style={styles.addServiceButton}
-          onPress={() => setShowServiceModal(true)}
-          activeOpacity={0.7}
-        >
-          <Ionicons name="add" size={20} color="#f59e0b" style={{ marginRight: 6 }} />
-          <Text style={styles.addServiceButtonText}>Add Service</Text>
-        </TouchableOpacity>
-
-        {/* Services by Category */}
-        {Object.entries(groupedServices).map(([category, categoryServices]) => (
-          <View key={category} style={styles.categorySection}>
-            <View style={styles.categoryHeader}>
-              <View style={styles.categoryTitleContainer}>
-                <Ionicons
-                  name={getCategoryIcon(category) as any}
-                  size={20}
-                  color={getCategoryColor(category)}
-                />
-                <Text style={styles.categoryTitle}>{category}</Text>
-              </View>
-              <Text style={styles.categoryCount}>{categoryServices.length} invoices</Text>
-            </View>
-
-            {categoryServices.map((service) => (
-              <TouchableOpacity
-                key={service.id}
-                style={[
-                  styles.serviceCard,
-                  !service.isActive && styles.inactiveServiceCard
-                ]}
-                onPress={() => {
-                  setEditingService(service);
-                  setServiceName(service.name);
-                  setServiceDescription(service.description || '');
-                  setServicePrice(service.price.toString());
-                  setServiceDuration(service.duration.toString());
-                  setServiceCategory(service.category);
-                  setShowServiceModal(true);
-                }}
-              >
-                <View style={styles.serviceHeader}>
-                  <Text style={[
-                    styles.serviceName,
-                    !service.isActive && styles.inactiveServiceName
-                  ]}>
-                    {service.name}
-                  </Text>
-                  <TouchableOpacity
-                    style={styles.statusToggle}
-                    onPress={() => toggleServiceStatus(service.id, service.isActive)}
-                  >
-                    <Ionicons
-                      name={service.isActive ? "checkmark-circle" : "close-circle"}
-                      size={22}
-                      color={service.isActive ? "#22C55E" : "#EF4444"}
-                    />
-                  </TouchableOpacity>
-                  {/* Delete button */}
-                  <TouchableOpacity
-                    style={{ marginLeft: 12, padding: 4 }}
-                    onPress={() => {
-                      Alert.alert(
-                        'Delete Service',
-                        'Are you sure you want to delete this service? This action cannot be undone.',
-                        [
-                          { text: 'Cancel', style: 'cancel' },
-                          {
-                            text: 'Delete',
-                            style: 'destructive',
-                            onPress: async () => {
-                              try {
-                                await apiRequest('DELETE', `/api/services/${service.id}`);
-                                await loadServices();
-                              } catch (error) {
-                                Alert.alert('Error', 'Failed to delete service');
-                              }
-                            },
-                          },
-                        ]
-                      );
-                    }}
-                  >
-                    <Ionicons name="trash" size={20} color="#EF4444" />
-                  </TouchableOpacity>
-                </View>
-
-                {service.description && (
-                  <Text style={[
-                    styles.serviceDescription,
-                    !service.isActive && styles.inactiveServiceDescription
-                  ]}>
-                    {service.description}
-                  </Text>
-                )}
-
-                <View style={styles.serviceFooter}>
-                  <View style={styles.priceContainer}>
-                    <Text style={[
-                      styles.servicePrice,
-                      !service.isActive && styles.inactiveServicePrice
-                    ]}>
-                      ${service.price}
-                    </Text>
-                  </View>
-                  <Text style={[
-                    styles.serviceDuration,
-                    !service.isActive && styles.inactiveServiceDuration
-                  ]}>
-                    {service.duration} min
-                  </Text>
-                </View>
-              </TouchableOpacity>
-            ))}
-          </View>
-        ))}
-
-        {services.length === 0 && (
-          <View style={styles.emptyState}>
-            <Ionicons name="construct-outline" size={36} color="#737b89" />
-            <Text style={styles.emptyText}>No invoices added yet</Text>
-            <Text style={styles.emptySubtext}>
-              Add your first invoice to get started
-            </Text>
-          </View>
-        )}
-      </ScrollView>
+      {/* Tab Content */}
+      {activeTab === 'recentInvoice' && renderRecentInvoiceTab()}
+      {activeTab === 'export' && renderExportTab()}
+      {activeTab === 'services' && renderServicesTab()}
+      {activeTab === 'stats' && renderStatsTab()}
+      
     {/* Create Invoice Modal */}
     <Modal
       visible={showCreateModal}
@@ -1667,5 +1767,38 @@ const styles = StyleSheet.create({
   },
   categoryChipTextSelected: {
     color: '#1e1e1e', // charcoal
+  },
+  tabContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    gap: 8,
+  },
+  tabButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    backgroundColor: '#374151',
+    gap: 6,
+    flex: 1,
+    minWidth: '30%',
+  },
+  activeTab: {
+    backgroundColor: '#F59E0B',
+  },
+  tabText: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: '#6B7280',
+  },
+  activeTabText: {
+    color: '#1F2937',
+  },
+  tabContent: {
+    flex: 1,
+    padding: 16,
   },
 });

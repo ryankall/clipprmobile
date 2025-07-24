@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { View, Text, TextInput, Button, StyleSheet, Alert, ActivityIndicator, TouchableOpacity, ScrollView, Switch } from "react-native";
+import { View, Text, TextInput, Button, StyleSheet, Alert, ActivityIndicator, TouchableOpacity, ScrollView, Switch, Modal, FlatList } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { apiRequest } from "../../lib/api";
 import type { Client } from "../../lib/types";
@@ -12,13 +12,10 @@ export default function NewAppointment() {
   const [clients, setClients] = useState<Client[]>([]);
   const [clientsLoading, setClientsLoading] = useState(true);
   const [selectedClientId, setSelectedClientId] = useState<number | null>(null);
-  const [newClientFields, setNewClientFields] = useState({
-    name: "",
-    phone: "",
-    email: "",
-    address: "",
-  });
-  const [creatingClient, setCreatingClient] = useState(false);
+
+  // Modal and search state for client selection
+  const [clientModalVisible, setClientModalVisible] = useState(false);
+  const [clientSearch, setClientSearch] = useState("");
   const [clientError, setClientError] = useState<string | null>(null);
   
   // Travel toggle, address, and travel time
@@ -67,14 +64,6 @@ export default function NewAppointment() {
 
         if (found) {
           setSelectedClientId(found.id);
-        } else if (prefillName) {
-          setSelectedClientId(null);
-          setNewClientFields({
-            name: prefillName,
-            phone: prefillPhone || "",
-            email: prefillEmail || "",
-            address: "",
-          });
         }
       } catch (e: any) {
         setClients([]);
@@ -83,7 +72,13 @@ export default function NewAppointment() {
       }
     }
     fetchClients();
-  }, [params]);
+  // Only depend on the specific param values, not the whole params object, to avoid unnecessary re-fetches
+  }, [
+    params.clientId,
+    params.phone,
+    params.clientName,
+    params.email
+  ]);
 
   // Handler for selecting an existing client
   const handleSelectClient = (id: number) => {
@@ -105,7 +100,7 @@ export default function NewAppointment() {
         setAddress(client.address);
       }
     }
-  }, [includeTravel, selectedClientId, clients, address]);
+  }, [includeTravel, selectedClientId, clients]);
 
   // Travel time calculation
   const calculateTravelTime = async (addr: string, dateStr: string) => {
@@ -141,12 +136,6 @@ export default function NewAppointment() {
     }
   }, [includeTravel, address]);
 
-  // Handler for new client field changes
-  const handleNewClientField = (field: keyof typeof newClientFields, value: string) => {
-    setNewClientFields(prev => ({ ...prev, [field]: value }));
-    setSelectedClientId(null);
-    setClientError(null);
-  };
 
   // Calculate total duration from selected services
   function getTotalDuration() {
@@ -191,25 +180,6 @@ export default function NewAppointment() {
     validateScheduling();
   }, [date, selectedClientId, serviceSelections, address, includeTravel]);
   
-  // Handler for creating a new client
-  const handleCreateClient = async () => {
-    setCreatingClient(true);
-    setClientError(null);
-    try {
-      if (!newClientFields.name || !newClientFields.phone) {
-        setClientError("Name and phone are required");
-        setCreatingClient(false);
-        return;
-      }
-      const created = await apiRequest<Client>("POST", "/api/clients", newClientFields);
-      setClients(prev => [...prev, created]);
-      setSelectedClientId(created.id);
-      setNewClientFields({ name: "", phone: "", email: "", address: "" });
-    } catch (e: any) {
-      setClientError(e?.message || "Failed to create client");
-    }
-    setCreatingClient(false);
-  };
 
   // UI
   return (
@@ -221,58 +191,72 @@ export default function NewAppointment() {
         <ActivityIndicator size="small" color="#FFD700" style={{ marginVertical: 12 }} />
       ) : (
         <>
-          {clients.length > 0 && (
-            <View style={styles.clientList}>
-              {clients.map(client => (
-                <TouchableOpacity
-                  key={client.id}
-                  style={[
-                    styles.clientItem,
-                    selectedClientId === client.id && styles.clientItemSelected,
-                  ]}
-                  onPress={() => handleSelectClient(client.id)}
-                >
-                  <Text style={styles.clientName}>{client.name}</Text>
-                  <Text style={styles.clientPhone}>{client.phone}</Text>
-                  {client.email ? <Text style={styles.clientEmail}>{client.email}</Text> : null}
-                </TouchableOpacity>
-              ))}
+          <TouchableOpacity
+            style={[
+              styles.input,
+              { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+            ]}
+            onPress={() => setClientModalVisible(true)}
+          >
+            <Text style={{ fontSize: 16, color: selectedClientId ? "#18181B" : "#888" }}>
+              {selectedClientId
+                ? clients.find(c => c.id === selectedClientId)?.name || "Select client..."
+                : "Select client..."}
+            </Text>
+          </TouchableOpacity>
+          <Modal
+            visible={clientModalVisible}
+            animationType="slide"
+            transparent={true}
+            onRequestClose={() => setClientModalVisible(false)}
+          >
+            <View style={styles.modalOverlay}>
+              <View style={styles.modalContent}>
+                <Text style={[styles.label, { marginTop: 0 }]}>Select Client</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Search clients..."
+                  value={clientSearch}
+                  onChangeText={setClientSearch}
+                  autoFocus
+                />
+                <FlatList
+                  data={clients.filter(
+                    c =>
+                      c.name.toLowerCase().includes(clientSearch.toLowerCase()) ||
+                      c.phone.toLowerCase().includes(clientSearch.toLowerCase()) ||
+                      (c.email && c.email.toLowerCase().includes(clientSearch.toLowerCase()))
+                  )}
+                  keyExtractor={item => item.id.toString()}
+                  renderItem={({ item }) => (
+                    <TouchableOpacity
+                      style={[
+                        styles.clientItem,
+                        selectedClientId === item.id && styles.clientItemSelected,
+                      ]}
+                      onPress={() => {
+                        handleSelectClient(item.id);
+                        setClientModalVisible(false);
+                        setClientSearch("");
+                      }}
+                    >
+                      <Text style={styles.clientName}>{item.name}</Text>
+                      <Text style={styles.clientPhone}>{item.phone}</Text>
+                      {item.email ? <Text style={styles.clientEmail}>{item.email}</Text> : null}
+                    </TouchableOpacity>
+                  )}
+                  style={{ maxHeight: 300, marginBottom: 12 }}
+                  ListEmptyComponent={
+                    <Text style={{ textAlign: "center", color: "#888", marginVertical: 16 }}>
+                      No clients found.
+                    </Text>
+                  }
+                  keyboardShouldPersistTaps="handled"
+                />
+                <Button title="Close" onPress={() => setClientModalVisible(false)} />
+              </View>
             </View>
-          )}
-          <Text style={styles.label}>Or add new client</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="Name"
-            value={newClientFields.name}
-            onChangeText={text => handleNewClientField("name", text)}
-            autoCapitalize="words"
-          />
-          <TextInput
-            style={styles.input}
-            placeholder="Phone"
-            value={newClientFields.phone}
-            onChangeText={text => handleNewClientField("phone", text)}
-            keyboardType="phone-pad"
-          />
-          <TextInput
-            style={styles.input}
-            placeholder="Email"
-            value={newClientFields.email}
-            onChangeText={text => handleNewClientField("email", text)}
-            keyboardType="email-address"
-          />
-          <TextInput
-            style={styles.input}
-            placeholder="Address"
-            value={newClientFields.address}
-            onChangeText={text => handleNewClientField("address", text)}
-          />
-          <Button
-            title={creatingClient ? "Creating..." : "Create Client"}
-            onPress={handleCreateClient}
-            disabled={creatingClient || !newClientFields.name || !newClientFields.phone}
-          />
-          {clientError ? <Text style={styles.error}>{clientError}</Text> : null}
+          </Modal>
         </>
       )}
       {/* Service Selection */}
@@ -614,5 +598,22 @@ const styles = StyleSheet.create({
     color: "#555",
     marginBottom: 8,
     marginLeft: 2,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.3)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  modalContent: {
+    width: "90%",
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    padding: 20,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 5,
   },
 });
