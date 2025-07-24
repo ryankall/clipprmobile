@@ -9,6 +9,7 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
 import { getServiceNamesDisplay } from "@/lib/appointmentUtils";
+import { replaceMessageTemplate } from "@shared/utils";
 import type { AppointmentWithRelations, Service } from "@shared/schema";
 
 interface AppointmentPreviewProps {
@@ -20,6 +21,7 @@ interface AppointmentPreviewProps {
     runningLate?: string;
     confirmation?: string;
   };
+  sendQuickActionMessage?: (messageType: "onMyWay" | "runningLate" | "confirmation", appointment: AppointmentWithRelations) => Promise<void>;
   onDetailsClick?: () => void;
 }
 
@@ -28,6 +30,7 @@ export function AppointmentPreview({
   type, 
   services = [], 
   quickActionMessages,
+  sendQuickActionMessage,
   onDetailsClick 
 }: AppointmentPreviewProps) {
   const { toast } = useToast();
@@ -75,18 +78,21 @@ export function AppointmentPreview({
     }
   };
 
-  const sendQuickActionMessage = (messageType: 'onMyWay' | 'runningLate' | 'confirmation') => {
-    const message = quickActionMessages?.[messageType];
-    if (!message || !appointment?.client.phone || !appointment) return;
+  const handleQuickActionMessage = (messageType: 'onMyWay' | 'runningLate' | 'confirmation') => {
+    if (!sendQuickActionMessage || !appointment) return;
+    
+    // Use the passed function if available, otherwise fall back to SMS
+    if (sendQuickActionMessage) {
+      sendQuickActionMessage(messageType, appointment);
+    } else {
+      // Fallback SMS method
+      const message = quickActionMessages?.[messageType];
+      if (!message || !appointment?.client.phone) return;
 
-    const personalizedMessage = message
-      .replace('{client_name}', appointment.client.name)
-      .replace('{appointment_time}', format(new Date(appointment.scheduledAt), 'h:mm a'))
-      .replace('{service}', getServiceNamesDisplay(appointment, 100))
-      .replace('{address}', appointment.address || '');
-
-    const smsUrl = `sms:${appointment.client.phone}?body=${encodeURIComponent(personalizedMessage)}`;
-    window.open(smsUrl, '_blank');
+      const personalizedMessage = replaceMessageTemplate(message, appointment);
+      const smsUrl = `sms:${appointment.client.phone}?body=${encodeURIComponent(personalizedMessage)}`;
+      window.open(smsUrl, '_blank');
+    }
   };
 
   const eta = calculateETA();
@@ -168,7 +174,7 @@ export function AppointmentPreview({
                   variant="outline"
                   onClick={(e) => {
                     e.stopPropagation();
-                    sendQuickActionMessage('onMyWay');
+                    handleQuickActionMessage('onMyWay');
                   }}
                   className="text-xs"
                 >
@@ -182,7 +188,7 @@ export function AppointmentPreview({
                   variant="outline"
                   onClick={(e) => {
                     e.stopPropagation();
-                    sendQuickActionMessage('runningLate');
+                    handleQuickActionMessage('runningLate');
                   }}
                   className="text-xs"
                 >
@@ -196,7 +202,7 @@ export function AppointmentPreview({
                   variant="outline"
                   onClick={(e) => {
                     e.stopPropagation();
-                    sendQuickActionMessage('confirmation');
+                    handleQuickActionMessage('confirmation');
                   }}
                   className="text-xs"
                 >

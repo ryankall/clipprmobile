@@ -46,6 +46,13 @@ export const users = pgTable("users", {
   totalPhotoSize: integer("total_photo_size").default(0), // total photo size in bytes
   maxPhotoSize: integer("max_photo_size").default(524288000), // 500MB limit
   
+  // Quick action message templates
+  quickActionMessages: json("quick_action_messages").default({
+    onMyWay: "Hi {client_name}, I'm on my way to your {appointment_time} appointment for {service}. See you soon!",
+    runningLate: "Hi {client_name}, I'm running a few minutes late for your {appointment_time} appointment. Will be there shortly!",
+    confirmation: "Hi {client_name}, confirming your appointment for {appointment_time} at {address} for {service}."
+  }),
+  
   createdAt: timestamp("created_at").defaultNow(),
 });
 

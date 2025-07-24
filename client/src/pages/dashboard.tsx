@@ -15,6 +15,7 @@ import { Link, useLocation } from "wouter";
 import { format } from "date-fns";
 import type { DashboardStats, AppointmentWithRelations, GalleryPhoto, User } from "@shared/schema";
 import type { Service } from "@/lib/types";
+import { replaceMessageTemplate, DEFAULT_QUICK_ACTION_MESSAGES } from "@shared/utils";
 
 export default function Dashboard() {
   const [showNotifications, setShowNotifications] = useState(false);
@@ -65,14 +66,14 @@ export default function Dashboard() {
     queryKey: ["/api/stripe/status"],
   });
 
+  const { data: userProfile } = useQuery<User>({
+    queryKey: ["/api/user/profile"],
+  });
+
   const unreadCount = unreadData?.count || 0;
 
-  // Get quick action messages (mock for now - should come from settings)
-  const quickActionMessages = {
-    onMyWay: "Hi {client_name}, I'm on my way to your {appointment_time} appointment for {service}. See you soon!",
-    runningLate: "Hi {client_name}, I'm running a few minutes late for your {appointment_time} appointment. Will be there shortly!",
-    confirmation: "Hi {client_name}, confirming your appointment for {appointment_time} at {address} for {service}."
-  };
+  // Get quick action messages from user settings or use defaults
+  const quickActionMessages = userProfile?.quickActionMessages || DEFAULT_QUICK_ACTION_MESSAGES;
 
   // Find next and current appointments
   const now = new Date();
@@ -107,6 +108,32 @@ export default function Dashboard() {
     return startTime > now;
   }) || [];
   const nextAppointment = upcomingAppointments.length > 0 ? upcomingAppointments[0] : null;
+
+  // Send quick action message function
+  const sendQuickActionMessage = async (messageType: keyof typeof quickActionMessages, appointment: AppointmentWithRelations) => {
+    try {
+      const template = quickActionMessages[messageType];
+      if (!template) return;
+
+      const message = replaceMessageTemplate(template, appointment);
+      
+      // Send the message via API
+      await fetch("/api/communications/send-message", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          clientId: appointment.clientId,
+          message,
+          type: messageType
+        })
+      });
+
+      // Optional: Show success notification
+      console.log(`Sent ${messageType} message to ${appointment.client?.name}`);
+    } catch (error) {
+      console.error(`Failed to send ${messageType} message:`, error);
+    }
+  };
   
 
 
@@ -430,6 +457,8 @@ export default function Dashboard() {
           appointment={currentAppointment || undefined}
           type="current"
           services={services}
+          quickActionMessages={quickActionMessages}
+          sendQuickActionMessage={sendQuickActionMessage}
           onDetailsClick={() => {
             if (currentAppointment) {
               setSelectedAppointment(currentAppointment);
@@ -444,6 +473,7 @@ export default function Dashboard() {
           type="next"
           services={services}
           quickActionMessages={quickActionMessages}
+          sendQuickActionMessage={sendQuickActionMessage}
           onDetailsClick={() => {
             if (nextAppointment) {
               setSelectedAppointment(nextAppointment);

@@ -6,12 +6,14 @@ import { router } from 'expo-router';
 import { useAuth } from '../../hooks/useAuth';
 import { apiRequest } from '../../lib/api';
 import { DashboardStats, AppointmentWithRelations, User } from '../../lib/types';
+import { replaceMessageTemplate, DEFAULT_QUICK_ACTION_MESSAGES } from '../../../shared/utils';
 
 export default function Dashboard() {
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [todayAppointments, setTodayAppointments] = useState<AppointmentWithRelations[]>([]);
   const [unreadMessages, setUnreadMessages] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [userProfile, setUserProfile] = useState<User | null>(null);
   const { user, isAuthenticated } = useAuth();
 
   // Pending appointments state
@@ -54,15 +56,17 @@ export default function Dashboard() {
 
   const loadDashboardData = async () => {
     try {
-      const [statsData, appointmentsData, messagesData] = await Promise.all([
+      const [statsData, appointmentsData, messagesData, profileData] = await Promise.all([
         apiRequest<DashboardStats>('GET', '/api/dashboard'),
         apiRequest<AppointmentWithRelations[]>('GET', '/api/appointments/today'),
         apiRequest<{ count: number }>('GET', '/api/messages/unread-count'),
+        apiRequest<User>('GET', '/api/user/profile'),
       ]);
 
       setStats(statsData);
       setTodayAppointments(appointmentsData);
       setUnreadMessages(messagesData.count);
+      setUserProfile(profileData);
     } catch (error) {
       console.error('Failed to load dashboard data:', error);
       Alert.alert('Error', 'Failed to load dashboard data');
@@ -97,6 +101,31 @@ export default function Dashboard() {
       onPress: () => router.push('/messages')
     },
   ];
+
+  // Get quick action messages from user settings or use defaults
+  const quickActionMessages = userProfile?.quickActionMessages || DEFAULT_QUICK_ACTION_MESSAGES;
+
+  // Send quick action message function
+  const sendQuickActionMessage = async (messageType: keyof typeof quickActionMessages, appointment: AppointmentWithRelations) => {
+    try {
+      const template = quickActionMessages[messageType];
+      if (!template) return;
+
+      const message = replaceMessageTemplate(template, appointment);
+      
+      // Send the message via API
+      await apiRequest('POST', '/api/communications/send-message', {
+        clientId: appointment.client.id,
+        message,
+        type: messageType
+      });
+
+      Alert.alert('Message Sent', `Sent ${messageType} message to ${appointment.client.name}`);
+    } catch (error) {
+      console.error(`Failed to send ${messageType} message:`, error);
+      Alert.alert('Error', `Failed to send ${messageType} message`);
+    }
+  };
 
   // Only confirmed appointments for all cards
   const confirmedAppointments = todayAppointments.filter(apt => apt.status === 'confirmed');
@@ -295,7 +324,7 @@ export default function Dashboard() {
                 <Text style={styles.appointmentPrice}>
                   ${nextAppointment.price}
                 </Text>
-                <View style={{ flexDirection: 'row', marginTop: 12, gap: 12 }}>
+                <View style={{ flexDirection: 'row', marginTop: 12, gap: 8, flexWrap: 'wrap' }}>
                   {nextAppointment.client?.phone && (
                     <TouchableOpacity
                       style={[styles.actionButton, { backgroundColor: '#22C55E' }]}
@@ -307,7 +336,7 @@ export default function Dashboard() {
                         }
                       }}
                     >
-                      <Ionicons name="call" size={20} color="#fff" />
+                      <Ionicons name="call" size={16} color="#fff" />
                       <Text style={styles.actionButtonText}>Call</Text>
                     </TouchableOpacity>
                   )}
@@ -321,30 +350,37 @@ export default function Dashboard() {
                         Linking.openURL(`https://maps.google.com/?q=${encoded}`);
                       }}
                     >
-                      <Ionicons name="navigate" size={20} color="#fff" />
+                      <Ionicons name="navigate" size={16} color="#fff" />
                       <Text style={styles.actionButtonText}>Navigate</Text>
                     </TouchableOpacity>
                   )}
-                  <TouchableOpacity
-                    style={[styles.actionButton, { backgroundColor: '#F59E0B' }]}
-                    onPress={() => {
-                      // Mark as no-show (placeholder)
-                      Alert.alert('Mark as No-Show', 'Feature coming soon.');
-                    }}
-                  >
-                    <Ionicons name="close-circle" size={20} color="#fff" />
-                    <Text style={styles.actionButtonText}>No-Show</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[styles.actionButton, { backgroundColor: '#8B5CF6' }]}
-                    onPress={() => {
-                      // Create invoice (placeholder)
-                      Alert.alert('Create Invoice', 'Feature coming soon.');
-                    }}
-                  >
-                    <Ionicons name="document-text" size={20} color="#fff" />
-                    <Text style={styles.actionButtonText}>Invoice</Text>
-                  </TouchableOpacity>
+                  {quickActionMessages.onMyWay && (
+                    <TouchableOpacity
+                      style={[styles.actionButton, { backgroundColor: '#F59E0B' }]}
+                      onPress={() => sendQuickActionMessage('onMyWay', nextAppointment)}
+                    >
+                      <Ionicons name="car" size={16} color="#fff" />
+                      <Text style={styles.actionButtonText}>On My Way</Text>
+                    </TouchableOpacity>
+                  )}
+                  {quickActionMessages.runningLate && (
+                    <TouchableOpacity
+                      style={[styles.actionButton, { backgroundColor: '#EF4444' }]}
+                      onPress={() => sendQuickActionMessage('runningLate', nextAppointment)}
+                    >
+                      <Ionicons name="time" size={16} color="#fff" />
+                      <Text style={styles.actionButtonText}>Running Late</Text>
+                    </TouchableOpacity>
+                  )}
+                  {quickActionMessages.confirmation && (
+                    <TouchableOpacity
+                      style={[styles.actionButton, { backgroundColor: '#10B981' }]}
+                      onPress={() => sendQuickActionMessage('confirmation', nextAppointment)}
+                    >
+                      <Ionicons name="checkmark-circle" size={16} color="#fff" />
+                      <Text style={styles.actionButtonText}>Confirm</Text>
+                    </TouchableOpacity>
+                  )}
                 </View>
               </>
             ) : (
@@ -664,18 +700,19 @@ const styles = StyleSheet.create({
   actionButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderRadius: 8,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    marginRight: 8,
+    borderRadius: 6,
+    paddingVertical: 6,
+    paddingHorizontal: 8,
+    marginRight: 4,
     marginBottom: 4,
-    gap: 6,
+    gap: 4,
+    minWidth: 70,
+    justifyContent: 'center',
   },
   actionButtonText: {
     color: '#fff',
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: '600',
-    marginLeft: 4,
   },
   recentSection: {
     marginBottom: 24,
