@@ -994,9 +994,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/clients/:id", requireAuth, async (req, res) => {
     try {
+      const userId = (req.user as any).id;
       const clientId = parseInt(req.params.id);
       const client = await storage.getClient(clientId);
-      if (!client) {
+      if (!client || client.userId !== userId) {
         return res.status(404).json({ message: "Client not found" });
       }
       res.json(client);
