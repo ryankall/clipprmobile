@@ -391,6 +391,9 @@ export default function Invoice() {
   const [clients, setClients] = useState<Client[]>([]);
   const [invoicesLoading, setInvoicesLoading] = useState(true);
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
+  const [selectedInvoiceServices, setSelectedInvoiceServices] = useState<Service[] | null>(null);
+  const [invoiceServicesLoading, setInvoiceServicesLoading] = useState(false);
+  const [invoiceServicesError, setInvoiceServicesError] = useState<string | null>(null);
   const [showInvoiceModal, setShowInvoiceModal] = useState(false);
 
   // Modal state for Create Invoice
@@ -665,9 +668,26 @@ export default function Invoice() {
                         backgroundColor: '#1A1A1A',
                       }}
                       activeOpacity={0.85}
-                      onPress={() => {
+                      onPress={async () => {
                         setSelectedInvoice(invoice);
                         setShowInvoiceModal(true);
+                        setInvoiceServicesLoading(true);
+                        setInvoiceServicesError(null);
+                        setSelectedInvoiceServices(null);
+                        try {
+                          // Try to fetch invoice details (including services)
+                          const data = await apiRequest<any>('GET', `/api/invoices/${invoice.id}`);
+                          if (data && Array.isArray(data.services)) {
+                            setSelectedInvoiceServices(data.services);
+                          } else {
+                            setSelectedInvoiceServices([]);
+                          }
+                        } catch (err: any) {
+                          setInvoiceServicesError('Failed to load services for this invoice.');
+                          setSelectedInvoiceServices([]);
+                        } finally {
+                          setInvoiceServicesLoading(false);
+                        }
                       }}
                     >
                       <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
@@ -1262,107 +1282,7 @@ export default function Invoice() {
               <Ionicons name="close" size={24} color="#6B7280" />
             </TouchableOpacity>
           </View>
-          <View style={styles.modalBody}>
-            {selectedInvoice && (
-              <View style={{ width: '100%' }}>
-                {/* Client Info */}
-                <Text style={{ color: '#9CA3AF', fontSize: 15, marginBottom: 2 }}>Client</Text>
-                <Text style={{ color: '#fff', fontWeight: '600', fontSize: 17, marginBottom: 10 }}>
-                  {clients.find((c) => c.id === selectedInvoice.clientId)?.name || 'Unknown Client'}
-                </Text>
-                {/* Invoice Details */}
-                <View style={{ marginBottom: 10 }}>
-                  <Text style={{ color: '#9CA3AF', fontSize: 15, marginBottom: 2 }}>Details</Text>
-                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 2 }}>
-                    <Text style={{ color: '#9CA3AF' }}>Subtotal:</Text>
-                    <Text style={{ color: '#fff' }}>${selectedInvoice.subtotal}</Text>
-                  </View>
-                  {selectedInvoice.tip && parseFloat(selectedInvoice.tip) > 0 && (
-                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 2 }}>
-                      <Text style={{ color: '#9CA3AF' }}>Tip:</Text>
-                      <Text style={{ color: '#fff' }}>${selectedInvoice.tip}</Text>
-                    </View>
-                  )}
-                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 2 }}>
-                    <Text style={{ color: '#fff', fontWeight: '600' }}>Total:</Text>
-                    <Text style={{ color: '#F59E0B', fontWeight: '700' }}>${selectedInvoice.total}</Text>
-                  </View>
-                </View>
-                {/* Payment Method */}
-                <View style={{ marginBottom: 10 }}>
-                  <Text style={{ color: '#9CA3AF', fontSize: 15, marginBottom: 2 }}>Payment Method</Text>
-                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                    {selectedInvoice.paymentMethod === 'stripe' && (
-                      <>
-                        <Ionicons name="card-outline" size={18} color="#f59e0b" style={{ marginRight: 6 }} />
-                        <Text style={{ color: '#9CA3AF' }}>Card Payment</Text>
-                      </>
-                    )}
-                    {selectedInvoice.paymentMethod === 'apple_pay' && (
-                      <>
-                        <Ionicons name="phone-portrait-outline" size={18} color="#f59e0b" style={{ marginRight: 6 }} />
-                        <Text style={{ color: '#9CA3AF' }}>Apple Pay</Text>
-                      </>
-                    )}
-                    {selectedInvoice.paymentMethod === 'cash' && (
-                      <>
-                        <Ionicons name="cash-outline" size={18} color="#f59e0b" style={{ marginRight: 6 }} />
-                        <Text style={{ color: '#9CA3AF' }}>Cash</Text>
-                      </>
-                    )}
-                    {!selectedInvoice.paymentMethod && (
-                      <>
-                        <Ionicons name="receipt-outline" size={18} color="#f59e0b" style={{ marginRight: 6 }} />
-                        <Text style={{ color: '#9CA3AF' }}>N/A</Text>
-                      </>
-                    )}
-                  </View>
-                </View>
-                {/* Status */}
-                <View style={{ marginBottom: 10 }}>
-                  <Text style={{ color: '#9CA3AF', fontSize: 15, marginBottom: 2 }}>Status</Text>
-                  <View style={{
-                    alignSelf: 'flex-start',
-                    backgroundColor:
-                      selectedInvoice.status === 'paid'
-                        ? '#193a2f'
-                        : selectedInvoice.status === 'pending'
-                        ? '#2d230f'
-                        : '#3a1919',
-                    borderRadius: 8,
-                    paddingHorizontal: 10,
-                    paddingVertical: 3,
-                  }}>
-                    <Text style={{
-                      color:
-                        selectedInvoice.status === 'paid'
-                          ? '#22C55E'
-                          : selectedInvoice.status === 'pending'
-                          ? '#F59E0B'
-                          : '#EF4444',
-                      fontWeight: '700',
-                      fontSize: 13,
-                      textTransform: 'capitalize',
-                    }}>
-                      {selectedInvoice.status}
-                    </Text>
-                  </View>
-                </View>
-                {/* Created Date */}
-                <View style={{ marginBottom: 2 }}>
-                  <Text style={{ color: '#9CA3AF', fontSize: 15, marginBottom: 2 }}>Created</Text>
-                  <Text style={{ color: '#fff' }}>
-                    {selectedInvoice.createdAt
-                      ? (() => {
-                          const date = new Date(selectedInvoice.createdAt);
-                          return `${date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })} ${date.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}`;
-                        })()
-                      : 'Unknown'}
-                  </Text>
-                </View>
-              </View>
-            )}
-          </View>
+          {/* modalBody replaced above */}
         </View>
       </SafeAreaView>
     </Modal>

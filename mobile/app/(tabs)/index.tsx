@@ -4,9 +4,10 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useAuth } from '../../hooks/useAuth';
-import { apiRequest } from '../../lib/api';
-import { DashboardStats, AppointmentWithRelations, User } from '../../lib/types';
-import { replaceMessageTemplate, DEFAULT_QUICK_ACTION_MESSAGES } from '../../../shared/utils';
+import { apiRequest, API_BASE_URL } from '../../lib/api';
+import { DashboardStats, AppointmentWithRelations, User, GalleryPhoto } from '../../lib/types';
+import { replaceMessageTemplate, DEFAULT_QUICK_ACTION_MESSAGES } from '../../lib/utils';
+import { useQuery } from '@tanstack/react-query';
 
 export default function Dashboard() {
   const [stats, setStats] = useState<DashboardStats | null>(null);
@@ -21,9 +22,13 @@ export default function Dashboard() {
   const [pendingLoading, setPendingLoading] = useState(true);
   const [pendingProcessingId, setPendingProcessingId] = useState<number | null>(null);
 
-  // Gallery photos state
-  const [galleryPhotos, setGalleryPhotos] = useState([]);
-  const [galleryLoading, setGalleryLoading] = useState(true);
+  // Gallery photos via React Query
+  const { data: galleryPhotos = [], isLoading: galleryLoading } = useQuery<GalleryPhoto[]>({
+    queryKey: ['/api/gallery'],
+    queryFn: () => apiRequest<GalleryPhoto[]>('GET', '/api/gallery'),
+    enabled: isAuthenticated,
+    select: (photos) => photos?.slice(0, 5) || [],
+  });
 
   // Fetch pending appointments
   useEffect(() => {
@@ -36,21 +41,6 @@ export default function Dashboard() {
           setPendingAppointments([]);
         })
         .finally(() => setPendingLoading(false));
-    }
-  }, [isAuthenticated]);
-
-  useEffect(() => {
-    if (isAuthenticated) {
-      loadDashboardData();
-      // Fetch gallery photos
-      setGalleryLoading(true);
-      apiRequest('GET', '/api/gallery')
-        .then((photos) => setGalleryPhotos(photos?.slice(0, 5) || []))
-        .catch((err) => {
-          console.error('Failed to load gallery photos:', err);
-          setGalleryPhotos([]);
-        })
-        .finally(() => setGalleryLoading(false));
     }
   }, [isAuthenticated]);
 
@@ -103,7 +93,7 @@ export default function Dashboard() {
   ];
 
   // Get quick action messages from user settings or use defaults
-  const quickActionMessages = userProfile?.quickActionMessages || DEFAULT_QUICK_ACTION_MESSAGES;
+  const quickActionMessages = DEFAULT_QUICK_ACTION_MESSAGES;
 
   // Send quick action message function
   const sendQuickActionMessage = async (messageType: keyof typeof quickActionMessages, appointment: AppointmentWithRelations) => {
@@ -120,10 +110,10 @@ export default function Dashboard() {
         type: messageType
       });
 
-      Alert.alert('Message Sent', `Sent ${messageType} message to ${appointment.client.name}`);
+      Alert.alert('Message Sent', `Sent ${String(messageType)} message to ${appointment.client.name}`);
     } catch (error) {
-      console.error(`Failed to send ${messageType} message:`, error);
-      Alert.alert('Error', `Failed to send ${messageType} message`);
+      console.error(`Failed to send ${String(messageType)} message:`, error);
+      Alert.alert('Error', `Failed to send ${String(messageType)} message`);
     }
   };
 
@@ -482,7 +472,7 @@ export default function Dashboard() {
         <View style={styles.recentSection}>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
             <Text style={styles.sectionTitle}>Recent Work</Text>
-            <TouchableOpacity onPress={() => router.push('/(tabs)/gallery')}>
+            <TouchableOpacity onPress={() => router.push('/gallery/gallery')}>
               <Text style={{ color: '#22C55E', fontWeight: '600', fontSize: 16 }}>Gallery</Text>
             </TouchableOpacity>
           </View>
@@ -498,10 +488,11 @@ export default function Dashboard() {
                     <View style={{ width: 120, height: 120, backgroundColor: '#222', borderRadius: 8, overflow: 'hidden', marginBottom: 4 }}>
                       <Image
                         source={{
-                          uri:
-                            typeof photo.filename === 'string' && photo.filename.startsWith('http')
-                              ? photo.filename
-                              : `${photo.filename}`,
+                          uri: photo.photoUrl
+                            ? photo.photoUrl
+                            : (typeof photo.filename === 'string' && photo.filename.startsWith('http')
+                                ? photo.filename
+                                : `${API_BASE_URL}/uploads/${photo.filename}`),
                         }}
                         style={{ width: '100%', height: '100%', borderRadius: 8 }}
                         resizeMode="cover"

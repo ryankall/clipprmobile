@@ -1,7 +1,7 @@
 import { getToken } from './auth';
 
 // Use the main server URL for API requests
-const API_BASE_URL = 'https://b22f0720-93ab-4faa-a11e-f9419792ac50-00-3m9qdub93g7mz.kirk.replit.dev';
+export const API_BASE_URL = 'https://b22f0720-93ab-4faa-a11e-f9419792ac50-00-3m9qdub93g7mz.kirk.replit.dev';
 
 let data = '';
 export interface ApiError {

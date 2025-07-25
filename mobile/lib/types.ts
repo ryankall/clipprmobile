@@ -101,6 +101,8 @@ export interface GalleryPhoto {
   type: 'before' | 'after' | 'portfolio';
   isPublic: boolean;
   createdAt: string;
+  description?: string;
+  photoUrl?: string; // Added for compatibility with web and API
 }
 
 export interface Message {
