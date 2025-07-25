@@ -164,7 +164,9 @@ export default function InvoicePage() {
     }>
   >([]);
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
-  const [selectedInvoiceServices, setSelectedInvoiceServices] = useState<Service[]>([]);
+  const [selectedInvoiceServices, setSelectedInvoiceServices] = useState<
+    Service[]
+  >([]);
   const [invoiceServicesLoading, setInvoiceServicesLoading] = useState(false);
   const [isInvoiceDetailsOpen, setIsInvoiceDetailsOpen] = useState(false);
   const [showRecentInvoices, setShowRecentInvoices] = useState(false); // Default to hidden
@@ -1343,7 +1345,7 @@ export default function InvoicePage() {
                           <FormLabel className="text-white">
                             Payment Status
                           </FormLabel>
-                          <Select 
+                          <Select
                             onValueChange={field.onChange}
                             defaultValue="unpaid"
                           >
@@ -1872,14 +1874,22 @@ export default function InvoicePage() {
                       onClick={async () => {
                         setSelectedInvoice(invoice);
                         setIsInvoiceDetailsOpen(true);
-                        
+
                         // Fetch services for this invoice
                         setInvoiceServicesLoading(true);
                         try {
-                          const invoiceWithServices = await apiRequest('GET', `/api/invoices/${invoice.id}`);
-                          setSelectedInvoiceServices(invoiceWithServices.services || []);
+                          const invoiceWithServices = await apiRequest(
+                            "GET",
+                            `/api/invoices/${invoice.id}`,
+                          );
+                          setSelectedInvoiceServices(
+                            invoiceWithServices.services || [],
+                          );
                         } catch (error) {
-                          console.error('Failed to fetch invoice services:', error);
+                          console.error(
+                            "Failed to fetch invoice services:",
+                            error,
+                          );
                           setSelectedInvoiceServices([]);
                         } finally {
                           setInvoiceServicesLoading(false);
@@ -1932,49 +1942,71 @@ export default function InvoicePage() {
                                   : "bg-yellow-600 text-white"
                               }`}
                             >
-                              {invoice.paymentStatus === "paid" ? "✅ Paid" : "⏳ Unpaid"}
+                              {invoice.paymentStatus === "paid"
+                                ? " Paid"
+                                : " Unpaid"}
                             </Badge>
                             {invoice.paymentMethod && (
-                              <Badge variant="outline" className="text-xs border-steel/40 text-steel">
-                                {invoice.paymentMethod === "cash" ? "Cash" : 
-                                 invoice.paymentMethod === "stripe" ? "Card" :
-                                 invoice.paymentMethod === "apple_pay" ? "Apple Pay" : 
-                                 invoice.paymentMethod}
+                              <Badge
+                                variant="outline"
+                                className="text-xs border-steel/40 text-steel"
+                              >
+                                {invoice.paymentMethod === "cash"
+                                  ? "Cash"
+                                  : invoice.paymentMethod === "stripe"
+                                    ? "Card"
+                                    : invoice.paymentMethod === "apple_pay"
+                                      ? "Apple Pay"
+                                      : invoice.paymentMethod}
                               </Badge>
                             )}
                           </div>
-                          {invoice.paymentMethod === "cash" && invoice.paymentStatus === "unpaid" && (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="h-6 text-xs bg-green-600/10 border-green-600/40 text-green-400 hover:bg-green-600/20"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                if (confirm("Confirm that this invoice was paid in cash?")) {
-                                  markAsPaidMutation.mutate(invoice.id);
-                                }
-                              }}
-                              disabled={markAsPaidMutation.isPending}
-                            >
-                              {markAsPaidMutation.isPending ? "..." : "Mark as Paid"}
-                            </Button>
-                          )}
-                          {invoice.paymentMethod === "cash" && invoice.paymentStatus === "paid" && (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="h-6 text-xs bg-red-600/10 border-red-600/40 text-red-400 hover:bg-red-600/20"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                if (confirm("Undo this cash payment? This will mark the invoice as unpaid.")) {
-                                  undoPaymentMutation.mutate(invoice.id);
-                                }
-                              }}
-                              disabled={undoPaymentMutation.isPending}
-                            >
-                              {undoPaymentMutation.isPending ? "..." : "Undo Payment"}
-                            </Button>
-                          )}
+                          {invoice.paymentMethod === "cash" &&
+                            invoice.paymentStatus === "unpaid" && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-6 text-xs bg-green-600/10 border-green-600/40 text-green-400 hover:bg-green-600/20"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (
+                                    confirm(
+                                      "Confirm that this invoice was paid in cash?",
+                                    )
+                                  ) {
+                                    markAsPaidMutation.mutate(invoice.id);
+                                  }
+                                }}
+                                disabled={markAsPaidMutation.isPending}
+                              >
+                                {markAsPaidMutation.isPending
+                                  ? "..."
+                                  : "Mark as Paid"}
+                              </Button>
+                            )}
+                          {invoice.paymentMethod === "cash" &&
+                            invoice.paymentStatus === "paid" && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-6 text-xs bg-red-600/10 border-red-600/40 text-red-400 hover:bg-red-600/20"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (
+                                    confirm(
+                                      "Undo this cash payment? This will mark the invoice as unpaid.",
+                                    )
+                                  ) {
+                                    undoPaymentMutation.mutate(invoice.id);
+                                  }
+                                }}
+                                disabled={undoPaymentMutation.isPending}
+                              >
+                                {undoPaymentMutation.isPending
+                                  ? "..."
+                                  : "Undo Payment"}
+                              </Button>
+                            )}
                         </div>
                       </div>
                     </div>
@@ -2528,7 +2560,11 @@ export default function InvoicePage() {
                   {selectedInvoice.paymentMethod === "cash" && (
                     <Button
                       size="sm"
-                      variant={selectedInvoice.paymentStatus === "paid" ? "destructive" : "default"}
+                      variant={
+                        selectedInvoice.paymentStatus === "paid"
+                          ? "destructive"
+                          : "default"
+                      }
                       className={`text-xs px-3 py-1 h-7 ${
                         selectedInvoice.paymentStatus === "paid"
                           ? "bg-red-500/20 text-red-400 border-red-500/30 hover:bg-red-500/30"
@@ -2543,14 +2579,17 @@ export default function InvoicePage() {
                           markAsPaidMutation.mutate(selectedInvoice.id);
                         }
                       }}
-                      disabled={markAsPaidMutation.isPending || undoPaymentMutation.isPending}
+                      disabled={
+                        markAsPaidMutation.isPending ||
+                        undoPaymentMutation.isPending
+                      }
                     >
-                      {markAsPaidMutation.isPending || undoPaymentMutation.isPending
+                      {markAsPaidMutation.isPending ||
+                      undoPaymentMutation.isPending
                         ? "..."
                         : selectedInvoice.paymentStatus === "paid"
-                        ? "Mark Unpaid"
-                        : "Mark Paid"
-                      }
+                          ? "Mark Unpaid"
+                          : "Mark Paid"}
                     </Button>
                   )}
                 </div>
@@ -2566,13 +2605,15 @@ export default function InvoicePage() {
                       : "bg-red-500/20 text-red-400 border-red-500/30"
                   }
                 >
-                  {selectedInvoice.paymentStatus === "paid" 
+                  {selectedInvoice.paymentStatus === "paid"
                     ? `✅ Paid (${selectedInvoice.paymentMethod === "cash" ? "Cash" : "Card"})`
-                    : "Unpaid"
-                  }
+                    : "Unpaid"}
                   {selectedInvoice.paidAt && (
                     <span className="ml-2 text-xs opacity-70">
-                      {format(new Date(selectedInvoice.paidAt), "MMM d, h:mm a")}
+                      {format(
+                        new Date(selectedInvoice.paidAt),
+                        "MMM d, h:mm a",
+                      )}
                     </span>
                   )}
                 </Badge>
@@ -2580,23 +2621,36 @@ export default function InvoicePage() {
 
               {/* Services Provided */}
               <div className="p-4 bg-charcoal rounded-lg">
-                <h3 className="text-white font-medium mb-2">Services Provided</h3>
+                <h3 className="text-white font-medium mb-2">
+                  Services Provided
+                </h3>
                 <div className="space-y-2">
                   {invoiceServicesLoading ? (
                     <div className="flex items-center justify-center py-4">
                       <div className="animate-spin w-4 h-4 border-2 border-gold border-t-transparent rounded-full" />
-                      <span className="ml-2 text-steel text-sm">Loading services...</span>
+                      <span className="ml-2 text-steel text-sm">
+                        Loading services...
+                      </span>
                     </div>
                   ) : selectedInvoiceServices.length > 0 ? (
                     selectedInvoiceServices.map((service, index) => (
-                      <div key={index} className="flex justify-between items-center py-2 border-b border-steel/20 last:border-b-0">
+                      <div
+                        key={index}
+                        className="flex justify-between items-center py-2 border-b border-steel/20 last:border-b-0"
+                      >
                         <div>
-                          <div className="text-white text-sm font-medium">{service.name}</div>
+                          <div className="text-white text-sm font-medium">
+                            {service.name}
+                          </div>
                           {service.description && (
-                            <div className="text-steel text-xs">{service.description}</div>
+                            <div className="text-steel text-xs">
+                              {service.description}
+                            </div>
                           )}
                         </div>
-                        <div className="text-gold font-medium">${service.price}</div>
+                        <div className="text-gold font-medium">
+                          ${service.price}
+                        </div>
                       </div>
                     ))
                   ) : (

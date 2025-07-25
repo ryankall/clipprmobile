@@ -56,7 +56,9 @@ export interface IStorage {
   getClient(id: number): Promise<Client | undefined>;
   createClient(client: InsertClient): Promise<Client>;
   updateClient(id: number, client: Partial<InsertClient>): Promise<Client>;
-  deleteClient(id: number): Promise<void>;
+  deleteClient(id: number): Promise<void>; // soft delete
+  findClientByPhone(userId: number, phone: string): Promise<Client | undefined>;
+  getClientInvoices(clientId: number, limit?: number): Promise<Invoice[]>;
   getClientStats(userId: number): Promise<{
     bigSpenders: Array<{ name: string; totalSpent: string; appointmentCount: number }>;
     mostVisited: Array<{ name: string; totalVisits: number; lastVisit: Date | null }>;
@@ -207,6 +209,8 @@ export class DatabaseStorage implements IStorage {
         loyaltyStatus: clients.loyaltyStatus,
         totalVisits: clients.totalVisits,
         lastVisit: clients.lastVisit,
+        phoneVerified: clients.phoneVerified,
+        deletedAt: clients.deletedAt,
         createdAt: clients.createdAt,
         totalSpent: sql<string>`COALESCE(SUM(${invoices.total}), '0')`,
         upcomingAppointments: sql<number>`CAST(COUNT(CASE WHEN ${appointments.id} IS NOT NULL THEN 1 END) AS INTEGER)`,
@@ -218,7 +222,7 @@ export class DatabaseStorage implements IStorage {
         gte(appointments.scheduledAt, new Date()),
         eq(appointments.status, "scheduled")
       ))
-      .where(eq(clients.userId, userId))
+      .where(and(eq(clients.userId, userId), sql`${clients.deletedAt} IS NULL`))
       .groupBy(
         clients.id,
         clients.userId,
@@ -232,6 +236,8 @@ export class DatabaseStorage implements IStorage {
         clients.loyaltyStatus,
         clients.totalVisits,
         clients.lastVisit,
+        clients.phoneVerified,
+        clients.deletedAt,
         clients.createdAt
       )
       .orderBy(desc(clients.lastVisit));
@@ -240,11 +246,40 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getClient(id: number): Promise<Client | undefined> {
-    const [client] = await db.select().from(clients).where(eq(clients.id, id));
+    const [client] = await db.select().from(clients).where(and(eq(clients.id, id), sql`${clients.deletedAt} IS NULL`));
     return client || undefined;
   }
 
   async createClient(client: InsertClient): Promise<Client> {
+    // Check if there's a soft-deleted client with the same phone number
+    if (client.phone) {
+      const [existingClient] = await db
+        .select()
+        .from(clients)
+        .where(and(eq(clients.userId, client.userId), eq(clients.phone, client.phone)));
+      
+      if (existingClient) {
+        // If there's a soft-deleted client, restore and update it
+        if (existingClient.deletedAt) {
+          const [restoredClient] = await db
+            .update(clients)
+            .set({ 
+              ...client, 
+              deletedAt: null, // restore client
+              createdAt: existingClient.createdAt // keep original creation date
+            })
+            .where(eq(clients.id, existingClient.id))
+            .returning();
+          console.log('Restored soft-deleted client:', existingClient.id);
+          return restoredClient;
+        } else {
+          // Client already exists and is active - this should be caught by unique constraint
+          throw new Error('Client with this phone number already exists');
+        }
+      }
+    }
+    
+    // Create new client
     const [newClient] = await db.insert(clients).values(client).returning();
     return newClient;
   }
@@ -259,53 +294,30 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteClient(id: number): Promise<void> {
-    // Use a transaction to ensure all deletions succeed or fail together
-    await db.transaction(async (tx) => {
-      console.log('Deleting client with ID:', id);
-      
-      // First, get all appointments for this client
-      const clientAppointments = await tx
-        .select({ id: appointments.id })
-        .from(appointments)
-        .where(eq(appointments.clientId, id));
-      
-      // Delete all appointments and their related records
-      for (const appointment of clientAppointments) {
-        // Delete appointment services
-        await tx.delete(appointmentServices).where(eq(appointmentServices.appointmentId, appointment.id));
-        
-        // Delete related gallery photos
-        await tx.delete(galleryPhotos).where(eq(galleryPhotos.appointmentId, appointment.id));
-        
-        // Delete related invoices
-        await tx.delete(invoices).where(eq(invoices.appointmentId, appointment.id));
-        
-        // Nullify notification references to this appointment
-        await tx.update(notifications)
-          .set({ appointmentId: null })
-          .where(eq(notifications.appointmentId, appointment.id));
-      }
-      
-      // Delete all appointments for this client
-      await tx.delete(appointments).where(eq(appointments.clientId, id));
-      console.log('Deleted appointments for client:', id);
-      
-      // Delete messages associated with this client
-      await tx.delete(messages).where(eq(messages.clientId, id));
-      console.log('Deleted messages for client:', id);
-      
-      // Delete gallery photos directly associated with this client
-      await tx.delete(galleryPhotos).where(eq(galleryPhotos.clientId, id));
-      console.log('Deleted gallery photos for client:', id);
-      
-      // Delete invoices directly associated with this client
-      await tx.delete(invoices).where(eq(invoices.clientId, id));
-      console.log('Deleted invoices for client:', id);
-      
-      // Finally delete the client
-      await tx.delete(clients).where(eq(clients.id, id));
-      console.log('Successfully deleted client:', id);
-    });
+    // Soft delete - just mark as deleted, don't delete invoices
+    await db
+      .update(clients)
+      .set({ deletedAt: new Date() })
+      .where(eq(clients.id, id));
+    console.log('Soft deleted client:', id);
+  }
+
+  async findClientByPhone(userId: number, phone: string): Promise<Client | undefined> {
+    if (!phone) return undefined;
+    const [client] = await db
+      .select()
+      .from(clients)
+      .where(and(eq(clients.userId, userId), eq(clients.phone, phone), sql`${clients.deletedAt} IS NULL`));
+    return client || undefined;
+  }
+
+  async getClientInvoices(clientId: number, limit = 10): Promise<Invoice[]> {
+    return await db
+      .select()
+      .from(invoices)
+      .where(eq(invoices.clientId, clientId))
+      .orderBy(desc(invoices.createdAt))
+      .limit(limit);
   }
 
   async getServicesByUserId(userId: number): Promise<Service[]> {

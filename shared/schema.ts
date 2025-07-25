@@ -67,10 +67,14 @@ export const clients = pgTable("clients", {
   preferredStyle: text("preferred_style"),
   notes: text("notes"),
   loyaltyStatus: text("loyalty_status").default("regular"), // regular, vip
-  lastVisit: timestamp("last_visit"),
   totalVisits: integer("total_visits").default(0),
+  lastVisit: timestamp("last_visit"),
+  phoneVerified: boolean("phone_verified").default(false),
+  deletedAt: timestamp("deleted_at"), // soft deletion
   createdAt: timestamp("created_at").defaultNow(),
-});
+}, (table) => ({
+  userPhoneIndex: uniqueIndex("clients_user_phone_idx").on(table.userId, table.phone),
+}));
 
 export const services = pgTable("services", {
   id: serial("id").primaryKey(),

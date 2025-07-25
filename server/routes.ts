@@ -1005,6 +1005,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get("/api/clients/:id/invoices", requireAuth, async (req, res) => {
+    try {
+      const userId = (req.user as any).id;
+      const clientId = parseInt(req.params.id);
+      const limit = parseInt(req.query.limit as string) || 10;
+      
+      // Verify client belongs to this user
+      const client = await storage.getClient(clientId);
+      if (!client || client.userId !== userId) {
+        return res.status(404).json({ message: "Client not found" });
+      }
+      
+      const invoices = await storage.getClientInvoices(clientId, limit);
+      res.json(invoices);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
   app.post("/api/clients", requireAuth, async (req, res) => {
     try {
       const userId = (req.user as any).id;

@@ -10,7 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { ArrowLeft, Phone, Mail, MapPin, Calendar, Star, Camera, DollarSign, Edit, Save, X, MessageCircle, Trash2 } from "lucide-react";
+import { ArrowLeft, Phone, Mail, MapPin, Calendar, Star, Camera, DollarSign, Edit, Save, X, MessageCircle, Trash2, Receipt } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { format } from "date-fns";
 import { useForm } from "react-hook-form";
@@ -61,6 +61,11 @@ export default function ClientProfile() {
   const { data: messages, isLoading: messagesLoading } = useQuery<Message[]>({
     queryKey: ["/api/messages"],
     select: (data) => data?.filter(message => message.clientId === clientId) || [],
+    enabled: !!clientId,
+  });
+
+  const { data: clientInvoices, isLoading: invoicesLoading } = useQuery<any[]>({
+    queryKey: [`/api/clients/${clientId}/invoices`],
     enabled: !!clientId,
   });
 
@@ -736,6 +741,65 @@ export default function ClientProfile() {
                 <Link href="/gallery">
                   <Button variant="link" className="text-gold text-sm mt-2 p-0 h-auto">
                     Add photos
+                  </Button>
+                </Link>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Invoice History */}
+        <Card className="bg-dark-card border-steel/20">
+          <CardHeader>
+            <CardTitle className="text-white flex items-center">
+              <Receipt className="w-5 h-5 mr-2" />
+              Invoice History ({clientInvoices?.length || 0})
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {invoicesLoading ? (
+              <div className="flex justify-center py-4">
+                <div className="animate-spin w-6 h-6 border-2 border-gold border-t-transparent rounded-full" />
+              </div>
+            ) : clientInvoices && clientInvoices.length > 0 ? (
+              <div className="space-y-3">
+                {clientInvoices.map((invoice) => (
+                  <div key={invoice.id} className="flex items-center justify-between p-3 bg-charcoal rounded-lg">
+                    <div>
+                      <div className="font-medium text-white">Invoice #{invoice.id}</div>
+                      <div className="text-sm text-steel">
+                        {format(new Date(invoice.createdAt), 'MMM d, yyyy • h:mm a')}
+                      </div>
+                      <div className="text-xs text-steel">
+                        {invoice.paymentMethod} • {invoice.status}
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-gold font-medium">${invoice.total}</div>
+                      <div className="flex items-center gap-2">
+                        <Badge 
+                          variant={invoice.paymentStatus === 'paid' ? 'default' : 'secondary'}
+                          className="text-xs"
+                        >
+                          {invoice.paymentStatus}
+                        </Badge>
+                        {invoice.paymentMethod && (
+                          <Badge variant="outline" className="text-xs border-steel/40 text-steel">
+                            {invoice.paymentMethod}
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8 text-steel">
+                <Receipt className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                <p>No invoices yet</p>
+                <Link href="/invoice">
+                  <Button variant="link" className="text-gold text-sm mt-2 p-0 h-auto">
+                    Create first invoice
                   </Button>
                 </Link>
               </div>
