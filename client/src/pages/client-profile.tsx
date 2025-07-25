@@ -38,6 +38,10 @@ export default function ClientProfile() {
   const clientId = parseInt(id || "0");
   const [isEditing, setIsEditing] = useState(false);
   const [showAllMessages, setShowAllMessages] = useState(false);
+  const [isInvoiceDetailsOpen, setIsInvoiceDetailsOpen] = useState(false);
+  const [selectedInvoice, setSelectedInvoice] = useState<any>(null);
+  const [selectedInvoiceServices, setSelectedInvoiceServices] = useState<any[]>([]);
+  const [invoiceServicesLoading, setInvoiceServicesLoading] = useState(false);
   const [, navigate] = useLocation();
   const { toast } = useToast();
 
@@ -767,9 +771,29 @@ export default function ClientProfile() {
                   <div 
                     key={invoice.id} 
                     className="flex items-center justify-between p-3 bg-charcoal rounded-lg cursor-pointer hover:bg-charcoal/80 transition-colors"
-                    onClick={() => {
-                      // Navigate to invoice page and show details
-                      navigate(`/invoice?show=${invoice.id}`);
+                    onClick={async () => {
+                      setSelectedInvoice(invoice);
+                      setIsInvoiceDetailsOpen(true);
+
+                      // Fetch services for this invoice
+                      setInvoiceServicesLoading(true);
+                      try {
+                        const invoiceWithServices = await apiRequest(
+                          "GET",
+                          `/api/invoices/${invoice.id}`,
+                        );
+                        setSelectedInvoiceServices(
+                          invoiceWithServices.services || [],
+                        );
+                      } catch (error) {
+                        console.error(
+                          "Failed to fetch invoice services:",
+                          error,
+                        );
+                        setSelectedInvoiceServices([]);
+                      } finally {
+                        setInvoiceServicesLoading(false);
+                      }
                     }}
                   >
                     <div className="flex items-center space-x-3">
@@ -831,22 +855,6 @@ export default function ClientProfile() {
                         </div>
                       </div>
                     </div>
-                    <div className="text-right">
-                      <div className="text-gold font-medium">${invoice.total}</div>
-                      <div className="flex items-center gap-2">
-                        <Badge 
-                          variant={invoice.paymentStatus === 'paid' ? 'default' : 'secondary'}
-                          className="text-xs"
-                        >
-                          {invoice.paymentStatus}
-                        </Badge>
-                        {invoice.paymentMethod && (
-                          <Badge variant="outline" className="text-xs border-steel/40 text-steel">
-                            {invoice.paymentMethod}
-                          </Badge>
-                        )}
-                      </div>
-                    </div>
                   </div>
                 ))}
               </div>
@@ -863,6 +871,150 @@ export default function ClientProfile() {
             )}
           </CardContent>
         </Card>
+
+        {/* Invoice Details Modal */}
+        <Dialog
+          open={isInvoiceDetailsOpen}
+          onOpenChange={setIsInvoiceDetailsOpen}
+        >
+          <DialogContent className="bg-dark-card border-steel/20 text-white max-h-[90vh] overflow-y-auto scrollbar-hide">
+            <DialogHeader>
+              <DialogTitle className="text-white">Invoice Details</DialogTitle>
+              <div className="text-steel">
+                Invoice #{selectedInvoice?.id}
+              </div>
+            </DialogHeader>
+            {selectedInvoice && (
+              <div className="space-y-4">
+                {/* Client Info */}
+                <div className="p-4 bg-charcoal rounded-lg">
+                  <h3 className="text-white font-medium mb-2">Client</h3>
+                  <p className="text-steel">
+                    {client?.name || "Unknown Client"}
+                  </p>
+                </div>
+
+                {/* Services */}
+                <div className="p-4 bg-charcoal rounded-lg">
+                  <h3 className="text-white font-medium mb-2">Services</h3>
+                  {invoiceServicesLoading ? (
+                    <div className="flex justify-center py-4">
+                      <div className="animate-spin w-5 h-5 border-2 border-gold border-t-transparent rounded-full" />
+                    </div>
+                  ) : selectedInvoiceServices && selectedInvoiceServices.length > 0 ? (
+                    <div className="space-y-2">
+                      {selectedInvoiceServices.map((service, index) => (
+                        <div key={index} className="flex justify-between items-center">
+                          <div className="flex-1">
+                            <span className="text-white">{service.serviceName}</span>
+                            {service.quantity > 1 && (
+                              <span className="text-steel ml-2">x{service.quantity}</span>
+                            )}
+                          </div>
+                          <span className="text-gold">
+                            ${(service.price * service.quantity).toFixed(2)}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-steel">No services found</p>
+                  )}
+                </div>
+
+                {/* Invoice Details */}
+                <div className="p-4 bg-charcoal rounded-lg">
+                  <h3 className="text-white font-medium mb-2">Details</h3>
+                  <div className="space-y-2 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-steel">Subtotal:</span>
+                      <span className="text-white">
+                        ${selectedInvoice.subtotal}
+                      </span>
+                    </div>
+                    {selectedInvoice.tip &&
+                      parseFloat(selectedInvoice.tip) > 0 && (
+                        <div className="flex justify-between">
+                          <span className="text-steel">Tip:</span>
+                          <span className="text-white">
+                            ${selectedInvoice.tip}
+                          </span>
+                        </div>
+                      )}
+                    <div className="flex justify-between text-base font-medium">
+                      <span className="text-white">Total:</span>
+                      <span className="text-gold">${selectedInvoice.total}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Payment Method */}
+                <div className="p-4 bg-charcoal rounded-lg">
+                  <h3 className="text-white font-medium mb-2">Payment Method</h3>
+                  <div className="flex items-center space-x-2">
+                    {selectedInvoice.paymentMethod === "stripe" && (
+                      <>
+                        <CreditCard className="w-4 h-4 text-gold" />
+                        <span className="text-steel">Card Payment</span>
+                      </>
+                    )}
+                    {selectedInvoice.paymentMethod === "apple_pay" && (
+                      <>
+                        <Smartphone className="w-4 h-4 text-gold" />
+                        <span className="text-steel">Apple Pay</span>
+                      </>
+                    )}
+                    {selectedInvoice.paymentMethod === "cash" && (
+                      <>
+                        <Banknote className="w-4 h-4 text-gold" />
+                        <span className="text-steel">Cash</span>
+                      </>
+                    )}
+                    {!selectedInvoice.paymentMethod && (
+                      <>
+                        <Receipt className="w-4 h-4 text-gold" />
+                        <span className="text-steel">Pending</span>
+                      </>
+                    )}
+                  </div>
+                </div>
+
+                {/* Status */}
+                <div className="p-4 bg-charcoal rounded-lg">
+                  <h3 className="text-white font-medium mb-2">Payment Status</h3>
+                  <div className="flex items-center space-x-2">
+                    <Badge
+                      variant={
+                        selectedInvoice.paymentStatus === "paid"
+                          ? "default"
+                          : selectedInvoice.paymentStatus === "pending"
+                          ? "secondary"
+                          : "destructive"
+                      }
+                      className={
+                        selectedInvoice.paymentStatus === "paid"
+                          ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30"
+                          : selectedInvoice.paymentStatus === "pending"
+                          ? "bg-amber-500/20 text-amber-400 border-amber-500/30"
+                          : "bg-red-500/20 text-red-400 border-red-500/30"
+                      }
+                    >
+                      {selectedInvoice.paymentStatus || "pending"}
+                    </Badge>
+                  </div>
+                </div>
+
+                {/* Created Date */}
+                <div className="p-4 bg-charcoal rounded-lg">
+                  <h3 className="text-white font-medium mb-2">Created</h3>
+                  <p className="text-steel">
+                    {format(new Date(selectedInvoice.createdAt), 'MMMM d, yyyy • h:mm a')}
+                  </p>
+                </div>
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
       </main>
     </div>
   );
