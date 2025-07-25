@@ -598,6 +598,32 @@ export class DatabaseStorage implements IStorage {
     return updatedInvoice;
   }
 
+  async markInvoiceAsPaid(id: number, paidBy: string): Promise<Invoice> {
+    const [updatedInvoice] = await db
+      .update(invoices)
+      .set({
+        paymentStatus: "paid",
+        paidAt: new Date(),
+        paidBy: paidBy,
+      })
+      .where(eq(invoices.id, id))
+      .returning();
+    return updatedInvoice;
+  }
+
+  async undoInvoicePayment(id: number): Promise<Invoice> {
+    const [updatedInvoice] = await db
+      .update(invoices)
+      .set({
+        paymentStatus: "unpaid",
+        paidAt: null,
+        paidBy: null,
+      })
+      .where(eq(invoices.id, id))
+      .returning();
+    return updatedInvoice;
+  }
+
   async getGalleryPhotosByUserId(userId: number): Promise<GalleryPhoto[]> {
     return await db
       .select()

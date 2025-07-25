@@ -9,7 +9,7 @@ import { Service } from '../../lib/types';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // --- Invoice and Client Types ---
-type InvoiceStatus = 'pending' | 'paid' | 'cancelled';
+type PaymentStatus = 'paid' | 'unpaid';
 type PaymentMethod = 'stripe' | 'apple_pay' | 'cash' | undefined;
 
 interface Invoice {
@@ -18,8 +18,10 @@ interface Invoice {
   subtotal: string;
   tip: string;
   total: string;
-  status: InvoiceStatus;
+  paymentStatus: PaymentStatus;
   paymentMethod?: PaymentMethod;
+  paidAt?: string;
+  paidBy?: string;
   createdAt: string;
   // ...other fields as needed
 }
@@ -635,15 +637,12 @@ export default function Invoice() {
                   const client = clients.find((c) => c.id === invoice.clientId);
                   let statusColor = '#F59E0B';
                   let statusBg = '#232323';
-                  if (invoice.status === 'paid') {
+                  if (invoice.paymentStatus === 'paid') {
                     statusColor = '#22C55E';
                     statusBg = '#193a2f';
-                  } else if (invoice.status === 'pending') {
+                  } else if (invoice.paymentStatus === 'unpaid') {
                     statusColor = '#F59E0B';
                     statusBg = '#2d230f';
-                  } else if (invoice.status === 'cancelled') {
-                    statusColor = '#EF4444';
-                    statusBg = '#3a1919';
                   }
                   let iconName: any = 'receipt-outline';
                   if (invoice.paymentMethod === 'stripe') iconName = 'card-outline';
@@ -710,17 +709,113 @@ export default function Invoice() {
                         <Text style={{ color: '#F59E0B', fontWeight: '700', fontSize: 16 }}>
                           ${invoice.total}
                         </Text>
-                        <View style={{
-                          marginTop: 4,
-                          alignSelf: 'flex-end',
-                          backgroundColor: statusBg,
-                          borderRadius: 8,
-                          paddingHorizontal: 8,
-                          paddingVertical: 2,
-                        }}>
-                          <Text style={{ color: statusColor, fontWeight: '600', fontSize: 12, textTransform: 'capitalize' }}>
-                            {invoice.status}
-                          </Text>
+                        <View style={{ alignItems: 'flex-end', marginTop: 4 }}>
+                          <View style={{
+                            backgroundColor: statusBg,
+                            borderRadius: 6,
+                            paddingHorizontal: 6,
+                            paddingVertical: 2,
+                            marginBottom: 2,
+                            flexDirection: 'row',
+                            alignItems: 'center',
+                          }}>
+                            <Text style={{ color: statusColor, fontWeight: '600', fontSize: 10 }}>
+                              {invoice.paymentStatus === 'paid' ? '✅ Paid' : '⏳ Unpaid'}
+                            </Text>
+                          </View>
+                          {invoice.paymentMethod && (
+                            <View style={{
+                              backgroundColor: '#232323',
+                              borderRadius: 4,
+                              paddingHorizontal: 4,
+                              paddingVertical: 1,
+                              marginBottom: 2,
+                            }}>
+                              <Text style={{ color: '#9CA3AF', fontWeight: '500', fontSize: 9 }}>
+                                {invoice.paymentMethod === 'cash' ? 'Cash' : 
+                                 invoice.paymentMethod === 'stripe' ? 'Card' :
+                                 invoice.paymentMethod === 'apple_pay' ? 'Apple Pay' : 
+                                 invoice.paymentMethod}
+                              </Text>
+                            </View>
+                          )}
+                          {invoice.paymentMethod === 'cash' && invoice.paymentStatus === 'unpaid' && (
+                            <TouchableOpacity
+                              style={{
+                                backgroundColor: '#22C55E20',
+                                borderRadius: 4,
+                                paddingHorizontal: 4,
+                                paddingVertical: 2,
+                                borderWidth: 1,
+                                borderColor: '#22C55E40',
+                              }}
+                              onPress={(e) => {
+                                e.stopPropagation();
+                                Alert.alert(
+                                  'Mark as Paid',
+                                  'Confirm that this invoice was paid in cash?',
+                                  [
+                                    { text: 'Cancel', style: 'cancel' },
+                                    { 
+                                      text: 'Mark Paid', 
+                                      onPress: async () => {
+                                        try {
+                                          await apiRequest('POST', `/api/invoices/${invoice.id}/mark-paid`);
+                                          await loadInvoicesAndClients();
+                                          Alert.alert('Success', 'Invoice marked as paid');
+                                        } catch (error: any) {
+                                          Alert.alert('Error', error.message || 'Failed to mark invoice as paid');
+                                        }
+                                      }
+                                    }
+                                  ]
+                                );
+                              }}
+                            >
+                              <Text style={{ color: '#22C55E', fontWeight: '600', fontSize: 8 }}>
+                                Mark Paid
+                              </Text>
+                            </TouchableOpacity>
+                          )}
+                          {invoice.paymentMethod === 'cash' && invoice.paymentStatus === 'paid' && (
+                            <TouchableOpacity
+                              style={{
+                                backgroundColor: '#EF444420',
+                                borderRadius: 4,
+                                paddingHorizontal: 4,
+                                paddingVertical: 2,
+                                borderWidth: 1,
+                                borderColor: '#EF444440',
+                              }}
+                              onPress={(e) => {
+                                e.stopPropagation();
+                                Alert.alert(
+                                  'Undo Payment',
+                                  'Undo this cash payment? This will mark the invoice as unpaid.',
+                                  [
+                                    { text: 'Cancel', style: 'cancel' },
+                                    { 
+                                      text: 'Undo', 
+                                      style: 'destructive',
+                                      onPress: async () => {
+                                        try {
+                                          await apiRequest('POST', `/api/invoices/${invoice.id}/undo-payment`);
+                                          await loadInvoicesAndClients();
+                                          Alert.alert('Success', 'Payment status reset');
+                                        } catch (error: any) {
+                                          Alert.alert('Error', error.message || 'Failed to undo payment');
+                                        }
+                                      }
+                                    }
+                                  ]
+                                );
+                              }}
+                            >
+                              <Text style={{ color: '#EF4444', fontWeight: '600', fontSize: 8 }}>
+                                Undo Payment
+                              </Text>
+                            </TouchableOpacity>
+                          )}
                         </View>
                       </View>
                     </TouchableOpacity>

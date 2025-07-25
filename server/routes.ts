@@ -1441,6 +1441,80 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Mark invoice as paid (for cash payments)
+  app.post("/api/invoices/:id/mark-paid", requireAuth, async (req, res) => {
+    try {
+      const userId = (req.user as any).id;
+      const invoiceId = parseInt(req.params.id);
+      
+      // Get the invoice first to verify ownership and current status
+      const invoice = await storage.getInvoice(invoiceId);
+      if (!invoice || invoice.userId !== userId) {
+        return res.status(404).json({ message: "Invoice not found" });
+      }
+      
+      // Check if invoice is already paid
+      if (invoice.paymentStatus === "paid") {
+        return res.status(400).json({ error: "Invoice already marked as paid" });
+      }
+      
+      // Only allow cash payments to be marked as paid manually
+      if (invoice.paymentMethod !== "cash") {
+        return res.status(400).json({ error: "Only cash invoices can be marked as paid manually" });
+      }
+      
+      // Get user info for paidBy field
+      const user = await storage.getUser(userId);
+      const paidBy = user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email : 'Unknown';
+      
+      const updatedInvoice = await storage.markInvoiceAsPaid(invoiceId, paidBy);
+      
+      res.json({
+        success: true,
+        message: "Invoice marked as paid successfully",
+        invoice: updatedInvoice
+      });
+    } catch (error: any) {
+      console.error("Mark invoice as paid error:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Undo cash payment (cash payments only)
+  app.post("/api/invoices/:id/undo-payment", requireAuth, async (req, res) => {
+    try {
+      const userId = (req.user as any).id;
+      const invoiceId = parseInt(req.params.id);
+      
+      // Get the invoice first to verify ownership and current status
+      const invoice = await storage.getInvoice(invoiceId);
+      if (!invoice || invoice.userId !== userId) {
+        return res.status(404).json({ message: "Invoice not found" });
+      }
+      
+      // Check if invoice is not paid
+      if (invoice.paymentStatus !== "paid") {
+        return res.status(400).json({ error: "Invoice is not marked as paid" });
+      }
+      
+      // Only allow cash payments to be undone
+      if (invoice.paymentMethod !== "cash") {
+        return res.status(400).json({ error: "Only cash payments can be undone" });
+      }
+      
+      const updatedInvoice = await storage.undoInvoicePayment(invoiceId);
+      
+      res.json({
+        success: true,
+        message: "Payment status undone successfully",
+        invoice: updatedInvoice
+      });
+    } catch (error: any) {
+      console.error("Undo invoice payment error:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
   app.post("/api/invoices/export", requireAuth, async (req, res) => {
     try {
       const userId = (req.user as any).id;

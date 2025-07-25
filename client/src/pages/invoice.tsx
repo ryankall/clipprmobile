@@ -363,6 +363,48 @@ export default function InvoicePage() {
     },
   });
 
+  // Mark invoice as paid (for cash payments)
+  const markAsPaidMutation = useMutation({
+    mutationFn: async (invoiceId: number) => {
+      return apiRequest("POST", `/api/invoices/${invoiceId}/mark-paid`);
+    },
+    onSuccess: (response) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/invoices"] });
+      toast({
+        title: "Payment Recorded",
+        description: "Invoice marked as paid successfully",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to mark invoice as paid",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Undo cash payment
+  const undoPaymentMutation = useMutation({
+    mutationFn: async (invoiceId: number) => {
+      return apiRequest("POST", `/api/invoices/${invoiceId}/undo-payment`);
+    },
+    onSuccess: (response) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/invoices"] });
+      toast({
+        title: "Payment Undone",
+        description: "Payment status reset successfully",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to undo payment",
+        variant: "destructive",
+      });
+    },
+  });
+
   // Load templates from localStorage
   const loadTemplates = () => {
     const templates = JSON.parse(
@@ -1821,22 +1863,68 @@ export default function InvoicePage() {
                           </div>
                         </div>
                       </div>
-                      <div className="text-right">
+                      <div className="text-right space-y-1">
                         <div className="text-gold font-medium">
                           ${invoice.total}
                         </div>
-                        <Badge
-                          variant={
-                            invoice.status === "paid"
-                              ? "default"
-                              : invoice.status === "pending"
-                                ? "secondary"
-                                : "destructive"
-                          }
-                          className="text-xs"
-                        >
-                          {invoice.status}
-                        </Badge>
+                        <div className="flex flex-col items-end space-y-1">
+                          <div className="flex items-center space-x-2">
+                            <Badge
+                              variant={
+                                invoice.paymentStatus === "paid"
+                                  ? "default"
+                                  : "secondary"
+                              }
+                              className={`text-xs ${
+                                invoice.paymentStatus === "paid"
+                                  ? "bg-green-600 text-white"
+                                  : "bg-yellow-600 text-white"
+                              }`}
+                            >
+                              {invoice.paymentStatus === "paid" ? "✅ Paid" : "⏳ Unpaid"}
+                            </Badge>
+                            {invoice.paymentMethod && (
+                              <Badge variant="outline" className="text-xs border-steel/40 text-steel">
+                                {invoice.paymentMethod === "cash" ? "Cash" : 
+                                 invoice.paymentMethod === "stripe" ? "Card" :
+                                 invoice.paymentMethod === "apple_pay" ? "Apple Pay" : 
+                                 invoice.paymentMethod}
+                              </Badge>
+                            )}
+                          </div>
+                          {invoice.paymentMethod === "cash" && invoice.paymentStatus === "unpaid" && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-6 text-xs bg-green-600/10 border-green-600/40 text-green-400 hover:bg-green-600/20"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (confirm("Confirm that this invoice was paid in cash?")) {
+                                  markAsPaidMutation.mutate(invoice.id);
+                                }
+                              }}
+                              disabled={markAsPaidMutation.isPending}
+                            >
+                              {markAsPaidMutation.isPending ? "..." : "Mark as Paid"}
+                            </Button>
+                          )}
+                          {invoice.paymentMethod === "cash" && invoice.paymentStatus === "paid" && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-6 text-xs bg-red-600/10 border-red-600/40 text-red-400 hover:bg-red-600/20"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (confirm("Undo this cash payment? This will mark the invoice as unpaid.")) {
+                                  undoPaymentMutation.mutate(invoice.id);
+                                }
+                              }}
+                              disabled={undoPaymentMutation.isPending}
+                            >
+                              {undoPaymentMutation.isPending ? "..." : "Undo Payment"}
+                            </Button>
+                          )}
+                        </div>
                       </div>
                     </div>
                   );

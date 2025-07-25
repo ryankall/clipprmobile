@@ -119,13 +119,15 @@ export const invoices = pgTable("invoices", {
   tip: decimal("tip", { precision: 10, scale: 2 }).default("0"),
   total: decimal("total", { precision: 10, scale: 2 }).notNull(),
   status: text("status").notNull().default("pending"), // pending, paid, cancelled
-  paymentMethod: text("payment_method"), // stripe, apple_pay, cash
+  paymentStatus: text("payment_status").notNull().default("unpaid"), // paid, unpaid
+  paymentMethod: text("payment_method"), // stripe, apple_pay, cash, card
   stripePaymentIntentId: text("stripe_payment_intent_id"),
   sendEmail: boolean("send_email").default(false),
   sendSMS: boolean("send_sms").default(false),
   emailSent: boolean("email_sent").default(false),
   smsSent: boolean("sms_sent").default(false),
   paidAt: timestamp("paid_at"),
+  paidBy: text("paid_by"), // who marked it as paid (for cash payments)
   createdAt: timestamp("created_at").defaultNow(),
 });
 
