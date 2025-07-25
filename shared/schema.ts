@@ -37,7 +37,6 @@ export const users = pgTable("users", {
   
   // Account verification
   emailVerified: boolean("email_verified").default(false),
-  phoneVerified: boolean("phone_verified").default(false),
   phoneVerificationCode: text("phone_verification_code"), // SMS verification code
   phoneVerificationExpiry: timestamp("phone_verification_expiry"), // expiry time for code
   phoneVerificationAttempts: integer("phone_verification_attempts").default(0), // rate limiting
@@ -69,8 +68,6 @@ export const clients = pgTable("clients", {
   loyaltyStatus: text("loyalty_status").default("regular"), // regular, vip
   totalVisits: integer("total_visits").default(0),
   lastVisit: timestamp("last_visit"),
-  phoneVerified: boolean("phone_verified").default(false),
-  deletedAt: timestamp("deleted_at"), // soft deletion
   createdAt: timestamp("created_at").defaultNow(),
 }, (table) => ({
   userPhoneIndex: uniqueIndex("clients_user_phone_idx").on(table.userId, table.phone),

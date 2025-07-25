@@ -200,7 +200,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         photoUrl: user.photoUrl,
         serviceArea: user.serviceArea,
         about: user.about,
-        phoneVerified: user.phoneVerified
+        phoneVerified: true
       });
     } catch (error) {
       console.error('Get current user error:', error);
@@ -287,7 +287,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Verify the phone number
       await storage.updateUser(userId, {
-        phoneVerified: true,
+
         phoneVerificationCode: null,
         phoneVerificationExpiry: null,
         phoneVerificationAttempts: 0,
@@ -478,14 +478,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = (req.user as any).id;
       
-      // Check if user's phone is verified
+      // Check if user exists
       const user = await storage.getUser(userId);
-      if (!user || !user.phoneVerified) {
-        return res.status(403).json({ 
-          error: 'Phone verification required',
-          message: 'Please verify your phone number first. This keeps your appointments secure.',
-          action: 'verify_phone',
-          redirectTo: '/settings'
+      if (!user) {
+        return res.status(404).json({ 
+          message: 'User not found'
         });
       }
       
@@ -1067,15 +1064,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Check if user's phone is verified
       const user = await storage.getUser(userId);
-      console.log(`📱 User phone verification status: ${user?.phoneVerified ? 'VERIFIED' : 'NOT VERIFIED'}`);
-      
-      if (!user || !user.phoneVerified) {
-        console.log('❌ Phone verification required - blocking client update');
-        return res.status(403).json({ 
-          error: 'Phone verification required',
-          message: 'Please verify your phone number first. This keeps your client information secure.',
-          action: 'verify_phone',
-          redirectTo: '/settings'
+      if (!user) {
+        console.log('❌ User not found');
+        return res.status(404).json({ 
+          message: 'User not found'
         });
       }
       
