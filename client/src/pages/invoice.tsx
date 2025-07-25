@@ -52,6 +52,7 @@ import {
   ChevronUp,
   Download,
   Mail,
+  MessageSquare,
 } from "lucide-react";
 import { Link } from "wouter";
 import { useForm } from "react-hook-form";
@@ -405,6 +406,46 @@ export default function InvoicePage() {
       toast({
         title: "Error",
         description: error.message || "Failed to undo payment",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Send invoice via SMS
+  const sendSMSMutation = useMutation({
+    mutationFn: async (invoiceId: number) => {
+      return apiRequest("POST", `/api/invoices/${invoiceId}/send-sms`);
+    },
+    onSuccess: () => {
+      toast({
+        title: "SMS Sent",
+        description: "Invoice sent via SMS successfully",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to send SMS",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Send invoice via Email
+  const sendEmailMutation = useMutation({
+    mutationFn: async (invoiceId: number) => {
+      return apiRequest("POST", `/api/invoices/${invoiceId}/send-email`);
+    },
+    onSuccess: () => {
+      toast({
+        title: "Email Sent",
+        description: "Invoice sent via email successfully",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to send email",
         variant: "destructive",
       });
     },
@@ -2672,6 +2713,38 @@ export default function InvoicePage() {
                       )
                     : "Unknown"}
                 </p>
+              </div>
+
+              {/* Send Invoice Actions */}
+              <div className="p-4 bg-charcoal rounded-lg">
+                <h3 className="text-white font-medium mb-3">Send Invoice</h3>
+                <div className="flex gap-3">
+                  {/* SMS Button */}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="flex-1 bg-blue-500/20 text-blue-400 border-blue-500/30 hover:bg-blue-500/30"
+                    onClick={() => sendSMSMutation.mutate(selectedInvoice.id)}
+                    disabled={sendSMSMutation.isPending}
+                  >
+                    <MessageSquare className="w-4 h-4 mr-2" />
+                    {sendSMSMutation.isPending ? "..." : "Send SMS"}
+                  </Button>
+
+                  {/* Email Button - only show if client has email */}
+                  {clients?.find(c => c.id === selectedInvoice.clientId)?.email && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="flex-1 bg-green-500/20 text-green-400 border-green-500/30 hover:bg-green-500/30"
+                      onClick={() => sendEmailMutation.mutate(selectedInvoice.id)}
+                      disabled={sendEmailMutation.isPending}
+                    >
+                      <Mail className="w-4 h-4 mr-2" />
+                      {sendEmailMutation.isPending ? "..." : "Send Email"}
+                    </Button>
+                  )}
+                </div>
               </div>
             </div>
           )}

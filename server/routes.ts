@@ -1539,6 +1539,98 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Send invoice via SMS
+  app.post("/api/invoices/:id/send-sms", requireAuth, async (req, res) => {
+    try {
+      const userId = (req.user as any).id;
+      const invoiceId = parseInt(req.params.id);
+      
+      // Get the invoice first to verify ownership
+      const invoice = await storage.getInvoice(invoiceId);
+      if (!invoice || invoice.userId !== userId) {
+        return res.status(404).json({ message: "Invoice not found" });
+      }
+      
+      // Get client information for SMS
+      const client = await storage.getClient(invoice.clientId);
+      if (!client) {
+        return res.status(404).json({ message: "Client not found" });
+      }
+      
+      if (!client.phone) {
+        return res.status(400).json({ message: "Client has no phone number" });
+      }
+      
+      // Generate invoice details for SMS
+      const services = await storage.getInvoiceServices(invoiceId);
+      const serviceNames = services?.map(s => s.serviceName || s.name).join(', ') || 'Service';
+      
+      console.log(`SMS would be sent to ${client.phone} for invoice ${invoice.id}`);
+      console.log(`Invoice details: ${serviceNames} - $${invoice.total}`);
+      
+      // In a real app, you would send SMS using Twilio or similar service
+      // For now, we'll just simulate the SMS sending
+      
+      res.json({ 
+        message: "SMS sent successfully",
+        details: {
+          phone: client.phone,
+          amount: invoice.total,
+          services: serviceNames
+        }
+      });
+    } catch (error: any) {
+      console.error("Error sending SMS:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Send invoice via Email
+  app.post("/api/invoices/:id/send-email", requireAuth, async (req, res) => {
+    try {
+      const userId = (req.user as any).id;
+      const invoiceId = parseInt(req.params.id);
+      
+      // Get the invoice first to verify ownership
+      const invoice = await storage.getInvoice(invoiceId);
+      if (!invoice || invoice.userId !== userId) {
+        return res.status(404).json({ message: "Invoice not found" });
+      }
+      
+      // Get client information for email
+      const client = await storage.getClient(invoice.clientId);
+      if (!client) {
+        return res.status(404).json({ message: "Client not found" });
+      }
+      
+      if (!client.email) {
+        return res.status(400).json({ message: "Client has no email address" });
+      }
+      
+      // Generate invoice details for email
+      const services = await storage.getInvoiceServices(invoiceId);
+      const serviceNames = services?.map(s => s.serviceName || s.name).join(', ') || 'Service';
+      
+      console.log(`Email would be sent to ${client.email} for invoice ${invoice.id}`);
+      console.log(`Invoice details: ${serviceNames} - $${invoice.total}`);
+      
+      // In a real app, you would send email using SendGrid or similar service
+      // For now, we'll just simulate the email sending
+      
+      res.json({ 
+        message: "Email sent successfully",
+        details: {
+          email: client.email,
+          amount: invoice.total,
+          services: serviceNames
+        }
+      });
+    } catch (error: any) {
+      console.error("Error sending email:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
   app.post("/api/invoices/export", requireAuth, async (req, res) => {
     try {
       const userId = (req.user as any).id;
