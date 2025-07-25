@@ -210,7 +210,7 @@ export class DatabaseStorage implements IStorage {
         totalVisits: clients.totalVisits,
         lastVisit: clients.lastVisit,
 
-        deletedAt: clients.deletedAt,
+
         createdAt: clients.createdAt,
         totalSpent: sql<string>`COALESCE(SUM(${invoices.total}), '0')`,
         upcomingAppointments: sql<number>`CAST(COUNT(CASE WHEN ${appointments.id} IS NOT NULL THEN 1 END) AS INTEGER)`,
@@ -222,7 +222,7 @@ export class DatabaseStorage implements IStorage {
         gte(appointments.scheduledAt, new Date()),
         eq(appointments.status, "scheduled")
       ))
-      .where(and(eq(clients.userId, userId), sql`${clients.deletedAt} IS NULL`))
+      .where(eq(clients.userId, userId))
       .groupBy(
         clients.id,
         clients.userId,
@@ -237,7 +237,7 @@ export class DatabaseStorage implements IStorage {
         clients.totalVisits,
         clients.lastVisit,
 
-        clients.deletedAt,
+
         clients.createdAt
       )
       .orderBy(desc(clients.lastVisit));
@@ -246,7 +246,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getClient(id: number): Promise<Client | undefined> {
-    const [client] = await db.select().from(clients).where(and(eq(clients.id, id), sql`${clients.deletedAt} IS NULL`));
+    const [client] = await db.select().from(clients).where(eq(clients.id, id));
     return client || undefined;
   }
 
@@ -260,22 +260,8 @@ export class DatabaseStorage implements IStorage {
       
       if (existingClient) {
         // If there's a soft-deleted client, restore and update it
-        if (existingClient.deletedAt) {
-          const [restoredClient] = await db
-            .update(clients)
-            .set({ 
-              ...client, 
-              deletedAt: null, // restore client
-              createdAt: existingClient.createdAt // keep original creation date
-            })
-            .where(eq(clients.id, existingClient.id))
-            .returning();
-          console.log('Restored soft-deleted client:', existingClient.id);
-          return restoredClient;
-        } else {
-          // Client already exists and is active - this should be caught by unique constraint
-          throw new Error('Client with this phone number already exists');
-        }
+        // Client already exists - this should be caught by unique constraint
+        throw new Error('Client with this phone number already exists');
       }
     }
     
@@ -294,12 +280,9 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteClient(id: number): Promise<void> {
-    // Soft delete - just mark as deleted, don't delete invoices
-    await db
-      .update(clients)
-      .set({ deletedAt: new Date() })
-      .where(eq(clients.id, id));
-    console.log('Soft deleted client:', id);
+    // Hard delete for now since deletedAt column doesn't exist
+    await db.delete(clients).where(eq(clients.id, id));
+    console.log('Deleted client:', id);
   }
 
   async findClientByPhone(userId: number, phone: string): Promise<Client | undefined> {
@@ -307,7 +290,7 @@ export class DatabaseStorage implements IStorage {
     const [client] = await db
       .select()
       .from(clients)
-      .where(and(eq(clients.userId, userId), eq(clients.phone, phone), sql`${clients.deletedAt} IS NULL`));
+      .where(and(eq(clients.userId, userId), eq(clients.phone, phone)));
     return client || undefined;
   }
 
@@ -419,6 +402,39 @@ export class DatabaseStorage implements IStorage {
     results.forEach(result => {
       console.log(`[DB QUERY] Appointment ${result.id}: ${result.client.name}, Status: ${result.status}, Time: ${result.scheduledAt}`);
     });
+
+    return results;
+  }
+
+  async getPendingAppointments(userId: number): Promise<AppointmentWithRelations[]> {
+    // Get all appointments with pending status
+    const appointmentResults = await db
+      .select()
+      .from(appointments)
+      .where(
+        and(
+          eq(appointments.userId, userId),
+          eq(appointments.status, 'pending')
+        )
+      )
+      .orderBy(appointments.scheduledAt);
+
+    // Get related data for each appointment
+    const results: AppointmentWithRelations[] = [];
+    for (const appointment of appointmentResults) {
+      const client = await db.select().from(clients).where(eq(clients.id, appointment.clientId)).limit(1);
+      const service = await db.select().from(services).where(eq(services.id, appointment.serviceId)).limit(1);
+      const appointmentServicesData = await this.getAppointmentServicesByAppointmentId(appointment.id);
+      
+      if (client[0] && service[0]) {
+        results.push({
+          ...appointment,
+          client: client[0],
+          service: service[0],
+          appointmentServices: appointmentServicesData,
+        });
+      }
+    }
 
     return results;
   }
