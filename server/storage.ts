@@ -209,7 +209,7 @@ export class DatabaseStorage implements IStorage {
         loyaltyStatus: clients.loyaltyStatus,
         totalVisits: clients.totalVisits,
         lastVisit: clients.lastVisit,
-        phoneVerified: clients.phoneVerified,
+
         deletedAt: clients.deletedAt,
         createdAt: clients.createdAt,
         totalSpent: sql<string>`COALESCE(SUM(${invoices.total}), '0')`,
@@ -236,7 +236,7 @@ export class DatabaseStorage implements IStorage {
         clients.loyaltyStatus,
         clients.totalVisits,
         clients.lastVisit,
-        clients.phoneVerified,
+
         clients.deletedAt,
         clients.createdAt
       )
@@ -423,38 +423,7 @@ export class DatabaseStorage implements IStorage {
     return results;
   }
 
-  async getPendingAppointments(userId: number): Promise<AppointmentWithRelations[]> {
-    const results = await db
-      .select({
-        appointment: appointments,
-        client: clients,
-        service: services
-      })
-      .from(appointments)
-      .innerJoin(clients, eq(appointments.clientId, clients.id))
-      .innerJoin(services, eq(appointments.serviceId, services.id))
-      .where(
-        and(
-          eq(appointments.userId, userId),
-          eq(appointments.status, 'pending')
-        )
-      )
-      .orderBy(appointments.scheduledAt);
 
-    // Load appointment services for each appointment
-    const finalResults: AppointmentWithRelations[] = [];
-    for (const result of results) {
-      const appointmentServicesData = await this.getAppointmentServicesByAppointmentId(result.appointment.id);
-      finalResults.push({
-        ...result.appointment,
-        client: result.client,
-        service: result.service,
-        appointmentServices: appointmentServicesData,
-      });
-    }
-
-    return finalResults;
-  }
 
   async getAppointment(id: number): Promise<AppointmentWithRelations | undefined> {
     const appointment = await db.select().from(appointments).where(eq(appointments.id, id)).limit(1);
@@ -581,12 +550,40 @@ export class DatabaseStorage implements IStorage {
     return expiredCount;
   }
 
-  async getInvoicesByUserId(userId: number): Promise<Invoice[]> {
-    return await db
-      .select()
+  async getInvoicesByUserId(userId: number): Promise<any[]> {
+    const results = await db
+      .select({
+        id: invoices.id,
+        userId: invoices.userId,
+        clientId: invoices.clientId,
+        appointmentId: invoices.appointmentId,
+        subtotal: invoices.subtotal,
+        tip: invoices.tip,
+        total: invoices.total,
+        status: invoices.status,
+        paymentStatus: invoices.paymentStatus,
+        paymentMethod: invoices.paymentMethod,
+        stripePaymentIntentId: invoices.stripePaymentIntentId,
+        sendEmail: invoices.sendEmail,
+        sendSMS: invoices.sendSMS,
+        emailSent: invoices.emailSent,
+        smsSent: invoices.smsSent,
+        paidAt: invoices.paidAt,
+        paidBy: invoices.paidBy,
+        createdAt: invoices.createdAt,
+        client: {
+          id: clients.id,
+          name: clients.name,
+          phone: clients.phone,
+          email: clients.email
+        }
+      })
       .from(invoices)
+      .leftJoin(clients, eq(invoices.clientId, clients.id))
       .where(eq(invoices.userId, userId))
       .orderBy(desc(invoices.createdAt));
+    
+    return results;
   }
 
   async getInvoice(id: number): Promise<Invoice | undefined> {
