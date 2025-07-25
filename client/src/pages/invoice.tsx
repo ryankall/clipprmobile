@@ -292,8 +292,9 @@ export default function InvoicePage() {
       setSelectedServices([]);
 
       // Navigate to checkout if payment is required
-      const invoice = response.data;
-      if (invoice.paymentMethod === "stripe") {
+      // The response is the invoice object directly, not wrapped in .data
+      const invoice = response;
+      if (invoice?.paymentMethod === "stripe") {
         window.location.href = `/checkout/${invoice.id}`;
       }
     },
@@ -1825,7 +1826,7 @@ export default function InvoicePage() {
                         // Fetch services for this invoice
                         setInvoiceServicesLoading(true);
                         try {
-                          const invoiceWithServices = await apiRequest<Invoice & { services: Service[] }>('GET', `/api/invoices/${invoice.id}`);
+                          const invoiceWithServices = await apiRequest('GET', `/api/invoices/${invoice.id}`);
                           setSelectedInvoiceServices(invoiceWithServices.services || []);
                         } catch (error) {
                           console.error('Failed to fetch invoice services:', error);
