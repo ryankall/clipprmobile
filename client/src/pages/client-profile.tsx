@@ -100,6 +100,58 @@ export default function ClientProfile() {
     }
   }, [client, form]);
 
+  // Mark invoice as paid (cash payments)
+  const markAsPaidMutation = useMutation({
+    mutationFn: async (invoiceId: number) => {
+      return apiRequest("POST", `/api/invoices/${invoiceId}/mark-paid`);
+    },
+    onSuccess: (response) => {
+      queryClient.invalidateQueries({ queryKey: [`/api/clients/${clientId}/invoices`] });
+      queryClient.invalidateQueries({ queryKey: ["/api/invoices"] });
+      // Update the selected invoice in the modal
+      if (selectedInvoice) {
+        setSelectedInvoice({ ...selectedInvoice, paymentStatus: "paid" });
+      }
+      toast({
+        title: "Payment Recorded",
+        description: "Invoice marked as paid successfully",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to mark invoice as paid",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Undo cash payment
+  const undoPaymentMutation = useMutation({
+    mutationFn: async (invoiceId: number) => {
+      return apiRequest("POST", `/api/invoices/${invoiceId}/undo-payment`);
+    },
+    onSuccess: (response) => {
+      queryClient.invalidateQueries({ queryKey: [`/api/clients/${clientId}/invoices`] });
+      queryClient.invalidateQueries({ queryKey: ["/api/invoices"] });
+      // Update the selected invoice in the modal
+      if (selectedInvoice) {
+        setSelectedInvoice({ ...selectedInvoice, paymentStatus: "pending" });
+      }
+      toast({
+        title: "Payment Undone",
+        description: "Payment status reset successfully",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to undo payment",
+        variant: "destructive",
+      });
+    },
+  });
+
   const updateClientMutation = useMutation({
     mutationFn: async (data: z.infer<typeof clientFormSchema>) => {
       try {
@@ -912,7 +964,7 @@ export default function ClientProfile() {
                             )}
                           </div>
                           <span className="text-gold">
-                            ${(service.price * service.quantity).toFixed(2)}
+                            ${((parseFloat(service.price) || 0) * (service.quantity || 1)).toFixed(2)}
                           </span>
                         </div>
                       ))}
@@ -981,7 +1033,45 @@ export default function ClientProfile() {
 
                 {/* Status */}
                 <div className="p-4 bg-charcoal rounded-lg">
-                  <h3 className="text-white font-medium mb-2">Payment Status</h3>
+                  <div className="flex items-center justify-between mb-2">
+                    <h3 className="text-white font-medium">Payment Status</h3>
+                    {/* Toggle button for cash payments only */}
+                    {selectedInvoice.paymentMethod === "cash" && (
+                      <Button
+                        size="sm"
+                        variant={
+                          selectedInvoice.paymentStatus === "paid"
+                            ? "destructive"
+                            : "default"
+                        }
+                        className={`text-xs px-3 py-1 h-7 ${
+                          selectedInvoice.paymentStatus === "paid"
+                            ? "bg-red-500/20 text-red-400 border-red-500/30 hover:bg-red-500/30"
+                            : "bg-green-500/20 text-green-400 border-green-500/30 hover:bg-green-500/30"
+                        }`}
+                        onClick={() => {
+                          if (selectedInvoice.paymentStatus === "paid") {
+                            // Undo payment
+                            undoPaymentMutation.mutate(selectedInvoice.id);
+                          } else {
+                            // Mark as paid
+                            markAsPaidMutation.mutate(selectedInvoice.id);
+                          }
+                        }}
+                        disabled={
+                          markAsPaidMutation.isPending ||
+                          undoPaymentMutation.isPending
+                        }
+                      >
+                        {markAsPaidMutation.isPending ||
+                        undoPaymentMutation.isPending
+                          ? "..."
+                          : selectedInvoice.paymentStatus === "paid"
+                            ? "Mark Unpaid"
+                            : "Mark Paid"}
+                      </Button>
+                    )}
+                  </div>
                   <div className="flex items-center space-x-2">
                     <Badge
                       variant={
