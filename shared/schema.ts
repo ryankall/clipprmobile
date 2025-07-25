@@ -131,6 +131,15 @@ export const invoices = pgTable("invoices", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+export const invoiceServices = pgTable("invoice_services", {
+  id: serial("id").primaryKey(),
+  invoiceId: integer("invoice_id").notNull().references(() => invoices.id, { onDelete: "cascade" }),
+  serviceId: integer("service_id").notNull().references(() => services.id),
+  quantity: integer("quantity").notNull().default(1),
+  price: decimal("price", { precision: 10, scale: 2 }).notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 export const galleryPhotos = pgTable("gallery_photos", {
   id: serial("id").primaryKey(),
   userId: integer("user_id").notNull().references(() => users.id),
@@ -291,7 +300,7 @@ export const appointmentServicesRelations = relations(appointmentServices, ({ on
   }),
 }));
 
-export const invoicesRelations = relations(invoices, ({ one }) => ({
+export const invoicesRelations = relations(invoices, ({ one, many }) => ({
   user: one(users, {
     fields: [invoices.userId],
     references: [users.id],
@@ -303,6 +312,18 @@ export const invoicesRelations = relations(invoices, ({ one }) => ({
   appointment: one(appointments, {
     fields: [invoices.appointmentId],
     references: [appointments.id],
+  }),
+  invoiceServices: many(invoiceServices),
+}));
+
+export const invoiceServicesRelations = relations(invoiceServices, ({ one }) => ({
+  invoice: one(invoices, {
+    fields: [invoiceServices.invoiceId],
+    references: [invoices.id],
+  }),
+  service: one(services, {
+    fields: [invoiceServices.serviceId],
+    references: [services.id],
   }),
 }));
 
@@ -398,6 +419,11 @@ export const insertInvoiceSchema = createInsertSchema(invoices).omit({
   createdAt: true,
 });
 
+export const insertInvoiceServiceSchema = createInsertSchema(invoiceServices).omit({
+  id: true,
+  createdAt: true,
+});
+
 export const insertGalleryPhotoSchema = createInsertSchema(galleryPhotos).omit({
   id: true,
   createdAt: true,
@@ -453,6 +479,8 @@ export type AppointmentService = typeof appointmentServices.$inferSelect;
 
 export type InsertInvoice = z.infer<typeof insertInvoiceSchema>;
 export type Invoice = typeof invoices.$inferSelect;
+export type InsertInvoiceService = z.infer<typeof insertInvoiceServiceSchema>;
+export type InvoiceService = typeof invoiceServices.$inferSelect;
 
 export type InsertGalleryPhoto = z.infer<typeof insertGalleryPhotoSchema>;
 export type GalleryPhoto = typeof galleryPhotos.$inferSelect;

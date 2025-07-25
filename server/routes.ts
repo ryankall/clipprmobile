@@ -1386,11 +1386,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/invoices", requireAuth, async (req, res) => {
     try {
       const userId = (req.user as any).id;
-      const invoiceData = insertInvoiceSchema.parse({ ...req.body, userId });
+      const { items, sendEmail, sendSMS, ...invoiceDataBody } = req.body;
+      const invoiceData = insertInvoiceSchema.parse({ ...invoiceDataBody, userId });
       const invoice = await storage.createInvoice(invoiceData);
       
+      // Save invoice services if items were provided
+      if (items && Array.isArray(items)) {
+        for (const item of items) {
+          await storage.createInvoiceService({
+            invoiceId: invoice.id,
+            serviceId: item.serviceId,
+            quantity: item.quantity || 1,
+            price: item.price.toString(),
+          });
+        }
+      }
+      
       // Handle notification preferences
-      const { sendEmail, sendSMS } = req.body;
       
       if (sendEmail || sendSMS) {
         // Get client information for notifications

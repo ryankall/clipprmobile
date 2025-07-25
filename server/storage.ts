@@ -5,6 +5,7 @@ import {
   appointments,
   appointmentServices,
   invoices,
+  invoiceServices,
   galleryPhotos,
   messages,
   reservations,
@@ -21,6 +22,8 @@ import {
   type InsertAppointmentService,
   type Invoice,
   type InsertInvoice,
+  type InvoiceService,
+  type InsertInvoiceService,
   type GalleryPhoto,
   type InsertGalleryPhoto,
   type Message,
@@ -88,6 +91,7 @@ export interface IStorage {
   getInvoicesByUserId(userId: number): Promise<Invoice[]>;
   getInvoice(id: number): Promise<Invoice | undefined>;
   getInvoiceServices(invoiceId: number): Promise<Service[]>;
+  createInvoiceService(invoiceService: InsertInvoiceService): Promise<InvoiceService>;
   createInvoice(invoice: InsertInvoice): Promise<Invoice>;
   updateInvoice(id: number, invoice: Partial<InsertInvoice>): Promise<Invoice>;
 
@@ -579,9 +583,20 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getInvoiceServices(invoiceId: number): Promise<Service[]> {
-    // For now, return empty array since we don't have invoice services table
-    // In a future implementation, this would join with an invoice_services table
-    return [];
+    const results = await db
+      .select({
+        service: services
+      })
+      .from(invoiceServices)
+      .innerJoin(services, eq(invoiceServices.serviceId, services.id))
+      .where(eq(invoiceServices.invoiceId, invoiceId));
+    
+    return results.map(result => result.service);
+  }
+
+  async createInvoiceService(invoiceService: InsertInvoiceService): Promise<InvoiceService> {
+    const [newInvoiceService] = await db.insert(invoiceServices).values(invoiceService).returning();
+    return newInvoiceService;
   }
 
   async createInvoice(invoice: InsertInvoice): Promise<Invoice> {
