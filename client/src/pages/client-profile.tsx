@@ -10,7 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { ArrowLeft, Phone, Mail, MapPin, Calendar, Star, Camera, DollarSign, Edit, Save, X, MessageCircle, Trash2, Receipt } from "lucide-react";
+import { ArrowLeft, Phone, Mail, MapPin, Calendar, Star, Camera, DollarSign, Edit, Save, X, MessageCircle, Trash2, Receipt, CreditCard, Smartphone, Banknote } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { format } from "date-fns";
 import { useForm } from "react-hook-form";
@@ -764,14 +764,71 @@ export default function ClientProfile() {
             ) : clientInvoices && clientInvoices.length > 0 ? (
               <div className="space-y-3">
                 {clientInvoices.map((invoice) => (
-                  <div key={invoice.id} className="flex items-center justify-between p-3 bg-charcoal rounded-lg">
-                    <div>
-                      <div className="font-medium text-white">Invoice #{invoice.id}</div>
-                      <div className="text-sm text-steel">
-                        {format(new Date(invoice.createdAt), 'MMM d, yyyy • h:mm a')}
+                  <div 
+                    key={invoice.id} 
+                    className="flex items-center justify-between p-3 bg-charcoal rounded-lg cursor-pointer hover:bg-charcoal/80 transition-colors"
+                    onClick={() => {
+                      // Navigate to invoice page and show details
+                      navigate(`/invoice?show=${invoice.id}`);
+                    }}
+                  >
+                    <div className="flex items-center space-x-3">
+                      <div className="w-10 h-10 bg-steel/20 rounded-full flex items-center justify-center">
+                        {invoice.paymentMethod === "stripe" && (
+                          <CreditCard className="w-4 h-4 text-gold" />
+                        )}
+                        {invoice.paymentMethod === "apple_pay" && (
+                          <Smartphone className="w-4 h-4 text-gold" />
+                        )}
+                        {invoice.paymentMethod === "cash" && (
+                          <Banknote className="w-4 h-4 text-gold" />
+                        )}
+                        {!invoice.paymentMethod && (
+                          <Receipt className="w-4 h-4 text-gold" />
+                        )}
                       </div>
-                      <div className="text-xs text-steel">
-                        {invoice.paymentMethod} • {invoice.status}
+                      <div>
+                        <div className="font-medium text-white">Invoice #{invoice.id}</div>
+                        <div className="text-sm text-steel">
+                          {format(new Date(invoice.createdAt), 'MMM d, yyyy • h:mm a')}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="text-right space-y-1">
+                      <div className="text-gold font-medium">
+                        ${invoice.total}
+                      </div>
+                      <div className="flex flex-col items-end space-y-1">
+                        <div className="flex items-center space-x-2">
+                          <Badge
+                            variant={
+                              invoice.paymentStatus === "paid"
+                                ? "default"
+                                : invoice.paymentStatus === "pending"
+                                ? "secondary"
+                                : "destructive"
+                            }
+                            className={
+                              invoice.paymentStatus === "paid"
+                                ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30"
+                                : invoice.paymentStatus === "pending"
+                                ? "bg-amber-500/20 text-amber-400 border-amber-500/30"
+                                : "bg-red-500/20 text-red-400 border-red-500/30"
+                            }
+                          >
+                            {invoice.paymentStatus || "pending"}
+                          </Badge>
+                          <Badge
+                            variant="outline"
+                            className="text-xs text-steel border-steel/30"
+                          >
+                            {invoice.paymentMethod ? 
+                              (invoice.paymentMethod === "apple_pay" ? "Apple Pay" : 
+                               invoice.paymentMethod === "stripe" ? "Card" : 
+                               invoice.paymentMethod.toUpperCase()) 
+                              : "Pending"}
+                          </Badge>
+                        </div>
                       </div>
                     </div>
                     <div className="text-right">
