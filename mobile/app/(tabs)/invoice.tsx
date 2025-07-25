@@ -1243,9 +1243,7 @@ export default function Invoice() {
               <Ionicons name="close" size={24} color="#6B7280" />
             </TouchableOpacity>
           </View>
-          {/* Placeholder content */}
           <View style={styles.modalBody}>
-            {/* --- Create Invoice Form --- */}
             <CreateInvoiceModalContent
               clients={clients}
               services={services}
@@ -1254,17 +1252,23 @@ export default function Invoice() {
                 setShowCreateModal(false);
                 setSelectedTemplate(null);
               }}
-              onCreate={(invoiceData: any) => {
-                // Placeholder: API call would go here
-                Alert.alert('Invoice Created', 'Invoice creation logic is not implemented yet.');
-                setShowCreateModal(false);
-                setSelectedTemplate(null);
+              onCreate={async (invoiceData: any) => {
+                try {
+                  await apiRequest('POST', '/api/invoices', invoiceData);
+                  setShowCreateModal(false);
+                  setSelectedTemplate(null);
+                  await loadInvoicesAndClients();
+                  Alert.alert('Success', 'Invoice created successfully.');
+                } catch (error: any) {
+                  Alert.alert('Error', error?.message || 'Failed to create invoice.');
+                }
               }}
             />
           </View>
         </View>
       </SafeAreaView>
-{/* Invoice Details Modal */}
+    </Modal>
+    {/* Invoice Details Modal */}
     <Modal
       visible={showInvoiceModal && !!selectedInvoice}
       animationType="slide"
@@ -1282,10 +1286,42 @@ export default function Invoice() {
               <Ionicons name="close" size={24} color="#6B7280" />
             </TouchableOpacity>
           </View>
-          {/* modalBody replaced above */}
+          <View style={styles.modalBody}>
+            {invoiceServicesLoading ? (
+              <ActivityIndicator size="small" color="#F59E0B" />
+            ) : invoiceServicesError ? (
+              <Text style={{ color: '#EF4444', marginBottom: 8, fontWeight: '600' }}>
+                {invoiceServicesError}
+              </Text>
+            ) : selectedInvoiceServices && selectedInvoiceServices.length === 0 ? (
+              <Text style={{ color: '#9CA3AF', fontSize: 16, textAlign: 'center', marginTop: 16 }}>
+                No services listed for this invoice
+              </Text>
+            ) : (
+              <View style={{ width: '100%' }}>
+                {selectedInvoiceServices && selectedInvoiceServices.map((service, idx) => (
+                  <View
+                    key={service.id || idx}
+                    style={{
+                      flexDirection: 'row',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      paddingVertical: 8,
+                      borderBottomWidth: 1,
+                      borderBottomColor: '#232323',
+                    }}
+                  >
+                    <Text style={{ color: '#fff', fontSize: 16 }}>{service.name}</Text>
+                    <Text style={{ color: '#F59E0B', fontWeight: '700', fontSize: 16 }}>
+                      ${service.price}
+                    </Text>
+                  </View>
+                ))}
+              </View>
+            )}
+          </View>
         </View>
       </SafeAreaView>
-    </Modal>
     </Modal>
     </SafeAreaView>
   );
