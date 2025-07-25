@@ -956,16 +956,25 @@ export default function ClientProfile() {
                   ) : selectedInvoiceServices && selectedInvoiceServices.length > 0 ? (
                     <div className="space-y-2">
                       {selectedInvoiceServices.map((service, index) => (
-                        <div key={index} className="flex justify-between items-center">
+                        <div key={index} className="flex justify-between items-start">
                           <div className="flex-1">
-                            <span className="text-white">{service.serviceName}</span>
+                            <div className="text-white text-sm font-medium">
+                              {service.serviceName || service.name}
+                            </div>
+                            {service.description && (
+                              <div className="text-steel text-xs mt-1">
+                                {service.description}
+                              </div>
+                            )}
                             {service.quantity > 1 && (
-                              <span className="text-steel ml-2">x{service.quantity}</span>
+                              <div className="text-steel text-xs mt-1">
+                                Quantity: {service.quantity}
+                              </div>
                             )}
                           </div>
-                          <span className="text-gold">
+                          <div className="text-gold font-medium ml-3">
                             ${((parseFloat(service.price) || 0) * (service.quantity || 1)).toFixed(2)}
-                          </span>
+                          </div>
                         </div>
                       ))}
                     </div>
