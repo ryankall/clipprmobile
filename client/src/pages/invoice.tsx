@@ -163,6 +163,8 @@ export default function InvoicePage() {
     }>
   >([]);
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
+  const [selectedInvoiceServices, setSelectedInvoiceServices] = useState<Service[]>([]);
+  const [invoiceServicesLoading, setInvoiceServicesLoading] = useState(false);
   const [isInvoiceDetailsOpen, setIsInvoiceDetailsOpen] = useState(false);
   const [showRecentInvoices, setShowRecentInvoices] = useState(false); // Default to hidden
   const [showExportCard, setShowExportCard] = useState(false); // Default to hidden
@@ -899,20 +901,18 @@ export default function InvoicePage() {
                   <div className="space-y-3">
                     <div className="flex items-center justify-between">
                       <FormLabel className="text-white">Services</FormLabel>
-                      {selectedServices.length === 0 && (
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          className="bg-charcoal border-steel/40 text-gold hover:bg-steel/20"
-                          onClick={() => {
-                            setIsServiceSelectOpen(true);
-                          }}
-                        >
-                          <Plus className="w-4 h-4 mr-1" />
-                          Add Service
-                        </Button>
-                      )}
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="bg-charcoal border-steel/40 text-gold hover:bg-steel/20"
+                        onClick={() => {
+                          setIsServiceSelectOpen(true);
+                        }}
+                      >
+                        <Plus className="w-4 h-4 mr-1" />
+                        Add Service
+                      </Button>
                     </div>
 
                     {/* Selected Services */}
@@ -1776,9 +1776,21 @@ export default function InvoicePage() {
                   return (
                     <div
                       key={invoice.id}
-                      onClick={() => {
+                      onClick={async () => {
                         setSelectedInvoice(invoice);
                         setIsInvoiceDetailsOpen(true);
+                        
+                        // Fetch services for this invoice
+                        setInvoiceServicesLoading(true);
+                        try {
+                          const invoiceWithServices = await apiRequest<Invoice & { services: Service[] }>('GET', `/api/invoices/${invoice.id}`);
+                          setSelectedInvoiceServices(invoiceWithServices.services || []);
+                        } catch (error) {
+                          console.error('Failed to fetch invoice services:', error);
+                          setSelectedInvoiceServices([]);
+                        } finally {
+                          setInvoiceServicesLoading(false);
+                        }
                       }}
                       className="flex items-center justify-between p-3 bg-charcoal rounded-lg cursor-pointer hover:bg-charcoal/80 transition-colors"
                     >
@@ -2386,6 +2398,35 @@ export default function InvoicePage() {
                 >
                   {selectedInvoice.status === "paid" ? "Paid" : "Pending"}
                 </Badge>
+              </div>
+
+              {/* Services Provided */}
+              <div className="p-4 bg-charcoal rounded-lg">
+                <h3 className="text-white font-medium mb-2">Services Provided</h3>
+                <div className="space-y-2">
+                  {invoiceServicesLoading ? (
+                    <div className="flex items-center justify-center py-4">
+                      <div className="animate-spin w-4 h-4 border-2 border-gold border-t-transparent rounded-full" />
+                      <span className="ml-2 text-steel text-sm">Loading services...</span>
+                    </div>
+                  ) : selectedInvoiceServices.length > 0 ? (
+                    selectedInvoiceServices.map((service, index) => (
+                      <div key={index} className="flex justify-between items-center py-2 border-b border-steel/20 last:border-b-0">
+                        <div>
+                          <div className="text-white text-sm font-medium">{service.name}</div>
+                          {service.description && (
+                            <div className="text-steel text-xs">{service.description}</div>
+                          )}
+                        </div>
+                        <div className="text-gold font-medium">${service.price}</div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="text-steel text-sm">
+                      No services recorded for this invoice
+                    </div>
+                  )}
+                </div>
               </div>
 
               {/* Date */}
