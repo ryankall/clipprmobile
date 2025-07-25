@@ -81,6 +81,7 @@ const invoiceFormSchema = insertInvoiceSchema.extend({
   items: z.array(invoiceItemSchema).optional(),
   sendEmail: z.boolean().default(false),
   sendSMS: z.boolean().default(false),
+  paymentStatus: z.enum(["paid", "unpaid"]).default("unpaid"),
 });
 
 const templateFormSchema = z.object({
@@ -199,6 +200,7 @@ export default function InvoicePage() {
       total: "0",
       status: "pending",
       paymentMethod: undefined,
+      paymentStatus: "unpaid",
       sendEmail: false,
       sendSMS: false,
     },
@@ -457,6 +459,14 @@ export default function InvoicePage() {
     form.setValue("subtotal", subtotal.toFixed(2));
     form.setValue("total", total.toFixed(2));
   }, [selectedServices, form.watch("tip"), form.watch("tipPercentage")]);
+
+  // Set paymentStatus to "unpaid" when cash is selected
+  useEffect(() => {
+    const paymentMethod = form.watch("paymentMethod");
+    if (paymentMethod === "cash") {
+      form.setValue("paymentStatus", "unpaid");
+    }
+  }, [form.watch("paymentMethod")]);
 
   // Service edit mutation
   const editServiceMutation = useMutation({
@@ -1322,6 +1332,46 @@ export default function InvoicePage() {
                       </FormItem>
                     )}
                   />
+
+                  {/* Cash Payment Status - Only show if cash is selected */}
+                  {form.watch("paymentMethod") === "cash" && (
+                    <FormField
+                      control={form.control}
+                      name="paymentStatus"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-white">
+                            Payment Status
+                          </FormLabel>
+                          <Select 
+                            onValueChange={field.onChange}
+                            defaultValue="unpaid"
+                          >
+                            <FormControl>
+                              <SelectTrigger className="bg-charcoal border-steel/40 text-white">
+                                <SelectValue placeholder="Select payment status" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent className="bg-charcoal border-steel/40 text-white">
+                              <SelectItem
+                                value="unpaid"
+                                className="text-white hover:bg-steel/20"
+                              >
+                                Unpaid
+                              </SelectItem>
+                              <SelectItem
+                                value="paid"
+                                className="text-white hover:bg-steel/20"
+                              >
+                                Paid
+                              </SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  )}
 
                   <div className="flex space-x-2 pt-4">
                     <Button
@@ -2472,20 +2522,59 @@ export default function InvoicePage() {
 
               {/* Status */}
               <div className="p-4 bg-charcoal rounded-lg">
-                <h3 className="text-white font-medium mb-2">Status</h3>
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="text-white font-medium">Status</h3>
+                  {/* Toggle button for cash payments only */}
+                  {selectedInvoice.paymentMethod === "cash" && (
+                    <Button
+                      size="sm"
+                      variant={selectedInvoice.paymentStatus === "paid" ? "destructive" : "default"}
+                      className={`text-xs px-3 py-1 h-7 ${
+                        selectedInvoice.paymentStatus === "paid"
+                          ? "bg-red-500/20 text-red-400 border-red-500/30 hover:bg-red-500/30"
+                          : "bg-green-500/20 text-green-400 border-green-500/30 hover:bg-green-500/30"
+                      }`}
+                      onClick={() => {
+                        if (selectedInvoice.paymentStatus === "paid") {
+                          // Undo payment
+                          undoPaymentMutation.mutate(selectedInvoice.id);
+                        } else {
+                          // Mark as paid
+                          markAsPaidMutation.mutate(selectedInvoice.id);
+                        }
+                      }}
+                      disabled={markAsPaidMutation.isPending || undoPaymentMutation.isPending}
+                    >
+                      {markAsPaidMutation.isPending || undoPaymentMutation.isPending
+                        ? "..."
+                        : selectedInvoice.paymentStatus === "paid"
+                        ? "Mark Unpaid"
+                        : "Mark Paid"
+                      }
+                    </Button>
+                  )}
+                </div>
                 <Badge
                   variant={
-                    selectedInvoice.status === "paid"
+                    selectedInvoice.paymentStatus === "paid"
                       ? "default"
                       : "destructive"
                   }
                   className={
-                    selectedInvoice.status === "paid"
+                    selectedInvoice.paymentStatus === "paid"
                       ? "bg-green-500/20 text-green-400 border-green-500/30"
                       : "bg-red-500/20 text-red-400 border-red-500/30"
                   }
                 >
-                  {selectedInvoice.status === "paid" ? "Paid" : "Pending"}
+                  {selectedInvoice.paymentStatus === "paid" 
+                    ? `✅ Paid (${selectedInvoice.paymentMethod === "cash" ? "Cash" : "Card"})`
+                    : "Unpaid"
+                  }
+                  {selectedInvoice.paidAt && (
+                    <span className="ml-2 text-xs opacity-70">
+                      {format(new Date(selectedInvoice.paidAt), "MMM d, h:mm a")}
+                    </span>
+                  )}
                 </Badge>
               </div>
 
