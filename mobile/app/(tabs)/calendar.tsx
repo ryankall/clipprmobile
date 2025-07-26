@@ -6,6 +6,7 @@ import { router } from 'expo-router';
 import { useAuth } from '../../hooks/useAuth';
 import { apiRequest } from '../../lib/api';
 import { AppointmentWithRelations } from '../../lib/types';
+import { useFocusEffect } from '@react-navigation/native';
 
 
 
@@ -65,6 +66,15 @@ export default function Calendar() {
     }
   }, [isAuthenticated, selectedDate]);
 
+  // Refetch appointments when screen regains focus
+  useFocusEffect(
+    React.useCallback(() => {
+      if (isAuthenticated) {
+        loadAppointments();
+      }
+    }, [isAuthenticated, selectedDate])
+  );
+
   // Fetch working hours on mount
   useEffect(() => {
     if (!isAuthenticated) return;
@@ -121,6 +131,7 @@ export default function Calendar() {
   };
 
   // --- Overlap grouping and positioning logic adapted from web ---
+  // Refactored: Match web's grouping/positioning for overlapping appointments
   function calculateAppointmentPositions(
     appointments: AppointmentWithRelations[],
     startHour: number,
@@ -136,23 +147,22 @@ export default function Calendar() {
     sorted.forEach((apt) => {
       const aptStart = new Date(apt.scheduledAt);
       const aptEnd = new Date(aptStart.getTime() + apt.duration * 60000);
-      let found = false;
+      let foundGroup = false;
       for (const group of groups) {
-        if (
-          group.some((existing) => {
-            const exStart = new Date(existing.scheduledAt);
-            const exEnd = new Date(exStart.getTime() + existing.duration * 60000);
-            return aptStart < exEnd && aptEnd > exStart;
-          })
-        ) {
+        const hasOverlap = group.some((existing) => {
+          const exStart = new Date(existing.scheduledAt);
+          const exEnd = new Date(exStart.getTime() + existing.duration * 60000);
+          return aptStart < exEnd && aptEnd > exStart;
+        });
+        if (hasOverlap) {
           group.push(apt);
-          found = true;
+          foundGroup = true;
           break;
         }
       }
-      if (!found) groups.push([apt]);
+      if (!foundGroup) groups.push([apt]);
     });
-    // Assign positions
+    // Assign positions using percentages (like web)
     const positions: {
       appointment: AppointmentWithRelations;
       top: number;
@@ -162,15 +172,17 @@ export default function Calendar() {
       zIndex: number;
     }[] = [];
     groups.forEach((group) => {
-      const groupWidth = timelineWidth / group.length;
+      const groupLen = group.length;
+      const groupWidthPct = 1 / groupLen;
       group.forEach((apt, idx) => {
         const startTime = new Date(apt.scheduledAt);
         const hour = startTime.getHours();
         const min = startTime.getMinutes();
         const top = (hour - startHour) * slotHeight + (min * slotHeight) / 60;
         const height = Math.max((apt.duration * slotHeight) / 60, 40);
-        const left = idx * groupWidth;
-        const width = groupWidth - 8; // leave a small gap
+        // Use percentage for left/width, but convert to px for RN
+        const left = idx * groupWidthPct * timelineWidth;
+        const width = Math.max(groupWidthPct * timelineWidth - 8, 60); // min width 60px, gap 8px
         positions.push({
           appointment: apt,
           top,
@@ -186,6 +198,12 @@ export default function Calendar() {
 
   // Generate timeline view with time indicators
   const renderTimelineView = () => {
+    // Filter appointments to only those for the selected date
+    const filteredAppointments = appointments.filter(apt => {
+      const aptDate = new Date(apt.scheduledAt);
+      return aptDate.toDateString() === selectedDate.toDateString();
+    });
+
     const timeSlots = [];
     const startHour = 8;
     const endHour = 22;
@@ -206,7 +224,7 @@ export default function Calendar() {
         hour < 12 ? `${hour} AM` : `${hour - 12} PM`;
 
       // Find appointments for this hour
-      const hourAppointments = appointments.filter(apt => {
+      const hourAppointments = filteredAppointments.filter(apt => {
         const aptTime = new Date(apt.scheduledAt);
         const aptHour = aptTime.getHours();
         const endTime = new Date(aptTime.getTime() + apt.duration * 60000);
@@ -229,7 +247,7 @@ export default function Calendar() {
     const screenWidth = Dimensions.get('window').width;
     const timelineWidth = Math.max(screenWidth - 68 - 16, 60); // fallback min width
 
-    const appointmentPositions = calculateAppointmentPositions(appointments, startHour, slotHeight, timelineWidth);
+    const appointmentPositions = calculateAppointmentPositions(filteredAppointments, startHour, slotHeight, timelineWidth);
 
     return (
       <ScrollView style={styles.timelineContainer} showsVerticalScrollIndicator={false}>
@@ -261,6 +279,7 @@ export default function Calendar() {
           {appointmentPositions.map((pos, idx) => {
             const appointment = pos.appointment;
             const color = getServiceColor(appointment.service?.name);
+            // When an appointment is pressed, navigate to details with the correct ID
             return (
               <TouchableOpacity
                 key={appointment.id + '-' + idx}
@@ -277,6 +296,7 @@ export default function Calendar() {
                     zIndex: pos.zIndex,
                   }
                 ]}
+                // Always pass the correct appointment ID in the query param
                 onPress={() => router.push(`/appointment-details?id=${appointment.id}`)}
               >
                 <Text style={[styles.appointmentTitle, { color }]} numberOfLines={1}>
@@ -313,10 +333,12 @@ export default function Calendar() {
     const endTime = new Date(startTime.getTime() + appointment.duration * 60000);
     
     return (
+      // When an appointment is pressed, navigate to details with the correct ID
       <TouchableOpacity
         key={appointment.id}
         testID={`appointment-card-${appointment.id}`}
         style={styles.appointmentCard}
+        // Always pass the correct appointment ID in the query param
         onPress={() => router.push(`/appointment-details?id=${appointment.id}`)}
       >
         <View style={styles.appointmentHeader}>
@@ -467,7 +489,11 @@ export default function Calendar() {
             })}
           </Text>
           
-          {appointments.length === 0 ? (
+          {/* Only show appointments for the selected date */}
+          {appointments.filter(apt => {
+            const aptDate = new Date(apt.scheduledAt);
+            return aptDate.toDateString() === selectedDate.toDateString();
+          }).length === 0 ? (
             <View style={styles.emptyState}>
               <Ionicons name="calendar-outline" size={48} color="#9CA3AF" />
               <Text style={styles.emptyText}>No appointments</Text>
@@ -476,7 +502,12 @@ export default function Calendar() {
               </Text>
             </View>
           ) : (
-            appointments.map(renderAppointment)
+            appointments
+              .filter(apt => {
+                const aptDate = new Date(apt.scheduledAt);
+                return aptDate.toDateString() === selectedDate.toDateString();
+              })
+              .map(renderAppointment)
           )}
         </ScrollView>
       )}

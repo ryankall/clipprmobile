@@ -1234,6 +1234,7 @@ export default function Settings() {
           backgroundColor: 'rgba(30,30,30,0.95)',
           justifyContent: 'center',
           alignItems: 'center',
+          paddingTop: '50%'
         }}>
           <View style={{
             backgroundColor: '#2e2e2e',

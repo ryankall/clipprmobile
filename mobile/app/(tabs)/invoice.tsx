@@ -1364,61 +1364,291 @@ export default function Invoice() {
       </SafeAreaView>
     </Modal>
     {/* Invoice Details Modal */}
-    <Modal
+    <InvoiceDetailsModal
       visible={showInvoiceModal && !!selectedInvoice}
+      invoice={selectedInvoice}
+      onClose={() => setShowInvoiceModal(false)}
+      client={clients.find((c) => c.id === selectedInvoice?.clientId)}
+      reloadInvoices={loadInvoicesAndClients}
+    />
+    </SafeAreaView>
+  );
+}
+
+/**
+ * InvoiceDetailsModal - Detailed modal for invoice info and actions
+ * Modeled after the modal in mobile/app/clients/[id].tsx
+ */
+function InvoiceDetailsModal({
+  visible,
+  invoice,
+  onClose,
+  client,
+  reloadInvoices,
+}: {
+  visible: boolean;
+  invoice: any;
+  onClose: () => void;
+  client: any;
+  reloadInvoices: () => void;
+}) {
+  const [services, setServices] = React.useState<any[]>([]);
+  const [loading, setLoading] = React.useState(false);
+  const [error, setError] = React.useState<string | null>(null);
+  const [marking, setMarking] = React.useState(false);
+  const [sendingSMS, setSendingSMS] = React.useState(false);
+  const [sendingEmail, setSendingEmail] = React.useState(false);
+
+  React.useEffect(() => {
+    if (!invoice) return;
+    setLoading(true);
+    setError(null);
+    apiRequest<any>('GET', `/api/invoices/${invoice.id}`)
+      .then((data) => setServices(data.services || []))
+      .catch(() => setError('Failed to load services'))
+      .finally(() => setLoading(false));
+  }, [invoice]);
+
+  // Mark as paid/unpaid (cash)
+  const handleMarkPaid = async () => {
+    setMarking(true);
+    try {
+      await apiRequest('POST', `/api/invoices/${invoice.id}/mark-paid`);
+      onClose();
+      await reloadInvoices();
+      Alert.alert('Success', 'Invoice marked as paid');
+    } catch (e: any) {
+      Alert.alert('Error', e?.message || 'Failed to mark as paid');
+    }
+    setMarking(false);
+  };
+  const handleUndoPayment = async () => {
+    setMarking(true);
+    try {
+      await apiRequest('POST', `/api/invoices/${invoice.id}/undo-payment`);
+      onClose();
+      await reloadInvoices();
+      Alert.alert('Success', 'Payment status reset');
+    } catch (e: any) {
+      Alert.alert('Error', e?.message || 'Failed to undo payment');
+    }
+    setMarking(false);
+  };
+
+  // Send SMS/Email
+  const handleSendSMS = async () => {
+    setSendingSMS(true);
+    try {
+      await apiRequest('POST', `/api/invoices/${invoice.id}/send-sms`);
+      Alert.alert('Success', 'Invoice sent via SMS');
+    } catch (e: any) {
+      Alert.alert('Error', e?.message || 'Failed to send SMS');
+    }
+    setSendingSMS(false);
+  };
+  const handleSendEmail = async () => {
+    setSendingEmail(true);
+    try {
+      await apiRequest('POST', `/api/invoices/${invoice.id}/send-email`);
+      Alert.alert('Success', 'Invoice sent via email');
+    } catch (e: any) {
+      Alert.alert('Error', e?.message || 'Failed to send email');
+    }
+    setSendingEmail(false);
+  };
+
+  if (!invoice) {
+    return (
+      <Modal
+        visible={visible}
+        animationType="slide"
+        transparent
+        onRequestClose={onClose}
+      >
+        <SafeAreaView style={styles.modalOverlay}>
+          <View style={[styles.modalContentBox, { alignItems: 'center', justifyContent: 'center' }]}>
+            <ActivityIndicator size="large" color="#F59E0B" style={{ marginVertical: 16 }} />
+            <Text style={{ color: '#fff', fontSize: 16, marginTop: 12 }}>No invoice selected</Text>
+            <TouchableOpacity
+              style={[styles.createButton, { alignSelf: 'center', marginTop: 18 }]}
+              onPress={onClose}
+            >
+              <Ionicons name="close" size={22} color="#FFD700" />
+            </TouchableOpacity>
+          </View>
+        </SafeAreaView>
+      </Modal>
+    );
+  }
+
+  // Format date
+  const date = invoice.createdAt ? new Date(invoice.createdAt) : null;
+  const dateStr = date
+    ? `${date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })} • ${date.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}`
+    : 'Unknown';
+
+  return (
+    <Modal
+      visible={visible}
       animationType="slide"
       transparent
-      onRequestClose={() => setShowInvoiceModal(false)}
+      onRequestClose={onClose}
     >
       <SafeAreaView style={styles.modalOverlay}>
         <View style={styles.modalContentBox}>
           <View style={styles.modalHeader}>
             <Text style={styles.modalTitle}>Invoice Details</Text>
             <TouchableOpacity
-              onPress={() => setShowInvoiceModal(false)}
+              onPress={onClose}
               style={styles.modalCloseButton}
             >
               <Ionicons name="close" size={24} color="#6B7280" />
             </TouchableOpacity>
           </View>
-          <View style={styles.modalBody}>
-            {invoiceServicesLoading ? (
-              <ActivityIndicator size="small" color="#F59E0B" />
-            ) : invoiceServicesError ? (
-              <Text style={{ color: '#EF4444', marginBottom: 8, fontWeight: '600' }}>
-                {invoiceServicesError}
+          <ScrollView style={{ width: '100%' }} contentContainerStyle={{ paddingBottom: 16 }}>
+            {/* Client Info */}
+            <View style={{ marginBottom: 10 }}>
+              <Text style={styles.modalPlaceholderText}>Client</Text>
+              <Text style={{ color: '#fff', fontWeight: '600', fontSize: 16 }}>
+                {client?.name || 'Unknown Client'}
               </Text>
-            ) : selectedInvoiceServices && selectedInvoiceServices.length === 0 ? (
-              <Text style={{ color: '#9CA3AF', fontSize: 16, textAlign: 'center', marginTop: 16 }}>
-                No services listed for this invoice
-              </Text>
-            ) : (
-              <View style={{ width: '100%' }}>
-                {selectedInvoiceServices && selectedInvoiceServices.map((service, idx) => (
-                  <View
-                    key={service.id || idx}
-                    style={{
-                      flexDirection: 'row',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                      paddingVertical: 8,
-                      borderBottomWidth: 1,
-                      borderBottomColor: '#232323',
-                    }}
-                  >
-                    <Text style={{ color: '#fff', fontSize: 16 }}>{service.name}</Text>
-                    <Text style={{ color: '#F59E0B', fontWeight: '700', fontSize: 16 }}>
-                      ${service.price}
+              {client?.phone ? (
+                <Text style={{ color: '#9CA3AF', fontSize: 13, marginTop: 2 }}>{client.phone}</Text>
+              ) : null}
+              {client?.email ? (
+                <Text style={{ color: '#9CA3AF', fontSize: 13 }}>{client.email}</Text>
+              ) : null}
+            </View>
+            {/* Services */}
+            <View style={{ marginBottom: 10 }}>
+              <Text style={styles.modalPlaceholderText}>Services</Text>
+              {loading ? (
+                <ActivityIndicator size="small" color="#F59E0B" style={{ marginVertical: 12 }} />
+              ) : error ? (
+                <Text style={{ color: '#EF4444', marginBottom: 8 }}>{error}</Text>
+              ) : services.length === 0 ? (
+                <Text style={{ color: '#9CA3AF', fontSize: 15 }}>No services found</Text>
+              ) : (
+                services.map((svc, idx) => (
+                  <View key={idx} style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 2 }}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ color: '#fff', fontSize: 15 }}>{svc.serviceName || svc.name}</Text>
+                      {svc.description ? (
+                        <Text style={{ color: '#9CA3AF', fontSize: 13 }}>{svc.description}</Text>
+                      ) : null}
+                      {svc.quantity && svc.quantity > 1 ? (
+                        <Text style={{ color: '#FFD700', fontSize: 13 }}>Qty: {svc.quantity}</Text>
+                      ) : null}
+                    </View>
+                    <Text style={{ color: '#FFD700', fontWeight: '600' }}>
+                      ${((parseFloat(svc.price) || 0) * (svc.quantity || 1)).toFixed(2)}
                     </Text>
                   </View>
-                ))}
+                ))
+              )}
+            </View>
+            {/* Details */}
+            <View style={{ marginBottom: 10 }}>
+              <Text style={styles.modalPlaceholderText}>Details</Text>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                <Text style={{ color: '#9CA3AF' }}>Subtotal:</Text>
+                <Text style={{ color: '#9CA3AF' }}>${invoice.subtotal}</Text>
               </View>
-            )}
-          </View>
+              {invoice.tip && parseFloat(invoice.tip) > 0 && (
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                  <Text style={{ color: '#9CA3AF' }}>Tip:</Text>
+                  <Text style={{ color: '#9CA3AF' }}>${invoice.tip}</Text>
+                </View>
+              )}
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                <Text style={{ fontWeight: 'bold', color: '#FFD700' }}>Total:</Text>
+                <Text style={{ fontWeight: 'bold', color: '#FFD700' }}>${invoice.total}</Text>
+              </View>
+            </View>
+            {/* Payment Method */}
+            <View style={{ marginBottom: 10 }}>
+              <Text style={styles.modalPlaceholderText}>Payment Method</Text>
+              <Text style={{ color: '#9CA3AF' }}>
+                {invoice.paymentMethod === 'stripe'
+                  ? 'Card'
+                  : invoice.paymentMethod === 'apple_pay'
+                  ? 'Apple Pay'
+                  : invoice.paymentMethod === 'cash'
+                  ? 'Cash'
+                  : 'Pending'}
+              </Text>
+            </View>
+            {/* Payment Status */}
+            <View style={{ marginBottom: 10 }}>
+              <Text style={styles.modalPlaceholderText}>Payment Status</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                <Text style={{
+                  color: invoice.paymentStatus === 'paid' ? '#22C55E' : '#FFD700',
+                  fontWeight: 'bold'
+                }}>
+                  {invoice.paymentStatus === 'paid' ? 'Paid' : 'Unpaid'}
+                </Text>
+                {invoice.paymentMethod === 'cash' && (
+                  <TouchableOpacity
+                    style={[
+                      styles.createButton,
+                      invoice.paymentStatus === 'paid'
+                        ? { backgroundColor: '#EF4444', marginLeft: 8 }
+                        : { backgroundColor: '#22C55E', marginLeft: 8 }
+                    ]}
+                    onPress={invoice.paymentStatus === 'paid' ? handleUndoPayment : handleMarkPaid}
+                    disabled={marking}
+                  >
+                    <Text style={{ color: '#18181B', fontWeight: 'bold' }}>
+                      {marking
+                        ? '...'
+                        : invoice.paymentStatus === 'paid'
+                        ? 'Mark Unpaid'
+                        : 'Mark Paid'}
+                    </Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            </View>
+            {/* Created Date */}
+            <View style={{ marginBottom: 10 }}>
+              <Text style={styles.modalPlaceholderText}>Created</Text>
+              <Text style={{ color: '#9CA3AF' }}>{dateStr}</Text>
+            </View>
+            {/* Send Invoice Actions */}
+            <View style={{ marginBottom: 10 }}>
+              <Text style={styles.modalPlaceholderText}>Send Invoice</Text>
+              <View style={{ flexDirection: 'row', gap: 12 }}>
+                <TouchableOpacity
+                  style={[
+                    styles.createButton,
+                    { backgroundColor: '#2563EB', marginRight: 8, flex: 1, flexDirection: 'row', justifyContent: 'center', alignItems: 'center' }
+                  ]}
+                  onPress={handleSendSMS}
+                  disabled={sendingSMS}
+                >
+                  <Ionicons name="chatbubble-outline" size={18} color="#fff" style={{ marginRight: 4 }} />
+                  <Text style={{ color: '#fff', fontWeight: 'bold' }}>{sendingSMS ? '...' : 'Send SMS'}</Text>
+                </TouchableOpacity>
+                {client?.email && (
+                  <TouchableOpacity
+                    style={[
+                      styles.createButton,
+                      { backgroundColor: '#22C55E', flex: 1, flexDirection: 'row', justifyContent: 'center', alignItems: 'center' }
+                    ]}
+                    onPress={handleSendEmail}
+                    disabled={sendingEmail}
+                  >
+                    <Ionicons name="mail-outline" size={18} color="#18181B" style={{ marginRight: 4 }} />
+                    <Text style={{ color: '#18181B', fontWeight: 'bold' }}>{sendingEmail ? '...' : 'Send Email'}</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            </View>
+          </ScrollView>
         </View>
       </SafeAreaView>
     </Modal>
-    </SafeAreaView>
   );
 }
 

@@ -7,7 +7,8 @@ import { AppointmentWithRelations } from '../lib/types';
 
 export default function AppointmentDetails() {
   const { id } = useLocalSearchParams();
-  const appointmentId = typeof id === 'string' ? parseInt(id, 10) : 0;
+  // Ensure appointmentId is a valid positive integer
+  const appointmentId = typeof id === 'string' && /^\d+$/.test(id) ? parseInt(id, 10) : 0;
   const router = useRouter();
 
   const [appointment, setAppointment] = useState<AppointmentWithRelations | null>(null);
@@ -19,17 +20,45 @@ export default function AppointmentDetails() {
     async function fetchAppointment() {
       setLoading(true);
       setError(null);
+      const url = `/api/appointments/${appointmentId}`;
+      // Logging for debugging
+      console.log('[AppointmentDetails] Fetching appointment', { appointmentId, url });
       try {
-        const data = await apiRequest<AppointmentWithRelations>('GET', `/api/appointments/${appointmentId}`);
+        const data = await apiRequest<AppointmentWithRelations>('GET', url);
         if (mounted) setAppointment(data);
       } catch (e: any) {
-        setError(e?.message || 'Failed to load appointment');
+        // Handle non-JSON/HTML or parsing errors with a user-friendly message
+        let userMessage = 'Failed to load appointment';
+        // Try to detect HTML or non-JSON responses
+        if (e?.message) {
+          if (
+            e.message.includes('Unexpected HTML response') ||
+            e.message.includes('Failed to parse JSON') ||
+            e.message.includes('Unexpected token') ||
+            e.message.includes('JSON')
+          ) {
+            userMessage = 'Unexpected server response. Please try again later.';
+          } else {
+            userMessage = e.message;
+          }
+        }
+        // If the error object has a 'response' with text/html, show a friendly message
+        if (e?.response && typeof e.response.text === 'function') {
+          try {
+            const text = await e.response.text();
+            if (text && text.trim().startsWith('<!DOCTYPE html')) {
+              userMessage = 'Unexpected server response. Please try again later.';
+            }
+          } catch {}
+        }
+        setError(userMessage);
         setAppointment(null);
       }
       setLoading(false);
     }
-    if (appointmentId) fetchAppointment();
-    else {
+    if (appointmentId > 0) {
+      fetchAppointment();
+    } else {
       setError('Invalid appointment ID');
       setLoading(false);
     }

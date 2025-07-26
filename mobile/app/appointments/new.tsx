@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from "react";
-import { View, Text, TextInput, Button, StyleSheet, Alert, ActivityIndicator, TouchableOpacity, ScrollView, Switch, Modal, FlatList } from "react-native";
+import { View, Text, TextInput, Button, StyleSheet, Alert, ActivityIndicator, TouchableOpacity, ScrollView, Switch, Modal, FlatList, Platform } from "react-native";
+import DateTimePicker from "@react-native-community/datetimepicker";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { apiRequest } from "../../lib/api";
 import type { Client } from "../../lib/types";
+import { toZonedTime, format } from "date-fns-tz";
 
 export default function NewAppointment() {
   const router = useRouter();
@@ -32,6 +34,18 @@ export default function NewAppointment() {
   
   // Date/time input
   const [date, setDate] = useState("");
+  const [showDatePicker, setShowDatePicker] = useState(false);
+
+  // Helper to display date in readable format
+  function getDisplayDate() {
+    if (!date) return "Select date & time";
+    try {
+      const d = new Date(date);
+      return d.toLocaleString();
+    } catch {
+      return date;
+    }
+  }
   
   // Schedule validation
   const [scheduleValidation, setScheduleValidation] = useState<{
@@ -83,12 +97,6 @@ export default function NewAppointment() {
   // Handler for selecting an existing client
   const handleSelectClient = (id: number) => {
     setSelectedClientId(id);
-    setNewClientFields({
-      name: "",
-      phone: "",
-      email: "",
-      address: "",
-    });
     setClientError(null);
   };
 
@@ -149,7 +157,13 @@ export default function NewAppointment() {
   // Schedule conflict validation
   useEffect(() => {
     async function validateScheduling() {
-      if (!date || !selectedClientId || serviceSelections.length === 0) {
+      // Guards: require all fields, including address if travel is enabled
+      if (
+        !date ||
+        !selectedClientId ||
+        serviceSelections.length === 0 ||
+        (includeTravel && !address)
+      ) {
         setScheduleValidation({ isValidating: false });
         return;
       }
@@ -159,11 +173,24 @@ export default function NewAppointment() {
         const duration = getTotalDuration();
         const endTime = new Date(scheduledDate.getTime() + duration * 60000);
         const client = clients.find(c => c.id === selectedClientId);
-        const response = await apiRequest<any>("POST", "/api/appointments/validate-scheduling", {
+        // Always include proposedStart, proposedEnd, and clientAddress
+        const payload: Record<string, any> = {
           proposedStart: scheduledDate.toISOString(),
           proposedEnd: endTime.toISOString(),
-          clientAddress: includeTravel ? (address || client?.address || "") : "",
-        });
+        };
+
+        // Always include clientAddress per new requirements
+        if (includeTravel) {
+          payload.clientAddress = address;
+        } else {
+          // Use selected client's address if available, else "N/A"
+          payload.clientAddress =
+            client && client.address && client.address.trim() !== ""
+              ? client.address
+              : "N/A";
+        }
+
+        const response = await apiRequest<any>("POST", "/api/appointments/validate-scheduling", payload);
         setScheduleValidation({
           isValidating: false,
           isValid: response.isValid,
@@ -296,13 +323,33 @@ export default function NewAppointment() {
       )}
 
       {/* Date/Time Input */}
-      <Text style={styles.label}>Date & Time (YYYY-MM-DDTHH:mm)</Text>
-      <TextInput
-        style={styles.input}
-        placeholder="2025-07-24T14:00"
-        value={date}
-        onChangeText={setDate}
-      />
+      <Text style={styles.label}>Date & Time</Text>
+      <TouchableOpacity
+        style={[styles.input, { justifyContent: "center" }]}
+        onPress={() => setShowDatePicker(true)}
+        activeOpacity={0.7}
+      >
+        <Text style={{ fontSize: 16, color: date ? "#18181B" : "#888" }}>
+          {getDisplayDate()}
+        </Text>
+      </TouchableOpacity>
+      {showDatePicker && (
+        <DateTimePicker
+          value={date ? new Date(date) : new Date()}
+          mode="datetime"
+          display={Platform.OS === "ios" ? "inline" : "default"}
+          onChange={(
+            event: import("@react-native-community/datetimepicker").DateTimePickerEvent,
+            selectedDate?: Date | undefined
+          ) => {
+            setShowDatePicker(Platform.OS === "ios");
+            if (selectedDate) {
+              setDate(selectedDate.toISOString());
+            }
+          }}
+          minimumDate={new Date()}
+        />
+      )}
 
       {/* Schedule Validation Feedback */}
       {scheduleValidation.isValidating ? (
@@ -343,10 +390,20 @@ export default function NewAppointment() {
             return;
           }
           // Prepare data
+          // Convert selected date/time to America/New_York before sending to backend
+          let scheduledAtET = date;
+          try {
+            const userDate = new Date(date);
+            const zoned = toZonedTime(userDate, "America/New_York");
+            scheduledAtET = format(zoned, "yyyy-MM-dd'T'HH:mm:ssXXX", { timeZone: "America/New_York" });
+          } catch (e) {
+            // fallback to original date if conversion fails
+            scheduledAtET = date;
+          }
           const appointmentData = {
             clientId: selectedClientId,
             services: serviceSelections,
-            scheduledAt: date,
+            scheduledAt: scheduledAtET,
             address: includeTravel ? address : "",
             travelTime: includeTravel ? travelTime : 0,
           };

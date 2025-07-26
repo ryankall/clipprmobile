@@ -53,6 +53,16 @@ export default function ClientProfile() {
   const [photosLoading, setPhotosLoading] = useState(true);
 
   const [deleteLoading, setDeleteLoading] = useState(false);
+  
+  // --- Invoice State ---
+  const [invoices, setInvoices] = useState<any[]>([]);
+  const [invoicesLoading, setInvoicesLoading] = useState(true);
+  const [invoicesError, setInvoicesError] = useState<string | null>(null);
+  const [selectedInvoice, setSelectedInvoice] = useState<any | null>(null);
+  const [invoiceServices, setInvoiceServices] = useState<any[]>([]);
+  const [invoiceServicesLoading, setInvoiceServicesLoading] = useState(false);
+  const [invoiceServicesError, setInvoiceServicesError] = useState<string | null>(null);
+  const [showInvoiceModal, setShowInvoiceModal] = useState(false);
 
   // Fetch client data
   useEffect(() => {
@@ -130,6 +140,25 @@ export default function ClientProfile() {
       setPhotosLoading(false);
     }
     if (clientId) fetchPhotos();
+    return () => { mounted = false; };
+  }, [clientId]);
+
+  // Fetch invoices
+  useEffect(() => {
+    let mounted = true;
+    async function fetchInvoices() {
+      setInvoicesLoading(true);
+      setInvoicesError(null);
+      try {
+        const data = await apiRequest<any[]>('GET', `/api/clients/${clientId}/invoices`);
+        if (mounted) setInvoices(data);
+      } catch (e) {
+        setInvoices([]);
+        setInvoicesError('Failed to load invoices');
+      }
+      setInvoicesLoading(false);
+    }
+    if (clientId) fetchInvoices();
     return () => { mounted = false; };
   }, [clientId]);
 
@@ -598,7 +627,389 @@ export default function ClientProfile() {
           </View>
         )}
       </View>
+
+      {/* Invoice History */}
+      <View style={styles.card}>
+        <View style={styles.sectionHeader}>
+          <Ionicons name="receipt-outline" size={18} color="#FFD700" style={{ marginRight: 6 }} />
+          <Text style={styles.sectionTitle}>Invoice History ({invoices.length})</Text>
+        </View>
+        {invoicesLoading ? (
+          <ActivityIndicator size="small" color="#FFD700" style={{ marginVertical: 12 }} />
+        ) : invoicesError ? (
+          <Text style={{ color: '#F87171', marginBottom: 8 }}>{invoicesError}</Text>
+        ) : invoices.length > 0 ? (
+          invoices
+            .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+            .map((invoice) => {
+              let statusColor = '#F59E0B';
+              let statusBg = '#232323';
+              if (invoice.paymentStatus === 'paid') {
+                statusColor = '#22C55E';
+                statusBg = '#193a2f';
+              } else if (invoice.paymentStatus === 'unpaid') {
+                statusColor = '#F59E0B';
+                statusBg = '#2d230f';
+              }
+              let iconName: any = 'receipt-outline';
+              if (invoice.paymentMethod === 'stripe') iconName = 'card-outline';
+              else if (invoice.paymentMethod === 'apple_pay') iconName = 'phone-portrait-outline';
+              else if (invoice.paymentMethod === 'cash') iconName = 'cash-outline';
+
+              const date = new Date(invoice.createdAt);
+              const dateStr = `${date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })} • ${date.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}`;
+
+              return (
+                <TouchableOpacity
+                  key={invoice.id}
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    paddingVertical: 14,
+                    paddingHorizontal: 12,
+                    borderBottomWidth: 1,
+                    borderBottomColor: '#232323',
+                    backgroundColor: '#1A1A1A',
+                  }}
+                  activeOpacity={0.85}
+                  onPress={() => {
+                    setSelectedInvoice(invoice);
+                    setShowInvoiceModal(true);
+                  }}
+                  accessibilityLabel="View invoice details"
+                >
+                  <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+                    <View style={{
+                      width: 34, height: 34, borderRadius: 17, backgroundColor: '#232323',
+                      alignItems: 'center', justifyContent: 'center', marginRight: 10
+                    }}>
+                      <Ionicons name={iconName} size={18} color="#f59e0b" />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ color: '#fff', fontWeight: '600', fontSize: 15 }}>
+                        Invoice #{invoice.id}
+                      </Text>
+                      <Text style={{ color: '#9CA3AF', fontSize: 12, marginTop: 2 }}>
+                        {dateStr}
+                      </Text>
+                    </View>
+                  </View>
+                  <View style={{ alignItems: 'flex-end', minWidth: 80 }}>
+                    <Text style={{ color: '#F59E0B', fontWeight: '700', fontSize: 15 }}>
+                      ${invoice.total}
+                    </Text>
+                    <View style={{ alignItems: 'flex-end', marginTop: 4 }}>
+                      <View style={{
+                        backgroundColor: statusBg,
+                        borderRadius: 6,
+                        paddingHorizontal: 6,
+                        paddingVertical: 2,
+                        marginBottom: 2,
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                      }}>
+                        <Text style={{ color: statusColor, fontWeight: '600', fontSize: 10 }}>
+                          {invoice.paymentStatus === 'paid' ? '✅ Paid' : '⏳ Unpaid'}
+                        </Text>
+                      </View>
+                      {invoice.paymentMethod && (
+                        <View style={{
+                          backgroundColor: '#232323',
+                          borderRadius: 4,
+                          paddingHorizontal: 4,
+                          paddingVertical: 1,
+                          marginBottom: 2,
+                        }}>
+                          <Text style={{ color: '#9CA3AF', fontWeight: '500', fontSize: 9 }}>
+                            {invoice.paymentMethod === 'cash' ? 'Cash' :
+                              invoice.paymentMethod === 'stripe' ? 'Card' :
+                                invoice.paymentMethod === 'apple_pay' ? 'Apple Pay' :
+                                  invoice.paymentMethod}
+                          </Text>
+                        </View>
+                      )}
+                    </View>
+                  </View>
+                </TouchableOpacity>
+              );
+            })
+        ) : (
+          <View style={styles.emptyBlock}>
+            <Ionicons name="receipt-outline" size={32} color="#9CA3AF" style={{ marginBottom: 6 }} />
+            <Text style={styles.emptyBlockText}>No invoices yet</Text>
+          </View>
+        )}
+      </View>
+
+      {/* Invoice Details Modal */}
+      <InvoiceDetailsModal
+        visible={showInvoiceModal && !!selectedInvoice}
+        invoice={selectedInvoice}
+        onClose={() => {
+          setShowInvoiceModal(false);
+          setSelectedInvoice(null);
+        }}
+        client={client}
+      />
     </ScrollView>
+  );
+}
+
+// --- Invoice Details Modal ---
+function InvoiceDetailsModal({
+  visible,
+  invoice,
+  onClose,
+  client,
+}: {
+  visible: boolean;
+  invoice: any;
+  onClose: () => void;
+  client: any;
+}) {
+  const [services, setServices] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [marking, setMarking] = useState(false);
+  const [sendingSMS, setSendingSMS] = useState(false);
+  const [sendingEmail, setSendingEmail] = useState(false);
+
+  useEffect(() => {
+    if (!invoice) return;
+    setLoading(true);
+    setError(null);
+    apiRequest<any>('GET', `/api/invoices/${invoice.id}`)
+      .then((data) => setServices(data.services || []))
+      .catch(() => setError('Failed to load services'))
+      .finally(() => setLoading(false));
+  }, [invoice]);
+
+  // Mark as paid/unpaid (cash)
+  const handleMarkPaid = async () => {
+    setMarking(true);
+    try {
+      await apiRequest('POST', `/api/invoices/${invoice.id}/mark-paid`);
+      onClose();
+      Alert.alert('Success', 'Invoice marked as paid');
+    } catch (e: any) {
+      Alert.alert('Error', e?.message || 'Failed to mark as paid');
+    }
+    setMarking(false);
+  };
+  const handleUndoPayment = async () => {
+    setMarking(true);
+    try {
+      await apiRequest('POST', `/api/invoices/${invoice.id}/undo-payment`);
+      onClose();
+      Alert.alert('Success', 'Payment status reset');
+    } catch (e: any) {
+      Alert.alert('Error', e?.message || 'Failed to undo payment');
+    }
+    setMarking(false);
+  };
+
+  // Send SMS/Email
+  const handleSendSMS = async () => {
+    setSendingSMS(true);
+    try {
+      await apiRequest('POST', `/api/invoices/${invoice.id}/send-sms`);
+      Alert.alert('Success', 'Invoice sent via SMS');
+    } catch (e: any) {
+      Alert.alert('Error', e?.message || 'Failed to send SMS');
+    }
+    setSendingSMS(false);
+  };
+  const handleSendEmail = async () => {
+    setSendingEmail(true);
+    try {
+      await apiRequest('POST', `/api/invoices/${invoice.id}/send-email`);
+      Alert.alert('Success', 'Invoice sent via email');
+    } catch (e: any) {
+      Alert.alert('Error', e?.message || 'Failed to send email');
+    }
+    setSendingEmail(false);
+  };
+
+  // Null check for invoice
+  if (!invoice) {
+    return (
+      <Modal
+        visible={visible}
+        animationType="slide"
+        transparent
+        onRequestClose={onClose}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { maxWidth: 440, alignItems: 'center', justifyContent: 'center' }]}>
+            <ActivityIndicator size="large" color="#FFD700" style={{ marginVertical: 16 }} />
+            <Text style={{ color: '#fff', fontSize: 16, marginTop: 12 }}>No invoice selected</Text>
+            <TouchableOpacity
+              style={[styles.iconButton, { alignSelf: 'center', marginTop: 18 }]}
+              onPress={onClose}
+              accessibilityLabel="Close invoice modal"
+            >
+              <Ionicons name="close" size={22} color="#FFD700" />
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+    );
+  }
+
+  return (
+    <Modal
+      visible={visible}
+      animationType="slide"
+      transparent
+      onRequestClose={onClose}
+    >
+      <View style={styles.modalOverlay}>
+        <View style={[styles.modalContent, { maxWidth: 440 }]}>
+          <Text style={styles.modalTitle}>Invoice Details</Text>
+          <Text style={styles.modalMeta}>Invoice #{invoice?.id}</Text>
+          {loading ? (
+            <ActivityIndicator size="small" color="#FFD700" style={{ marginVertical: 12 }} />
+          ) : error ? (
+            <Text style={{ color: '#F87171', marginBottom: 8 }}>{error}</Text>
+          ) : (
+            <>
+              {/* Client Info */}
+              <View style={styles.infoBlock}>
+                <Text style={styles.infoBlockLabel}>Client</Text>
+                <Text style={styles.infoBlockText}>{client?.name || 'Unknown Client'}</Text>
+              </View>
+              {/* Services */}
+              <View style={styles.infoBlock}>
+                <Text style={styles.infoBlockLabel}>Services</Text>
+                {services.length === 0 ? (
+                  <Text style={styles.infoBlockText}>No services found</Text>
+                ) : (
+                  services.map((svc, idx) => (
+                    <View key={idx} style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 2 }}>
+                      <Text style={{ color: '#fff', fontSize: 15 }}>{svc.serviceName || svc.name}</Text>
+                      <Text style={{ color: '#FFD700', fontWeight: '600' }}>${((parseFloat(svc.price) || 0) * (svc.quantity || 1)).toFixed(2)}</Text>
+                    </View>
+                  ))
+                )}
+              </View>
+              {/* Details */}
+              <View style={styles.infoBlock}>
+                <Text style={styles.infoBlockLabel}>Details</Text>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                  <Text style={styles.infoBlockText}>Subtotal:</Text>
+                  <Text style={styles.infoBlockText}>${invoice.subtotal}</Text>
+                </View>
+                {invoice.tip && parseFloat(invoice.tip) > 0 && (
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                    <Text style={styles.infoBlockText}>Tip:</Text>
+                    <Text style={styles.infoBlockText}>${invoice.tip}</Text>
+                  </View>
+                )}
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                  <Text style={[styles.infoBlockText, { fontWeight: 'bold', color: '#FFD700' }]}>Total:</Text>
+                  <Text style={[styles.infoBlockText, { fontWeight: 'bold', color: '#FFD700' }]}>${invoice.total}</Text>
+                </View>
+              </View>
+              {/* Payment Method */}
+              <View style={styles.infoBlock}>
+                <Text style={styles.infoBlockLabel}>Payment Method</Text>
+                <Text style={styles.infoBlockText}>
+                  {invoice.paymentMethod === 'stripe'
+                    ? 'Card'
+                    : invoice.paymentMethod === 'apple_pay'
+                    ? 'Apple Pay'
+                    : invoice.paymentMethod === 'cash'
+                    ? 'Cash'
+                    : 'Pending'}
+                </Text>
+              </View>
+              {/* Payment Status */}
+              <View style={styles.infoBlock}>
+                <Text style={styles.infoBlockLabel}>Payment Status</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <Text style={[
+                    styles.infoBlockText,
+                    invoice.paymentStatus === 'paid'
+                      ? { color: '#22C55E', fontWeight: 'bold' }
+                      : { color: '#FFD700', fontWeight: 'bold' }
+                  ]}>
+                    {invoice.paymentStatus === 'paid' ? 'Paid' : 'Unpaid'}
+                  </Text>
+                  {invoice.paymentMethod === 'cash' && (
+                    <TouchableOpacity
+                      style={[
+                        styles.iconButton,
+                        invoice.paymentStatus === 'paid'
+                          ? { backgroundColor: '#F87171' }
+                          : { backgroundColor: '#22C55E' },
+                        { marginLeft: 8 }
+                      ]}
+                      onPress={invoice.paymentStatus === 'paid' ? handleUndoPayment : handleMarkPaid}
+                      disabled={marking}
+                    >
+                      <Text style={{ color: '#18181B', fontWeight: 'bold' }}>
+                        {marking
+                          ? '...'
+                          : invoice.paymentStatus === 'paid'
+                          ? 'Mark Unpaid'
+                          : 'Mark Paid'}
+                      </Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+              </View>
+              {/* Created Date */}
+              <View style={styles.infoBlock}>
+                <Text style={styles.infoBlockLabel}>Created</Text>
+                <Text style={styles.infoBlockText}>
+                  {invoice.createdAt
+                    ? new Date(invoice.createdAt).toLocaleString()
+                    : 'Unknown'}
+                </Text>
+              </View>
+              {/* Send Invoice Actions */}
+              <View style={styles.infoBlock}>
+                <Text style={styles.infoBlockLabel}>Send Invoice</Text>
+                <View style={{ flexDirection: 'row', gap: 12 }}>
+                  <TouchableOpacity
+                    style={[
+                      styles.iconButton,
+                      { backgroundColor: '#2563EB', marginRight: 8, flex: 1, flexDirection: 'row', justifyContent: 'center', alignItems: 'center' }
+                    ]}
+                    onPress={handleSendSMS}
+                    disabled={sendingSMS}
+                  >
+                    <Ionicons name="chatbubble-outline" size={18} color="#fff" style={{ marginRight: 4 }} />
+                    <Text style={{ color: '#fff', fontWeight: 'bold' }}>{sendingSMS ? '...' : 'Send SMS'}</Text>
+                  </TouchableOpacity>
+                  {client?.email && (
+                    <TouchableOpacity
+                      style={[
+                        styles.iconButton,
+                        { backgroundColor: '#22C55E', flex: 1, flexDirection: 'row', justifyContent: 'center', alignItems: 'center' }
+                      ]}
+                      onPress={handleSendEmail}
+                      disabled={sendingEmail}
+                    >
+                      <Ionicons name="mail-outline" size={18} color="#18181B" style={{ marginRight: 4 }} />
+                      <Text style={{ color: '#18181B', fontWeight: 'bold' }}>{sendingEmail ? '...' : 'Send Email'}</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+              </View>
+            </>
+          )}
+          <TouchableOpacity
+            style={[styles.iconButton, { alignSelf: 'flex-end', marginTop: 18 }]}
+            onPress={onClose}
+            accessibilityLabel="Close invoice modal"
+          >
+            <Ionicons name="close" size={22} color="#FFD700" />
+          </TouchableOpacity>
+        </View>
+      </View>
+    </Modal>
   );
 }
 
