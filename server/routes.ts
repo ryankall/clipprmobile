@@ -440,6 +440,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get single appointment by ID
+  app.get("/api/appointments/:id", requireAuth, async (req, res) => {
+    try {
+      const userId = (req.user as any).id;
+      const appointmentId = parseInt(req.params.id);
+      
+      if (isNaN(appointmentId)) {
+        return res.status(400).json({ message: "Invalid appointment ID" });
+      }
+      
+      // Get the appointment with all related data
+      const appointment = await storage.getAppointment(appointmentId);
+      
+      if (!appointment) {
+        return res.status(404).json({ message: "Appointment not found" });
+      }
+      
+      // Verify appointment belongs to the authenticated user
+      if (appointment.userId !== userId) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      res.json(appointment);
+    } catch (error: any) {
+      console.error("Error fetching appointment:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
   app.get("/api/appointments/today", requireAuth, async (req, res) => {
     try {
       const userId = (req.user as any).id;
