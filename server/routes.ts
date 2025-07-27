@@ -1601,7 +1601,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Generate invoice details for SMS
       const services = await storage.getInvoiceServices(invoiceId);
-      const serviceNames = services?.map(s => s.serviceName || s.name).join(', ') || 'Service';
+      const serviceNames = services?.map(s => s.service.name).join(', ') || 'Service';
       
       console.log(`SMS would be sent to ${client.phone} for invoice ${invoice.id}`);
       console.log(`Invoice details: ${serviceNames} - $${invoice.total}`);
@@ -1647,7 +1647,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Generate invoice details for email
       const services = await storage.getInvoiceServices(invoiceId);
-      const serviceNames = services?.map(s => s.serviceName || s.name).join(', ') || 'Service';
+      const serviceNames = services?.map(s => s.service.name).join(', ') || 'Service';
       
       console.log(`Email would be sent to ${client.email} for invoice ${invoice.id}`);
       console.log(`Invoice details: ${serviceNames} - $${invoice.total}`);

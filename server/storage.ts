@@ -92,7 +92,7 @@ export interface IStorage {
   // Invoices
   getInvoicesByUserId(userId: number): Promise<Invoice[]>;
   getInvoice(id: number): Promise<Invoice | undefined>;
-  getInvoiceServices(invoiceId: number): Promise<Service[]>;
+  getInvoiceServices(invoiceId: number): Promise<Array<InvoiceService & { service: Service }>>;
   createInvoiceService(invoiceService: InsertInvoiceService): Promise<InvoiceService>;
   createInvoice(invoice: InsertInvoice): Promise<Invoice>;
   updateInvoice(id: number, invoice: Partial<InsertInvoice>): Promise<Invoice>;
@@ -607,16 +607,32 @@ export class DatabaseStorage implements IStorage {
     return invoice || undefined;
   }
 
-  async getInvoiceServices(invoiceId: number): Promise<Service[]> {
+  async getInvoiceServices(invoiceId: number): Promise<Array<InvoiceService & { service: Service }>> {
     const results = await db
       .select({
-        service: services
+        id: invoiceServices.id,
+        invoiceId: invoiceServices.invoiceId,
+        serviceId: invoiceServices.serviceId,
+        quantity: invoiceServices.quantity,
+        price: invoiceServices.price,
+        createdAt: invoiceServices.createdAt,
+        service: {
+          id: services.id,
+          userId: services.userId,
+          name: services.name,
+          description: services.description,
+          price: services.price,
+          duration: services.duration,
+          category: services.category,
+          isActive: services.isActive,
+          createdAt: services.createdAt
+        }
       })
       .from(invoiceServices)
       .innerJoin(services, eq(invoiceServices.serviceId, services.id))
       .where(eq(invoiceServices.invoiceId, invoiceId));
     
-    return results.map(result => result.service);
+    return results;
   }
 
   async createInvoiceService(invoiceService: InsertInvoiceService): Promise<InvoiceService> {
