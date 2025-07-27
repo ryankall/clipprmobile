@@ -780,8 +780,44 @@ function InvoiceDetailsModal({
     setLoading(true);
     setError(null);
     apiRequest<any>('GET', `/api/invoices/${invoice.id}`)
-      .then((data) => setServices(data.services || []))
-      .catch(() => setError('Failed to load services'))
+      .then((data) => {
+        // Debug: log the full invoice data
+        console.log('[ClientProfile/InvoiceDetailsModal] Loaded invoice data:', data);
+
+        // Check all possible service arrays
+        let found = null;
+        if (Array.isArray(data.services) && data.services.length > 0) {
+          found = data.services;
+          console.log('[ClientProfile/InvoiceDetailsModal] Using data.services');
+        } else if (Array.isArray(data.invoiceServices) && data.invoiceServices.length > 0) {
+          found = data.invoiceServices;
+          console.log('[ClientProfile/InvoiceDetailsModal] Using data.invoiceServices');
+        } else if (Array.isArray(data.items) && data.items.length > 0) {
+          found = data.items;
+          console.log('[ClientProfile/InvoiceDetailsModal] Using data.items');
+        } else {
+          // Try to find any array property with service-like objects
+          const possible = Object.entries(data).find(
+            ([k, v]) =>
+              Array.isArray(v) &&
+              v.length > 0 &&
+              typeof v[0] === 'object' &&
+              (v[0].name || v[0].serviceName)
+          );
+          if (possible) {
+            found = possible[1];
+            console.log(`[ClientProfile/InvoiceDetailsModal] Using data.${possible[0]} (guessed)`);
+          }
+        }
+        if (!found || found.length === 0) {
+          console.warn('[ClientProfile/InvoiceDetailsModal] No service array found in invoice data', data);
+        }
+        setServices(found || []);
+      })
+      .catch((err) => {
+        setError('Failed to load services');
+        console.error('[ClientProfile/InvoiceDetailsModal] Error loading invoice:', err);
+      })
       .finally(() => setLoading(false));
   }, [invoice]);
 
@@ -866,7 +902,16 @@ function InvoiceDetailsModal({
     >
       <View style={styles.modalOverlay}>
         <View style={[styles.modalContent, { maxWidth: 440 }]}>
-          <Text style={styles.modalTitle}>Invoice Details</Text>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>Invoice Details</Text>
+            <TouchableOpacity
+              style={[styles.iconButton, { alignSelf: 'flex-end', marginTop: 2 }]}
+              onPress={onClose}
+              accessibilityLabel="Close invoice modal"
+            >
+              <Ionicons name="close" size={22} color="#FFD700" />
+            </TouchableOpacity>
+          </View>
           <Text style={styles.modalMeta}>Invoice #{invoice?.id}</Text>
           {loading ? (
             <ActivityIndicator size="small" color="#FFD700" style={{ marginVertical: 12 }} />
@@ -878,19 +923,54 @@ function InvoiceDetailsModal({
               <View style={styles.infoBlock}>
                 <Text style={styles.infoBlockLabel}>Client</Text>
                 <Text style={styles.infoBlockText}>{client?.name || 'Unknown Client'}</Text>
+                {client?.phone ? (
+                  <Text style={{ color: '#9CA3AF', fontSize: 13, marginTop: 2 }}>{client.phone}</Text>
+                ) : null}
+                {client?.email ? (
+                  <Text style={{ color: '#9CA3AF', fontSize: 13 }}>{client.email}</Text>
+                ) : null}
               </View>
               {/* Services */}
               <View style={styles.infoBlock}>
                 <Text style={styles.infoBlockLabel}>Services</Text>
                 {services.length === 0 ? (
-                  <Text style={styles.infoBlockText}>No services found</Text>
+                  <Text style={styles.infoBlockText}>
+                    No services found for this invoice.
+                    {'\n'}
+                    (Check console for details. If this is unexpected, the invoice may be missing service data.)
+                  </Text>
                 ) : (
-                  services.map((svc, idx) => (
-                    <View key={idx} style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 2 }}>
-                      <Text style={{ color: '#fff', fontSize: 15 }}>{svc.serviceName || svc.name}</Text>
-                      <Text style={{ color: '#FFD700', fontWeight: '600' }}>${((parseFloat(svc.price) || 0) * (svc.quantity || 1)).toFixed(2)}</Text>
-                    </View>
-                  ))
+                  <View>
+                    {services.map((svc, idx) => (
+                      <View
+                        key={idx}
+                        style={{
+                          flexDirection: 'row',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          marginBottom: 4,
+                          borderBottomWidth: idx !== services.length - 1 ? 1 : 0,
+                          borderBottomColor: '#232323',
+                          paddingBottom: 4,
+                        }}
+                      >
+                        <View style={{ flex: 1 }}>
+                          <Text style={{ color: '#fff', fontSize: 15, fontWeight: '600' }}>
+                            {svc.serviceName || svc.name}
+                          </Text>
+                          {svc.description ? (
+                            <Text style={{ color: '#9CA3AF', fontSize: 13 }}>{svc.description}</Text>
+                          ) : null}
+                          {svc.quantity && svc.quantity > 1 ? (
+                            <Text style={{ color: '#FFD700', fontSize: 12 }}>x{svc.quantity}</Text>
+                          ) : null}
+                        </View>
+                        <Text style={{ color: '#FFD700', fontWeight: '700', fontSize: 15 }}>
+                          ${((parseFloat(svc.price) || 0) * (svc.quantity || 1)).toFixed(2)}
+                        </Text>
+                      </View>
+                    ))}
+                  </View>
                 )}
               </View>
               {/* Details */}
@@ -1000,13 +1080,6 @@ function InvoiceDetailsModal({
               </View>
             </>
           )}
-          <TouchableOpacity
-            style={[styles.iconButton, { alignSelf: 'flex-end', marginTop: 18 }]}
-            onPress={onClose}
-            accessibilityLabel="Close invoice modal"
-          >
-            <Ionicons name="close" size={22} color="#FFD700" />
-          </TouchableOpacity>
         </View>
       </View>
     </Modal>
@@ -1302,5 +1375,20 @@ const styles = StyleSheet.create({
   modalMessage: {
     color: '#fff',
     fontSize: 15,
+  },
+  modalHeader: {
+    width: '100%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 16,
+    paddingHorizontal: 2,
+  },
+  modalPlaceholderText: {
+    color: '#737b89', // steel
+    fontSize: 15,
+    textAlign: 'center',
+    fontWeight: '500',
+    letterSpacing: 0.1,
   },
 });

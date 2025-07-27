@@ -1464,8 +1464,44 @@ function InvoiceDetailsModal({
     setLoading(true);
     setError(null);
     apiRequest<any>('GET', `/api/invoices/${invoice.id}`)
-      .then((data) => setServices(data.services || []))
-      .catch(() => setError('Failed to load services'))
+      .then((data) => {
+        // Debug: log the full invoice data
+        console.log('[InvoiceDetailsModal] Loaded invoice data:', data);
+
+        // Check all possible service arrays
+        let found = null;
+        if (Array.isArray(data.services) && data.services.length > 0) {
+          found = data.services;
+          console.log('[InvoiceDetailsModal] Using data.services');
+        } else if (Array.isArray(data.invoiceServices) && data.invoiceServices.length > 0) {
+          found = data.invoiceServices;
+          console.log('[InvoiceDetailsModal] Using data.invoiceServices');
+        } else if (Array.isArray(data.items) && data.items.length > 0) {
+          found = data.items;
+          console.log('[InvoiceDetailsModal] Using data.items');
+        } else {
+          // Try to find any array property with service-like objects
+          const possible = Object.entries(data).find(
+            ([k, v]) =>
+              Array.isArray(v) &&
+              v.length > 0 &&
+              typeof v[0] === 'object' &&
+              (v[0].name || v[0].serviceName)
+          );
+          if (possible) {
+            found = possible[1];
+            console.log(`[InvoiceDetailsModal] Using data.${possible[0]} (guessed)`);
+          }
+        }
+        if (!found || found.length === 0) {
+          console.warn('[InvoiceDetailsModal] No service array found in invoice data', data);
+        }
+        setServices(found || []);
+      })
+      .catch((err) => {
+        setError('Failed to load services');
+        console.error('[InvoiceDetailsModal] Error loading invoice:', err);
+      })
       .finally(() => setLoading(false));
   }, [invoice]);
 
@@ -1567,11 +1603,9 @@ function InvoiceDetailsModal({
           </View>
           <ScrollView style={{ width: '100%' }} contentContainerStyle={{ paddingBottom: 16 }}>
             {/* Client Info */}
-            <View style={{ marginBottom: 10 }}>
-              <Text style={styles.modalPlaceholderText}>Client</Text>
-              <Text style={{ color: '#fff', fontWeight: '600', fontSize: 16 }}>
-                {client?.name || 'Unknown Client'}
-              </Text>
+            <View style={styles.infoBlock}>
+              <Text style={styles.infoBlockLabel}>Client</Text>
+              <Text style={styles.infoBlockText}>{client?.name || 'Unknown Client'}</Text>
               {client?.phone ? (
                 <Text style={{ color: '#9CA3AF', fontSize: 13, marginTop: 2 }}>{client.phone}</Text>
               ) : null}
@@ -1580,55 +1614,70 @@ function InvoiceDetailsModal({
               ) : null}
             </View>
             {/* Services */}
-            <View style={{ marginBottom: 10 }}>
-              <Text style={styles.modalPlaceholderText}>Services</Text>
-              {loading ? (
-                <ActivityIndicator size="small" color="#F59E0B" style={{ marginVertical: 12 }} />
-              ) : error ? (
-                <Text style={{ color: '#EF4444', marginBottom: 8 }}>{error}</Text>
-              ) : services.length === 0 ? (
-                <Text style={{ color: '#9CA3AF', fontSize: 15 }}>No services found</Text>
+            <View style={styles.infoBlock}>
+              <Text style={styles.infoBlockLabel}>Services</Text>
+              {services.length === 0 ? (
+                <Text style={styles.infoBlockText}>
+                  No services found for this invoice.
+                  {'\n'}
+                  (Check console for details. If this is unexpected, the invoice may be missing service data.)
+                </Text>
               ) : (
-                services.map((svc, idx) => (
-                  <View key={idx} style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 2 }}>
-                    <View style={{ flex: 1 }}>
-                      <Text style={{ color: '#fff', fontSize: 15 }}>{svc.serviceName || svc.name}</Text>
-                      {svc.description ? (
-                        <Text style={{ color: '#9CA3AF', fontSize: 13 }}>{svc.description}</Text>
-                      ) : null}
-                      {svc.quantity && svc.quantity > 1 ? (
-                        <Text style={{ color: '#FFD700', fontSize: 13 }}>Qty: {svc.quantity}</Text>
-                      ) : null}
+                <View>
+                  {services.map((svc, idx) => (
+                    <View
+                      key={idx}
+                      style={{
+                        flexDirection: 'row',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        marginBottom: 4,
+                        borderBottomWidth: idx !== services.length - 1 ? 1 : 0,
+                        borderBottomColor: '#232323',
+                        paddingBottom: 4,
+                      }}
+                    >
+                      <View style={{ flex: 1 }}>
+                        <Text style={{ color: '#fff', fontSize: 15, fontWeight: '600' }}>
+                          {svc.serviceName || svc.name}
+                        </Text>
+                        {svc.description ? (
+                          <Text style={{ color: '#9CA3AF', fontSize: 13 }}>{svc.description}</Text>
+                        ) : null}
+                        {svc.quantity && svc.quantity > 1 ? (
+                          <Text style={{ color: '#FFD700', fontSize: 12 }}>x{svc.quantity}</Text>
+                        ) : null}
+                      </View>
+                      <Text style={{ color: '#FFD700', fontWeight: '700', fontSize: 15 }}>
+                        ${((parseFloat(svc.price) || 0) * (svc.quantity || 1)).toFixed(2)}
+                      </Text>
                     </View>
-                    <Text style={{ color: '#FFD700', fontWeight: '600' }}>
-                      ${((parseFloat(svc.price) || 0) * (svc.quantity || 1)).toFixed(2)}
-                    </Text>
-                  </View>
-                ))
+                  ))}
+                </View>
               )}
             </View>
             {/* Details */}
-            <View style={{ marginBottom: 10 }}>
-              <Text style={styles.modalPlaceholderText}>Details</Text>
+            <View style={styles.infoBlock}>
+              <Text style={styles.infoBlockLabel}>Details</Text>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                <Text style={{ color: '#9CA3AF' }}>Subtotal:</Text>
-                <Text style={{ color: '#9CA3AF' }}>${invoice.subtotal}</Text>
+                <Text style={styles.infoBlockText}>Subtotal:</Text>
+                <Text style={styles.infoBlockText}>${invoice.subtotal}</Text>
               </View>
               {invoice.tip && parseFloat(invoice.tip) > 0 && (
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                  <Text style={{ color: '#9CA3AF' }}>Tip:</Text>
-                  <Text style={{ color: '#9CA3AF' }}>${invoice.tip}</Text>
+                  <Text style={styles.infoBlockText}>Tip:</Text>
+                  <Text style={styles.infoBlockText}>${invoice.tip}</Text>
                 </View>
               )}
               <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                <Text style={{ fontWeight: 'bold', color: '#FFD700' }}>Total:</Text>
-                <Text style={{ fontWeight: 'bold', color: '#FFD700' }}>${invoice.total}</Text>
+                <Text style={[styles.infoBlockText, { fontWeight: 'bold', color: '#FFD700' }]}>Total:</Text>
+                <Text style={[styles.infoBlockText, { fontWeight: 'bold', color: '#FFD700' }]}>${invoice.total}</Text>
               </View>
             </View>
             {/* Payment Method */}
-            <View style={{ marginBottom: 10 }}>
-              <Text style={styles.modalPlaceholderText}>Payment Method</Text>
-              <Text style={{ color: '#9CA3AF' }}>
+            <View style={styles.infoBlock}>
+              <Text style={styles.infoBlockLabel}>Payment Method</Text>
+              <Text style={styles.infoBlockText}>
                 {invoice.paymentMethod === 'stripe'
                   ? 'Card'
                   : invoice.paymentMethod === 'apple_pay'
@@ -1638,46 +1687,53 @@ function InvoiceDetailsModal({
                   : 'Pending'}
               </Text>
             </View>
-            {/* Payment Status */}
-            <View style={{ marginBottom: 10 }}>
-              <Text style={styles.modalPlaceholderText}>Payment Status</Text>
-              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                <Text style={{
-                  color: invoice.paymentStatus === 'paid' ? '#22C55E' : '#FFD700',
-                  fontWeight: 'bold'
-                }}>
-                  {invoice.paymentStatus === 'paid' ? 'Paid' : 'Unpaid'}
-                </Text>
-                {invoice.paymentMethod === 'cash' && (
-                  <TouchableOpacity
-                    style={[
-                      styles.createButton,
-                      invoice.paymentStatus === 'paid'
-                        ? { backgroundColor: '#EF4444', marginLeft: 8 }
-                        : { backgroundColor: '#22C55E', marginLeft: 8 }
-                    ]}
-                    onPress={invoice.paymentStatus === 'paid' ? handleUndoPayment : handleMarkPaid}
-                    disabled={marking}
-                  >
-                    <Text style={{ color: '#18181B', fontWeight: 'bold' }}>
-                      {marking
-                        ? '...'
-                        : invoice.paymentStatus === 'paid'
-                        ? 'Mark Unpaid'
-                        : 'Mark Paid'}
-                    </Text>
-                  </TouchableOpacity>
-                )}
+              {/* Payment Status */}
+              <View style={styles.infoBlock}>
+                <Text style={styles.infoBlockLabel}>Payment Status</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <Text style={[
+                    styles.infoBlockText,
+                    invoice.paymentStatus === 'paid'
+                      ? { color: '#22C55E', fontWeight: 'bold' }
+                      : { color: '#FFD700', fontWeight: 'bold' }
+                  ]}>
+                    {invoice.paymentStatus === 'paid' ? 'Paid' : 'Unpaid'}
+                  </Text>
+                  {invoice.paymentMethod === 'cash' && (
+                    <TouchableOpacity
+                      style={[
+                        styles.iconButton,
+                        invoice.paymentStatus === 'paid'
+                          ? { backgroundColor: '#F87171' }
+                          : { backgroundColor: '#22C55E' },
+                        { marginLeft: 8 }
+                      ]}
+                      onPress={invoice.paymentStatus === 'paid' ? handleUndoPayment : handleMarkPaid}
+                      disabled={marking}
+                    >
+                      <Text style={{ color: '#18181B', fontWeight: 'bold' }}>
+                        {marking
+                          ? '...'
+                          : invoice.paymentStatus === 'paid'
+                          ? 'Mark Unpaid'
+                          : 'Mark Paid'}
+                      </Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
               </View>
-            </View>
-            {/* Created Date */}
-            <View style={{ marginBottom: 10 }}>
-              <Text style={styles.modalPlaceholderText}>Created</Text>
-              <Text style={{ color: '#9CA3AF' }}>{dateStr}</Text>
-            </View>
+              {/* Created Date */}
+              <View style={styles.infoBlock}>
+                <Text style={styles.infoBlockLabel}>Created</Text>
+                <Text style={styles.infoBlockText}>
+                  {invoice.createdAt
+                    ? new Date(invoice.createdAt).toLocaleString()
+                    : 'Unknown'}
+                </Text>
+              </View>
             {/* Send Invoice Actions */}
-            <View style={{ marginBottom: 10 }}>
-              <Text style={styles.modalPlaceholderText}>Send Invoice</Text>
+            <View style={styles.infoBlock}>
+              <Text style={styles.infoBlockLabel}>Send Invoice</Text>
               <View style={{ flexDirection: 'row', gap: 12 }}>
                 <TouchableOpacity
                   style={[
@@ -1927,26 +1983,17 @@ const styles = StyleSheet.create({
   // Modal styles
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(30,30,30,0.95)', // charcoal overlay
+    backgroundColor: 'rgba(0,0,0,0.7)', // charcoal overlay
     justifyContent: 'center',
     alignItems: 'center',
   },
   modalContentBox: {
-    backgroundColor: '#2e2e2e', // dark-card
-    borderRadius: 18,
-    paddingVertical: 28,
-    paddingHorizontal: 22,
-    width: '92%',
-    maxWidth: 420,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#737b89', // steel
-    marginVertical: 12,
-    shadowColor: '#000',
-    shadowOpacity: 0.12,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 3,
+    backgroundColor: '#18181B', // dark-card
+    borderRadius: 16,
+    padding: 24,
+    width: '90%',
+    maxWidth: 400,
+    maxHeight: '90%',
   },
   modalHeader: {
     width: '100%',
@@ -1972,6 +2019,14 @@ const styles = StyleSheet.create({
     marginTop: 18,
     marginBottom: 10,
     paddingHorizontal: 2,
+  },
+  iconButton: {
+    backgroundColor: '#23232A',
+    borderRadius: 8,
+    padding: 8,
+    marginHorizontal: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   modalPlaceholderText: {
     color: '#737b89', // steel
@@ -2129,6 +2184,23 @@ const styles = StyleSheet.create({
   },
   activeTab: {
     backgroundColor: '#F59E0B',
+  },
+  infoBlock: {
+    backgroundColor: '#23232A',
+    borderRadius: 8,
+    padding: 8,
+    marginTop: 8,
+    marginBottom: 2,
+  },
+  infoBlockLabel: {
+    color: '#fff',
+    fontSize: 13,
+    fontWeight: '600',
+    marginBottom: 2,
+  },
+  infoBlockText: {
+    color: '#9CA3AF',
+    fontSize: 14,
   },
   tabText: {
     fontSize: 12,

@@ -199,6 +199,10 @@ export default function Settings() {
   const loadUserProfile = async () => {
     try {
       const data = await apiRequest<User>('GET', '/api/user/profile');
+      // Fix: Map snake_case to camelCase for phoneVerified
+      if (data && typeof (data as any).phone_verified !== "undefined" && typeof data.phoneVerified === "undefined") {
+        (data as any).phoneVerified = (data as any).phone_verified;
+      }
       setUser(data);
       setProfileForm({
         businessName: data.businessName || '',
