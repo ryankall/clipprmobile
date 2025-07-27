@@ -1457,19 +1457,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = (req.user as any).id;
       const { items, sendEmail, sendSMS, ...invoiceDataBody } = req.body;
+      
+      console.log('Invoice creation request received:', {
+        items: items,
+        itemsLength: items?.length,
+        itemsType: typeof items,
+        itemsIsArray: Array.isArray(items),
+        firstItem: items?.[0]
+      });
+      
       const invoiceData = insertInvoiceSchema.parse({ ...invoiceDataBody, userId });
       const invoice = await storage.createInvoice(invoiceData);
       
+      console.log('Invoice created with ID:', invoice.id);
+      
       // Save invoice services if items were provided
       if (items && Array.isArray(items)) {
+        console.log('Processing invoice services, items count:', items.length);
         for (const item of items) {
+          console.log('Creating invoice service:', {
+            invoiceId: invoice.id,
+            serviceId: item.serviceId || item.id,
+            quantity: item.quantity || 1,
+            price: item.price?.toString() || '0',
+            itemStructure: item
+          });
+          
           await storage.createInvoiceService({
             invoiceId: invoice.id,
-            serviceId: item.serviceId,
+            serviceId: item.serviceId || item.id, // Handle both serviceId and id
             quantity: item.quantity || 1,
-            price: item.price.toString(),
+            price: (item.price || '0').toString(),
           });
         }
+        console.log('All invoice services created successfully');
+      } else {
+        console.log('No items to process or items is not an array:', { items, isArray: Array.isArray(items) });
       }
       
       // Handle notification preferences
