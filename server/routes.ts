@@ -1433,6 +1433,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get("/api/invoices/:id/services", requireAuth, async (req, res) => {
+    try {
+      const userId = (req.user as any).id;
+      const invoiceId = parseInt(req.params.id);
+      
+      // Get the invoice first to verify ownership
+      const invoice = await storage.getInvoice(invoiceId);
+      if (!invoice || invoice.userId !== userId) {
+        return res.status(404).json({ message: "Invoice not found" });
+      }
+      
+      // Get the invoice services
+      const invoiceServices = await storage.getInvoiceServices(invoiceId);
+      res.json(invoiceServices);
+    } catch (error: any) {
+      console.error("Error fetching invoice services:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
   app.post("/api/invoices", requireAuth, async (req, res) => {
     try {
       const userId = (req.user as any).id;
