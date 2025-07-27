@@ -37,6 +37,7 @@ export const users = pgTable("users", {
   
   // Account verification
   emailVerified: boolean("email_verified").default(false),
+  phoneVerified: boolean("phone_verified").default(false), // required for appointment booking
   phoneVerificationCode: text("phone_verification_code"), // SMS verification code
   phoneVerificationExpiry: timestamp("phone_verification_expiry"), // expiry time for code
   phoneVerificationAttempts: integer("phone_verification_attempts").default(0), // rate limiting

@@ -485,6 +485,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
           message: 'User not found'
         });
       }
+
+      // CRITICAL: Enforce phone verification before appointment booking
+      if (!user.phoneVerified) {
+        return res.status(403).json({ 
+          message: 'Phone verification required',
+          error: 'PHONE_NOT_VERIFIED',
+          details: 'Your phone number must be verified before booking appointments. Please verify your phone in settings.'
+        });
+      }
       
       console.log('Creating appointment with data:', JSON.stringify(req.body, null, 2));
       
