@@ -40,7 +40,9 @@ export default function ClientProfile() {
   const [showAllMessages, setShowAllMessages] = useState(false);
   const [isInvoiceDetailsOpen, setIsInvoiceDetailsOpen] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState<any>(null);
-  const [selectedInvoiceServices, setSelectedInvoiceServices] = useState<any[]>([]);
+  const [selectedInvoiceServices, setSelectedInvoiceServices] = useState<
+    Array<{ id: number; quantity: number; price: string; service: Service }>
+  >([]);
   const [invoiceServicesLoading, setInvoiceServicesLoading] = useState(false);
   const [, navigate] = useLocation();
   const { toast } = useToast();
@@ -995,25 +997,25 @@ export default function ClientProfile() {
                     </div>
                   ) : selectedInvoiceServices && selectedInvoiceServices.length > 0 ? (
                     <div className="space-y-2">
-                      {selectedInvoiceServices.map((service, index) => (
+                      {selectedInvoiceServices.map((invoiceService, index) => (
                         <div key={index} className="flex justify-between items-start">
                           <div className="flex-1">
                             <div className="text-white text-sm font-medium">
-                              {service.serviceName || service.name}
+                              {invoiceService.service.name}
                             </div>
-                            {service.description && (
+                            {invoiceService.service.description && (
                               <div className="text-steel text-xs mt-1">
-                                {service.description}
+                                {invoiceService.service.description}
                               </div>
                             )}
-                            {service.quantity > 1 && (
+                            {invoiceService.quantity > 1 && (
                               <div className="text-steel text-xs mt-1">
-                                Quantity: {service.quantity}
+                                Quantity: {invoiceService.quantity}
                               </div>
                             )}
                           </div>
                           <div className="text-gold font-medium ml-3">
-                            ${((parseFloat(service.price) || 0) * (service.quantity || 1)).toFixed(2)}
+                            ${invoiceService.price}
                           </div>
                         </div>
                       ))}

@@ -166,7 +166,7 @@ export default function InvoicePage() {
   >([]);
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
   const [selectedInvoiceServices, setSelectedInvoiceServices] = useState<
-    Service[]
+    Array<{ id: number; quantity: number; price: string; service: Service }>
   >([]);
   const [invoiceServicesLoading, setInvoiceServicesLoading] = useState(false);
   const [isInvoiceDetailsOpen, setIsInvoiceDetailsOpen] = useState(false);
@@ -2674,23 +2674,28 @@ export default function InvoicePage() {
                       </span>
                     </div>
                   ) : selectedInvoiceServices.length > 0 ? (
-                    selectedInvoiceServices.map((service, index) => (
+                    selectedInvoiceServices.map((invoiceService, index) => (
                       <div
                         key={index}
                         className="flex justify-between items-center py-2 border-b border-steel/20 last:border-b-0"
                       >
                         <div>
                           <div className="text-white text-sm font-medium">
-                            {service.name}
+                            {invoiceService.service.name}
+                            {invoiceService.quantity > 1 && (
+                              <span className="text-steel text-xs ml-2">
+                                x{invoiceService.quantity}
+                              </span>
+                            )}
                           </div>
-                          {service.description && (
+                          {invoiceService.service.description && (
                             <div className="text-steel text-xs">
-                              {service.description}
+                              {invoiceService.service.description}
                             </div>
                           )}
                         </div>
                         <div className="text-gold font-medium">
-                          ${service.price}
+                          ${invoiceService.price}
                         </div>
                       </div>
                     ))
