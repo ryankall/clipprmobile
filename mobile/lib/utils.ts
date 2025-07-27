@@ -35,3 +35,24 @@ export const DEFAULT_QUICK_ACTION_MESSAGES = {
   runningLate: "Hi {client_name}, I'm running a few minutes late for your {appointment_time} appointment. Will be there shortly!",
   confirmation: "Hi {client_name}, confirming your appointment for {appointment_time} at {address} for {service}."
 };
+
+//
+// Minimal EventEmitter for cross-tab communication
+//
+type Listener = (...args: any[]) => void;
+class SimpleEventEmitter {
+  private events: { [event: string]: Listener[] } = {};
+  on(event: string, listener: Listener) {
+    if (!this.events[event]) this.events[event] = [];
+    this.events[event].push(listener);
+  }
+  off(event: string, listener: Listener) {
+    if (!this.events[event]) return;
+    this.events[event] = this.events[event].filter(l => l !== listener);
+  }
+  emit(event: string, ...args: any[]) {
+    if (!this.events[event]) return;
+    this.events[event].forEach(listener => listener(...args));
+  }
+}
+export const globalEventEmitter = new SimpleEventEmitter();

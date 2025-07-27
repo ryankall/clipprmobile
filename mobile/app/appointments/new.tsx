@@ -156,6 +156,11 @@ export default function NewAppointment() {
 
   // Schedule conflict validation
   useEffect(() => {
+    // Only validate scheduling if travel is enabled, matching web logic
+    if (!includeTravel) {
+      setScheduleValidation({ isValidating: false });
+      return;
+    }
     async function validateScheduling() {
       // Guards: require all fields, including address if travel is enabled
       if (
@@ -173,21 +178,14 @@ export default function NewAppointment() {
         const duration = getTotalDuration();
         const endTime = new Date(scheduledDate.getTime() + duration * 60000);
         const client = clients.find(c => c.id === selectedClientId);
-        // Always include proposedStart, proposedEnd, and clientAddress
+        // Only include clientAddress if travel is enabled
         const payload: Record<string, any> = {
           proposedStart: scheduledDate.toISOString(),
           proposedEnd: endTime.toISOString(),
         };
 
-        // Always include clientAddress per new requirements
         if (includeTravel) {
           payload.clientAddress = address;
-        } else {
-          // Use selected client's address if available, else "N/A"
-          payload.clientAddress =
-            client && client.address && client.address.trim() !== ""
-              ? client.address
-              : "N/A";
         }
 
         const response = await apiRequest<any>("POST", "/api/appointments/validate-scheduling", payload);
@@ -352,17 +350,20 @@ export default function NewAppointment() {
       )}
 
       {/* Schedule Validation Feedback */}
-      {scheduleValidation.isValidating ? (
-        <Text style={[styles.error, { color: "#0074D9" }]}>Checking for conflicts...</Text>
-      ) : scheduleValidation.isValid === false ? (
-        <Text style={[styles.error, { color: "#F87171" }]}>
-          {scheduleValidation.message || "Scheduling conflict detected"}
-        </Text>
-      ) : scheduleValidation.isValid === true ? (
-        <Text style={{ color: "#22C55E", fontWeight: "bold", marginBottom: 8 }}>
-          ✓ Appointment time is available
-        </Text>
-      ) : null}
+      {/* Only show schedule validation feedback if travel is enabled */}
+      {includeTravel && (
+        scheduleValidation.isValidating ? (
+          <Text style={[styles.error, { color: "#0074D9" }]}>Checking for conflicts...</Text>
+        ) : scheduleValidation.isValid === false ? (
+          <Text style={[styles.error, { color: "#F87171" }]}>
+            {scheduleValidation.message || "Scheduling conflict detected"}
+          </Text>
+        ) : scheduleValidation.isValid === true ? (
+          <Text style={{ color: "#22C55E", fontWeight: "bold", marginBottom: 8 }}>
+            ✓ Appointment time is available
+          </Text>
+        ) : null
+      )}
 
       {/* Submit Button */}
       <Button
@@ -385,7 +386,7 @@ export default function NewAppointment() {
             Alert.alert("Error", "Please enter the client address for travel.");
             return;
           }
-          if (scheduleValidation.isValid === false) {
+          if (includeTravel && scheduleValidation.isValid === false) {
             Alert.alert("Error", scheduleValidation.message || "Scheduling conflict detected.");
             return;
           }

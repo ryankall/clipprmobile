@@ -1,17 +1,34 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Alert, Image, RefreshControl } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Alert, Image, RefreshControl, Linking } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useAuth } from '../../hooks/useAuth';
 import { apiRequest, API_BASE_URL } from '../../lib/api';
 import { DashboardStats, AppointmentWithRelations, User, GalleryPhoto } from '../../lib/types';
-import { replaceMessageTemplate, DEFAULT_QUICK_ACTION_MESSAGES } from '../../lib/utils';
+import { replaceMessageTemplate, DEFAULT_QUICK_ACTION_MESSAGES, globalEventEmitter } from '../../lib/utils';
 import { useQuery } from '@tanstack/react-query';
 import { useFocusEffect } from '@react-navigation/native';
 
 export default function Dashboard() {
   // Confirm/cancel handlers for pending appointments
+  const [noShowProcessing, setNoShowProcessing] = useState(false);
+
+  const handleNoShowCurrent = async () => {
+    if (!currentAppointment) return;
+    setNoShowProcessing(true);
+    try {
+      await apiRequest('PATCH', `/api/appointments/${currentAppointment.id}`, { status: 'no_show' });
+      await loadDashboardData();
+      Alert.alert('Marked as No Show', 'Appointment marked as no-show');
+      globalEventEmitter.emit('appointmentsUpdated');
+    } catch (err: any) {
+      Alert.alert('Error', err?.message || 'Failed to mark as no-show');
+    } finally {
+      setNoShowProcessing(false);
+    }
+  };
+
   const handleConfirmPending = async (appointmentId: number) => {
     setPendingProcessingId(appointmentId);
     try {
@@ -19,6 +36,7 @@ export default function Dashboard() {
       await loadPendingAppointments();
       await loadDashboardData();
       Alert.alert('Success', 'Appointment confirmed successfully');
+      globalEventEmitter.emit('appointmentsUpdated');
     } catch (err: any) {
       Alert.alert('Error', err?.message || 'Failed to confirm appointment');
     } finally {
@@ -33,6 +51,7 @@ export default function Dashboard() {
       await loadPendingAppointments();
       await loadDashboardData();
       Alert.alert('Success', 'Appointment cancelled successfully');
+      globalEventEmitter.emit('appointmentsUpdated');
     } catch (err: any) {
       Alert.alert('Error', err?.message || 'Failed to cancel appointment');
     } finally {
@@ -255,6 +274,30 @@ export default function Dashboard() {
     return timeDiff >= -10 && currentTime <= endTime;
   });
 
+  // Compose service names for current appointment
+  let currentAppointmentServiceNames = '';
+  if (
+    currentAppointment &&
+    Array.isArray(currentAppointment.appointmentServices) &&
+    currentAppointment.appointmentServices.length > 0
+  ) {
+    currentAppointmentServiceNames = currentAppointment.appointmentServices
+      .map(as => as.service?.name)
+      .filter(Boolean)
+      .join(', ');
+  } else if (
+    currentAppointment &&
+    Array.isArray(currentAppointment.services) &&
+    currentAppointment.services.length > 0
+  ) {
+    currentAppointmentServiceNames = currentAppointment.services
+      .map(s => s.name)
+      .filter(Boolean)
+      .join(', ');
+  } else if (currentAppointment && currentAppointment.service?.name) {
+    currentAppointmentServiceNames = currentAppointment.service.name;
+  }
+
   const nextAppointment = confirmedAppointments.find(apt => {
     const aptTime = new Date(apt.scheduledAt);
     if (currentAppointment && apt.id === currentAppointment.id) return false;
@@ -365,7 +408,7 @@ export default function Dashboard() {
                   </Text>
                 </View>
                 <Text style={styles.appointmentService}>
-                  {currentAppointment.service?.name}
+                  {currentAppointmentServiceNames}
                 </Text>
                 <Text style={styles.appointmentPrice}>
                   ${currentAppointment.price}
@@ -373,7 +416,7 @@ export default function Dashboard() {
                 <View style={{ flexDirection: 'row', marginTop: 12, gap: 12 }}>
                   {currentAppointment.client?.phone && (
                     <TouchableOpacity
-                      style={[styles.actionButton, { backgroundColor: '#22C55E' }]}
+                      style={[styles.actionButton, { backgroundColor: '#3B82F6' }]}
                       onPress={() => {
                         // Call client
                         if (currentAppointment.client?.phone) {
@@ -401,20 +444,50 @@ export default function Dashboard() {
                     </TouchableOpacity>
                   )}
                   <TouchableOpacity
-                    style={[styles.actionButton, { backgroundColor: '#F59E0B' }]}
-                    onPress={() => {
-                      // Mark as no-show (placeholder)
-                      Alert.alert('Mark as No-Show', 'Feature coming soon.');
-                    }}
+                    style={[
+                      styles.actionButton,
+                      { backgroundColor: '#EF4444', opacity: noShowProcessing ? 0.7 : 1 }
+                    ]}
+                    onPress={handleNoShowCurrent}
+                    disabled={noShowProcessing}
                   >
                     <Ionicons name="close-circle" size={20} color="#fff" />
-                    <Text style={styles.actionButtonText}>No-Show</Text>
+                    <Text style={styles.actionButtonText}>No Show</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={[styles.actionButton, { backgroundColor: '#8B5CF6' }]}
                     onPress={() => {
-                      // Create invoice (placeholder)
-                      Alert.alert('Create Invoice', 'Feature coming soon.');
+                      // Navigate to invoice tab and pre-fill with client and services
+                      if (currentAppointment) {
+                        const client = currentAppointment.client;
+                        // Prefer appointmentServices, fallback to services, fallback to service
+                        const services: any[] = [];
+                        if (
+                          Array.isArray(currentAppointment.appointmentServices) &&
+                          currentAppointment.appointmentServices.length > 0
+                        ) {
+                          services.push(
+                            ...currentAppointment.appointmentServices
+                              .map(as => as.service)
+                              .filter(Boolean)
+                          );
+                        } else if (
+                          Array.isArray(currentAppointment.services) &&
+                          currentAppointment.services.length > 0
+                        ) {
+                          services.push(...currentAppointment.services);
+                        } else if (currentAppointment.service) {
+                          services.push(currentAppointment.service);
+                        }
+                        // Always use router.push to update params and trigger effect
+                        router.push({
+                          pathname: '/(tabs)/invoice',
+                          params: {
+                            prefillClientId: client?.id,
+                            prefillServices: JSON.stringify(services.map(s => s.id)),
+                          },
+                        });
+                      }
                     }}
                   >
                     <Ionicons name="document-text" size={20} color="#fff" />
@@ -556,14 +629,54 @@ export default function Dashboard() {
           ) : pendingAppointments.length > 0 ? (
             pendingAppointments.map((appointment) => {
               const travelInfo = pendingTravelTimes[appointment.id];
+              const now = new Date();
+              let expiresAt: Date | null = null;
+              if ((appointment as any).expiresAt) {
+                expiresAt = new Date((appointment as any).expiresAt);
+              }
+              // Travel warning if departure time is in the past
+              const showTravelWarning =
+                travelInfo &&
+                travelInfo.departureTime &&
+                (() => {
+                  // Parse departure time as today
+                  const [depHour, depMin] = travelInfo.departureTime
+                    .replace(/[^0-9:]/g, '')
+                    .split(':')
+                    .map(Number);
+                  const dep = new Date(now);
+                  dep.setHours(depHour, depMin, 0, 0);
+                  return dep < now;
+                })();
+
+              // Truncate service name if too long
+              const serviceName =
+                appointment.service?.name && appointment.service.name.length > 32
+                  ? appointment.service.name.slice(0, 29) + '...'
+                  : appointment.service?.name;
+
               return (
                 <View key={appointment.id} style={styles.appointmentListItem}>
                   <View style={styles.appointmentInfo}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 2 }}>
+                      <Text style={{ backgroundColor: '#FDE68A', color: '#B45309', fontWeight: 'bold', fontSize: 12, borderRadius: 4, paddingHorizontal: 6, marginRight: 6 }}>
+                        Pending
+                      </Text>
+                      {showTravelWarning && (
+                        <Text style={{ backgroundColor: '#FCA5A5', color: '#991B1B', fontWeight: 'bold', fontSize: 12, borderRadius: 4, paddingHorizontal: 6 }}>
+                          Departure Time!
+                        </Text>
+                      )}
+                    </View>
                     <Text style={styles.appointmentClientName}>
                       {appointment.client?.name}
                     </Text>
                     <Text style={styles.appointmentDetails}>
-                      {appointment.service?.name} • ${appointment.price}
+                      {Array.isArray(appointment.appointmentServices) && appointment.appointmentServices.length > 0
+                        ? appointment.appointmentServices.map(as => as.service?.name || '').filter(Boolean).join(', ')
+                        : Array.isArray(appointment.services) && appointment.services.length > 0
+                        ? appointment.services.map(s => s.name).join(', ')
+                        : serviceName} • ${appointment.price}
                     </Text>
                     <Text style={{ color: '#9CA3AF', fontSize: 13 }}>
                       {new Date(appointment.scheduledAt).toLocaleTimeString('en-US', {
@@ -572,48 +685,71 @@ export default function Dashboard() {
                         hour12: true
                       })}
                     </Text>
-                    {appointment.address && travelInfo && (
-                      <View style={{ marginTop: 4 }}>
-                        <Text style={{ color: '#3B82F6', fontSize: 13 }}>
-                          Travel: {travelInfo.travelTime} min, {travelInfo.distance}
-                        </Text>
-                        <Text style={{ color: '#F59E0B', fontSize: 13 }}>
-                          Departure: {travelInfo.departureTime} ({travelInfo.travelMode})
-                        </Text>
-                      </View>
+                    {expiresAt && (
+                      <Text style={{ color: '#F59E0B', fontSize: 13 }}>
+                        Expires: {expiresAt.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}
+                      </Text>
+                    )}
+                    <Text style={{ color: '#9CA3AF', fontSize: 13 }}>
+                      Duration: {appointment.duration} min
+                    </Text>
+                    {appointment.notes && (
+                      <Text style={{ color: '#F59E0B', fontSize: 13 }}>
+                        Notes: {appointment.notes}
+                      </Text>
+                    )}
+                    {appointment.address && (
+                      travelInfo ? (
+                        <View style={{ marginTop: 4 }}>
+                          <Text style={{ color: '#3B82F6', fontSize: 13 }}>
+                            Travel: {travelInfo.travelTime} min, {travelInfo.distance}
+                          </Text>
+                          <Text style={{ color: '#F59E0B', fontSize: 13 }}>
+                            Departure: {travelInfo.departureTime} ({travelInfo.travelMode})
+                          </Text>
+                        </View>
+                      ) : (
+                        <View style={{ marginTop: 4 }}>
+                          <Text style={{ color: '#9CA3AF', fontSize: 13 }}>
+                            Calculating travel time...
+                          </Text>
+                        </View>
+                      )
                     )}
                   </View>
-                  <View style={{ flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
-                    <TouchableOpacity
-                      style={[styles.actionButton, { backgroundColor: '#22C55E', marginBottom: 4 }]}
-                      onPress={() => handleConfirmPending(appointment.id)}
-                      disabled={pendingProcessingId === appointment.id}
-                    >
-                      <Ionicons name="checkmark-circle" size={16} color="#fff" />
-                      <Text style={styles.actionButtonText}>Confirm</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={[styles.actionButton, { backgroundColor: '#EF4444', marginBottom: 4 }]}
-                      onPress={() => handleCancelPending(appointment.id)}
-                      disabled={pendingProcessingId === appointment.id}
-                    >
-                      <Ionicons name="close-circle" size={16} color="#fff" />
-                      <Text style={styles.actionButtonText}>Cancel</Text>
-                    </TouchableOpacity>
-                    {appointment.client?.phone && (
-                      <TouchableOpacity
-                        style={[styles.actionButton, { backgroundColor: '#3B82F6' }]}
-                        onPress={() => {
-                          // @ts-ignore
-                          Linking.openURL(`tel:${appointment.client.phone}`);
-                        }}
-                      >
-                        <Ionicons name="call" size={16} color="#fff" />
-                        <Text style={styles.actionButtonText}>Call</Text>
-                      </TouchableOpacity>
-                    )}
-                  </View>
+                   <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 8, width: '100%' }}>
+                     {appointment.client?.phone && (
+                       <TouchableOpacity
+                         style={[styles.actionButton, { backgroundColor: '#3B82F6' }]}
+                         onPress={() => {
+                           // @ts-ignore
+                           Linking.openURL(`tel:${appointment.client.phone}`);
+                         }}
+                       >
+                         <Ionicons name="call" size={16} color="#fff" />
+                         <Text style={styles.actionButtonText}>Call</Text>
+                       </TouchableOpacity>
+                     )}
+                     <TouchableOpacity
+                       style={[styles.actionButton, { backgroundColor: '#22C55E' }]}
+                       onPress={() => handleConfirmPending(appointment.id)}
+                       disabled={pendingProcessingId === appointment.id}
+                     >
+                       <Ionicons name="checkmark-circle" size={16} color="#fff" />
+                       <Text style={styles.actionButtonText}>Confirm</Text>
+                     </TouchableOpacity>
+                     <View style={{ flex: 1 }} />
+                     <TouchableOpacity
+                       style={[styles.actionCancelButton, { backgroundColor: '#EF4444', alignSelf: 'flex-end' }]}
+                       onPress={() => handleCancelPending(appointment.id)}
+                       disabled={pendingProcessingId === appointment.id}
+                     >
+                       <Ionicons name="close-circle" size={16} color="#fff" />
+                       <Text style={styles.actionButtonText}>Cancel</Text>
+                     </TouchableOpacity>
+                   </View>
                 </View>
+                
               );
             })
           ) : (
@@ -830,8 +966,9 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     padding: 12,
     marginBottom: 8,
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: 'column',
+    gap: 4,
+    alignItems: 'flex-start',
     justifyContent: 'space-between',
   },
   appointmentInfo: {
@@ -878,6 +1015,18 @@ const styles = StyleSheet.create({
   actionButton: {
     flexDirection: 'row',
     alignItems: 'center',
+    borderRadius: 6,
+    paddingVertical: 6,
+    paddingHorizontal: 8,
+    marginRight: 4,
+    marginBottom: 4,
+    gap: 4,
+    minWidth: 70,
+    justifyContent: 'center',
+  },
+    actionCancelButton: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
     borderRadius: 6,
     paddingVertical: 6,
     paddingHorizontal: 8,

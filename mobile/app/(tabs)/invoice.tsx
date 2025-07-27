@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Alert, Modal, TextInput, FlatList, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useAuth } from '../../hooks/useAuth';
 import { apiRequest } from '../../lib/api';
 import { Service } from '../../lib/types';
@@ -237,7 +237,7 @@ const CreateInvoiceModalContent: React.FC<CreateInvoiceModalContentProps> = ({
 
       {/* Service Selection */}
       <Text style={[styles.modalPlaceholderText, { alignSelf: 'flex-start', marginBottom: 4 }]}>Services</Text>
-      <View style={{ width: '100%', marginBottom: 12, maxHeight: 120 }}>
+      <View style={{ width: '100%', marginBottom: 12, maxHeight: 200 }}>
         {services.length === 0 ? (
           <Text style={{ color: '#9CA3AF', fontSize: 14 }}>No services available</Text>
         ) : (
@@ -401,6 +401,8 @@ export default function Invoice() {
   // Modal state for Create Invoice
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState<any | null>(null);
+  // Track if modal has been opened from params to prevent reopening after close
+  const [hasOpenedFromParams, setHasOpenedFromParams] = useState(false);
 
   // Service Template Management Modal
   const [showServiceModal, setShowServiceModal] = useState(false);
@@ -412,6 +414,58 @@ export default function Invoice() {
   const [templateName, setTemplateName] = useState('');
   const [templateAmount, setTemplateAmount] = useState('');
   const [templateServiceIds, setTemplateServiceIds] = useState<number[]>([]);
+
+  // --- Prefill from navigation params ---
+  const params = useLocalSearchParams();
+
+  // Track last seen prefill params to detect changes
+  const [lastPrefill, setLastPrefill] = useState<{clientId?: string|number, services?: string}>({});
+
+  useEffect(() => {
+    // Normalize params for comparison
+    const clientId = params.prefillClientId ? String(params.prefillClientId) : undefined;
+    const servicesStr = params.prefillServices
+      ? (typeof params.prefillServices === 'string'
+          ? params.prefillServices
+          : JSON.stringify(params.prefillServices))
+      : undefined;
+
+    const paramsChanged =
+      clientId !== lastPrefill.clientId ||
+      servicesStr !== lastPrefill.services;
+
+    // Only open modal if params are present and have changed since last open
+    if ((clientId || servicesStr) && paramsChanged) {
+      // Find client
+      let prefillClient = undefined;
+      if (clientId && clients.length > 0) {
+        const cid = parseInt(clientId, 10);
+        prefillClient = clients.find(c => c.id === cid);
+      }
+      // Find services
+      let prefillServiceObjs: Service[] = [];
+      if (servicesStr && services.length > 0) {
+        let ids: number[] = [];
+        try {
+          ids = JSON.parse(servicesStr);
+        } catch {}
+        prefillServiceObjs = services.filter(s => ids.includes(s.id));
+      }
+      setSelectedTemplate({
+        clientId: prefillClient?.id,
+        services: prefillServiceObjs,
+      });
+      setShowCreateModal(true);
+      setLastPrefill({ clientId, services: servicesStr });
+    }
+
+    // If params are cleared, reset lastPrefill so future param changes can trigger modal again
+    if (!clientId && !servicesStr && (lastPrefill.clientId || lastPrefill.services)) {
+      setLastPrefill({});
+    }
+    // Only run when params, clients, or services change
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [params, clients, services]);
 
   // Load custom templates from AsyncStorage
   useEffect(() => {
@@ -1332,6 +1386,8 @@ export default function Invoice() {
               onPress={() => {
                 setShowCreateModal(false);
                 setSelectedTemplate(null);
+                // Do not clear hasOpenedFromParams here; let effect handle it only when params actually change
+                router.setParams({ prefillClientId: undefined, prefillServices: undefined });
               }}
               style={styles.modalCloseButton}
             >
@@ -1346,12 +1402,16 @@ export default function Invoice() {
               onCancel={() => {
                 setShowCreateModal(false);
                 setSelectedTemplate(null);
+                // Do not clear hasOpenedFromParams here; let effect handle it only when params actually change
+                router.setParams({ prefillClientId: undefined, prefillServices: undefined });
               }}
               onCreate={async (invoiceData: any) => {
                 try {
                   await apiRequest('POST', '/api/invoices', invoiceData);
                   setShowCreateModal(false);
                   setSelectedTemplate(null);
+                  // Do not clear hasOpenedFromParams here; let effect handle it only when params actually change
+                  router.setParams({ prefillClientId: undefined, prefillServices: undefined });
                   await loadInvoicesAndClients();
                   Alert.alert('Success', 'Invoice created successfully.');
                 } catch (error: any) {

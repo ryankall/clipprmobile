@@ -161,3 +161,65 @@ describe('Invoice Tab UI interactions', () => {
     });
   });
 });
+describe('Dashboard "Invoice" button', () => {
+  it('navigates to invoice tab and pre-fills client and services', async () => {
+    // Mock router and navigation
+    const mockPush = jest.fn();
+    jest.mock('expo-router', () => ({
+      ...jest.requireActual('expo-router'),
+      router: { push: mockPush },
+      useLocalSearchParams: () => ({
+        prefillClientId: '1',
+        prefillServices: JSON.stringify([2, 3]),
+      }),
+    }));
+
+    // Mock current appointment with client and services
+    const currentAppointment = {
+      id: 10,
+      client: { id: 1, name: 'Alice', phone: '555-1234' },
+      appointmentServices: [
+        { service: { id: 2, name: 'Cut' } },
+        { service: { id: 3, name: 'Shave' } },
+      ],
+      scheduledAt: new Date().toISOString(),
+      duration: 30,
+      price: 50,
+      status: 'confirmed',
+    };
+
+    // Mock todayAppointments to include currentAppointment
+    jest.mocked(require('../lib/api').apiRequest)
+      .mockImplementation((method, url) => {
+        if (url === '/api/dashboard') return Promise.resolve({});
+        if (url === '/api/appointments/today') return Promise.resolve([currentAppointment]);
+        if (url === '/api/messages/unread-count') return Promise.resolve({ count: 0 });
+        if (url === '/api/user/profile') return Promise.resolve({ id: 1, firstName: 'Barber' });
+        if (url === '/api/appointments/pending') return Promise.resolve([]);
+        if (url === '/api/gallery') return Promise.resolve([]);
+        if (url === '/api/clients') return Promise.resolve([currentAppointment.client]);
+        if (url === '/api/services') return Promise.resolve([
+          { id: 2, name: 'Cut', price: '30', duration: 20, category: 'Haircuts', isActive: true },
+          { id: 3, name: 'Shave', price: '20', duration: 10, category: 'Beard', isActive: true },
+        ]);
+        return Promise.resolve([]);
+      });
+
+    // Dynamically import Dashboard and Invoice after mocks
+    const Dashboard = require('../app/(tabs)/index').default;
+    const Invoice = require('../app/(tabs)/invoice').default;
+
+    // Render Dashboard and click "Invoice"
+    const { getByText, findByText } = render(<Dashboard />);
+    await waitFor(() => expect(getByText('Invoice')).toBeTruthy());
+    fireEvent.press(getByText('Invoice'));
+
+    // Simulate navigation to Invoice tab with params
+    const { getByText: getByTextInvoice } = render(<Invoice />);
+    // Modal should open with client and services pre-filled
+    await waitFor(() => expect(getByTextInvoice('Create Invoice')).toBeTruthy());
+    expect(getByTextInvoice('Alice')).toBeTruthy();
+    expect(getByTextInvoice('Cut')).toBeTruthy();
+    expect(getByTextInvoice('Shave')).toBeTruthy();
+  });
+});

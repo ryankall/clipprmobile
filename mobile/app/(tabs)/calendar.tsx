@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useAuth } from '../../hooks/useAuth';
 import { apiRequest } from '../../lib/api';
+import { globalEventEmitter } from '../../lib/utils';
 import { AppointmentWithRelations } from '../../lib/types';
 import { useFocusEffect } from '@react-navigation/native';
 
@@ -115,6 +116,17 @@ export default function Calendar() {
     }
   };
 
+  // Listen for global appointment updates (from dashboard)
+  useEffect(() => {
+    const handler = () => {
+      loadAppointments();
+    };
+    globalEventEmitter.on('appointmentsUpdated', handler);
+    return () => {
+      globalEventEmitter.off('appointmentsUpdated', handler);
+    };
+  }, [selectedDate]);
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'confirmed': return '#22C55E';
@@ -208,7 +220,10 @@ export default function Calendar() {
     // Filter appointments to only those for the selected date
     const filteredAppointments = appointments.filter(apt => {
       const aptDate = new Date(apt.scheduledAt);
-      return aptDate.toDateString() === selectedDate.toDateString();
+      return (
+        aptDate.toDateString() === selectedDate.toDateString() &&
+        apt.status !== 'cancelled'
+      );
     });
 
     const timeSlots = [];
@@ -520,7 +535,10 @@ export default function Calendar() {
           {/* Only show appointments for the selected date */}
           {appointments.filter(apt => {
             const aptDate = new Date(apt.scheduledAt);
-            return aptDate.toDateString() === selectedDate.toDateString();
+            return (
+              aptDate.toDateString() === selectedDate.toDateString() &&
+              apt.status !== 'cancelled'
+            );
           }).length === 0 ? (
             <View style={styles.emptyState}>
               <Ionicons name="calendar-outline" size={48} color="#9CA3AF" />
@@ -533,7 +551,10 @@ export default function Calendar() {
             appointments
               .filter(apt => {
                 const aptDate = new Date(apt.scheduledAt);
-                return aptDate.toDateString() === selectedDate.toDateString();
+                return (
+                  aptDate.toDateString() === selectedDate.toDateString() &&
+                  apt.status !== 'cancelled'
+                );
               })
               .map(renderAppointment)
           )}
