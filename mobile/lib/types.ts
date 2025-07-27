@@ -72,12 +72,20 @@ export interface Appointment {
   price: string;
   createdAt: string;
   updatedAt: string;
+  notes?: string;
+}
+
+export interface AppointmentService {
+  service: Service;
+  price: string;
+  quantity: number;
 }
 
 export interface AppointmentWithRelations extends Appointment {
   client: Client;
   service: Service;
   services: Service[];
+  appointmentServices?: AppointmentService[];
 }
 
 export interface DashboardStats {

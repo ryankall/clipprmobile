@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Alert, Dimensions } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Alert, Dimensions, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
@@ -55,6 +55,13 @@ export default function Calendar() {
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<'timeline' | 'list'>('timeline');
   const { isAuthenticated } = useAuth();
+
+  // Pull-to-refresh handler
+  const handleRefresh = async () => {
+    setLoading(true);
+    await loadAppointments();
+    setLoading(false);
+  };
 
   // --- Working hours state ---
   const [workingHours, setWorkingHours] = useState<WorkingHours | null>(null);
@@ -250,7 +257,18 @@ export default function Calendar() {
     const appointmentPositions = calculateAppointmentPositions(filteredAppointments, startHour, slotHeight, timelineWidth);
 
     return (
-      <ScrollView style={styles.timelineContainer} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        style={styles.timelineContainer}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={loading}
+            onRefresh={handleRefresh}
+            tintColor="#22C55E"
+            colors={['#22C55E']}
+          />
+        }
+      >
         <View style={[styles.timeline, { height: (endHour - startHour + 1) * slotHeight }]}>
           {/* Time slots */}
           {timeSlots.map((slot, index) => (
@@ -479,13 +497,23 @@ export default function Calendar() {
       {viewMode === 'timeline' ? (
         renderTimelineView()
       ) : (
-        <ScrollView style={styles.appointmentsList}>
+        <ScrollView
+          style={styles.appointmentsList}
+          refreshControl={
+            <RefreshControl
+              refreshing={loading}
+              onRefresh={handleRefresh}
+              tintColor="#22C55E"
+              colors={['#22C55E']}
+            />
+          }
+        >
           <Text style={styles.sectionTitle}>
-            {selectedDate.toLocaleDateString('en-US', { 
-              weekday: 'long', 
-              year: 'numeric', 
-              month: 'long', 
-              day: 'numeric' 
+            {selectedDate.toLocaleDateString('en-US', {
+              weekday: 'long',
+              year: 'numeric',
+              month: 'long',
+              day: 'numeric'
             })}
           </Text>
           

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Alert, Image } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Alert, Image, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
@@ -8,8 +8,37 @@ import { apiRequest, API_BASE_URL } from '../../lib/api';
 import { DashboardStats, AppointmentWithRelations, User, GalleryPhoto } from '../../lib/types';
 import { replaceMessageTemplate, DEFAULT_QUICK_ACTION_MESSAGES } from '../../lib/utils';
 import { useQuery } from '@tanstack/react-query';
+import { useFocusEffect } from '@react-navigation/native';
 
 export default function Dashboard() {
+  // Confirm/cancel handlers for pending appointments
+  const handleConfirmPending = async (appointmentId: number) => {
+    setPendingProcessingId(appointmentId);
+    try {
+      await apiRequest('PATCH', `/api/appointments/${appointmentId}`, { status: 'confirmed' });
+      await loadPendingAppointments();
+      await loadDashboardData();
+      Alert.alert('Success', 'Appointment confirmed successfully');
+    } catch (err: any) {
+      Alert.alert('Error', err?.message || 'Failed to confirm appointment');
+    } finally {
+      setPendingProcessingId(null);
+    }
+  };
+
+  const handleCancelPending = async (appointmentId: number) => {
+    setPendingProcessingId(appointmentId);
+    try {
+      await apiRequest('PATCH', `/api/appointments/${appointmentId}`, { status: 'cancelled' });
+      await loadPendingAppointments();
+      await loadDashboardData();
+      Alert.alert('Success', 'Appointment cancelled successfully');
+    } catch (err: any) {
+      Alert.alert('Error', err?.message || 'Failed to cancel appointment');
+    } finally {
+      setPendingProcessingId(null);
+    }
+  };
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [todayAppointments, setTodayAppointments] = useState<AppointmentWithRelations[]>([]);
   const [unreadMessages, setUnreadMessages] = useState(0);
@@ -17,10 +46,14 @@ export default function Dashboard() {
   const [userProfile, setUserProfile] = useState<User | null>(null);
   const { user, isAuthenticated } = useAuth();
 
-  // Pending appointments state
-  const [pendingAppointments, setPendingAppointments] = useState<AppointmentWithRelations[]>([]);
-  const [pendingLoading, setPendingLoading] = useState(true);
-  const [pendingProcessingId, setPendingProcessingId] = useState<number | null>(null);
+    // Pending appointments state
+    const [pendingAppointments, setPendingAppointments] = useState<AppointmentWithRelations[]>([]);
+    const [pendingLoading, setPendingLoading] = useState(true);
+    const [pendingProcessingId, setPendingProcessingId] = useState<number | null>(null);
+  
+    // Travel time state for pending appointments
+    const [pendingTravelTimes, setPendingTravelTimes] = useState<{ [id: number]: { travelTime: number, distance: string, departureTime: string, travelMode: string } }>({});
+    const [pendingTravelLoading, setPendingTravelLoading] = useState(false);
 
   // Gallery photos via React Query
   const { data: galleryPhotos = [], isLoading: galleryLoading } = useQuery<GalleryPhoto[]>({
@@ -31,16 +64,94 @@ export default function Dashboard() {
   });
 
   // Fetch pending appointments
+  const loadPendingAppointments = async () => {
+    if (!isAuthenticated) return;
+    setPendingLoading(true);
+    try {
+      const appointmentsRaw = await apiRequest<AppointmentWithRelations[]>('GET', '/api/appointments/pending');
+      // Defensive: ensure array and filter out invalid IDs before any further processing
+      const appointments = Array.isArray(appointmentsRaw)
+      ? appointmentsRaw.filter((a) => typeof a.id === 'number' && a.id > 0)
+      : [];
+      setPendingAppointments(appointments);
+    } catch (err) {
+      console.error('Failed to load pending appointments:', err);
+      setPendingAppointments([]);
+    } finally {
+      setPendingLoading(false);
+    }
+  };
+  
+    // Calculate travel times for pending appointments
+    useEffect(() => {
+      const fetchTravelTimes = async () => {
+        if (!userProfile?.homeBaseAddress || pendingAppointments.length === 0) return;
+        setPendingTravelLoading(true);
+        const travelTimes: { [id: number]: { travelTime: number, distance: string, departureTime: string, travelMode: string } } = {};
+        await Promise.all(
+          pendingAppointments
+            .filter((apt) => apt.address)
+            .map(async (apt) => {
+              try {
+                const response = await apiRequest('POST', '/api/travel-time', {
+                  origin: userProfile.homeBaseAddress,
+                  destination: apt.address,
+                  transportationMode: userProfile.transportationMode || 'driving',
+                  appointmentTime: apt.scheduledAt,
+                });
+                if (response.success) {
+                  // Calculate departure time (appointment time - travelTime - 5min buffer)
+                  const aptTime = new Date(apt.scheduledAt);
+                  const departure = new Date(aptTime.getTime() - (response.travelTime + 5) * 60000);
+                  travelTimes[apt.id] = {
+                    travelTime: response.travelTime,
+                    distance: response.distance || 'N/A',
+                    departureTime: departure.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }),
+                    travelMode: userProfile.transportationMode || 'driving',
+                  };
+                }
+              } catch (err) {
+                // Ignore travel time errors for individual appointments
+              }
+            })
+        );
+        setPendingTravelTimes(travelTimes);
+        setPendingTravelLoading(false);
+      };
+        // Confirm/cancel handlers for pending appointments
+        const handleConfirmPending = async (appointmentId: number) => {
+          setPendingProcessingId(appointmentId);
+          try {
+            await apiRequest('PATCH', `/api/appointments/${appointmentId}`, { status: 'confirmed' });
+            await loadPendingAppointments();
+            await loadDashboardData();
+            Alert.alert('Success', 'Appointment confirmed successfully');
+          } catch (err: any) {
+            Alert.alert('Error', err?.message || 'Failed to confirm appointment');
+          } finally {
+            setPendingProcessingId(null);
+          }
+        };
+      
+        const handleCancelPending = async (appointmentId: number) => {
+          setPendingProcessingId(appointmentId);
+          try {
+            await apiRequest('PATCH', `/api/appointments/${appointmentId}`, { status: 'cancelled' });
+            await loadPendingAppointments();
+            await loadDashboardData();
+            Alert.alert('Success', 'Appointment cancelled successfully');
+          } catch (err: any) {
+            Alert.alert('Error', err?.message || 'Failed to cancel appointment');
+          } finally {
+            setPendingProcessingId(null);
+          }
+        };
+      fetchTravelTimes();
+    }, [pendingAppointments, userProfile?.homeBaseAddress, userProfile?.transportationMode]);
+
   useEffect(() => {
     if (isAuthenticated) {
-      setPendingLoading(true);
-      apiRequest<AppointmentWithRelations[]>('GET', '/api/appointments/pending')
-        .then(setPendingAppointments)
-        .catch((err) => {
-          console.error('Failed to load pending appointments:', err);
-          setPendingAppointments([]);
-        })
-        .finally(() => setPendingLoading(false));
+      loadPendingAppointments();
     }
   }, [isAuthenticated]);
 
@@ -54,7 +165,12 @@ export default function Dashboard() {
       ]);
 
       setStats(statsData);
-      setTodayAppointments(appointmentsData);
+      // Filter out appointments with invalid, non-positive, or non-numeric IDs
+      setTodayAppointments(
+        (appointmentsData || []).filter(
+          (a) => typeof a.id === 'number' && a.id > 0
+        )
+      );
       setUnreadMessages(messagesData.count);
       setUserProfile(profileData);
     } catch (error) {
@@ -64,6 +180,16 @@ export default function Dashboard() {
       setLoading(false);
     }
   };
+
+  // Refetch dashboard and pending appointments on tab focus
+  useFocusEffect(
+    React.useCallback(() => {
+      if (isAuthenticated) {
+        loadDashboardData();
+        loadPendingAppointments();
+      }
+    }, [isAuthenticated])
+  );
 
   const quickActions = [
     { 
@@ -153,7 +279,21 @@ export default function Dashboard() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView style={styles.scrollView}>
+      <ScrollView
+        style={styles.scrollView}
+        refreshControl={
+          <RefreshControl
+            refreshing={loading || pendingLoading}
+            onRefresh={async () => {
+              setLoading(true);
+              await Promise.all([loadDashboardData(), loadPendingAppointments()]);
+              setLoading(false);
+            }}
+            tintColor="#22C55E"
+            colors={['#22C55E']}
+          />
+        }
+      >
         <View style={styles.header}>
           <Text style={styles.greeting}>
             Good {currentTime.getHours() < 12 ? 'Morning' : currentTime.getHours() < 17 ? 'Afternoon' : 'Evening'}, {user?.firstName || 'Barber'}!
@@ -409,26 +549,73 @@ export default function Dashboard() {
         {/* Pending Appointments Section */}
         <View style={styles.appointmentsSection}>
           <Text style={styles.sectionTitle}>Pending Appointments</Text>
-          {pendingAppointments.length > 0 ? (
-            pendingAppointments.map((appointment) => (
-              <View key={appointment.id} style={styles.appointmentListItem}>
-                <View style={styles.appointmentInfo}>
-                  <Text style={styles.appointmentClientName}>
-                    {appointment.client?.name}
-                  </Text>
-                  <Text style={styles.appointmentDetails}>
-                    {appointment.service?.name} • ${appointment.price}
-                  </Text>
+          {pendingLoading || pendingTravelLoading ? (
+            <Text style={{ color: '#9CA3AF', fontSize: 16, textAlign: 'center' }}>
+              Loading...
+            </Text>
+          ) : pendingAppointments.length > 0 ? (
+            pendingAppointments.map((appointment) => {
+              const travelInfo = pendingTravelTimes[appointment.id];
+              return (
+                <View key={appointment.id} style={styles.appointmentListItem}>
+                  <View style={styles.appointmentInfo}>
+                    <Text style={styles.appointmentClientName}>
+                      {appointment.client?.name}
+                    </Text>
+                    <Text style={styles.appointmentDetails}>
+                      {appointment.service?.name} • ${appointment.price}
+                    </Text>
+                    <Text style={{ color: '#9CA3AF', fontSize: 13 }}>
+                      {new Date(appointment.scheduledAt).toLocaleTimeString('en-US', {
+                        hour: 'numeric',
+                        minute: '2-digit',
+                        hour12: true
+                      })}
+                    </Text>
+                    {appointment.address && travelInfo && (
+                      <View style={{ marginTop: 4 }}>
+                        <Text style={{ color: '#3B82F6', fontSize: 13 }}>
+                          Travel: {travelInfo.travelTime} min, {travelInfo.distance}
+                        </Text>
+                        <Text style={{ color: '#F59E0B', fontSize: 13 }}>
+                          Departure: {travelInfo.departureTime} ({travelInfo.travelMode})
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+                  <View style={{ flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
+                    <TouchableOpacity
+                      style={[styles.actionButton, { backgroundColor: '#22C55E', marginBottom: 4 }]}
+                      onPress={() => handleConfirmPending(appointment.id)}
+                      disabled={pendingProcessingId === appointment.id}
+                    >
+                      <Ionicons name="checkmark-circle" size={16} color="#fff" />
+                      <Text style={styles.actionButtonText}>Confirm</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[styles.actionButton, { backgroundColor: '#EF4444', marginBottom: 4 }]}
+                      onPress={() => handleCancelPending(appointment.id)}
+                      disabled={pendingProcessingId === appointment.id}
+                    >
+                      <Ionicons name="close-circle" size={16} color="#fff" />
+                      <Text style={styles.actionButtonText}>Cancel</Text>
+                    </TouchableOpacity>
+                    {appointment.client?.phone && (
+                      <TouchableOpacity
+                        style={[styles.actionButton, { backgroundColor: '#3B82F6' }]}
+                        onPress={() => {
+                          // @ts-ignore
+                          Linking.openURL(`tel:${appointment.client.phone}`);
+                        }}
+                      >
+                        <Ionicons name="call" size={16} color="#fff" />
+                        <Text style={styles.actionButtonText}>Call</Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
                 </View>
-                <Text style={styles.appointmentTimeSmall}>
-                  {new Date(appointment.scheduledAt).toLocaleTimeString('en-US', {
-                    hour: 'numeric',
-                    minute: '2-digit',
-                    hour12: true
-                  })}
-                </Text>
-              </View>
-            ))
+              );
+            })
           ) : (
             <Text style={{ color: '#9CA3AF', fontSize: 16, textAlign: 'center' }}>
               No pending appointments
