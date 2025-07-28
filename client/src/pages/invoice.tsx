@@ -1929,13 +1929,18 @@ export default function InvoicePage() {
                         // Fetch services for this invoice
                         setInvoiceServicesLoading(true);
                         try {
+                          console.log(`=== FETCHING INVOICE ${invoice.id} SERVICES ===`);
                           const invoiceWithServices = await apiRequest(
                             "GET",
                             `/api/invoices/${invoice.id}`,
                           );
+                          console.log('Invoice with services response:', invoiceWithServices);
+                          console.log('Services found:', invoiceWithServices.services);
+                          console.log('Services count:', invoiceWithServices.services?.length || 0);
                           setSelectedInvoiceServices(
                             invoiceWithServices.services || [],
                           );
+                          console.log('=== END INVOICE SERVICES FETCH ===');
                         } catch (error) {
                           console.error(
                             "Failed to fetch invoice services:",
@@ -2684,7 +2689,9 @@ export default function InvoicePage() {
                       </span>
                     </div>
                   ) : selectedInvoiceServices.length > 0 ? (
-                    selectedInvoiceServices.map((invoiceService, index) => (
+                    selectedInvoiceServices.map((invoiceService, index) => {
+                      console.log('Rendering service:', invoiceService);
+                      return (
                       <div
                         key={index}
                         className="flex justify-between items-center py-2 border-b border-steel/20 last:border-b-0"
@@ -2708,7 +2715,8 @@ export default function InvoicePage() {
                           ${invoiceService.price}
                         </div>
                       </div>
-                    ))
+                      );
+                    })
                   ) : (
                     <div className="text-steel text-sm">
                       No services recorded for this invoice
