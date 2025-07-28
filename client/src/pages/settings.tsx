@@ -73,15 +73,7 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 const phoneRegex =
   /^(\+1\s?)?(\([0-9]{3}\)|[0-9]{3})[\s.-]?[0-9]{3}[\s.-]?[0-9]{4}$/;
 
-// Booking URL form schema
-const bookingUrlSchema = z.object({
-  urlSlug: z
-    .string()
-    .min(3, "URL must be at least 3 characters")
-    .max(50, "URL must be less than 50 characters")
-    .regex(/^[a-zA-Z0-9-]+$/, "URL can only contain letters, numbers, and hyphens"),
-  customName: z.string().max(100, "Name must be less than 100 characters").optional(),
-});
+
 
 // Phone number formatting function
 const formatPhoneNumber = (value: string): string => {
@@ -204,7 +196,7 @@ export default function Settings() {
   const [isGoogleMapsLoaded, setIsGoogleMapsLoaded] = useState(false);
   const [isAutocompleteOpen, setIsAutocompleteOpen] = useState(false);
   const [isVerifyingPhone, setIsVerifyingPhone] = useState(false);
-  const [isBookingUrlDialogOpen, setIsBookingUrlDialogOpen] = useState(false);
+
   const [verificationCode, setVerificationCode] = useState("");
   const [isCodeSent, setIsCodeSent] = useState(false);
   const [countdown, setCountdown] = useState(0);
@@ -238,28 +230,7 @@ export default function Settings() {
     queryKey: ["/api/booking-url"],
   });
 
-  const updateBookingUrlMutation = useMutation({
-    mutationFn: async (data: { urlSlug: string; customName?: string }) =>
-      apiRequest("/api/booking-url", {
-        method: "POST",
-        body: data,
-      }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/booking-url"] });
-      setIsBookingUrlDialogOpen(false);
-      toast({
-        title: "Success!",
-        description: "Your booking URL has been updated",
-      });
-    },
-    onError: (error: any) => {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to update booking URL",
-        variant: "destructive",
-      });
-    },
-  });
+
 
   // Fetch blocked clients
   const { data: blockedClients = [] } = useQuery<any[]>({
@@ -2110,36 +2081,18 @@ export default function Settings() {
                           <Copy className="w-4 h-4" />
                         </Button>
                       </div>
-                      {!bookingUrl.isActive && (
-                        <p className="text-amber-500 text-xs mt-2 flex items-center">
-                          <AlertCircle className="w-3 h-3 mr-1" />
-                          URL is not active - clients cannot book yet
-                        </p>
-                      )}
+                      <p className="text-green-500 text-xs mt-2 flex items-center">
+                        <Check className="w-3 h-3 mr-1" />
+                        Your booking URL is active and ready to accept appointments
+                      </p>
                     </div>
-                    
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="bg-charcoal border-steel/40 text-gold hover:bg-charcoal/80"
-                      onClick={() => setIsBookingUrlDialogOpen(true)}
-                    >
-                      <Edit3 className="w-4 h-4 mr-2" />
-                      Customize URL
-                    </Button>
                   </div>
                 ) : (
                   <div className="bg-charcoal rounded-lg p-4 border border-steel/20 text-center">
-                    <p className="text-steel text-sm mb-3">
-                      Create your custom booking URL to start accepting online appointments
+                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-gold mx-auto mb-2"></div>
+                    <p className="text-steel text-sm">
+                      Creating your booking URL...
                     </p>
-                    <Button
-                      onClick={() => setIsBookingUrlDialogOpen(true)}
-                      className="bg-gold text-charcoal hover:bg-gold/90"
-                    >
-                      <Share className="w-4 h-4 mr-2" />
-                      Activate Booking URL
-                    </Button>
                   </div>
                 )}
               </CardContent>
@@ -2903,105 +2856,9 @@ export default function Settings() {
 
       <BottomNavigation currentPath={location} />
 
-      {/* Booking URL Dialog */}
-      <Dialog open={isBookingUrlDialogOpen} onOpenChange={setIsBookingUrlDialogOpen}>
-        <DialogContent className="bg-charcoal border-steel/20 text-white max-w-md">
-          <DialogHeader>
-            <DialogTitle className="text-gold">
-              {bookingUrl?.isActive ? "Customize Booking URL" : "Activate Booking URL"}
-            </DialogTitle>
-          </DialogHeader>
-          <BookingUrlForm
-            initialData={bookingUrl}
-            onSubmit={(data) => updateBookingUrlMutation.mutate(data)}
-            isLoading={updateBookingUrlMutation.isPending}
-          />
-        </DialogContent>
-      </Dialog>
+
     </div>
   );
 }
 
-// Booking URL Form Component
-function BookingUrlForm({
-  initialData,
-  onSubmit,
-  isLoading,
-}: {
-  initialData?: any;
-  onSubmit: (data: { urlSlug: string; customName?: string }) => void;
-  isLoading: boolean;
-}) {
-  const form = useForm<z.infer<typeof bookingUrlSchema>>({
-    resolver: zodResolver(bookingUrlSchema),
-    defaultValues: {
-      urlSlug: initialData?.urlSlug || "",
-      customName: initialData?.customName || "",
-    },
-  });
 
-  return (
-    <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-        <FormField
-          control={form.control}
-          name="urlSlug"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel className="text-steel">URL Slug</FormLabel>
-              <div className="flex items-center">
-                <span className="text-sm text-steel bg-charcoal/50 px-3 py-2 rounded-l border border-r-0 border-steel/20">
-                  {window.location.origin}/book/
-                </span>
-                <FormControl>
-                  <Input
-                    placeholder="your-custom-url"
-                    {...field}
-                    className="bg-charcoal border-steel/20 text-white rounded-l-none"
-                  />
-                </FormControl>
-              </div>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        <FormField
-          control={form.control}
-          name="customName"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel className="text-steel">Display Name (Optional)</FormLabel>
-              <FormControl>
-                <Input
-                  placeholder="Your Business Name"
-                  {...field}
-                  className="bg-charcoal border-steel/20 text-white"
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        <div className="flex justify-end space-x-2 pt-4">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => form.reset()}
-            className="bg-charcoal border-steel/40 text-steel hover:bg-charcoal/80"
-          >
-            Reset
-          </Button>
-          <Button
-            type="submit"
-            disabled={isLoading}
-            className="bg-gold text-charcoal hover:bg-gold/90"
-          >
-            {isLoading ? "Saving..." : "Save URL"}
-          </Button>
-        </div>
-      </form>
-    </Form>
-  );
-}

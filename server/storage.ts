@@ -975,10 +975,25 @@ export class DatabaseStorage implements IStorage {
 
   // Barber Booking URL methods
   async getBarberBookingUrl(userId: number): Promise<BarberBookingUrl | undefined> {
-    const [bookingUrl] = await db
+    let [bookingUrl] = await db
       .select()
       .from(barberBookingUrls)
       .where(eq(barberBookingUrls.userId, userId));
+    
+    if (!bookingUrl) {
+      // Auto-create booking URL if it doesn't exist
+      const [user] = await db.select({ phone: users.phone }).from(users).where(eq(users.id, userId));
+      const phoneSlug = user?.phone ? user.phone.replace(/\D/g, '') : userId.toString();
+      const urlSlug = `${phoneSlug}-clipcutman`;
+      
+      bookingUrl = await this.createBarberBookingUrl({
+        userId,
+        urlSlug,
+        customName: null,
+        isActive: true,
+      });
+    }
+    
     return bookingUrl;
   }
 

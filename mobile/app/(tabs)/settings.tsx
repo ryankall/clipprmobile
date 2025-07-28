@@ -674,14 +674,13 @@ export default function Settings() {
                 <Ionicons name="copy-outline" size={20} color="#F59E0B" />
               </TouchableOpacity>
             </View>
-            {!bookingUrl.isActive && (
-              <Text style={styles.warningText}>
-                ⚠️ URL is not active - clients cannot book yet
-              </Text>
-            )}
+
           </View>
         ) : (
-          <Text style={styles.noLinkText}>Create your booking URL in settings to start accepting appointments</Text>
+          <View style={{ alignItems: 'center', padding: 16 }}>
+            <ActivityIndicator size="small" color="#F59E0B" style={{ marginBottom: 8 }} />
+            <Text style={styles.noLinkText}>Creating your booking URL...</Text>
+          </View>
         )}
       </View>
 
