@@ -3303,8 +3303,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Find client by phone number for this barber
+      // Normalize phone numbers for comparison (remove all non-digits)
+      const normalizePhone = (phone: string) => phone.replace(/\D/g, '');
+      const normalizedClientPhone = normalizePhone(clientPhone);
+      
       const clients = await storage.getClientsByUserId(barber.id);
-      const client = clients.find((c) => c.phone === clientPhone);
+      const client = clients.find((c) => 
+        normalizePhone(c.phone) === normalizedClientPhone
+      );
+      
+      console.log(`Client lookup for phone: ${clientPhone} (normalized: ${normalizedClientPhone})`);
+      console.log(`Found ${clients.length} clients for barber ${barber.id}`);
+      if (client) {
+        console.log(`Found matching client: ${client.name} (${client.phone})`);
+      } else {
+        console.log('No matching client found');
+      }
 
       if (client) {
         res.json({

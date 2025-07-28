@@ -130,6 +130,7 @@ export default function EnhancedBookingPage() {
         if (data.address) {
           setClientAddress(data.address);
         }
+        console.log('Client lookup successful:', data);
         toast({
           title: "Welcome back!",
           description: `Found your information: ${data.name}`,
