@@ -271,6 +271,22 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateClient(id: number, client: Partial<InsertClient>): Promise<Client> {
+    // Check if phone number is being updated and if it conflicts with existing clients
+    if (client.phone) {
+      const [existingClient] = await db
+        .select()
+        .from(clients)
+        .where(and(
+          eq(clients.phone, client.phone),
+          // Make sure it's not the same client being updated
+          sql`${clients.id} != ${id}`
+        ));
+      
+      if (existingClient) {
+        throw new Error('A client with this phone number already exists');
+      }
+    }
+    
     const [updatedClient] = await db
       .update(clients)
       .set(client)
@@ -284,12 +300,15 @@ export class DatabaseStorage implements IStorage {
     await db.transaction(async (tx) => {
       console.log(`Starting client deletion for ID: ${id}`);
       
-      // Delete related appointment services first (via appointments)
+      // First, get all appointments for this client
       const clientAppointments = await tx
         .select({ id: appointments.id })
         .from(appointments)
         .where(eq(appointments.clientId, id));
       
+      console.log(`Found ${clientAppointments.length} appointments for client ${id}`);
+      
+      // Delete appointment services for each appointment
       for (const appointment of clientAppointments) {
         await tx
           .delete(appointmentServices)
@@ -297,21 +316,58 @@ export class DatabaseStorage implements IStorage {
         console.log(`Deleted appointment services for appointment: ${appointment.id}`);
       }
       
-      // Delete appointments
-      await tx.delete(appointments).where(eq(appointments.clientId, id));
-      console.log(`Deleted appointments for client: ${id}`);
+      // Delete records that reference appointments before deleting appointments
+      for (const appointment of clientAppointments) {
+        // Delete gallery photos that reference this appointment
+        await tx
+          .delete(galleryPhotos)
+          .where(eq(galleryPhotos.appointmentId, appointment.id));
+        console.log(`Deleted gallery photos for appointment: ${appointment.id}`);
+        
+        // Delete invoices that reference this appointment
+        await tx
+          .delete(invoices)
+          .where(eq(invoices.appointmentId, appointment.id));
+        console.log(`Deleted invoices for appointment: ${appointment.id}`);
+        
+        // Delete notifications that reference this appointment
+        await tx
+          .delete(notifications)
+          .where(eq(notifications.appointmentId, appointment.id));
+        console.log(`Deleted notifications for appointment: ${appointment.id}`);
+      }
       
-      // Delete gallery photos
+      // Delete remaining client-specific records
+      // Delete gallery photos by client
       await tx.delete(galleryPhotos).where(eq(galleryPhotos.clientId, id));
-      console.log(`Deleted gallery photos for client: ${id}`);
+      console.log(`Deleted client gallery photos for client: ${id}`);
       
-      // Delete invoices
+      // Delete invoice services for client invoices
+      const clientInvoices = await tx
+        .select({ id: invoices.id })
+        .from(invoices)
+        .where(eq(invoices.clientId, id));
+      
+      console.log(`Found ${clientInvoices.length} client invoices for client ${id}`);
+      
+      for (const invoice of clientInvoices) {
+        await tx
+          .delete(invoiceServices)
+          .where(eq(invoiceServices.invoiceId, invoice.id));
+        console.log(`Deleted invoice services for invoice: ${invoice.id}`);
+      }
+      
+      // Delete client invoices
       await tx.delete(invoices).where(eq(invoices.clientId, id));
-      console.log(`Deleted invoices for client: ${id}`);
+      console.log(`Deleted client invoices for client: ${id}`);
       
       // Delete messages
       await tx.delete(messages).where(eq(messages.clientId, id));
       console.log(`Deleted messages for client: ${id}`);
+      
+      // Delete appointments (after all references are removed)
+      await tx.delete(appointments).where(eq(appointments.clientId, id));
+      console.log(`Deleted appointments for client: ${id}`);
       
       // Finally delete the client
       await tx.delete(clients).where(eq(clients.id, id));

@@ -231,24 +231,36 @@ export default function ClientProfile() {
           title: "Phone Verification Required",
           description: getPhoneVerificationMessage(error),
           variant: "destructive",
+          action: {
+            label: "Verify Phone",
+            onClick: () => {
+              setLocation('/settings');
+            }
+          }
         });
-        // Navigate to settings after a delay
-        setTimeout(() => {
-          setIsEditing(false);
-          navigate('/settings');
-        }, 2000);
         return;
       }
       
-      console.log('💥 Generic error - showing toast');
-      // Try to get a meaningful error message
-      const errorMessage = error?.message || 
-                          error?.error || 
-                          (typeof error === 'string' ? error : '') ||
-                          "Failed to update client";
+      // Check for duplicate phone number error
+      if (error?.response?.status === 409 && error?.response?.data?.type === 'DUPLICATE_PHONE') {
+        toast({
+          title: "Phone Number Already Exists",
+          description: error.response.data.message || "A client with this phone number already exists",
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      // Generic error handling
+      let errorMessage = "Failed to update client";
+      if (error?.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error?.message) {
+        errorMessage = error.message;
+      }
       
       toast({
-        title: "Error",
+        title: "Update Failed",
         description: errorMessage,
         variant: "destructive",
       });

@@ -1325,6 +1325,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(client);
     } catch (error: any) {
       console.error("❌ Client update error:", error);
+      
+      // Handle phone number duplicate error
+      if (error.message.includes('phone number already exists')) {
+        return res.status(409).json({
+          message: error.message,
+          type: 'DUPLICATE_PHONE'
+        });
+      }
+      
       res.status(500).json({ message: error.message });
     }
   });
