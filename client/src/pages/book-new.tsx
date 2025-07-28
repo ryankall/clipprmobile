@@ -91,13 +91,8 @@ export default function EnhancedBookingPage() {
   };
 
   // Parse barber info from URL (format: phone-barbername)
-  const phoneDigits = barberInfo?.split("-")[0] || "";
+  const barberPhone = barberInfo?.split("-")[0] || "";
   const barberSlug = barberInfo?.split("-").slice(1).join("-") || "";
-  
-  // Format phone number properly for server lookup
-  const barberPhone = phoneDigits.length === 10 
-    ? `(${phoneDigits.slice(0, 3)}) ${phoneDigits.slice(3, 6)}-${phoneDigits.slice(6)}`
-    : phoneDigits;
 
   // Fetch barber profile data
   const { data: barber, isLoading: barberLoading } = useQuery<UserType>({
