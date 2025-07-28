@@ -5,6 +5,7 @@ import { useRouter, useLocalSearchParams } from "expo-router";
 import { apiRequest } from "../../lib/api";
 import type { Client } from "../../lib/types";
 import { toZonedTime, format } from "date-fns-tz";
+import { Ionicons } from '@expo/vector-icons';
 
 export default function NewAppointment() {
   const router = useRouter();
@@ -209,7 +210,17 @@ export default function NewAppointment() {
   // UI
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.heading}>Create Appointment</Text>
+      <View style={styles.header}>
+
+        <TouchableOpacity
+          style={styles.iconButton}
+          onPress={() => router.back()}
+          accessibilityLabel="Go back"
+          >
+          <Ionicons name="arrow-back" size={22} color="#FFD700" />
+        </TouchableOpacity>
+        <Text style={styles.heading}>Create Appointment</Text>
+      </View>
       {/* Client Selection */}
       <Text style={styles.label}>Client</Text>
       {clientsLoading ? (
@@ -544,12 +555,21 @@ const styles = StyleSheet.create({
     padding: 24,
     backgroundColor: "#fff",
     justifyContent: "flex-start",
+    paddingTop: Platform.OS === 'android' ? 50 : 50,
   },
   heading: {
+    flex: 1,
     fontSize: 24,
     fontWeight: "bold",
     marginBottom: 24,
     textAlign: "center",
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 18,
+    marginTop: 20,
+    justifyContent: 'space-between',
   },
   label: {
     fontSize: 16,
@@ -643,6 +663,21 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     minWidth: 24,
     textAlign: "center",
+  },
+  iconButton: {
+    backgroundColor: '#23232A',
+    borderRadius: 8,
+    padding: 8,
+    marginHorizontal: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  backButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#23232A',
+    borderRadius: 8,
+    padding: 10,
   },
   travelRow: {
     flexDirection: "row",
