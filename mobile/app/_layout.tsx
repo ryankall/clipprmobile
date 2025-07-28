@@ -15,8 +15,6 @@ export default function RootLayout() {
           <Stack.Screen name="auth" options={{ headerShown: false }} />
           <Stack.Screen name="clients/[id]" options={{ headerShown: false }} />
           <Stack.Screen name="gallery/gallery" options={{ headerShown: false }} />
-          <Stack.Screen name="appointment-details" options={{ headerShown: false }} />
-          <Stack.Screen name="appointments/new" options={{ headerShown: false }} />
         </Stack>
         <StatusBar style="light" />
       </SafeAreaProvider>

@@ -196,11 +196,6 @@ export default function MobileApp() {
     enabled: isAuthenticated,
   });
 
-  const { data: bookingUrl } = useQuery({
-    queryKey: ["/api/booking-url"],
-    enabled: isAuthenticated,
-  });
-
   // Load settings data
   useEffect(() => {
     if (user) {
@@ -373,8 +368,9 @@ export default function MobileApp() {
   };
 
   const copyBookingLink = () => {
-    if (bookingUrl?.fullUrl) {
-      navigator.clipboard.writeText(bookingUrl.fullUrl);
+    if (user?.phone) {
+      const bookingUrl = `${window.location.origin}/book/${user.phone.replace(/\D/g, '')}-${user.businessName?.toLowerCase().replace(/\s+/g, '') || 'clipcutman'}`;
+      navigator.clipboard.writeText(bookingUrl);
       toast({
         title: "Copied",
         description: "Booking link copied to clipboard",
@@ -835,14 +831,14 @@ export default function MobileApp() {
               <CardTitle className="text-white">Public Booking Link</CardTitle>
             </CardHeader>
             <CardContent>
-              {bookingUrl?.fullUrl ? (
+              {user?.phone ? (
                 <div className="space-y-3">
                   <p className="text-gray-400 text-sm">
                     Share this link with clients to let them book appointments
                   </p>
                   <div className="flex items-center space-x-2 bg-gray-800 rounded-lg p-3">
                     <code className="flex-1 text-white text-xs break-all">
-                      {bookingUrl.fullUrl}
+                      {`${window.location.origin}/book/${user.phone.replace(/\D/g, '')}-${user.businessName?.toLowerCase().replace(/\s+/g, '') || 'clipcutman'}`}
                     </code>
                     <Button
                       variant="ghost"
@@ -853,15 +849,9 @@ export default function MobileApp() {
                       <Copy className="w-4 h-4" />
                     </Button>
                   </div>
-                  {!bookingUrl.isActive && (
-                    <p className="text-amber-500 text-xs flex items-center justify-center">
-                      <AlertCircle className="w-3 h-3 mr-1" />
-                      URL is not active - clients cannot book yet
-                    </p>
-                  )}
                 </div>
               ) : (
-                <p className="text-gray-400 text-center">Create your booking URL in settings to start accepting appointments</p>
+                <p className="text-gray-400 text-center">Add your phone number to generate your booking link</p>
               )}
             </CardContent>
           </Card>

@@ -956,12 +956,10 @@ function InvoiceDetailsModal({
                       >
                         <View style={{ flex: 1 }}>
                           <Text style={{ color: '#fff', fontSize: 15, fontWeight: '600' }}>
-                            {svc.service?.name || svc.name || svc.serviceName || 'Unnamed Service'}
+                            {svc.serviceName || svc.name}
                           </Text>
-                          {(svc.service?.description || svc.description) ? (
-                            <Text style={{ color: '#9CA3AF', fontSize: 13 }}>
-                              {svc.service?.description || svc.description}
-                            </Text>
+                          {svc.description ? (
+                            <Text style={{ color: '#9CA3AF', fontSize: 13 }}>{svc.description}</Text>
                           ) : null}
                           {svc.quantity && svc.quantity > 1 ? (
                             <Text style={{ color: '#FFD700', fontSize: 12 }}>x{svc.quantity}</Text>
