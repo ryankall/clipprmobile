@@ -853,16 +853,15 @@ export default function MobileApp() {
                       <Copy className="w-4 h-4" />
                     </Button>
                   </div>
-                  <p className="text-green-500 text-xs flex items-center justify-center">
-                    <Check className="w-3 h-3 mr-1" />
-                    Your booking URL is active and ready to accept appointments
-                  </p>
+                  {!bookingUrl.isActive && (
+                    <p className="text-amber-500 text-xs flex items-center justify-center">
+                      <AlertCircle className="w-3 h-3 mr-1" />
+                      URL is not active - clients cannot book yet
+                    </p>
+                  )}
                 </div>
               ) : (
-                <div className="text-center">
-                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-amber-500 mx-auto mb-2"></div>
-                  <p className="text-gray-400">Creating your booking URL...</p>
-                </div>
+                <p className="text-gray-400 text-center">Create your booking URL in settings to start accepting appointments</p>
               )}
             </CardContent>
           </Card>
