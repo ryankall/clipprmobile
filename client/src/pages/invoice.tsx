@@ -296,11 +296,18 @@ export default function InvoicePage() {
       form.reset();
       setSelectedServices([]);
 
-      // Navigate to checkout if payment is required
+      // Don't auto-redirect to checkout - let user decide when to process payment
       // The response is the invoice object directly, not wrapped in .data
       const invoice = response;
+      console.log('Invoice created successfully:', invoice);
+      
+      // Optionally show a toast with payment action if Stripe is selected
       if (invoice?.paymentMethod === "stripe") {
-        window.location.href = `/checkout/${invoice.id}`;
+        toast({
+          title: "Invoice Created",
+          description: "Click 'View Details' to process Stripe payment",
+          duration: 5000,
+        });
       }
     },
     onError: (error: any) => {
