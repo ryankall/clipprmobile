@@ -1407,13 +1407,64 @@ export default function Invoice() {
               }}
               onCreate={async (invoiceData: any) => {
                 try {
-                  await apiRequest('POST', '/api/invoices', invoiceData);
+                  // 1. Create the invoice and get the result (should include id, paymentMethod, clientId, etc)
+                  const createdInvoice = await apiRequest('POST', '/api/invoices', invoiceData);
+
                   setShowCreateModal(false);
                   setSelectedTemplate(null);
                   // Do not clear hasOpenedFromParams here; let effect handle it only when params actually change
                   router.setParams({ prefillClientId: undefined, prefillServices: undefined });
                   await loadInvoicesAndClients();
-                  Alert.alert('Success', 'Invoice created successfully.');
+
+                  // 2. If payment method is "stripe", try to send the Stripe link via SMS or email
+                  if (
+                    createdInvoice &&
+                    (createdInvoice.paymentMethod === 'stripe' || invoiceData.paymentMethod === 'stripe')
+                  ) {
+                    // Find the client object
+                    const clientId = createdInvoice.clientId || invoiceData.clientId;
+                    const clientObj = clients.find((c) => c.id === clientId);
+
+                    let sent = false;
+                    let sendError = null;
+
+                    // Prefer SMS if phone exists, else email
+                    if (clientObj?.phone) {
+                      try {
+                        await apiRequest('POST', `/api/invoices/${createdInvoice.id}/send-sms`);
+                        sent = true;
+                        Alert.alert('Success', 'Stripe payment link sent to client via SMS.');
+                      } catch (err: any) {
+                        sendError = err?.message || 'Failed to send SMS with Stripe link.';
+                        // Try email if phone failed and email exists
+                        if (clientObj?.email) {
+                          try {
+                            await apiRequest('POST', `/api/invoices/${createdInvoice.id}/send-email`);
+                            sent = true;
+                            Alert.alert('Success', 'Stripe payment link sent to client via email.');
+                          } catch (err2: any) {
+                            sendError += '\n' + (err2?.message || 'Failed to send email with Stripe link.');
+                          }
+                        }
+                      }
+                    } else if (clientObj?.email) {
+                      try {
+                        await apiRequest('POST', `/api/invoices/${createdInvoice.id}/send-email`);
+                        sent = true;
+                        Alert.alert('Success', 'Stripe payment link sent to client via email.');
+                      } catch (err: any) {
+                        sendError = err?.message || 'Failed to send email with Stripe link.';
+                      }
+                    } else {
+                      sendError = 'Client has no phone or email to send Stripe link.';
+                    }
+
+                    if (!sent && sendError) {
+                      Alert.alert('Notice', sendError);
+                    }
+                  } else {
+                    Alert.alert('Success', 'Invoice created successfully.');
+                  }
                 } catch (error: any) {
                   Alert.alert('Error', error?.message || 'Failed to create invoice.');
                 }
@@ -1459,48 +1510,24 @@ function InvoiceDetailsModal({
   const [sendingSMS, setSendingSMS] = React.useState(false);
   const [sendingEmail, setSendingEmail] = React.useState(false);
 
+  // Always fetch the latest invoice by ID when modal opens
   React.useEffect(() => {
     if (!invoice) return;
     setLoading(true);
     setError(null);
     apiRequest<any>('GET', `/api/invoices/${invoice.id}`)
       .then((data) => {
-        // Debug: log the full invoice data
-        console.log('[InvoiceDetailsModal] Loaded invoice data:', data);
-
-        // Check all possible service arrays
-        let found = null;
-        if (Array.isArray(data.services) && data.services.length > 0) {
-          found = data.services;
-          console.log('[InvoiceDetailsModal] Using data.services');
-        } else if (Array.isArray(data.invoiceServices) && data.invoiceServices.length > 0) {
-          found = data.invoiceServices;
-          console.log('[InvoiceDetailsModal] Using data.invoiceServices');
-        } else if (Array.isArray(data.items) && data.items.length > 0) {
-          found = data.items;
-          console.log('[InvoiceDetailsModal] Using data.items');
-        } else {
-          // Try to find any array property with service-like objects
-          const possible = Object.entries(data).find(
-            ([k, v]) =>
-              Array.isArray(v) &&
-              v.length > 0 &&
-              typeof v[0] === 'object' &&
-              (v[0].name || v[0].serviceName)
-          );
-          if (possible) {
-            found = possible[1];
-            console.log(`[InvoiceDetailsModal] Using data.${possible[0]} (guessed)`);
-          }
+        // Always use the latest services array from backend, matching web
+        let found = Array.isArray(data.services) ? data.services : [];
+        // Minimal fallback for legacy support
+        if ((!found || found.length === 0) && data.service && typeof data.service === 'object') {
+          found = [data.service];
         }
-        if (!found || found.length === 0) {
-          console.warn('[InvoiceDetailsModal] No service array found in invoice data', data);
-        }
-        setServices(found || []);
+        setServices(found);
       })
       .catch((err) => {
         setError('Failed to load services');
-        console.error('[InvoiceDetailsModal] Error loading invoice:', err);
+        setServices([]);
       })
       .finally(() => setLoading(false));
   }, [invoice]);
@@ -1616,13 +1643,14 @@ function InvoiceDetailsModal({
             {/* Services */}
             <View style={styles.infoBlock}>
               <Text style={styles.infoBlockLabel}>Services</Text>
-              {services.length === 0 ? (
-                <Text style={styles.infoBlockText}>
-                  No services found for this invoice.
-                  {'\n'}
-                  (Check console for details. If this is unexpected, the invoice may be missing service data.)
-                </Text>
-              ) : (
+              {loading ? (
+                <View style={{ alignItems: 'center', paddingVertical: 16 }}>
+                  <ActivityIndicator size="small" color="#F59E0B" />
+                  <Text style={{ color: '#9CA3AF', marginTop: 8 }}>Loading services...</Text>
+                </View>
+              ) : error ? (
+                <Text style={{ color: '#EF4444', textAlign: 'center', marginVertical: 8 }}>{error}</Text>
+              ) : services.length > 0 ? (
                 <View>
                   {services.map((svc, idx) => (
                     <View
@@ -1646,9 +1674,9 @@ function InvoiceDetailsModal({
                             {svc.service?.description || svc.description}
                           </Text>
                         ) : null}
-                        {svc.duration ? (
+                        {(svc.service?.duration || svc.duration) ? (
                           <Text style={{ color: '#9CA3AF', fontSize: 12 }}>
-                            {svc.duration} min
+                            {(svc.service?.duration || svc.duration)} min
                           </Text>
                         ) : null}
                         {svc.quantity && svc.quantity > 1 ? (
@@ -1679,7 +1707,11 @@ function InvoiceDetailsModal({
                       {services.reduce(
                         (total, svc) =>
                           total +
-                          ((svc.duration ? parseInt(svc.duration, 10) : 0) * (svc.quantity || 1)),
+                          ((svc.service?.duration
+                            ? parseInt(svc.service.duration, 10)
+                            : svc.duration
+                            ? parseInt(svc.duration, 10)
+                            : 0) * (svc.quantity || 1)),
                         0
                       )}{' '}
                       min
@@ -1709,6 +1741,12 @@ function InvoiceDetailsModal({
                     </Text>
                   </View>
                 </View>
+              ) : (
+                <Text style={styles.infoBlockText}>
+                  No services found for this invoice.
+                  {'\n'}
+                  (If this is unexpected, the invoice may be missing service data.)
+                </Text>
               )}
             </View>
             {/* Details */}

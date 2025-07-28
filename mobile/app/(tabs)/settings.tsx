@@ -19,7 +19,8 @@ import {
   StatusBar,
   Platform,
   Linking,
-  FlatList
+  FlatList,
+  Share // <-- Add Share API
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -512,6 +513,25 @@ export default function Settings() {
     }
   };
 
+  // Share booking link using native share dialog
+  const shareBookingLink = async () => {
+    const linkToShare = bookingLink || (user?.phone ?
+      `https://your-domain.com/book/${user.phone.replace(/\D/g, '')}-${user.businessName?.toLowerCase().replace(/\s+/g, '') || 'clipcutman'}`
+      : '');
+    if (!linkToShare) return;
+    try {
+      await Share.share({
+        message: linkToShare,
+        url: linkToShare,
+        title: 'Book an appointment with me'
+      });
+      // Optionally, show feedback (not strictly needed, as share dialog is feedback)
+      // Alert.alert('Shared', 'Booking link shared successfully');
+    } catch (error: any) {
+      Alert.alert('Error', error.message || 'Failed to share booking link');
+    }
+  };
+
   const loadSubscriptionStatus = async () => {
     try {
       const data = await apiRequest<any>('GET', '/api/stripe/subscription-status');
@@ -698,8 +718,11 @@ export default function Settings() {
                   <Text style={styles.bookingLink} numberOfLines={2}>
                     {bookingLink || `https://your-domain.com/book/${user.phone.replace(/\D/g, '')}-${user.businessName?.toLowerCase().replace(/\s+/g, '') || 'clipcutman'}`}
                   </Text>
-                  <TouchableOpacity onPress={copyBookingLink} style={styles.copyButton}>
+                  <TouchableOpacity onPress={copyBookingLink} style={styles.copyButton} accessibilityLabel="Copy booking link">
                     <Ionicons name="copy-outline" size={20} color="#F59E0B" />
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={shareBookingLink} style={styles.copyButton} accessibilityLabel="Share booking link">
+                    <Ionicons name="share-social-outline" size={20} color="#F59E0B" />
                   </TouchableOpacity>
                 </>
               )}
