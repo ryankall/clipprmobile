@@ -1639,10 +1639,17 @@ function InvoiceDetailsModal({
                     >
                       <View style={{ flex: 1 }}>
                         <Text style={{ color: '#fff', fontSize: 15, fontWeight: '600' }}>
-                          {svc.serviceName || svc.name}
+                          {svc.service?.name || svc.name || svc.serviceName || 'Unnamed Service'}
                         </Text>
-                        {svc.description ? (
-                          <Text style={{ color: '#9CA3AF', fontSize: 13 }}>{svc.description}</Text>
+                        {(svc.service?.description || svc.description) ? (
+                          <Text style={{ color: '#9CA3AF', fontSize: 13 }}>
+                            {svc.service?.description || svc.description}
+                          </Text>
+                        ) : null}
+                        {svc.duration ? (
+                          <Text style={{ color: '#9CA3AF', fontSize: 12 }}>
+                            {svc.duration} min
+                          </Text>
                         ) : null}
                         {svc.quantity && svc.quantity > 1 ? (
                           <Text style={{ color: '#FFD700', fontSize: 12 }}>x{svc.quantity}</Text>
@@ -1653,6 +1660,54 @@ function InvoiceDetailsModal({
                       </Text>
                     </View>
                   ))}
+                  {/* Totals Section */}
+                  <View
+                    style={{
+                      flexDirection: 'row',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      borderTopWidth: 1,
+                      borderTopColor: '#232323',
+                      marginTop: 8,
+                      paddingTop: 6,
+                    }}
+                  >
+                    <Text style={{ color: '#fff', fontWeight: '600', fontSize: 14 }}>
+                      Total Duration:
+                    </Text>
+                    <Text style={{ color: '#fff', fontWeight: '600', fontSize: 14 }}>
+                      {services.reduce(
+                        (total, svc) =>
+                          total +
+                          ((svc.duration ? parseInt(svc.duration, 10) : 0) * (svc.quantity || 1)),
+                        0
+                      )}{' '}
+                      min
+                    </Text>
+                  </View>
+                  <View
+                    style={{
+                      flexDirection: 'row',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      marginTop: 2,
+                    }}
+                  >
+                    <Text style={{ color: '#fff', fontWeight: '600', fontSize: 14 }}>
+                      Total Price:
+                    </Text>
+                    <Text style={{ color: '#FFD700', fontWeight: '700', fontSize: 15 }}>
+                      $
+                      {services
+                        .reduce(
+                          (total, svc) =>
+                            total +
+                            ((parseFloat(svc.price) || 0) * (svc.quantity || 1)),
+                          0
+                        )
+                        .toFixed(2)}
+                    </Text>
+                  </View>
                 </View>
               )}
             </View>
