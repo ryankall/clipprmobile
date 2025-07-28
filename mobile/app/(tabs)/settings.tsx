@@ -173,6 +173,8 @@ export default function Settings() {
     confirmPassword: '',
   });
   const [stripeStatus, setStripeStatus] = useState<any>(null);
+  const [bookingLink, setBookingLink] = useState<string | null>(null);
+  const [bookingLinkLoading, setBookingLinkLoading] = useState(false);
   const [subscriptionStatus, setSubscriptionStatus] = useState<any>(null);
   const [isConnectingStripe, setIsConnectingStripe] = useState(false);
   const [expandedFAQ, setExpandedFAQ] = useState<string | null>(null);
@@ -218,6 +220,11 @@ export default function Settings() {
           : 5,
         transportationMode: data.transportationMode || 'driving',
       });
+      
+      // Load booking link if user has phone number
+      if (data?.phone) {
+        loadBookingLink();
+      }
     } catch (error) {
       console.error('Failed to load user profile:', error);
       Alert.alert('Error', 'Failed to load user profile');
@@ -325,7 +332,11 @@ export default function Settings() {
     try {
       await apiRequest('PATCH', '/api/user/profile', profileForm);
       setIsEditingProfile(false);
-      loadUserProfile();
+      await loadUserProfile();
+      // Reload booking link if phone number changed
+      if (profileForm.phone) {
+        loadBookingLink();
+      }
       Alert.alert('Success', 'Profile updated successfully');
     } catch (error: any) {
       Alert.alert('Error', error.message || 'Failed to update profile');
@@ -462,10 +473,32 @@ export default function Settings() {
     }
   };
 
+  // Load booking link from server
+  const loadBookingLink = async () => {
+    if (!user?.phone) return;
+    
+    setBookingLinkLoading(true);
+    try {
+      const response = await apiRequest<{ url: string; phone: string; businessName: string; shortUrl: string }>('GET', '/api/booking-link');
+      setBookingLink(response.url);
+    } catch (error: any) {
+      console.error('Failed to load booking link:', error);
+      // Fallback to placeholder if API fails
+      const cleanPhone = user.phone.replace(/\D/g, '');
+      const businessSlug = user.businessName?.toLowerCase().replace(/\s+/g, '') || 'clipcutman';
+      setBookingLink(`https://your-domain.com/book/${cleanPhone}-${businessSlug}`);
+    } finally {
+      setBookingLinkLoading(false);
+    }
+  };
+
   const copyBookingLink = () => {
-    if (user?.phone) {
-      const bookingUrl = `https://your-domain.com/book/${user.phone.replace(/\D/g, '')}-${user.businessName?.toLowerCase().replace(/\s+/g, '') || 'clipcutman'}`;
-      Clipboard.setString(bookingUrl);
+    const linkToCopy = bookingLink || (user?.phone ? 
+      `https://your-domain.com/book/${user.phone.replace(/\D/g, '')}-${user.businessName?.toLowerCase().replace(/\s+/g, '') || 'clipcutman'}` 
+      : '');
+    
+    if (linkToCopy) {
+      Clipboard.setString(linkToCopy);
       Alert.alert('Copied', 'Booking link copied to clipboard');
     }
   };
@@ -658,12 +691,18 @@ export default function Settings() {
               Share this link with clients to let them book appointments
             </Text>
             <View style={styles.bookingLinkBox}>
-              <Text style={styles.bookingLink} numberOfLines={2}>
-                {`https://your-domain.com/book/${user.phone.replace(/\D/g, '')}-${user.businessName?.toLowerCase().replace(/\s+/g, '') || 'clipcutman'}`}
-              </Text>
-              <TouchableOpacity onPress={copyBookingLink} style={styles.copyButton}>
-                <Ionicons name="copy-outline" size={20} color="#F59E0B" />
-              </TouchableOpacity>
+              {bookingLinkLoading ? (
+                <ActivityIndicator size="small" color="#F59E0B" />
+              ) : (
+                <>
+                  <Text style={styles.bookingLink} numberOfLines={2}>
+                    {bookingLink || `https://your-domain.com/book/${user.phone.replace(/\D/g, '')}-${user.businessName?.toLowerCase().replace(/\s+/g, '') || 'clipcutman'}`}
+                  </Text>
+                  <TouchableOpacity onPress={copyBookingLink} style={styles.copyButton}>
+                    <Ionicons name="copy-outline" size={20} color="#F59E0B" />
+                  </TouchableOpacity>
+                </>
+              )}
             </View>
           </View>
         ) : (

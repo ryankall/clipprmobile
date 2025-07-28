@@ -347,6 +347,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get booking link for mobile app
+  app.get('/api/booking-link', requireAuth, async (req, res) => {
+    try {
+      const userId = (req.user as any).id;
+      const user = await storage.getUser(userId);
+      
+      if (!user || !user.phone) {
+        return res.status(400).json({ message: "Phone number required to generate booking link" });
+      }
+
+      // Generate booking link using current domain
+      const protocol = req.headers['x-forwarded-proto'] || 'https';
+      const host = req.headers.host;
+      const baseUrl = `${protocol}://${host}`;
+      
+      const cleanPhone = user.phone.replace(/\D/g, '');
+      const businessSlug = user.businessName?.toLowerCase().replace(/\s+/g, '') || 'clipcutman';
+      const bookingUrl = `${baseUrl}/book/${cleanPhone}-${businessSlug}`;
+      
+      res.json({
+        url: bookingUrl,
+        phone: cleanPhone,
+        businessName: user.businessName || 'Clipcutman',
+        shortUrl: `/book/${cleanPhone}-${businessSlug}`
+      });
+    } catch (error: any) {
+      console.error("Error generating booking link:", error);
+      res.status(500).json({ message: "Failed to generate booking link" });
+    }
+  });
+
   // Contact form route (public)
   app.post("/api/contact", async (req, res) => {
     try {
