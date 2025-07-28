@@ -1,6 +1,6 @@
 import { db } from "./db";
-import { users, appointments, clients } from "../shared/schema.js";
-import { eq, and } from "drizzle-orm";
+import { users, appointments, clients, appointmentServices, services } from "../shared/schema.js";
+import { eq, and, gte, lte } from "drizzle-orm";
 import { format } from "date-fns";
 
 interface PushNotificationPayload {
@@ -192,13 +192,12 @@ export async function scheduleUpcomingAppointmentReminders(): Promise<void> {
     const thirtyMinutesFromNow = new Date(now.getTime() + 30 * 60 * 1000);
     const thirtyFiveMinutesFromNow = new Date(now.getTime() + 35 * 60 * 1000);
 
-    // Find appointments starting in 30-35 minutes
+    // Find appointments starting in 30-35 minutes  
     const upcomingAppointments = await db
       .select({
         id: appointments.id,
         userId: appointments.userId,
         scheduledAt: appointments.scheduledAt,
-        service: appointments.service,
         client: {
           name: clients.name
         }
@@ -208,13 +207,26 @@ export async function scheduleUpcomingAppointmentReminders(): Promise<void> {
       .where(
         and(
           eq(appointments.status, "confirmed"),
-          // scheduledAt between 30-35 minutes from now
+          gte(appointments.scheduledAt, thirtyMinutesFromNow),
+          lte(appointments.scheduledAt, thirtyFiveMinutesFromNow)
         )
       );
 
     for (const appointment of upcomingAppointments) {
       const appointmentTime = format(new Date(appointment.scheduledAt), "h:mm a");
-      const serviceType = appointment.service?.name || "Appointment";
+      
+      // Get service names for this appointment
+      const appointmentServices = await db
+        .select({
+          serviceName: services.name
+        })
+        .from(appointmentServices)
+        .leftJoin(services, eq(appointmentServices.serviceId, services.id))
+        .where(eq(appointmentServices.appointmentId, appointment.id));
+      
+      const serviceType = appointmentServices.length > 0 
+        ? appointmentServices.map(as => as.serviceName).join(", ")
+        : "Appointment";
       
       await sendUpcomingAppointmentReminder(
         appointment.userId.toString(),
