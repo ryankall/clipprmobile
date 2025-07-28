@@ -280,9 +280,43 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteClient(id: number): Promise<void> {
-    // Hard delete for now since deletedAt column doesn't exist
-    await db.delete(clients).where(eq(clients.id, id));
-    console.log('Deleted client:', id);
+    // Use a transaction to delete all related records first, then the client
+    await db.transaction(async (tx) => {
+      console.log(`Starting client deletion for ID: ${id}`);
+      
+      // Delete related appointment services first (via appointments)
+      const clientAppointments = await tx
+        .select({ id: appointments.id })
+        .from(appointments)
+        .where(eq(appointments.clientId, id));
+      
+      for (const appointment of clientAppointments) {
+        await tx
+          .delete(appointmentServices)
+          .where(eq(appointmentServices.appointmentId, appointment.id));
+        console.log(`Deleted appointment services for appointment: ${appointment.id}`);
+      }
+      
+      // Delete appointments
+      await tx.delete(appointments).where(eq(appointments.clientId, id));
+      console.log(`Deleted appointments for client: ${id}`);
+      
+      // Delete gallery photos
+      await tx.delete(galleryPhotos).where(eq(galleryPhotos.clientId, id));
+      console.log(`Deleted gallery photos for client: ${id}`);
+      
+      // Delete invoices
+      await tx.delete(invoices).where(eq(invoices.clientId, id));
+      console.log(`Deleted invoices for client: ${id}`);
+      
+      // Delete messages
+      await tx.delete(messages).where(eq(messages.clientId, id));
+      console.log(`Deleted messages for client: ${id}`);
+      
+      // Finally delete the client
+      await tx.delete(clients).where(eq(clients.id, id));
+      console.log(`Successfully deleted client: ${id}`);
+    });
   }
 
   async findClientByPhone(userId: number, phone: string): Promise<Client | undefined> {
