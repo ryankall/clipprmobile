@@ -164,10 +164,21 @@ export default function EnhancedBookingPage() {
 
   // Check for existing client when phone number changes (like book.tsx)
   useEffect(() => {
-    if (clientPhone.length >= 10 && selectedTime) {
-      checkClientMutation.mutate(clientPhone);
+    if (clientPhone.length >= 10) {
+      // Add a small delay to avoid too many API calls while typing
+      const timeoutId = setTimeout(() => {
+        checkClientMutation.mutate(clientPhone);
+      }, 500);
+      
+      return () => clearTimeout(timeoutId);
+    } else {
+      // Clear existing client data if phone number is too short
+      setExistingClient(null);
+      setClientName("");
+      setClientEmail("");
+      setClientAddress("");
     }
-  }, [clientPhone, selectedTime]);
+  }, [clientPhone]);
 
   // Generate next 7 days for date selection
   const availableDates = Array.from({ length: 14 }, (_, i) => {
@@ -430,6 +441,17 @@ export default function EnhancedBookingPage() {
                   <ArrowLeft className="w-4 h-4" />
                 </Button>
               </CardTitle>
+              {existingClient && (
+                <div className="bg-gold/10 border border-gold/20 rounded-lg p-3 mt-3">
+                  <div className="flex items-center text-gold">
+                    <CheckCircle className="w-4 h-4 mr-2" />
+                    <span className="font-medium">Welcome back, {existingClient.name}!</span>
+                  </div>
+                  <p className="text-gold/80 text-sm mt-1">
+                    We found your information from previous visits
+                  </p>
+                </div>
+              )}
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
