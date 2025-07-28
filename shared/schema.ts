@@ -240,8 +240,20 @@ export const bookingRequestLogs = pgTable("booking_request_logs", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+export const barberBookingUrls = pgTable("barber_booking_urls", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id),
+  urlSlug: text("url_slug").notNull().unique(), // e.g., "6467891820-clipcutman"
+  customName: text("custom_name"), // optional custom identifier
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => ({
+  userIdIndex: uniqueIndex("barber_booking_urls_user_id_idx").on(table.userId),
+}));
+
 // Relations
-export const usersRelations = relations(users, ({ many }) => ({
+export const usersRelations = relations(users, ({ many, one }) => ({
   clients: many(clients),
   services: many(services),
   appointments: many(appointments),
@@ -252,6 +264,7 @@ export const usersRelations = relations(users, ({ many }) => ({
   notifications: many(notifications),
   blockedClients: many(blockedClients),
   bookingRequestLogs: many(bookingRequestLogs),
+  bookingUrl: one(barberBookingUrls),
 }));
 
 export const clientsRelations = relations(clients, ({ one, many }) => ({
@@ -387,6 +400,13 @@ export const bookingRequestLogsRelations = relations(bookingRequestLogs, ({ one 
   }),
 }));
 
+export const barberBookingUrlsRelations = relations(barberBookingUrls, ({ one }) => ({
+  user: one(users, {
+    fields: [barberBookingUrls.userId],
+    references: [users.id],
+  }),
+}));
+
 // Insert schemas
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
@@ -463,6 +483,12 @@ export const insertBookingRequestLogSchema = createInsertSchema(bookingRequestLo
   createdAt: true,
 });
 
+export const insertBarberBookingUrlSchema = createInsertSchema(barberBookingUrls).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
 // Types
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
@@ -504,6 +530,9 @@ export type BlockedClient = typeof blockedClients.$inferSelect;
 
 export type InsertBookingRequestLog = z.infer<typeof insertBookingRequestLogSchema>;
 export type BookingRequestLog = typeof bookingRequestLogs.$inferSelect;
+
+export type InsertBarberBookingUrl = z.infer<typeof insertBarberBookingUrlSchema>;
+export type BarberBookingUrl = typeof barberBookingUrls.$inferSelect;
 
 // Extended types for API responses
 export type AppointmentWithRelations = Appointment & {

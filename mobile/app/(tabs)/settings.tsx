@@ -48,6 +48,7 @@ export default function Settings() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'profile' | 'notifications' | 'blocked' | 'payment' | 'subscription' | 'help'>('profile');
+  const [bookingUrl, setBookingUrl] = useState<any>(null);
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [isChangingPassword, setIsChangingPassword] = useState(false);
   const [showPhoneVerifyModal, setShowPhoneVerifyModal] = useState(false);
@@ -204,6 +205,15 @@ export default function Settings() {
         (data as any).phoneVerified = (data as any).phone_verified;
       }
       setUser(data);
+      
+      // Load booking URL data
+      try {
+        const bookingUrlData = await apiRequest<any>('GET', '/api/booking-url');
+        setBookingUrl(bookingUrlData);
+      } catch (bookingUrlError) {
+        console.log('No booking URL found:', bookingUrlError);
+        setBookingUrl(null);
+      }
       setProfileForm({
         businessName: data.businessName || '',
         email: data.email || '',
@@ -463,9 +473,8 @@ export default function Settings() {
   };
 
   const copyBookingLink = () => {
-    if (user?.phone) {
-      const bookingUrl = `https://your-domain.com/book/${user.phone.replace(/\D/g, '')}-${user.businessName?.toLowerCase().replace(/\s+/g, '') || 'clipcutman'}`;
-      Clipboard.setString(bookingUrl);
+    if (bookingUrl?.fullUrl) {
+      Clipboard.setString(bookingUrl.fullUrl);
       Alert.alert('Copied', 'Booking link copied to clipboard');
     }
   };
@@ -652,22 +661,27 @@ export default function Settings() {
       {/* Booking Link Section */}
       <View style={styles.card}>
         <Text style={styles.cardTitle}>Public Booking Link</Text>
-        {user?.phone ? (
+        {bookingUrl?.fullUrl ? (
           <View style={styles.bookingLinkContainer}>
             <Text style={styles.bookingLinkText}>
               Share this link with clients to let them book appointments
             </Text>
             <View style={styles.bookingLinkBox}>
               <Text style={styles.bookingLink} numberOfLines={2}>
-                {`https://your-domain.com/book/${user.phone.replace(/\D/g, '')}-${user.businessName?.toLowerCase().replace(/\s+/g, '') || 'clipcutman'}`}
+                {bookingUrl.fullUrl}
               </Text>
               <TouchableOpacity onPress={copyBookingLink} style={styles.copyButton}>
                 <Ionicons name="copy-outline" size={20} color="#F59E0B" />
               </TouchableOpacity>
             </View>
+            {!bookingUrl.isActive && (
+              <Text style={styles.warningText}>
+                ⚠️ URL is not active - clients cannot book yet
+              </Text>
+            )}
           </View>
         ) : (
-          <Text style={styles.noLinkText}>Add your phone number to generate your booking link</Text>
+          <Text style={styles.noLinkText}>Create your booking URL in settings to start accepting appointments</Text>
         )}
       </View>
 
@@ -2080,6 +2094,12 @@ const styles = StyleSheet.create({
     color: '#6B7280',
     textAlign: 'center',
     padding: 16,
+  },
+  warningText: {
+    fontSize: 12,
+    color: '#F59E0B',
+    textAlign: 'center',
+    marginTop: 8,
   },
   securityItem: {
     flexDirection: 'row',

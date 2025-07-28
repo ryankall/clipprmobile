@@ -10,6 +10,7 @@ import {
   messages,
   reservations,
   notifications,
+  barberBookingUrls,
   type User,
   type InsertUser,
   type Client,
@@ -32,6 +33,8 @@ import {
   type InsertReservation,
   type Notification,
   type InsertNotification,
+  type BarberBookingUrl,
+  type InsertBarberBookingUrl,
   type AppointmentWithRelations,
   type ClientWithStats,
   type DashboardStats,
@@ -133,6 +136,12 @@ export interface IStorage {
   createNotification(notification: InsertNotification): Promise<Notification>;
   markNotificationAsRead(id: number): Promise<Notification>;
   getUnreadNotificationCount(userId: number): Promise<number>;
+
+  // Barber Booking URLs
+  getBarberBookingUrl(userId: number): Promise<BarberBookingUrl | undefined>;
+  createBarberBookingUrl(bookingUrl: InsertBarberBookingUrl): Promise<BarberBookingUrl>;
+  updateBarberBookingUrl(userId: number, bookingUrl: Partial<InsertBarberBookingUrl>): Promise<BarberBookingUrl>;
+  getBarberByBookingSlug(urlSlug: string): Promise<User | undefined>;
 
   // Dashboard
   getDashboardStats(userId: number): Promise<DashboardStats>;
@@ -962,6 +971,60 @@ export class DatabaseStorage implements IStorage {
       .from(notifications)
       .where(and(eq(notifications.userId, userId), eq(notifications.isRead, false)));
     return result?.count || 0;
+  }
+
+  // Barber Booking URL methods
+  async getBarberBookingUrl(userId: number): Promise<BarberBookingUrl | undefined> {
+    const [bookingUrl] = await db
+      .select()
+      .from(barberBookingUrls)
+      .where(eq(barberBookingUrls.userId, userId));
+    return bookingUrl;
+  }
+
+  async createBarberBookingUrl(bookingUrl: InsertBarberBookingUrl): Promise<BarberBookingUrl> {
+    const [newBookingUrl] = await db
+      .insert(barberBookingUrls)
+      .values(bookingUrl)
+      .returning();
+    return newBookingUrl;
+  }
+
+  async updateBarberBookingUrl(userId: number, bookingUrl: Partial<InsertBarberBookingUrl>): Promise<BarberBookingUrl> {
+    const [updatedBookingUrl] = await db
+      .update(barberBookingUrls)
+      .set({
+        ...bookingUrl,
+        updatedAt: new Date(),
+      })
+      .where(eq(barberBookingUrls.userId, userId))
+      .returning();
+    return updatedBookingUrl;
+  }
+
+  async getBarberByBookingSlug(urlSlug: string): Promise<User | undefined> {
+    const [result] = await db
+      .select({
+        id: users.id,
+        email: users.email,
+        phone: users.phone,
+        businessName: users.businessName,
+        firstName: users.firstName,
+        lastName: users.lastName,
+        address: users.address,
+        photoUrl: users.photoUrl,
+        serviceArea: users.serviceArea,
+        about: users.about,
+        workingHours: users.workingHours,
+        timezone: users.timezone,
+      })
+      .from(barberBookingUrls)
+      .innerJoin(users, eq(barberBookingUrls.userId, users.id))
+      .where(and(
+        eq(barberBookingUrls.urlSlug, urlSlug),
+        eq(barberBookingUrls.isActive, true)
+      ));
+    return result;
   }
 
   async getClientStats(userId: number): Promise<{

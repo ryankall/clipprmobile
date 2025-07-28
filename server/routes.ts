@@ -3872,6 +3872,104 @@ Travel required: ${message && message.includes('Travel: Yes') ? 'Yes' : 'No'}`;
     }
   });
 
+  // Barber Booking URL Management
+  app.get("/api/booking-url", requireAuth, async (req, res) => {
+    try {
+      const userId = (req.user as any).id;
+      const bookingUrl = await storage.getBarberBookingUrl(userId);
+      
+      if (bookingUrl) {
+        res.json({
+          ...bookingUrl,
+          fullUrl: `${req.protocol}://${req.get('host')}/book/${bookingUrl.urlSlug}`
+        });
+      } else {
+        // Generate default booking URL based on phone number
+        const user = await storage.getUser(userId);
+        const defaultSlug = user?.phone?.replace(/\D/g, "") + "-clipcutman" || `user${userId}-clipcutman`;
+        
+        res.json({
+          urlSlug: defaultSlug,
+          fullUrl: `${req.protocol}://${req.get('host')}/book/${defaultSlug}`,
+          isActive: false
+        });
+      }
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/booking-url", requireAuth, async (req, res) => {
+    try {
+      const userId = (req.user as any).id;
+      const { urlSlug, customName } = req.body;
+      
+      if (!urlSlug) {
+        return res.status(400).json({ message: "URL slug is required" });
+      }
+      
+      // Check if URL slug is already taken by another user
+      const existingBarber = await storage.getBarberByBookingSlug(urlSlug);
+      if (existingBarber && existingBarber.id !== userId) {
+        return res.status(400).json({ message: "This URL is already taken by another barber" });
+      }
+      
+      // Check if user already has a booking URL
+      const existingUrl = await storage.getBarberBookingUrl(userId);
+      
+      let bookingUrl;
+      if (existingUrl) {
+        // Update existing URL
+        bookingUrl = await storage.updateBarberBookingUrl(userId, {
+          urlSlug,
+          customName,
+          isActive: true
+        });
+      } else {
+        // Create new URL
+        bookingUrl = await storage.createBarberBookingUrl({
+          userId,
+          urlSlug,
+          customName,
+          isActive: true
+        });
+      }
+      
+      res.json({
+        ...bookingUrl,
+        fullUrl: `${req.protocol}://${req.get('host')}/book/${bookingUrl.urlSlug}`
+      });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/barber/:urlSlug", async (req, res) => {
+    try {
+      const { urlSlug } = req.params;
+      const barber = await storage.getBarberByBookingSlug(urlSlug);
+      
+      if (!barber) {
+        return res.status(404).json({ message: "Barber not found" });
+      }
+      
+      // Return public barber information
+      res.json({
+        id: barber.id,
+        businessName: barber.businessName,
+        firstName: barber.firstName,
+        lastName: barber.lastName,
+        photoUrl: barber.photoUrl,
+        serviceArea: barber.serviceArea,
+        about: barber.about,
+        workingHours: barber.workingHours,
+        timezone: barber.timezone
+      });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
   // Start the reminder scheduler
   startReminderScheduler();
 
