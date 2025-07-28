@@ -1897,10 +1897,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const serviceNames =
         services?.map((s) => s.service.name).join(", ") || "Service";
 
+      // Create payment link for Stripe invoices
+      let paymentLink = null;
+      if (invoice.paymentMethod === "stripe") {
+        try {
+          // Create Stripe payment link for mobile-friendly payments
+          const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
+          const paymentLinkData = await stripe.paymentLinks.create({
+            line_items: [
+              {
+                price_data: {
+                  currency: 'usd',
+                  product_data: {
+                    name: `Clippr Invoice #${invoice.id}`,
+                    description: serviceNames,
+                  },
+                  unit_amount: Math.round(parseFloat(invoice.total) * 100),
+                },
+                quantity: 1,
+              },
+            ],
+            metadata: {
+              invoiceId: invoice.id.toString(),
+              clientId: client.id.toString(),
+            },
+          });
+          paymentLink = paymentLinkData.url;
+        } catch (stripeError) {
+          console.error("Failed to create Stripe payment link:", stripeError);
+        }
+      }
+
+      // Format SMS message with payment link
+      const smsMessage = paymentLink 
+        ? `Hi ${client.name}! Your Clippr invoice: ${serviceNames} - $${invoice.total}. Pay now: ${paymentLink}`
+        : `Hi ${client.name}! Your Clippr invoice: ${serviceNames} - $${invoice.total}. Payment method: ${invoice.paymentMethod}`;
+
       console.log(
         `SMS would be sent to ${client.phone} for invoice ${invoice.id}`,
       );
-      console.log(`Invoice details: ${serviceNames} - $${invoice.total}`);
+      console.log(`SMS Message: ${smsMessage}`);
 
       // In a real app, you would send SMS using Twilio or similar service
       // For now, we'll just simulate the SMS sending
@@ -1911,6 +1947,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           phone: client.phone,
           amount: invoice.total,
           services: serviceNames,
+          paymentLink: paymentLink,
+          smsMessage: smsMessage,
         },
       });
     } catch (error: any) {
@@ -1946,10 +1984,48 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const serviceNames =
         services?.map((s) => s.service.name).join(", ") || "Service";
 
+      // Create payment link for Stripe invoices
+      let paymentLink = null;
+      if (invoice.paymentMethod === "stripe") {
+        try {
+          // Create Stripe payment link for mobile-friendly payments
+          const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
+          const paymentLinkData = await stripe.paymentLinks.create({
+            line_items: [
+              {
+                price_data: {
+                  currency: 'usd',
+                  product_data: {
+                    name: `Clippr Invoice #${invoice.id}`,
+                    description: serviceNames,
+                  },
+                  unit_amount: Math.round(parseFloat(invoice.total) * 100),
+                },
+                quantity: 1,
+              },
+            ],
+            metadata: {
+              invoiceId: invoice.id.toString(),
+              clientId: client.id.toString(),
+            },
+          });
+          paymentLink = paymentLinkData.url;
+        } catch (stripeError) {
+          console.error("Failed to create Stripe payment link:", stripeError);
+        }
+      }
+
+      // Format email message with payment link
+      const emailSubject = `Clippr Invoice #${invoice.id} - $${invoice.total}`;
+      const emailMessage = paymentLink 
+        ? `Hi ${client.name}!\n\nYour Clippr invoice is ready:\n${serviceNames}\nTotal: $${invoice.total}\n\nPay now: ${paymentLink}\n\nThank you!`
+        : `Hi ${client.name}!\n\nYour Clippr invoice is ready:\n${serviceNames}\nTotal: $${invoice.total}\nPayment method: ${invoice.paymentMethod}\n\nThank you!`;
+
       console.log(
         `Email would be sent to ${client.email} for invoice ${invoice.id}`,
       );
-      console.log(`Invoice details: ${serviceNames} - $${invoice.total}`);
+      console.log(`Email Subject: ${emailSubject}`);
+      console.log(`Email Message: ${emailMessage}`);
 
       // In a real app, you would send email using SendGrid or similar service
       // For now, we'll just simulate the email sending
@@ -1960,6 +2036,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           email: client.email,
           amount: invoice.total,
           services: serviceNames,
+          paymentLink: paymentLink,
+          emailSubject: emailSubject,
+          emailMessage: emailMessage,
         },
       });
     } catch (error: any) {
