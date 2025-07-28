@@ -833,11 +833,21 @@ export default function InvoicePage() {
   }, [prefilledService, services, form]);
 
   const onSubmit = (data: z.infer<typeof invoiceFormSchema>) => {
+    console.log('=== FRONTEND INVOICE SUBMISSION DEBUG ===');
+    console.log('Form data:', data);
+    console.log('Selected services:', selectedServices);
+    console.log('Selected services length:', selectedServices.length);
+    console.log('Selected services structure:', JSON.stringify(selectedServices, null, 2));
+    
     // Include selected services in the invoice data
     const invoiceData = {
       ...data,
       items: selectedServices,
     };
+    
+    console.log('Final invoice data being sent:', JSON.stringify(invoiceData, null, 2));
+    console.log('=== END FRONTEND DEBUG ===');
+    
     createInvoiceMutation.mutate(invoiceData);
   };
 
