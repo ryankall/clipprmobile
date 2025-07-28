@@ -3437,9 +3437,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Get service details and calculate total duration
       const services = await storage.getServicesByUserId(user.id);
-      const requestedServices = services.filter((s) =>
-        selectedServices.includes(s.name),
-      );
+      
+      // Handle both service IDs and service names for backward compatibility
+      let requestedServices = [];
+      if (selectedServices.length > 0 && !isNaN(Number(selectedServices[0]))) {
+        // If first element is numeric, assume all are service IDs
+        requestedServices = services.filter((s) =>
+          selectedServices.includes(s.id.toString()),
+        );
+      } else {
+        // Otherwise, treat as service names (backward compatibility)
+        requestedServices = services.filter((s) =>
+          selectedServices.includes(s.name),
+        );
+      }
 
       let totalDuration = 0;
       const serviceIds = [];
@@ -3457,11 +3468,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Format the booking request message
       let requestMessage = `📅 Date: ${selectedDate}\n⏰ Time: ${selectedTime}\n`;
 
-      // Add services
-      if (selectedServices.length > 0) {
-        const serviceNames = services
-          .filter((s) => selectedServices.includes(s.name))
-          .map((s) => s.name);
+      // Add services (store service IDs in metadata, display current names)
+      if (requestedServices.length > 0) {
+        const serviceNames = requestedServices.map((s) => s.name);
         requestMessage += `✂️ Services: ${serviceNames.join(", ")}\n`;
       }
 
@@ -3553,6 +3562,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         status: "unread",
         priority: "normal",
         serviceRequested: selectedServices.join(", "),
+        serviceIds: serviceIds, // Store service IDs for future reference
         preferredDate: appointmentDateTime,
         notes: message || undefined,
       });

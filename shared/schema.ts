@@ -184,6 +184,7 @@ export const messages = pgTable("messages", {
   status: text("status").notNull().default("unread"), // unread, read, replied, archived
   priority: text("priority").notNull().default("normal"), // low, normal, high, urgent
   serviceRequested: text("service_requested"),
+  serviceIds: text("service_ids").array().default([]), // service IDs for booking requests
   preferredDate: timestamp("preferred_date"),
   notes: text("notes"),
   createdAt: timestamp("created_at").defaultNow(),

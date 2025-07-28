@@ -35,3 +35,20 @@ export const DEFAULT_QUICK_ACTION_MESSAGES = {
   runningLate: "Hi {client_name}, I'm running a few minutes late for your {appointment_time} appointment. Will be there shortly!",
   confirmation: "Hi {client_name}, confirming your appointment for {appointment_time} at {address} for {service}."
 };
+
+// Service ID resolution utility for messages
+export function resolveServiceNames(
+  serviceIds: string[], 
+  services: { id: number; name: string }[]
+): string {
+  if (!serviceIds || serviceIds.length === 0) return '';
+  
+  const serviceNames = serviceIds
+    .map(id => {
+      const service = services.find(s => s.id.toString() === id);
+      return service ? service.name : `Service ${id}`;
+    })
+    .filter(name => name);
+  
+  return serviceNames.join(", ");
+}
