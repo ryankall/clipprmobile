@@ -2933,10 +2933,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const phoneParam = req.params.phone;
       // Extract phone number from format like "6467891820-clipcutman"
       const phoneDigits = phoneParam.split("-")[0];
-      // Convert to formatted phone number like "(646) 789-1820"
-      const formattedPhone = `(${phoneDigits.slice(0, 3)}) ${phoneDigits.slice(3, 6)}-${phoneDigits.slice(6)}`;
-
-      const user = await storage.getUserByPhone(formattedPhone);
+      
+      // Try unformatted phone number first
+      let user = await storage.getUserByPhone(phoneDigits);
+      
+      // If not found, try formatted phone number for backward compatibility
+      if (!user) {
+        const formattedPhone = `(${phoneDigits.slice(0, 3)}) ${phoneDigits.slice(3, 6)}-${phoneDigits.slice(6)}`;
+        user = await storage.getUserByPhone(formattedPhone);
+      }
 
       if (!user) {
         return res.status(404).json({ message: "Barber not found" });
@@ -2964,8 +2969,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const phoneParam = req.params.phone;
       const phoneDigits = phoneParam.split("-")[0];
-      const formattedPhone = `(${phoneDigits.slice(0, 3)}) ${phoneDigits.slice(3, 6)}-${phoneDigits.slice(6)}`;
-      const user = await storage.getUserByPhone(formattedPhone);
+      
+      // Try unformatted phone number first
+      let user = await storage.getUserByPhone(phoneDigits);
+      
+      // If not found, try formatted phone number for backward compatibility
+      if (!user) {
+        const formattedPhone = `(${phoneDigits.slice(0, 3)}) ${phoneDigits.slice(3, 6)}-${phoneDigits.slice(6)}`;
+        user = await storage.getUserByPhone(formattedPhone);
+      }
 
       if (!user) {
         return res.status(404).json({ message: "Barber not found" });
@@ -2995,7 +3007,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const phoneParam = req.params.phone;
       const phoneDigits = phoneParam.split("-")[0];
-      const formattedPhone = `(${phoneDigits.slice(0, 3)}) ${phoneDigits.slice(3, 6)}-${phoneDigits.slice(6)}`;
       const date = req.query.date as string;
       const requestedTime = req.query.time as string;
       const clientAddress = req.query.address as string;
@@ -3006,7 +3017,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
           .json({ message: "Date and time parameters are required" });
       }
 
-      const user = await storage.getUserByPhone(formattedPhone);
+      // Try unformatted phone number first
+      let user = await storage.getUserByPhone(phoneDigits);
+      
+      // If not found, try formatted phone number for backward compatibility
+      if (!user) {
+        const formattedPhone = `(${phoneDigits.slice(0, 3)}) ${phoneDigits.slice(3, 6)}-${phoneDigits.slice(6)}`;
+        user = await storage.getUserByPhone(formattedPhone);
+      }
       if (!user) {
         return res.status(404).json({ message: "Barber not found" });
       }
@@ -3083,14 +3101,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const phoneParam = req.params.phone;
       const phoneDigits = phoneParam.split("-")[0];
-      const formattedPhone = `(${phoneDigits.slice(0, 3)}) ${phoneDigits.slice(3, 6)}-${phoneDigits.slice(6)}`;
       const date = req.query.date as string;
 
       if (!date) {
         return res.status(400).json({ message: "Date parameter is required" });
       }
 
-      const user = await storage.getUserByPhone(formattedPhone);
+      // Try unformatted phone number first
+      let user = await storage.getUserByPhone(phoneDigits);
+      
+      // If not found, try formatted phone number for backward compatibility
+      if (!user) {
+        const formattedPhone = `(${phoneDigits.slice(0, 3)}) ${phoneDigits.slice(3, 6)}-${phoneDigits.slice(6)}`;
+        user = await storage.getUserByPhone(formattedPhone);
+      }
 
       if (!user) {
         return res.status(404).json({ message: "Barber not found" });
@@ -3297,7 +3321,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const phoneParam = req.params.phone;
       const phoneDigits = phoneParam.split("-")[0];
-      const barberPhone = `(${phoneDigits.slice(0, 3)}) ${phoneDigits.slice(3, 6)}-${phoneDigits.slice(6)}`;
       const clientPhone = req.query.phone as string;
 
       if (!clientPhone) {
@@ -3306,7 +3329,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
           .json({ message: "Client phone number required" });
       }
 
-      const barber = await storage.getUserByPhone(barberPhone);
+      // Try unformatted phone number first
+      let barber = await storage.getUserByPhone(phoneDigits);
+      
+      // If not found, try formatted phone number for backward compatibility
+      if (!barber) {
+        const barberPhone = `(${phoneDigits.slice(0, 3)}) ${phoneDigits.slice(3, 6)}-${phoneDigits.slice(6)}`;
+        barber = await storage.getUserByPhone(barberPhone);
+      }
       if (!barber) {
         return res.status(404).json({ message: "Barber not found" });
       }
