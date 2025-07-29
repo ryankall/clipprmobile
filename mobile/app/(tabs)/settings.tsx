@@ -29,6 +29,8 @@ import { useAuth } from '../../hooks/useAuth';
 import { apiRequest } from '../../lib/api';
 import { User } from '../../lib/types';
 import * as ImagePicker from 'expo-image-picker';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useFocusEffect } from '@react-navigation/native';
 
 interface NotificationSettings {
   newBookingRequests: boolean;
@@ -138,7 +140,19 @@ export default function Settings() {
       setVerifyLoading(false);
     }
   };
-  const [blockedClients, setBlockedClients] = useState<BlockedClient[]>([]);
+  const queryClient = useQueryClient();
+  
+  // Use React Query for blocked clients
+  const {
+    data: blockedClients = [],
+    refetch: refetchBlockedClients,
+    isLoading: blockedClientsLoading,
+  } = useQuery<BlockedClient[]>({
+    queryKey: ['/api/anti-spam/blocked-clients'],
+    queryFn: () => apiRequest<BlockedClient[]>('GET', '/api/anti-spam/blocked-clients'),
+    refetchOnMount: true,
+    refetchOnWindowFocus: true,
+  });
   const [notificationSettings, setNotificationSettings] = useState<NotificationSettings>({
     newBookingRequests: true,
     appointmentConfirmations: true,
@@ -192,12 +206,19 @@ export default function Settings() {
   useEffect(() => {
     if (isAuthenticated) {
       loadUserProfile();
-      loadBlockedClients();
+      // No need to call loadBlockedClients, handled by React Query
       loadNotificationSettings();
       loadPaymentSettings();
       loadSubscriptionStatus();
     }
   }, [isAuthenticated]);
+  
+  // Refetch blocked clients when settings screen is focused
+  useFocusEffect(
+    React.useCallback(() => {
+      refetchBlockedClients();
+    }, [refetchBlockedClients])
+  );
 
   const loadUserProfile = async () => {
     try {
@@ -234,14 +255,7 @@ export default function Settings() {
     }
   };
 
-  const loadBlockedClients = async () => {
-    try {
-      const data = await apiRequest<BlockedClient[]>('GET', '/api/anti-spam/blocked-clients');
-      setBlockedClients(data);
-    } catch (error) {
-      console.error('Failed to load blocked clients:', error);
-    }
-  };
+  /* Removed loadBlockedClients, now handled by React Query */
 
   const loadNotificationSettings = async () => {
     try {
@@ -467,7 +481,8 @@ export default function Settings() {
   const handleUnblockClient = async (phoneNumber: string) => {
     try {
       await apiRequest('POST', '/api/anti-spam/unblock', { phoneNumber });
-      loadBlockedClients();
+      // Invalidate and refetch blocked clients list
+      queryClient.invalidateQueries({ queryKey: ['/api/anti-spam/blocked-clients'] });
       Alert.alert('Success', 'Client unblocked successfully');
     } catch (error) {
       Alert.alert('Error', 'Failed to unblock client');
@@ -857,51 +872,57 @@ export default function Settings() {
 
   const renderBlockedTab = () => (
     <View style={styles.tabContent}>
-      <FlatList
-        data={blockedClients}
-        keyExtractor={(client: BlockedClient) => client.id.toString()}
-        ListHeaderComponent={
-          <View style={styles.card}>
-            <Text style={styles.cardTitle}>Blocked Clients</Text>
-          </View>
-        }
-        ListEmptyComponent={
-          <View style={[styles.card, styles.emptyState]}>
-            <Ionicons name="shield-checkmark-outline" size={64} color="#10B981" />
-            <Text style={styles.emptyStateTitle}>No Blocked Clients</Text>
-            <Text style={styles.emptyStateText}>
-              You haven't blocked any clients yet. When you block a client, they will appear here.
-            </Text>
-          </View>
-        }
-        renderItem={({ item: client }: { item: BlockedClient }) => (
-          <View style={styles.card}>
-            <View style={styles.blockedClientItem}>
-              <View style={styles.blockedClientInfo}>
-                <View style={styles.blockedClientIcon}>
-                  <Ionicons name="shield-outline" size={24} color="#EF4444" />
-                </View>
-                <View style={styles.blockedClientDetails}>
-                  <Text style={styles.blockedClientPhone}>{client.phoneNumber}</Text>
-                  <Text style={styles.blockedClientDate}>
-                    Blocked {new Date(client.blockedAt).toLocaleDateString()}
-                  </Text>
-                  {client.reason && (
-                    <Text style={styles.blockedClientReason}>Reason: {client.reason}</Text>
-                  )}
-                </View>
-              </View>
-              <TouchableOpacity
-                style={styles.unblockButton}
-                onPress={() => handleUnblockClient(client.phoneNumber)}
-              >
-                <Text style={styles.unblockButtonText}>Unblock</Text>
-              </TouchableOpacity>
+      {blockedClientsLoading ? (
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', marginTop: 40 }}>
+          <ActivityIndicator size="large" color="#F59E0B" />
+        </View>
+      ) : (
+        <FlatList
+          data={blockedClients}
+          keyExtractor={(client: BlockedClient) => client.id.toString()}
+          ListHeaderComponent={
+            <View style={styles.card}>
+              <Text style={styles.cardTitle}>Blocked Clients</Text>
             </View>
-          </View>
-        )}
-        contentContainerStyle={{ paddingBottom: 16 }}
-      />
+          }
+          ListEmptyComponent={
+            <View style={[styles.card, styles.emptyState]}>
+              <Ionicons name="shield-checkmark-outline" size={64} color="#10B981" />
+              <Text style={styles.emptyStateTitle}>No Blocked Clients</Text>
+              <Text style={styles.emptyStateText}>
+                You haven't blocked any clients yet. When you block a client, they will appear here.
+              </Text>
+            </View>
+          }
+          renderItem={({ item: client }: { item: BlockedClient }) => (
+            <View style={styles.card}>
+              <View style={styles.blockedClientItem}>
+                <View style={styles.blockedClientInfo}>
+                  <View style={styles.blockedClientIcon}>
+                    <Ionicons name="shield-outline" size={24} color="#EF4444" />
+                  </View>
+                  <View style={styles.blockedClientDetails}>
+                    <Text style={styles.blockedClientPhone}>{client.phoneNumber}</Text>
+                    <Text style={styles.blockedClientDate}>
+                      Blocked {new Date(client.blockedAt).toLocaleDateString()}
+                    </Text>
+                    {client.reason && (
+                      <Text style={styles.blockedClientReason}>Reason: {client.reason}</Text>
+                    )}
+                  </View>
+                </View>
+                <TouchableOpacity
+                  style={styles.unblockButton}
+                  onPress={() => handleUnblockClient(client.phoneNumber)}
+                >
+                  <Text style={styles.unblockButtonText}>Unblock</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
+          contentContainerStyle={{ paddingBottom: 16 }}
+        />
+      )}
     </View>
   );
 

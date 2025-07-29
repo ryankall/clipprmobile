@@ -699,9 +699,22 @@ export default function Invoice() {
                     statusBg = '#2d230f';
                   }
                   let iconName: any = 'receipt-outline';
-                  if (invoice.paymentMethod === 'stripe') iconName = 'card-outline';
-                  else if (invoice.paymentMethod === 'apple_pay') iconName = 'phone-portrait-outline';
-                  else if (invoice.paymentMethod === 'cash') iconName = 'cash-outline';
+                  let iconColor: any = '#fff'
+                  if (invoice.paymentMethod === 'stripe')
+                  {
+                    iconName = 'card-outline';
+                    iconColor = '#306ff5ff'
+                  } 
+                  else if (invoice.paymentMethod === 'apple_pay') 
+                    {
+                      iconName = 'phone-portrait-outline';
+                      iconColor = '#c6c6c6ff'
+                    }
+                  else if (invoice.paymentMethod === 'cash')
+                  {
+                    iconName = 'cash-outline';
+                    iconColor = '#068f38ff'
+                  } 
 
                   // Format date
                   const date = new Date(invoice.createdAt);
@@ -748,7 +761,7 @@ export default function Invoice() {
                           width: 38, height: 38, borderRadius: 19, backgroundColor: '#232323',
                           alignItems: 'center', justifyContent: 'center', marginRight: 12
                         }}>
-                          <Ionicons name={iconName} size={20} color="#f59e0b" />
+                          <Ionicons name={iconName} size={20} color={iconColor} />
                         </View>
                         <View style={{ flex: 1 }}>
                           <Text style={{ color: '#fff', fontWeight: '600', fontSize: 16 }}>

@@ -32,7 +32,10 @@ export default function NewAppointment() {
   const [servicesLoading, setServicesLoading] = useState(true);
   const [serviceSelections, setServiceSelections] = useState<{ serviceId: number; quantity: number }[]>([]);
   const [serviceError, setServiceError] = useState<string | null>(null);
-  
+
+  // Notes field for prefill
+  const [notes, setNotes] = useState<string>("");
+
   // Date/time input
   const [date, setDate] = useState("");
   const [showDatePicker, setShowDatePicker] = useState(false);
@@ -95,6 +98,30 @@ export default function NewAppointment() {
     params.email
   ]);
 
+  // Prefill date, address, notes, travel, and combine date/time if present
+  useEffect(() => {
+    // Prefill address
+    if (params.address && typeof params.address === "string") {
+      setAddress(params.address);
+    }
+    // Prefill notes
+    if (params.notes && typeof params.notes === "string") {
+      setNotes(params.notes);
+    }
+    // Prefill travel
+    if (params.travel && (params.travel === "yes" || params.travel === "true")) {
+      setIncludeTravel(true);
+    }
+    // Prefill date/time
+    if (params.date && params.time) {
+      // Combine date and time into ISO string
+      const iso = new Date(`${params.date}T${params.time}`).toISOString();
+      setDate(iso);
+    } else if (params.date) {
+      setDate(params.date as string);
+    }
+  }, [params.address, params.notes, params.travel, params.date, params.time]);
+
   // Handler for selecting an existing client
   const handleSelectClient = (id: number) => {
     setSelectedClientId(id);
@@ -154,6 +181,39 @@ export default function NewAppointment() {
       return total + (svc?.duration || 0) * selection.quantity;
     }, 0);
   }
+
+  // Prefill services from params after services are loaded
+  useEffect(() => {
+    if (
+      !servicesLoading &&
+      services.length > 0 &&
+      params.services &&
+      Array.isArray(params.services)
+    ) {
+      // params.services is an array of service names
+      const serviceNames: string[] = params.services as string[];
+      const selections: { serviceId: number; quantity: number }[] = [];
+      serviceNames.forEach((name) => {
+        const svc = services.find((s) => s.name === name);
+        if (svc) {
+          // If already in selections, increment quantity
+          const idx = selections.findIndex(sel => sel.serviceId === svc.id);
+          if (idx >= 0) {
+            selections[idx].quantity += 1;
+          } else {
+            selections.push({ serviceId: svc.id, quantity: 1 });
+          }
+        }
+      });
+      // Handle customService param as a special service if needed
+      if (params.customService && typeof params.customService === "string") {
+        // Optionally, add as a custom service entry if your system supports it
+        // For now, just add to notes
+        setNotes((prev) => prev ? prev + "\nCustom Service: " + params.customService : "Custom Service: " + params.customService);
+      }
+      setServiceSelections(selections);
+    }
+  }, [servicesLoading, services, params.services, params.customService]);
 
   // Schedule conflict validation
   useEffect(() => {
@@ -295,6 +355,16 @@ export default function NewAppointment() {
           </Modal>
         </>
       )}
+
+      {/* Notes input (prefilled from params if present) */}
+      <Text style={styles.label}>Notes</Text>
+      <TextInput
+        style={styles.input}
+        placeholder="Notes"
+        value={notes}
+        onChangeText={setNotes}
+        multiline
+      />
       {/* Service Selection */}
       <Text style={styles.label}>Services</Text>
       <ServiceSelector

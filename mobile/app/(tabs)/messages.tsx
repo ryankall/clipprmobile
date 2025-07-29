@@ -1,17 +1,29 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, FlatList, StyleSheet, SafeAreaView, Modal } from 'react-native';
+import { View, Text, TouchableOpacity, FlatList, StyleSheet, SafeAreaView, Modal, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { apiRequest } from '../../lib/api';
+import { Client, Message as ApiMessage } from '../../lib/types';
+import { Alert } from 'react-native';
+import { formatDistanceToNow } from 'date-fns';
+import { useRouter } from 'expo-router';
 
 type Message = {
   id: number;
+  clientId?: number;
   customerName: string;
+  customerPhone?: string;
+  customerEmail?: string;
   subject: string;
   message: string;
   status: 'unread' | 'read' | 'replied' | 'archived';
   priority: 'low' | 'normal' | 'high' | 'urgent';
+  serviceRequested?: string;
+  preferredDate?: string;
+  notes?: string;
   createdAt: string;
-  customerPhone?: string;
-  customerEmail?: string;
+  readAt?: string;
+  repliedAt?: string;
 };
 
 const FILTERS = [
@@ -22,27 +34,7 @@ const FILTERS = [
   { key: 'archived', label: 'Archived' },
 ];
 
-// Example static messages for layout preview
-const STATIC_MESSAGES: Message[] = [
-  {
-    id: 1,
-    customerName: 'Jane Doe',
-    subject: 'Booking Inquiry',
-    message: 'Hi, I would like to book a haircut for next week.',
-    status: 'unread',
-    priority: 'high',
-    createdAt: '2025-07-19T14:00:00Z',
-  },
-  {
-    id: 2,
-    customerName: 'John Smith',
-    subject: 'Service Question',
-    message: 'Do you offer beard trims?',
-    status: 'read',
-    priority: 'normal',
-    createdAt: '2025-07-18T10:30:00Z',
-  },
-];
+// API integration: remove static messages
 
 function getPriorityColor(priority: string) {
   switch (priority) {
@@ -79,46 +71,299 @@ export default function Messages() {
   const [selectedMessage, setSelectedMessage] = useState<Message | null>(null);
   const [modalVisible, setModalVisible] = useState(false);
 
-  // For static UI, filter the static messages
+  const router = useRouter();
+  const queryClient = useQueryClient();
+
+  // --- Mutations for message actions ---
+
+  // Mark as read
+  const markAsReadMutation = useMutation({
+    mutationFn: (id: number) => apiRequest('PATCH', `/api/messages/${id}/read`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/messages'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/messages/unread-count'] });
+    },
+    onError: (error: any) => {
+      Alert.alert('Error', error.message || 'Failed to mark as read');
+    },
+  });
+
+  // Archive
+  const archiveMutation = useMutation({
+    mutationFn: (id: number) => apiRequest('PATCH', `/api/messages/${id}`, { status: 'archived' }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/messages'] });
+      Alert.alert('Archived', 'Message archived');
+    },
+    onError: (error: any) => {
+      Alert.alert('Error', error.message || 'Failed to archive message');
+    },
+  });
+
+  // Mark as replied
+  const repliedMutation = useMutation({
+    mutationFn: (id: number) => apiRequest('PATCH', `/api/messages/${id}`, { status: 'replied' }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/messages'] });
+      Alert.alert('Marked as Replied', 'Message marked as replied');
+    },
+    onError: (error: any) => {
+      Alert.alert('Error', error.message || 'Failed to mark as replied');
+    },
+  });
+
+  // Delete
+  const deleteMutation = useMutation({
+    mutationFn: (id: number) => apiRequest('DELETE', `/api/messages/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/messages'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/messages/unread-count'] });
+      setSelectedMessage(null);
+      setModalVisible(false);
+      Alert.alert('Deleted', 'Message deleted');
+    },
+    onError: (error: any) => {
+      Alert.alert('Error', error.message || 'Failed to delete message');
+    },
+  });
+
+  // Create client
+  const createClientMutation = useMutation({
+    mutationFn: async (message: Message) => {
+      const clientData = {
+        name: message.customerName,
+        phone: message.customerPhone || undefined,
+        email: message.customerEmail || undefined,
+        notes: '',
+      };
+      return await apiRequest('POST', '/api/clients', clientData);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/clients'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/messages'] });
+      Alert.alert('Client Created', 'New client has been added and linked to this message');
+    },
+    onError: (error: any) => {
+      Alert.alert('Error', error.message || 'Failed to create client');
+    },
+  });
+
+  // Block client
+  const blockClientMutation = useMutation({
+    mutationFn: ({ phoneNumber, reason }: { phoneNumber: string; reason?: string }) =>
+      apiRequest('POST', '/api/anti-spam/block', { phoneNumber, reason }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/anti-spam/blocked-clients'] });
+      Alert.alert('Blocked', 'Client has been blocked');
+    },
+    onError: (error: any) => {
+      Alert.alert('Error', error.message || 'Failed to block client');
+    },
+  });
+
+  // Unblock client
+  const unblockClientMutation = useMutation({
+    mutationFn: ({ phoneNumber }: { phoneNumber: string }) =>
+      apiRequest('POST', '/api/anti-spam/unblock', { phoneNumber }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/anti-spam/blocked-clients'] });
+      Alert.alert('Unblocked', 'Client has been unblocked');
+    },
+    onError: (error: any) => {
+      Alert.alert('Error', error.message || 'Failed to unblock client');
+    },
+  });
+
+  // Fetch messages
+  const { data: rawMessages = [], isLoading: messagesLoading, error: messagesError } = useQuery<any[]>({
+    queryKey: ['/api/messages'],
+    queryFn: () => apiRequest<any[]>('GET', '/api/messages'),
+    refetchInterval: 10000,
+  });
+
+  // Map API response to expected Message shape
+  const messages: Message[] = rawMessages.map((msg: any) => ({
+    id: msg.id,
+    clientId: msg.clientId,
+    customerName: msg.customerName,
+    customerPhone: msg.customerPhone,
+    customerEmail: msg.customerEmail,
+    subject: msg.subject,
+    message: msg.message,
+    status: msg.status,
+    priority: msg.priority,
+    serviceRequested: msg.serviceRequested,
+    preferredDate: msg.preferredDate,
+    notes: msg.notes,
+    createdAt: msg.createdAt,
+    readAt: msg.readAt,
+    repliedAt: msg.repliedAt,
+  }));
+
+  // Fetch clients
+  const { data: clients = [], isLoading: clientsLoading } = useQuery<Client[]>({
+    queryKey: ['/api/clients'],
+    queryFn: () => apiRequest<Client[]>('GET', '/api/clients'),
+  });
+
+  // Fetch blocked clients
+  const { data: blockedClients = [], isLoading: blockedLoading } = useQuery<any[]>({
+    queryKey: ['/api/anti-spam/blocked-clients'],
+    queryFn: () => apiRequest<any[]>('GET', '/api/anti-spam/blocked-clients'),
+  });
+
+  // Filter messages by status
   const filteredMessages =
     filter === 'all'
-      ? STATIC_MESSAGES
-      : STATIC_MESSAGES.filter((msg) => msg.status === filter);
+      ? messages
+      : messages.filter((msg) => msg.status === filter);
 
-  // Action handlers (stubbed for now)
+  // Action handlers using mutations
   const handleMarkAsReplied = (message: Message) => {
-    // TODO: Integrate with API
-    alert('Mark as Replied (stub)');
+    repliedMutation.mutate(message.id);
     setModalVisible(false);
   };
   const handleArchive = (message: Message) => {
-    // TODO: Integrate with API
-    alert('Archive (stub)');
+    archiveMutation.mutate(message.id);
     setModalVisible(false);
   };
   const handleCreateClient = (message: Message) => {
-    // TODO: Integrate with API
-    alert('Create Client (stub)');
+    createClientMutation.mutate(message);
     setModalVisible(false);
   };
   const handleBookAppointment = (message: Message) => {
-    // TODO: Integrate with API
-    alert('Book Appointment (stub)');
+    // Extract appointment details from message
+    const dateMatch = message.message.match(/📅 Date: (\d{4}-\d{2}-\d{2})/);
+    const timeMatch = message.message.match(/⏰ Time: (\d{1,2}:\d{2})/);
+    const servicesMatch = message.message.match(/✂️ Services: (.+?)(?:\n|$)/);
+    const addressMatch = message.message.match(/🚗 Travel: Yes - (.+?)(?:\n|$)/);
+    const travelNoMatch = message.message.match(/🚗 Travel: No(?:\n|$)/);
+    const customServiceMatch = message.message.match(/✂️ Custom Service: (.+?)(?:\n|$)/);
+    const messageNotesMatch = message.message.match(/💬 Message: (.+?)(?:\n|$)/);
+
+    if (!dateMatch || !timeMatch) {
+      Alert.alert('Error', 'Could not extract date and time from the booking request.');
+      setModalVisible(false);
+      return;
+    }
+
+    const selectedDate = dateMatch[1];
+    const selectedTime = timeMatch[1];
+    const services = servicesMatch ? servicesMatch[1].split(', ') : [];
+    const address = addressMatch ? addressMatch[1] : '';
+    const customService = customServiceMatch ? customServiceMatch[1] : '';
+    const notes = messageNotesMatch ? messageNotesMatch[1] : '';
+    const hasTravel = !!addressMatch;
+    const travelNo = !!travelNoMatch;
+
+    // Compose params for navigation
+    const params: Record<string, any> = {
+      clientId: message.clientId,
+      clientName: message.customerName,
+      phone: message.customerPhone,
+      email: message.customerEmail,
+      date: selectedDate,
+      time: selectedTime,
+      services: services,
+      customService: customService,
+      address: address,
+      notes: notes,
+      travel: hasTravel ? 'yes' : travelNo ? 'no' : undefined,
+    };
+
     setModalVisible(false);
+
+    // Navigate to the new appointment screen with params
+    router.push({
+      pathname: '/appointments/new',
+      params,
+    });
   };
   const handleBlockUnblock = (message: Message, blocked: boolean) => {
-    // TODO: Integrate with API
-    alert(blocked ? 'Unblock (stub)' : 'Block (stub)');
+    if (!message.customerPhone) return;
+    if (blocked) {
+      unblockClientMutation.mutate({ phoneNumber: message.customerPhone });
+    } else {
+      blockClientMutation.mutate({ phoneNumber: message.customerPhone, reason: 'Blocked from messages' });
+    }
     setModalVisible(false);
   };
   const handleDelete = (message: Message) => {
-    // TODO: Integrate with API
-    alert('Delete (stub)');
-    setModalVisible(false);
+    deleteMutation.mutate(message.id);
+    // setModalVisible(false) handled in mutation onSuccess
   };
 
-  // For static demo, assume phone is not blocked
-  const isPhoneBlocked = (phone: string) => false;
+  // Check if a phone number is blocked
+  const isPhoneBlocked = (phone: string) => {
+    return blockedClients.some((client: any) => client.phoneNumber === phone);
+  };
+// Mutation for updating client info from message content
+  const updateClientMutation = useMutation({
+    mutationFn: async ({ clientId, updateData }: { clientId: number; updateData: any }) => {
+      return await apiRequest('PATCH', `/api/clients/${clientId}`, updateData);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/clients'] });
+    },
+    onError: (error: any) => {
+      // Silently ignore phone verification errors for automatic updates
+      if (error.message && error.message.includes('Phone verification')) {
+        return;
+      }
+      // Log other errors
+      console.error('Error updating client info:', error);
+    },
+  });
+// Sync client info from message content when a message is selected
+  React.useEffect(() => {
+    if (selectedMessage && selectedMessage.customerPhone && clients.length > 0) {
+      const existingClient = clients.find(
+        (client) => client.phone === selectedMessage.customerPhone
+      );
+      if (existingClient) {
+        // Extract address from message content if present
+        let extractedAddress = '';
+        if (
+          selectedMessage.message &&
+          selectedMessage.message.includes('🚗 Travel: Yes')
+        ) {
+          const travelMatch = selectedMessage.message.match(/🚗 Travel: Yes - (.+?)(?:\n|$)/);
+          if (travelMatch) {
+            extractedAddress = travelMatch[1].trim();
+          }
+        }
+        // Prepare update data
+        const updateData: any = {};
+        if (
+          selectedMessage.customerName &&
+          selectedMessage.customerName !== existingClient.name
+        ) {
+          updateData.name = selectedMessage.customerName;
+        }
+        if (
+          selectedMessage.customerEmail &&
+          selectedMessage.customerEmail !== existingClient.email
+        ) {
+          updateData.email = selectedMessage.customerEmail;
+        }
+        if (extractedAddress && extractedAddress !== existingClient.address) {
+          updateData.address = extractedAddress;
+        }
+        if (Object.keys(updateData).length > 0) {
+          // Use the mutation to update client info
+          updateClientMutation.mutate({ clientId: existingClient.id, updateData });
+        }
+        // Mark as read if unread
+        if (selectedMessage.status === 'unread') {
+          markAsReadMutation.mutate(selectedMessage.id);
+        }
+      } else if (selectedMessage.status === 'unread') {
+        // Mark as read if no client found
+        markAsReadMutation.mutate(selectedMessage.id);
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedMessage, clients]);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -130,11 +375,11 @@ export default function Messages() {
         </View>
         <View style={styles.unreadBadge}>
           <Text style={styles.unreadBadgeText}>
-            {STATIC_MESSAGES.filter((m) => m.status === 'unread').length} unread
+            {messages.filter((m) => m.status === 'unread').length} unread
           </Text>
         </View>
       </View>
-
+ 
       {/* Filter Tabs */}
       <View style={styles.filterTabs}>
         {FILTERS.map((f) => (
@@ -158,85 +403,106 @@ export default function Messages() {
             {f.key !== 'all' && (
               <View style={styles.filterBadge}>
                 <Text style={styles.filterBadgeText}>
-                  {STATIC_MESSAGES.filter((m) => m.status === f.key).length}
+                  {messages.filter((m) => m.status === f.key).length}
                 </Text>
               </View>
             )}
           </TouchableOpacity>
         ))}
       </View>
-
+ 
+      {/* Loading/Error States */}
+      {(messagesLoading || clientsLoading || blockedLoading) && (
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+          <ActivityIndicator size="large" color="#F59E0B" />
+        </View>
+      )}
+      {messagesError && (
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+          <Text style={{ color: '#EF4444', fontSize: 16, marginTop: 20 }}>
+            Failed to load messages.
+          </Text>
+        </View>
+      )}
+ 
       {/* Messages List */}
-      <FlatList
-        data={filteredMessages}
-        keyExtractor={(item) => item.id.toString()}
-        contentContainerStyle={styles.listContent}
-        ListEmptyComponent={
-          <View style={styles.emptyCard}>
-            <Ionicons name="chatbubble-ellipses-outline" size={48} color="#9CA3AF" style={{ marginBottom: 12 }} />
-            <Text style={styles.emptyTitle}>No messages found</Text>
-            <Text style={styles.emptyText}>
-              {filter === 'all'
-                ? "You haven't received any customer messages yet."
-                : `No ${filter} messages at the moment.`}
-            </Text>
-          </View>
-        }
-        renderItem={({ item }) => (
-          <TouchableOpacity
-            onPress={() => {
-              setSelectedMessage(item);
-              setModalVisible(true);
-            }}
-            activeOpacity={0.85}
-          >
-            <View
-              style={[
-                styles.messageCard,
-                item.status === 'unread' && styles.messageCardUnread,
-              ]}
+      {!messagesLoading && !messagesError && (
+        <FlatList
+          data={filteredMessages}
+          keyExtractor={(item) => item.id.toString()}
+          contentContainerStyle={styles.listContent}
+          ListEmptyComponent={
+            <View style={styles.emptyCard}>
+              <Ionicons name="chatbubble-ellipses-outline" size={48} color="#9CA3AF" style={{ marginBottom: 12 }} />
+              <Text style={styles.emptyTitle}>No messages found</Text>
+              <Text style={styles.emptyText}>
+                {filter === 'all'
+                  ? "You haven't received any customer messages yet."
+                  : `No ${filter} messages at the moment.`}
+              </Text>
+            </View>
+          }
+          renderItem={({ item }) => (
+            <TouchableOpacity
+              onPress={() => {
+                setSelectedMessage(item);
+                if (item.status === 'unread') {
+                  markAsReadMutation.mutate(item.id);
+                }
+                setModalVisible(true);
+              }}
+              activeOpacity={0.85}
             >
-              <View style={styles.messageRow}>
-                <View
-                  style={{
-                    width: 10,
-                    height: 10,
-                    borderRadius: 5,
-                    backgroundColor: getPriorityColor(item.priority),
-                    marginRight: 6,
-                  }}
-                />
-                {getStatusIcon(item.status, item.status === 'unread' ? '#F59E0B' : '#9CA3AF')}
+              <View
+                style={[
+                  styles.messageCard,
+                  item.status === 'unread' && styles.messageCardUnread,
+                ]}
+              >
+                <View style={styles.messageRow}>
+                  <View
+                    style={{
+                      width: 10,
+                      height: 10,
+                      borderRadius: 5,
+                      backgroundColor: getPriorityColor(item.priority),
+                      marginRight: 6,
+                    }}
+                  />
+                  {getStatusIcon(item.status, item.status === 'unread' ? '#F59E0B' : '#9CA3AF')}
+                  <Text
+                    style={[
+                      styles.customerName,
+                      item.status === 'unread' ? styles.textWhite : styles.textSteel,
+                      { marginRight: 8 },
+                    ]}
+                    numberOfLines={1}
+                  >
+                    {item.customerName}
+                  </Text>
+                  <View style={{ flex: 1 }} />
+                  <Text style={styles.timeAgo}>
+                    {formatDistanceToNow(new Date(item.createdAt), { addSuffix: true })}
+                  </Text>
+                </View>
                 <Text
                   style={[
-                    styles.customerName,
+                    styles.subject,
                     item.status === 'unread' ? styles.textWhite : styles.textSteel,
-                    { marginRight: 8 },
                   ]}
                   numberOfLines={1}
                 >
-                  {item.customerName}
+                  {item.subject}
                 </Text>
-                <View style={{ flex: 1 }} />
-                <Text style={styles.timeAgo}>1d ago</Text>
+                <Text style={styles.messagePreview} numberOfLines={2}>
+                  {item.message}
+                </Text>
               </View>
-              <Text
-                style={[
-                  styles.subject,
-                  item.status === 'unread' ? styles.textWhite : styles.textSteel,
-                ]}
-                numberOfLines={1}
-              >
-                {item.subject}
-              </Text>
-              <Text style={styles.messagePreview} numberOfLines={2}>
-                {item.message}
-              </Text>
-            </View>
-          </TouchableOpacity>
-        )}
-      />
-
+            </TouchableOpacity>
+          )}
+        />
+      )}
+ 
       {/* Message Detail Modal */}
       {selectedMessage && (
         <Modal
