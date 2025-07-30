@@ -212,5 +212,84 @@ it('does NOT send a mark-as-read request when opening an already read message', 
       expect.objectContaining({ method: 'PATCH' })
     );
   });
+  it('shows "Book Appointment" button only for new booking request messages', async () => {
+    // Booking request message (contains booking details)
+    const bookingRequestMessage = {
+      id: 101,
+      clientId: 10,
+      customerName: 'Alice Booking',
+      subject: 'New Booking Request',
+      message:
+        '📅 Date: 2025-08-01\n⏰ Time: 14:00\n✂️ Services: Haircut, Beard Trim\n🚗 Travel: Yes - 123 Main St\n💬 Message: Please confirm.',
+      status: 'unread',
+      priority: 'normal',
+      createdAt: new Date().toISOString(),
+    };
+    // Generic message (not a booking request)
+    const genericMessage = {
+      id: 102,
+      clientId: 11,
+      customerName: 'Bob Generic',
+      subject: 'General Inquiry',
+      message: 'Hi, I have a question about your services.',
+      status: 'unread',
+      priority: 'normal',
+      createdAt: new Date().toISOString(),
+    };
+
+    const fetchMock = vi.fn((url, options) => {
+      if (url.includes('/api/messages') && (!options || options.method === 'GET')) {
+        return Promise.resolve({
+          ok: true,
+          text: () => Promise.resolve(JSON.stringify([bookingRequestMessage, genericMessage])),
+        });
+      }
+      return Promise.resolve({
+        ok: true,
+        text: () => Promise.resolve('{}'),
+      });
+    });
+    global.fetch = fetchMock as any;
+
+    const { findByText, getByText, queryByText } = render(<Messages />);
+
+    // Open booking request message modal
+    const bookingSubject = await findByText('New Booking Request');
+    const bookingCard = bookingSubject.parent?.parent;
+    const bookingTouchable = bookingCard?.parent;
+    expect(bookingTouchable).toBeTruthy();
+    if (!bookingTouchable) throw new Error('Could not find TouchableOpacity for booking request card');
+    fireEvent.press(bookingTouchable);
+
+    // Modal should show "Book Appointment" button
+    const bookButton = await findByText('Book Appointment');
+    expect(bookButton).toBeTruthy();
+
+    // Close modal using the close button (find by icon, as in other tests)
+    const { getAllByRole } = require('@testing-library/react-native');
+    const modalButtons = getAllByRole('button');
+    const closeButton = modalButtons.find((btn: any) =>
+      Array.isArray(btn.props.children)
+        ? btn.props.children.some(
+            (child: any) => child && child.props && child.props.name === 'close'
+          )
+        : btn.props.children && btn.props.children.props && btn.props.children.props.name === 'close'
+    );
+    expect(closeButton).toBeTruthy();
+    if (!closeButton) throw new Error('Could not find close button in modal');
+    fireEvent.press(closeButton);
+
+    // Open generic message modal
+    const genericSubject = await findByText('General Inquiry');
+    const genericCard = genericSubject.parent?.parent;
+    const genericTouchable = genericCard?.parent;
+    expect(genericTouchable).toBeTruthy();
+    if (!genericTouchable) throw new Error('Could not find TouchableOpacity for generic message card');
+    fireEvent.press(genericTouchable);
+
+    // "Book Appointment" button should NOT be present for generic message (per requirements)
+    // However, current implementation always renders it, so this will fail unless code is updated.
+    expect(queryByText('Book Appointment')).toBeNull();
+  });
 });
 });

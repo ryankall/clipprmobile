@@ -84,17 +84,26 @@ declare global {
   var AsyncStorage: any;
   var expo: any;
   var ReactNative: any;
-  var window: any;
-  var document: any;
-  var location: any;
-  var navigator: any;
 }
 
 // Mock browser globals for tests that need them
 const mockLocalStorage = new Map<string, string>();
 
-global.window = {
-  localStorage: {
+/**
+ * The following browser globals (window, document, location, navigator) are provided by jsdom in Vitest.
+ * Overwriting them can cause issues and is unnecessary unless you need to patch specific properties.
+ * Only patch what is required for your tests.
+ */
+
+/**
+ * Ensure window exists for environments where it may be undefined (e.g., Node.js).
+ */
+if (typeof window === 'undefined') {
+  (global as any).window = {};
+}
+// Patch window.localStorage if needed
+if (typeof window !== 'undefined') {
+  window.localStorage = {
     getItem: vi.fn((key: string) => mockLocalStorage.get(key) || null),
     setItem: vi.fn((key: string, value: string) => {
       mockLocalStorage.set(key, value);
@@ -105,46 +114,77 @@ global.window = {
     clear: vi.fn(() => {
       mockLocalStorage.clear();
     }),
-  },
-  location: {
-    href: 'http://localhost:3000/mobile',
-    pathname: '/mobile',
-    search: '',
-    hash: '',
-    assign: vi.fn(),
-    replace: vi.fn(),
-    reload: vi.fn(),
-  },
-  history: {
-    pushState: vi.fn(),
-    replaceState: vi.fn(),
-    back: vi.fn(),
-  },
-  alert: vi.fn(),
-  confirm: vi.fn(() => true),
-};
+  } as any;
+}
+if (typeof global !== 'undefined') {
+  (global as any).localStorage = (typeof window !== 'undefined' ? window.localStorage : {
+    getItem: vi.fn((key: string) => mockLocalStorage.get(key) || null),
+    setItem: vi.fn((key: string, value: string) => {
+      mockLocalStorage.set(key, value);
+    }),
+    removeItem: vi.fn((key: string) => {
+      mockLocalStorage.delete(key);
+    }),
+    clear: vi.fn(() => {
+      mockLocalStorage.clear();
+    }),
+  });
+}
 
-global.document = {
-  createElement: vi.fn(() => ({
-    setAttribute: vi.fn(),
-    addEventListener: vi.fn(),
-    removeEventListener: vi.fn(),
-  })),
-  getElementById: vi.fn(),
-  querySelector: vi.fn(),
-  querySelectorAll: vi.fn(() => []),
-  body: {
-    appendChild: vi.fn(),
-    removeChild: vi.fn(),
-  },
-};
+// Patch window.alert and window.confirm if needed
+if (typeof window !== 'undefined') {
+  window.alert = vi.fn();
+  window.confirm = vi.fn(() => true);
+}
 
-global.navigator = {
-  userAgent: 'Mozilla/5.0 (Mobile; Mobile Test)',
-  platform: 'Mobile',
-};
+// Patch window.location if your tests depend on it
+if (typeof window !== 'undefined' && window.location) {
+  Object.defineProperty(window, 'location', {
+    value: {
+      href: 'http://localhost:3000/mobile',
+      pathname: '/mobile',
+      search: '',
+      hash: '',
+      assign: vi.fn(),
+      replace: vi.fn(),
+      reload: vi.fn(),
+    },
+    writable: true,
+    configurable: true,
+  });
+}
 
-global.location = global.window.location;
+// Patch window.history if needed
+if (typeof window !== 'undefined') {
+  if (typeof window.history === 'undefined') {
+    window.history = {
+      length: 0,
+      scrollRestoration: 'auto',
+      state: null,
+      back: vi.fn(),
+      forward: vi.fn(),
+      go: vi.fn(),
+      pushState: vi.fn(),
+      replaceState: vi.fn(),
+    } as History;
+  } else {
+    window.history.pushState = vi.fn();
+    window.history.replaceState = vi.fn();
+    window.history.back = vi.fn();
+  }
+}
+
+// Patch navigator properties if needed
+if (typeof navigator !== 'undefined') {
+  Object.defineProperty(navigator, 'userAgent', {
+    value: 'Mozilla/5.0 (Mobile; Mobile Test)',
+    configurable: true,
+  });
+  Object.defineProperty(navigator, 'platform', {
+    value: 'Mobile',
+    configurable: true,
+  });
+}
 
 global.AsyncStorage = {
   setItem: vi.fn((key: string, value: string) => {
@@ -173,6 +213,9 @@ global.AsyncStorage = {
 };
 
 // Mock Expo modules
+/**
+ * Only assign global.expo if your tests require it.
+ */
 global.expo = {
   Constants: {
     expoConfig: {
@@ -195,6 +238,9 @@ global.expo = {
 };
 
 // Mock React Native components
+/**
+ * Only assign global.ReactNative if your tests require it.
+ */
 global.ReactNative = {
   Platform: { OS: 'ios' },
   Dimensions: {

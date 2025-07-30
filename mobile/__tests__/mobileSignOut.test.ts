@@ -1,12 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 
-// Mock localStorage
-const mockLocalStorage = {
-  getItem: vi.fn(),
-  setItem: vi.fn(),
-  removeItem: vi.fn(),
-  clear: vi.fn(),
-};
 
 // Mock window.location
 const mockLocation = {
@@ -24,22 +17,20 @@ describe('Mobile Sign Out Behavior', () => {
   beforeEach(() => {
     // Reset all mocks
     vi.clearAllMocks();
-    
+
     // Reset location href
     mockLocation.href = '';
-    
-    // Mock localStorage
-    Object.defineProperty(window, 'localStorage', {
-      value: mockLocalStorage,
-      writable: true,
-    });
-    
+
+    // Spy on localStorage.removeItem
+    vi.restoreAllMocks();
+    vi.spyOn(window.localStorage, 'removeItem').mockImplementation(() => {});
+
     // Mock window.location
     Object.defineProperty(window, 'location', {
       value: mockLocation,
       writable: true,
     });
-    
+
     // Mock console methods
     console.log = vi.fn();
     console.error = vi.fn();
@@ -62,7 +53,7 @@ describe('Mobile Sign Out Behavior', () => {
     handleSignOut();
 
     // Verify token removal
-    expect(mockLocalStorage.removeItem).toHaveBeenCalledWith('token');
+    expect(window.localStorage.removeItem).toHaveBeenCalledWith('token');
     
     // Verify redirect to mobile interface
     expect(mockLocation.href).toBe('/mobile');
@@ -95,8 +86,8 @@ describe('Mobile Sign Out Behavior', () => {
     handleSignOut();
 
     // Verify token is cleared
-    expect(mockLocalStorage.removeItem).toHaveBeenCalledWith('token');
-    expect(mockLocalStorage.removeItem).toHaveBeenCalledTimes(1);
+    expect(window.localStorage.removeItem).toHaveBeenCalledWith('token');
+    expect(window.localStorage.removeItem).toHaveBeenCalledTimes(1);
   });
 
   it('should handle sign out with confirmation dialog', () => {
@@ -123,7 +114,7 @@ describe('Mobile Sign Out Behavior', () => {
     expect(mockConfirm).toHaveBeenCalledWith('Are you sure you want to sign out?');
     
     // Verify token removal and redirect
-    expect(mockLocalStorage.removeItem).toHaveBeenCalledWith('token');
+    expect(window.localStorage.removeItem).toHaveBeenCalledWith('token');
     expect(mockLocation.href).toBe('/mobile');
   });
 
@@ -151,7 +142,7 @@ describe('Mobile Sign Out Behavior', () => {
     expect(mockConfirm).toHaveBeenCalledWith('Are you sure you want to sign out?');
     
     // Verify token was NOT removed and no redirect occurred
-    expect(mockLocalStorage.removeItem).not.toHaveBeenCalled();
+    expect(window.localStorage.removeItem).not.toHaveBeenCalled();
     expect(mockLocation.href).toBe(''); // Should remain empty since cancelled
   });
 
@@ -185,7 +176,7 @@ describe('Mobile Sign Out Behavior', () => {
 
   it('should handle sign out errors gracefully', () => {
     // Mock localStorage.removeItem to throw error
-    mockLocalStorage.removeItem.mockImplementation(() => {
+    (window.localStorage.removeItem as any).mockImplementation(() => {
       throw new Error('Storage error');
     });
 
@@ -212,22 +203,11 @@ describe('Mobile Sign Out Behavior', () => {
   });
 
   it('should clear all user-related data on sign out', () => {
-    // Reset localStorage mock for this test
-    const freshMockLocalStorage = {
-      getItem: vi.fn(),
-      setItem: vi.fn(),
-      removeItem: vi.fn(),
-      clear: vi.fn(),
-    };
-    
-    Object.defineProperty(window, 'localStorage', {
-      value: freshMockLocalStorage,
-      writable: true,
-    });
-
-    // Mock additional user data in localStorage
-    freshMockLocalStorage.getItem.mockImplementation((key) => {
-      const data = {
+    // Reset localStorage for this test
+    vi.restoreAllMocks();
+    vi.spyOn(window.localStorage, 'removeItem').mockImplementation(() => {});
+    vi.spyOn(window.localStorage, 'getItem').mockImplementation((key: string) => {
+      const data: Record<string, string> = {
         'token': 'user-token',
         'user-preferences': '{"theme":"dark"}',
         'notification-settings': '{"enabled":true}',
@@ -253,34 +233,25 @@ describe('Mobile Sign Out Behavior', () => {
     handleComprehensiveSignOut();
 
     // Verify all data is cleared
-    expect(freshMockLocalStorage.removeItem).toHaveBeenCalledWith('token');
-    expect(freshMockLocalStorage.removeItem).toHaveBeenCalledWith('user-preferences');
-    expect(freshMockLocalStorage.removeItem).toHaveBeenCalledWith('notification-settings');
+    expect(window.localStorage.removeItem).toHaveBeenCalledWith('token');
+    expect(window.localStorage.removeItem).toHaveBeenCalledWith('user-preferences');
+    expect(window.localStorage.removeItem).toHaveBeenCalledWith('notification-settings');
     
     // Verify redirect to mobile interface
     expect(mockLocation.href).toBe('/mobile');
   });
 
   it('should handle sign out from different mobile tabs', () => {
-    // Reset localStorage mock for this test
-    const freshMockLocalStorage = {
-      getItem: vi.fn(),
-      setItem: vi.fn(),
-      removeItem: vi.fn(),
-      clear: vi.fn(),
-    };
-    
-    Object.defineProperty(window, 'localStorage', {
-      value: freshMockLocalStorage,
-      writable: true,
-    });
+    // Reset localStorage for this test
+    vi.restoreAllMocks();
+    vi.spyOn(window.localStorage, 'removeItem').mockImplementation(() => {});
 
     const tabs = ['dashboard', 'calendar', 'clients', 'services', 'settings'];
-    
+
     tabs.forEach(tab => {
       // Reset location mock
       mockLocation.href = '';
-      
+
       // Simulate sign out from different tab
       const handleSignOutFromTab = (currentTab: string) => {
         console.log(`Signing out from ${currentTab} tab`);
@@ -292,29 +263,20 @@ describe('Mobile Sign Out Behavior', () => {
       handleSignOutFromTab(tab);
 
       // Verify consistent behavior regardless of tab
-      expect(freshMockLocalStorage.removeItem).toHaveBeenCalledWith('token');
+      expect(window.localStorage.removeItem).toHaveBeenCalledWith('token');
       expect(mockLocation.href).toBe('/mobile');
       expect(console.log).toHaveBeenCalledWith(`Signing out from ${tab} tab`);
     });
   });
 
   it('should preserve mobile interface URL parameters on sign out', () => {
-    // Reset localStorage mock for this test
-    const freshMockLocalStorage = {
-      getItem: vi.fn(),
-      setItem: vi.fn(),
-      removeItem: vi.fn(),
-      clear: vi.fn(),
-    };
-    
-    Object.defineProperty(window, 'localStorage', {
-      value: freshMockLocalStorage,
-      writable: true,
-    });
+    // Reset localStorage for this test
+    vi.restoreAllMocks();
+    vi.spyOn(window.localStorage, 'removeItem').mockImplementation(() => {});
 
     // Mock current URL with parameters
     const originalURL = window.location.href;
-    
+
     // Simulate sign out while preserving mobile interface
     const handleSignOutWithURLPreservation = () => {
       localStorage.removeItem('token');

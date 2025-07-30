@@ -18,6 +18,7 @@ import { apiRequest } from '../../lib/api';
 import { Service } from '../../lib/types';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { colors, theme } from '../../lib/theme';
+import { Parser } from 'date-fns/parse/_lib/Parser';
 
 // --- Invoice and Client Types ---
 type PaymentStatus = 'paid' | 'unpaid';
@@ -415,6 +416,10 @@ export default function Invoice() {
   // Track if modal has been opened from params to prevent reopening after close
   const [hasOpenedFromParams, setHasOpenedFromParams] = useState(false);
 
+  // Default Templates State (fetched from server)
+  const [defaultTemplates, setDefaultTemplates] = useState<any[]>([]);
+  const [defaultTemplatesLoading, setDefaultTemplatesLoading] = useState(false);
+
   // Service Template Management Modal
   const [showServiceModal, setShowServiceModal] = useState(false);
   const [editingService, setEditingService] = useState<Service | null>(null);
@@ -484,6 +489,7 @@ export default function Invoice() {
       loadServices();
       loadCustomTemplates();
       loadInvoicesAndClients();
+      loadDefaultTemplates();
     }
   }, [isAuthenticated]);
 
@@ -502,6 +508,20 @@ export default function Invoice() {
       setClients([]);
     } finally {
       setInvoicesLoading(false);
+    }
+  };
+
+  // Fetch default templates from server
+  const loadDefaultTemplates = async () => {
+    setDefaultTemplatesLoading(true);
+    try {
+      // Replace endpoint with actual if different
+      const templates = await apiRequest<any[]>('GET', '/api/invoice/templates/default');
+      setDefaultTemplates(Array.isArray(templates) ? templates : []);
+    } catch (e) {
+      setDefaultTemplates([]);
+    } finally {
+      setDefaultTemplatesLoading(false);
     }
   };
 
@@ -524,14 +544,14 @@ export default function Invoice() {
   };
 
   const handleCreateTemplate = async () => {
-    if (!templateName.trim() || !templateAmount.trim() || templateServiceIds.length === 0) {
+    if (!templateName.trim() ||templateServiceIds.length === 0) {
       Alert.alert('All fields are required');
       return;
     }
     const newTemplate = {
       id: Date.now(),
       name: templateName.trim(),
-      amount: templateAmount.trim(),
+      amount: services.filter(x => templateServiceIds.includes(x.id)).reduce((accumulator, currentValue) => accumulator + parseFloat(currentValue.price.replace("$", "")), 0),
       serviceIds: templateServiceIds,
       createdAt: new Date().toISOString(),
     };
@@ -1223,86 +1243,88 @@ export default function Invoice() {
         style={styles.quickTemplatesScroll}
         contentContainerStyle={styles.quickTemplatesContainer}
       >
-        {/* Default Templates */}
-        <TouchableOpacity
-          style={[
-            styles.quickTemplateCard,
-            { backgroundColor: '#1A1A1A', borderColor: colors.gold }
-          ]}
-          activeOpacity={0.7}
-          onPress={() => {
-            setSelectedTemplate({
-              type: 'default',
-              name: 'Haircut',
-              amount: '45',
-              services: [],
-            });
-            setShowCreateModal(true);
-          }}
-        >
-          <Ionicons name="cut" size={24} color="#f59e0b" style={{ marginBottom: 6 }} />
-          <Text style={styles.quickTemplateName}>Haircut</Text>
-          <Text style={styles.quickTemplatePrice}>$45</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[
-            styles.quickTemplateCard,
-            { backgroundColor: '#1A1A1A', borderColor: colors.gold }
-          ]}
-          activeOpacity={0.7}
-          onPress={() => {
-            setSelectedTemplate({
-              type: 'default',
-              name: 'Beard',
-              amount: '25',
-              services: [],
-            });
-            setShowCreateModal(true);
-          }}
-        >
-          <Ionicons name="man" size={24} color="#f59e0b" style={{ marginBottom: 6 }} />
-          <Text style={styles.quickTemplateName}>Beard</Text>
-          <Text style={styles.quickTemplatePrice}>$25</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[
-            styles.quickTemplateCard,
-            { backgroundColor: '#1A1A1A', borderColor: colors.gold }
-          ]}
-          activeOpacity={0.7}
-          onPress={() => {
-            setSelectedTemplate({
-              type: 'default',
-              name: 'Combo',
-              amount: '65',
-              services: [],
-            });
-            setShowCreateModal(true);
-          }}
-        >
-          <Ionicons name="construct" size={24} color="#f59e0b" style={{ marginBottom: 6 }} />
-          <Text style={styles.quickTemplateName}>Combo</Text>
-          <Text style={styles.quickTemplatePrice}>$65</Text>
-        </TouchableOpacity>
+        {/* Default Templates (fetched from server) */}
+        {defaultTemplatesLoading ? (
+          <View style={{ justifyContent: 'center', alignItems: 'center', width: 110, height: 100 }}>
+            <ActivityIndicator size="small" color={colors.gold} />
+          </View>
+        ) : defaultTemplates.length === 0 ? (
+          <View style={{ justifyContent: 'center', alignItems: 'center', width: 110, height: 100 }}>
+            <Text style={{ color: '#9CA3AF', textAlign: 'center', fontSize: 13 }}>No default templates</Text>
+          </View>
+        ) : (
+          defaultTemplates.map((tpl: any) => (
+            <TouchableOpacity
+              key={tpl.id || tpl.name}
+              style={[
+                styles.quickTemplateCard,
+                { backgroundColor: '#1A1A1A', borderColor: colors.gold }
+              ]}
+              activeOpacity={0.7}
+              onPress={() => {
+                setSelectedTemplate({
+                  type: 'default',
+                  ...tpl,
+                  // Optionally map services if needed
+                });
+                setShowCreateModal(true);
+              }}
+            >
+              <Ionicons name={tpl.icon || "receipt-outline"} size={24} color="#f59e0b" style={{ marginBottom: 6 }} />
+              <Text style={styles.quickTemplateName}>{tpl.name}</Text>
+              <Text style={styles.quickTemplatePrice}>${tpl.amount}</Text>
+            </TouchableOpacity>
+          ))
+        )}
         {/* Custom Templates */}
         {customTemplates.map((tpl) => (
-          <TouchableOpacity
+          <View
             key={tpl.id}
-            style={[styles.quickTemplateCard, { backgroundColor: '#232323', borderColor: colors.gold }]}
-            activeOpacity={0.7}
-            onPress={() => {
-              setSelectedTemplate({
-                type: 'custom',
-                ...tpl,
-                services: tpl.serviceIds.map((id: number) => services.find(s => s.id === id)).filter(Boolean),
-              });
-              setShowCreateModal(true);
-            }}
+            style={[
+              styles.quickTemplateCard,
+              { backgroundColor: '#232323', borderColor: colors.gold, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', position: 'relative' }
+            ]}
           >
-            <Ionicons name="star" size={22} color="#f59e0b" style={{ marginBottom: 6 }} />
-            <Text style={styles.quickTemplateName} numberOfLines={1}>{tpl.name}</Text>
-            <Text style={styles.quickTemplatePrice}>${tpl.amount}</Text>
-          </TouchableOpacity>
+            <TouchableOpacity
+              style={{ flex: 1, minWidth: 0 }}
+              activeOpacity={0.7}
+              onPress={() => {
+                setSelectedTemplate({
+                  type: 'custom',
+                  ...tpl,
+                  services: tpl.serviceIds.map((id: number) => services.find(s => s.id === id)).filter(Boolean),
+                });
+                setShowCreateModal(true);
+              }}
+            >
+              <Ionicons name="star" size={22} color="#f59e0b" style={{ marginBottom: 6 }} />
+              <Text style={styles.quickTemplateName} numberOfLines={1}>{tpl.name}</Text>
+              <Text style={styles.quickTemplatePrice}>${tpl.amount}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={{ marginLeft: 8, padding: 4 }}
+              onPress={() => {
+                Alert.alert(
+                  'Delete Template',
+                  'Are you sure you want to delete this template? This action cannot be undone.',
+                  [
+                    { text: 'Cancel', style: 'cancel' },
+                    {
+                      text: 'Delete',
+                      style: 'destructive',
+                      onPress: async () => {
+                        const updated = customTemplates.filter(t => t.id !== tpl.id);
+                        await saveCustomTemplates(updated);
+                      },
+                    },
+                  ]
+                );
+              }}
+              accessibilityLabel="Delete template"
+            >
+              <Ionicons name="trash" size={20} color="#EF4444" />
+            </TouchableOpacity>
+          </View>
         ))}
         {/* Add Template Button */}
         <TouchableOpacity
@@ -1337,14 +1359,6 @@ export default function Invoice() {
                 value={templateName}
                 onChangeText={setTemplateName}
                 maxLength={60}
-              />
-              <TextInput
-                style={styles.input}
-                placeholder="Amount (e.g. 45)"
-                placeholderTextColor="#9CA3AF"
-                value={templateAmount}
-                onChangeText={setTemplateAmount}
-                keyboardType="numeric"
               />
               <Text style={[styles.modalPlaceholderText, { marginTop: 12, marginBottom: 4 }]}>Select Services</Text>
               <FlatList
