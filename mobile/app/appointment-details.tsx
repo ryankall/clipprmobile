@@ -5,6 +5,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { apiRequest } from '../lib/api';
 import { AppointmentWithRelations } from '../lib/types';
 
+import { colors } from '../lib/theme';
 export default function AppointmentDetails() {
   const { id } = useLocalSearchParams();
   // Ensure appointmentId is a valid positive integer
@@ -328,13 +329,13 @@ export default function AppointmentDetails() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0F0F0F',
+    backgroundColor: colors.background,
     paddingHorizontal: 12,
     paddingTop: 50,
   },
   centered: {
     flex: 1,
-    backgroundColor: '#0F0F0F',
+    backgroundColor: colors.background,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -344,19 +345,19 @@ const styles = StyleSheet.create({
     marginBottom: 18,
     marginTop: 20,
     justifyContent: 'space-between',
-    backgroundColor: '#0F0F0F',
+    backgroundColor: colors.background,
   },
   headerTitle: {
     flex: 1,
     fontSize: 22,
     fontWeight: 'bold',
-    color: '#fff',
+    color: colors.text,
     marginLeft: 8,
     marginRight: 8,
     textAlign: 'center',
   },
   iconButton: {
-    backgroundColor: '#23232A',
+    backgroundColor: colors.backgroundCardAlt,
     borderRadius: 8,
     padding: 8,
     alignItems: 'center',
@@ -365,26 +366,26 @@ const styles = StyleSheet.create({
   backButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#23232A',
+    backgroundColor: colors.backgroundCardAlt,
     borderRadius: 8,
     padding: 10,
   },
   card: {
-    backgroundColor: '#18181B',
+    backgroundColor: colors.backgroundAlt,
     borderRadius: 12,
     padding: 16,
     marginBottom: 18,
     borderWidth: 1,
-    borderColor: '#374151',
+    borderColor: colors.border,
   },
   sectionTitle: {
-    color: '#FFD700',
+    color: colors.yellow,
     fontWeight: 'bold',
     fontSize: 16,
     marginTop: 8,
   },
   valueText: {
-    color: '#fff',
+    color: colors.text,
     fontSize: 16,
     marginBottom: 4,
   },
@@ -392,7 +393,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    backgroundColor: '#23232A',
+    backgroundColor: colors.backgroundCardAlt,
     borderRadius: 8,
     paddingVertical: 8,
     paddingHorizontal: 10,
@@ -400,7 +401,7 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   serviceMeta: {
-    color: '#B0B0B0',
+    color: colors.textSteel,
     fontSize: 13,
     marginTop: 2,
   },
@@ -411,15 +412,15 @@ const styles = StyleSheet.create({
     marginBottom: 2,
     paddingTop: 8,
     borderTopWidth: 1,
-    borderTopColor: '#333',
+    borderTopColor: colors.borderCard,
   },
   totalsLabel: {
-    color: '#FFD700',
+    color: colors.yellow,
     fontWeight: 'bold',
     fontSize: 15,
   },
   totalsValue: {
-    color: '#fff',
+    color: colors.text,
     fontWeight: 'bold',
     fontSize: 15,
   },
@@ -437,30 +438,30 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   confirmButton: {
-    backgroundColor: '#FFD700',
+    backgroundColor: colors.yellow,
   },
   deleteButton: {
-    backgroundColor: '#D32F2F',
+    backgroundColor: colors.red,
   },
   actionButtonText: {
-    color: '#18181B',
+    color: colors.textCharcoal,
     fontWeight: 'bold',
     fontSize: 16,
   },
   directionsButton: {
-    backgroundColor: '#2563EB', // Distinct blue
+    backgroundColor: colors.blue,
     borderRadius: 8,
     marginBottom: 8,
     paddingVertical: 14,
     alignItems: 'center',
   },
   directionsButtonText: {
-    color: '#fff',
+    color: colors.text,
     fontWeight: 'bold',
     fontSize: 16,
   },
   errorText: {
-    color: '#FF5252',
+    color: colors.red,
     textAlign: 'center',
     marginTop: 6,
     fontSize: 15,
@@ -476,13 +477,13 @@ const styles = StyleSheet.create({
     marginRight: 0,
   },
   statusBadgeConfirmed: {
-    backgroundColor: '#2ecc40', // Green
+    backgroundColor: colors.green,
   },
   statusBadgePending: {
-    backgroundColor: '#FFD700', // Yellow
+    backgroundColor: colors.yellow,
   },
   statusBadgeText: {
-    color: '#18181B',
+    color: colors.textCharcoal,
     fontWeight: 'bold',
     fontSize: 15,
     letterSpacing: 0.5,

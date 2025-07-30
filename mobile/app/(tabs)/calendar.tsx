@@ -8,6 +8,7 @@ import { apiRequest } from '../../lib/api';
 import { globalEventEmitter } from '../../lib/utils';
 import { AppointmentWithRelations } from '../../lib/types';
 import { useFocusEffect } from '@react-navigation/native';
+import { colors } from '../../lib/theme';
 
 
 
@@ -567,7 +568,7 @@ export default function Calendar() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0F0F0F',
+    backgroundColor: colors.background,
   },
   header: {
     flexDirection: 'row',
@@ -585,7 +586,7 @@ const styles = StyleSheet.create({
   hoursButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#1F2937',
+    backgroundColor: colors.backgroundAlt,
     borderRadius: 8,
     paddingHorizontal: 10,
     paddingVertical: 6,
@@ -594,7 +595,7 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   hoursButtonText: {
-    color: '#F59E0B',
+    color: colors.gold,
     fontSize: 14,
     fontWeight: '600',
     marginLeft: 4,
@@ -602,7 +603,7 @@ const styles = StyleSheet.create({
   viewModeSelector: {
     flexDirection: 'row',
     alignItems: "stretch",
-    backgroundColor: '#0F0F0F',
+    backgroundColor: colors.background,
     borderRadius: 8,
     padding: 10,
     paddingBottom: 10,
@@ -616,23 +617,23 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   activeViewMode: {
-    backgroundColor: '#F59E0B',
+    backgroundColor: colors.gold,
   },
   viewModeText: {
     fontSize: 12,
     fontWeight: '500',
-    color: '#9CA3AF',
+    color: colors.textSecondary,
   },
   activeViewModeText: {
-    color: '#FFFFFF',
+    color: colors.text,
   },
   title: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: '#FFFFFF',
+    color: colors.text,
   },
   addButton: {
-    backgroundColor: '#22C55E',
+    backgroundColor: colors.green,
     borderRadius: 20,
     padding: 10,
   },
@@ -648,31 +649,31 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     marginRight: 8,
     borderRadius: 12,
-    backgroundColor: '#1A1A1A',
+    backgroundColor: colors.backgroundCard,
     minWidth: 60,
   },
   selectedDateButton: {
-    backgroundColor: '#22C55E',
+    backgroundColor: colors.green,
   },
   todayDateButton: {
     borderWidth: 2,
-    borderColor: '#22C55E',
+    borderColor: colors.green,
   },
   dayText: {
     fontSize: 12,
-    color: '#9CA3AF',
+    color: colors.textSecondary,
     marginBottom: 4,
   },
   selectedDayText: {
-    color: '#FFFFFF',
+    color: colors.text,
   },
   dateText: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: '#FFFFFF',
+    color: colors.text,
   },
   selectedDateText: {
-    color: '#FFFFFF',
+    color: colors.text,
   },
   appointmentsList: {
     flex: 1,
@@ -681,11 +682,11 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: colors.text,
     marginBottom: 16,
   },
   appointmentCard: {
-    backgroundColor: '#1A1A1A',
+    backgroundColor: colors.backgroundCard,
     borderRadius: 12,
     padding: 16,
     marginBottom: 12,
@@ -699,7 +700,7 @@ const styles = StyleSheet.create({
   appointmentTime: {},
   timeText: {
     fontSize: 14,
-    color: '#9CA3AF',
+    color: colors.textSecondary,
   },
   statusBadge: {
     paddingHorizontal: 8,
@@ -713,12 +714,12 @@ const styles = StyleSheet.create({
   clientName: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: colors.text,
     marginBottom: 4,
   },
   serviceName: {
     fontSize: 14,
-    color: '#9CA3AF',
+    color: colors.textSecondary,
     marginBottom: 8,
   },
   appointmentFooter: {
@@ -729,19 +730,19 @@ const styles = StyleSheet.create({
   price: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#22C55E',
+    color: colors.green,
   },
   travelBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#3B82F620',
+    backgroundColor: colors.blue + '20',
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 6,
   },
   travelText: {
     fontSize: 12,
-    color: '#3B82F6',
+    color: colors.blue,
     marginLeft: 4,
   },
   emptyState: {
@@ -752,13 +753,13 @@ const styles = StyleSheet.create({
   emptyText: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: colors.text,
     marginTop: 16,
     marginBottom: 8,
   },
   emptySubtext: {
     fontSize: 14,
-    color: '#9CA3AF',
+    color: colors.textSecondary,
     textAlign: 'center',
   },
   authPrompt: {
@@ -769,26 +770,25 @@ const styles = StyleSheet.create({
   },
   authPromptText: {
     fontSize: 18,
-    color: '#9CA3AF',
+    color: colors.textSecondary,
     textAlign: 'center',
     marginBottom: 24,
   },
   signInButton: {
-    backgroundColor: '#22C55E',
+    backgroundColor: colors.green,
     paddingHorizontal: 32,
     paddingVertical: 12,
     borderRadius: 8,
   },
   signInButtonText: {
-    color: '#FFFFFF',
+    color: colors.text,
     fontSize: 16,
     fontWeight: '600',
   },
-  
   // Timeline view styles
   timelineContainer: {
     flex: 1,
-    backgroundColor: '#0F0F0F',
+    backgroundColor: colors.background,
   },
   timeline: {
     position: 'relative',
@@ -797,14 +797,14 @@ const styles = StyleSheet.create({
   timeSlot: {
     flexDirection: 'row',
     borderBottomWidth: 1,
-    borderBottomColor: '#374151',
+    borderBottomColor: colors.border,
   },
   timeLabel: {
     width: 64,
     height: 80,
-    backgroundColor: '#1F2937',
+    backgroundColor: colors.backgroundAlt,
     borderRightWidth: 1,
-    borderRightColor: '#374151',
+    borderRightColor: colors.border,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -831,7 +831,7 @@ const styles = StyleSheet.create({
     right: 0,
     top: 40,
     height: 1,
-    backgroundColor: '#374151',
+    backgroundColor: colors.border,
     opacity: 0.5,
   },
   appointmentBlock: {
@@ -840,7 +840,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     borderLeftWidth: 4,
     padding: 8,
-    shadowColor: '#000',
+    shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 4,
@@ -865,11 +865,11 @@ const styles = StyleSheet.create({
   },
   appointmentDuration: {
     fontSize: 9,
-    color: '#9CA3AF',
+    color: colors.textSecondary,
   },
   appointmentPrice: {
     fontSize: 9,
-    color: '#9CA3AF',
+    color: colors.textSecondary,
   },
   currentTimeIndicator: {
     position: 'absolute',
@@ -884,12 +884,12 @@ const styles = StyleSheet.create({
     width: 12,
     height: 12,
     borderRadius: 6,
-    backgroundColor: '#EF4444',
+    backgroundColor: colors.red,
     marginLeft: 4,
   },
   currentTimeLine: {
     flex: 1,
     height: 2,
-    backgroundColor: '#EF4444',
+    backgroundColor: colors.red,
   },
 });

@@ -1,15 +1,17 @@
 import React from 'react';
 import { render, fireEvent, waitFor } from '@testing-library/react-native';
-import ClientProfile from '../app/(tabs)/client-profile';
+import { describe, it, expect, beforeEach } from 'vitest';
+import ClientProfile from '../app/clients/[id]';
 import * as api from '../lib/api';
-import { useRouter } from 'expo-router';
+import { Alert, Linking } from 'react-native';
+import { vi } from 'vitest';
 
 // Mock navigation
-jest.mock('expo-router', () => ({
+vi.mock('expo-router', () => ({
   useRouter: () => ({
-    back: jest.fn(),
-    push: jest.fn(),
-    replace: jest.fn(),
+    back: vi.fn(),
+    push: vi.fn(),
+    replace: vi.fn(),
   }),
   useLocalSearchParams: () => ({ id: '1' }),
 }));
@@ -83,14 +85,29 @@ const mockPhotos = [
   },
 ];
 
-jest.spyOn(api, 'apiRequest').mockImplementation((method, endpoint) => {
+// Improved API mock: check both method and endpoint
+vi.spyOn(api, 'apiRequest').mockImplementation((method, endpoint) => {
   if (endpoint.startsWith('/api/clients/1/appointments')) return Promise.resolve(mockAppointments);
   if (endpoint.startsWith('/api/clients/1/messages')) return Promise.resolve(mockMessages);
   if (endpoint.startsWith('/api/clients/1/gallery')) return Promise.resolve(mockPhotos);
-  if (endpoint === '/api/clients/1') return Promise.resolve(mockClient);
   if (endpoint === '/api/clients/1' && method === 'PUT') return Promise.resolve({ ...mockClient, name: 'Jane Doe' });
   if (endpoint === '/api/clients/1' && method === 'DELETE') return Promise.resolve({});
+  if (endpoint === '/api/clients/1') return Promise.resolve(mockClient);
   return Promise.resolve([]);
+});
+
+// Mock Alert and Linking for side effect assertions
+vi.spyOn(Alert, 'alert').mockImplementation((title, message, buttons) => {
+  // Simulate pressing the "Delete" button if present
+  if (buttons && Array.isArray(buttons)) {
+    const deleteBtn = buttons.find(b => b.style === 'destructive' || b.text?.toLowerCase().includes('delete'));
+    if (deleteBtn && deleteBtn.onPress) deleteBtn.onPress();
+  }
+});
+vi.spyOn(Linking, 'openURL').mockImplementation(() => Promise.resolve());
+
+beforeEach(() => {
+  vi.clearAllMocks();
 });
 
 describe('ClientProfile (Mobile)', () => {
@@ -130,13 +147,16 @@ describe('ClientProfile (Mobile)', () => {
     expect(getByDisplayValue('John Doe')).toBeTruthy();
   });
 
-  it('shows and closes message modal', async () => {
-    const { getByText, findByText, getByLabelText, queryByText } = render(<ClientProfile />);
+  it('navigates to messages tab and opens modal for message', async () => {
+    const { getByText, findByText, getByLabelText } = render(<ClientProfile />);
     await findByText('Message History (1)');
     fireEvent.press(getByLabelText('View message details'));
-    expect(getByText('Looking forward to my appointment!')).toBeTruthy();
-    fireEvent.press(getByLabelText('Close message modal'));
-    expect(queryByText('Looking forward to my appointment!')).toBeNull();
+    // Should navigate to /messages with messageId param
+    const { useRouter } = require('expo-router');
+    expect(useRouter().push).toHaveBeenCalledWith({
+      pathname: '/messages',
+      params: { messageId: '1' }
+    });
   });
 
   it('shows all messages when toggled', async () => {
@@ -149,23 +169,30 @@ describe('ClientProfile (Mobile)', () => {
   });
 
   it('calls delete client and navigates away', async () => {
-    const { getByLabelText, getByText } = render(<ClientProfile />);
+    const { getByLabelText } = render(<ClientProfile />);
     fireEvent.press(getByLabelText('Edit client'));
     fireEvent.press(getByLabelText('Delete client'));
-    // Simulate Alert confirm
-    // (In real test, use jest.spyOn(Alert, 'alert') and simulate user action)
+    // Alert.alert is mocked to auto-confirm deletion
+    await waitFor(() => {
+      const { useRouter } = require('expo-router');
+      expect(useRouter().replace).toHaveBeenCalledWith('/clients'); // Should navigate to clients list after delete
+    });
   });
 
   it('calls client phone number', async () => {
     const { getByLabelText } = render(<ClientProfile />);
     fireEvent.press(getByLabelText('Call client'));
-    // Would open Linking.openURL, can be mocked for assertion
+    expect(Linking.openURL).toHaveBeenCalledWith('tel:+1234567890');
   });
 
   it('navigates to book appointment', async () => {
     const { getByLabelText } = render(<ClientProfile />);
     fireEvent.press(getByLabelText('Book appointment'));
-    // Would call router.push, can be asserted in a real test
+    const { useRouter } = require('expo-router');
+    expect(useRouter().push).toHaveBeenCalledWith({
+      pathname: '/calendar',
+      params: { clientId: '1' }
+    });
   });
   it('does not render any persistent or floating bottom button', async () => {
     const { queryAllByRole, queryByLabelText, queryByText } = render(<ClientProfile />);

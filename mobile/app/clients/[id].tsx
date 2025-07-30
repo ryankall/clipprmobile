@@ -20,6 +20,7 @@ import { ClientWithStats, AppointmentWithRelations, GalleryPhoto, Message } from
 import { clientFormSchema } from '../../lib/clientSchema';
 import { z } from 'zod';
 
+import { colors } from '../../lib/theme';
 export default function ClientProfile() {
   const { id } = useLocalSearchParams();
   const clientId = typeof id === 'string' ? parseInt(id, 10) : 0;
@@ -51,6 +52,7 @@ export default function ClientProfile() {
 
   const [photos, setPhotos] = useState<GalleryPhoto[]>([]);
   const [photosLoading, setPhotosLoading] = useState(true);
+  const [showAllPhotos, setShowAllPhotos] = useState(false);
 
   const [deleteLoading, setDeleteLoading] = useState(false);
   
@@ -63,6 +65,7 @@ export default function ClientProfile() {
   const [invoiceServicesLoading, setInvoiceServicesLoading] = useState(false);
   const [invoiceServicesError, setInvoiceServicesError] = useState<string | null>(null);
   const [showInvoiceModal, setShowInvoiceModal] = useState(false);
+  const [showAllInvoices, setShowAllInvoices] = useState(false);
 
   // Fetch client data
   useEffect(() => {
@@ -220,7 +223,7 @@ export default function ClientProfile() {
   if (loading) {
     return (
       <View style={styles.centered}>
-        <ActivityIndicator size="large" color="#FFD700" />
+        <ActivityIndicator size="large" color={colors.gold} />
       </View>
     );
   }
@@ -229,8 +232,8 @@ export default function ClientProfile() {
       <View style={styles.centered}>
         <Text style={{ color: '#fff', fontSize: 18, marginBottom: 12 }}>Client Not Found</Text>
         <TouchableOpacity style={styles.backButton} onPress={() => router.replace('/clients')}>
-          <Ionicons name="arrow-back" size={20} color="#FFD700" />
-          <Text style={{ color: '#FFD700', fontWeight: '600', marginLeft: 6 }}>Back to Clients</Text>
+          <Ionicons name="arrow-back" size={20} color={colors.gold} />
+          <Text style={{ color: colors.gold, fontWeight: '600', marginLeft: 6 }}>Back to Clients</Text>
         </TouchableOpacity>
       </View>
     );
@@ -255,7 +258,7 @@ export default function ClientProfile() {
           onPress={() => router.back()}
           accessibilityLabel="Go back"
         >
-          <Ionicons name="arrow-back" size={22} color="#FFD700" />
+          <Ionicons name="arrow-back" size={22} color={colors.gold} />
         </TouchableOpacity>
         <Text style={styles.headerTitle} numberOfLines={1}>{client.name}</Text>
         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
@@ -286,7 +289,7 @@ export default function ClientProfile() {
                 }}
                 accessibilityLabel="Cancel edit"
               >
-                <Ionicons name="close" size={22} color="#FFD700" />
+                <Ionicons name="close" size={22} color={colors.gold} />
               </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.iconButton, { backgroundColor: '#F87171' }]}
@@ -304,7 +307,7 @@ export default function ClientProfile() {
                 onPress={() => setEditMode(true)}
                 accessibilityLabel="Edit client"
               >
-                <Ionicons name="create-outline" size={22} color="#FFD700" />
+                <Ionicons name="create-outline" size={22} color={colors.gold} />
               </TouchableOpacity>
               <TouchableOpacity
                 style={styles.iconButton}
@@ -316,14 +319,14 @@ export default function ClientProfile() {
                 }}
                 accessibilityLabel="Call client"
               >
-                <Ionicons name="call-outline" size={22} color="#FFD700" />
+                <Ionicons name="call-outline" size={22} color={colors.gold} />
               </TouchableOpacity>
               <TouchableOpacity
                 style={styles.iconButton}
                 onPress={() => router.push({ pathname: '/calendar', params: { clientId: client.id.toString() } })}
                 accessibilityLabel="Book appointment"
               >
-                <Ionicons name="calendar-outline" size={22} color="#FFD700" />
+                <Ionicons name="calendar-outline" size={22} color={colors.gold} />
               </TouchableOpacity>
             </>
           )}
@@ -334,6 +337,12 @@ export default function ClientProfile() {
       <View style={styles.card}>
         {editMode ? (
           <View>
+            {/* Summary error message */}
+            {Object.keys(editErrors).length > 0 && (
+              <Text style={styles.summaryErrorText}>
+                Please correct the highlighted fields below.
+              </Text>
+            )}
             <TextInput
               style={[styles.input, editErrors.name && styles.inputError]}
               placeholder="Name"
@@ -364,23 +373,25 @@ export default function ClientProfile() {
             />
             {editErrors.email ? <Text style={styles.errorText}>{editErrors.email}</Text> : null}
             <TextInput
-              style={styles.input}
+              style={[styles.input, editErrors.address && styles.inputError]}
               placeholder="Address"
               placeholderTextColor="#666"
               value={editFields.address}
               onChangeText={text => handleEditChange('address', text)}
               accessibilityLabel="Edit address"
             />
+            {editErrors.address ? <Text style={styles.errorText}>{editErrors.address}</Text> : null}
             <TextInput
-              style={styles.input}
+              style={[styles.input, editErrors.preferredStyle && styles.inputError]}
               placeholder="Preferred Style"
               placeholderTextColor="#666"
               value={editFields.preferredStyle}
               onChangeText={text => handleEditChange('preferredStyle', text)}
               accessibilityLabel="Edit preferred style"
             />
+            {editErrors.preferredStyle ? <Text style={styles.errorText}>{editErrors.preferredStyle}</Text> : null}
             <TextInput
-              style={styles.input}
+              style={[styles.input, editErrors.notes && styles.inputError]}
               placeholder="Notes"
               placeholderTextColor="#666"
               value={editFields.notes}
@@ -388,11 +399,13 @@ export default function ClientProfile() {
               multiline
               accessibilityLabel="Edit notes"
             />
+            {editErrors.notes ? <Text style={styles.errorText}>{editErrors.notes}</Text> : null}
             <View style={{ flexDirection: 'row', marginTop: 8 }}>
               <TouchableOpacity
                 style={[
                   styles.loyaltyButton,
                   editFields.loyaltyStatus === 'regular' && { backgroundColor: '#22C55E' },
+                  editErrors.loyaltyStatus && styles.inputError,
                 ]}
                 onPress={() => handleEditChange('loyaltyStatus', 'regular')}
                 accessibilityLabel="Set loyalty status to regular"
@@ -402,7 +415,8 @@ export default function ClientProfile() {
               <TouchableOpacity
                 style={[
                   styles.loyaltyButton,
-                  editFields.loyaltyStatus === 'vip' && { backgroundColor: '#FFD700' },
+                  editFields.loyaltyStatus === 'vip' && { backgroundColor: colors.gold },
+                  editErrors.loyaltyStatus && styles.inputError,
                 ]}
                 onPress={() => handleEditChange('loyaltyStatus', 'vip')}
                 accessibilityLabel="Set loyalty status to VIP"
@@ -410,6 +424,7 @@ export default function ClientProfile() {
                 <Text style={{ color: editFields.loyaltyStatus === 'vip' ? '#18181B' : '#fff', fontWeight: '600' }}>VIP</Text>
               </TouchableOpacity>
             </View>
+            {editErrors.loyaltyStatus ? <Text style={styles.errorText}>{editErrors.loyaltyStatus}</Text> : null}
           </View>
         ) : (
           <View>
@@ -473,11 +488,11 @@ export default function ClientProfile() {
       {/* Recent Appointments */}
       <View style={styles.card}>
         <View style={styles.sectionHeader}>
-          <Ionicons name="calendar-outline" size={18} color="#FFD700" style={{ marginRight: 6 }} />
+          <Ionicons name="calendar-outline" size={18} color={colors.gold} style={{ marginRight: 6 }} />
           <Text style={styles.sectionTitle}>Recent Appointments</Text>
         </View>
         {appointmentsLoading ? (
-          <ActivityIndicator size="small" color="#FFD700" style={{ marginVertical: 12 }} />
+          <ActivityIndicator size="small" color={colors.gold} style={{ marginVertical: 12 }} />
         ) : appointments.length > 0 ? (
           appointments
             .sort((a, b) => new Date(b.scheduledAt).getTime() - new Date(a.scheduledAt).getTime())
@@ -514,11 +529,11 @@ export default function ClientProfile() {
       {/* Message History */}
       <View style={styles.card}>
         <View style={styles.sectionHeader}>
-          <Ionicons name="chatbubble-ellipses-outline" size={18} color="#FFD700" style={{ marginRight: 6 }} />
+          <Ionicons name="chatbubble-ellipses-outline" size={18} color={colors.gold} style={{ marginRight: 6 }} />
           <Text style={styles.sectionTitle}>Message History ({messages.length})</Text>
         </View>
         {messagesLoading ? (
-          <ActivityIndicator size="small" color="#FFD700" style={{ marginVertical: 12 }} />
+          <ActivityIndicator size="small" color={colors.gold} style={{ marginVertical: 12 }} />
         ) : messages.length > 0 ? (
           <>
             {messages
@@ -528,21 +543,43 @@ export default function ClientProfile() {
                 <TouchableOpacity
                   key={msg.id}
                   style={styles.messageRow}
-                  onPress={() => setMessageModal(msg)}
+                  onPress={() => {
+                    // Navigate to messages tab and open modal for this message
+                    router.push({
+                      pathname: '/messages',
+                      params: { messageId: msg.id.toString() }
+                    });
+                  }}
                   accessibilityLabel="View message details"
                 >
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.messageSubject}>{msg.services?.join(', ') || msg.message?.slice(0, 20) || 'Message'}</Text>
+                    <Text
+                      style={[
+                        styles.messageSubject,
+                        !msg.read && { fontWeight: 'bold', color: colors.gold }
+                      ]}
+                    >
+                      {msg.services?.join(', ') || msg.message?.slice(0, 20) || 'Message'}
+                    </Text>
                     <Text style={styles.messageMeta}>
                       From: {msg.customerName} • {new Date(msg.createdAt).toLocaleString()}
                     </Text>
                   </View>
-                  <View style={[
-                    styles.statusBadge,
-                    { backgroundColor: '#FFD700', alignSelf: 'flex-start' }
-                  ]}>
-                    <Text style={[styles.statusBadgeText, { color: '#18181B' }]}>Unread</Text>
-                  </View>
+                  {msg.read ? (
+                    <View style={[
+                      styles.statusBadge,
+                      { backgroundColor: '#374151', alignSelf: 'flex-start' }
+                    ]}>
+                      <Text style={[styles.statusBadgeText, { color: '#9CA3AF' }]}>Read</Text>
+                    </View>
+                  ) : (
+                    <View style={[
+                      styles.statusBadge,
+                      { backgroundColor: colors.yellow, alignSelf: 'flex-start' }
+                    ]}>
+                      <Text style={[styles.statusBadgeText, { color: '#18181B' }]}>Unread</Text>
+                    </View>
+                  )}
                 </TouchableOpacity>
               ))}
             {messages.length > 5 && (
@@ -551,7 +588,7 @@ export default function ClientProfile() {
                 onPress={() => setShowAllMessages(!showAllMessages)}
                 accessibilityLabel="Show all messages"
               >
-                <Text style={{ color: '#FFD700', fontSize: 14 }}>
+                <Text style={{ color: colors.gold, fontSize: 14 }}>
                   {showAllMessages ? `Show recent 5` : `Show all ${messages.length} messages`}
                 </Text>
               </TouchableOpacity>
@@ -588,7 +625,7 @@ export default function ClientProfile() {
                   onPress={() => setMessageModal(null)}
                   accessibilityLabel="Close message modal"
                 >
-                  <Ionicons name="close" size={22} color="#FFD700" />
+                  <Ionicons name="close" size={22} color={colors.gold} />
                 </TouchableOpacity>
               </>
             )}
@@ -599,27 +636,44 @@ export default function ClientProfile() {
       {/* Photo Gallery */}
       <View style={styles.card}>
         <View style={styles.sectionHeader}>
-          <Ionicons name="images-outline" size={18} color="#FFD700" style={{ marginRight: 6 }} />
+          <Ionicons name="images-outline" size={18} color={colors.gold} style={{ marginRight: 6 }} />
           <Text style={styles.sectionTitle}>Photo Gallery ({photos.length})</Text>
         </View>
         {photosLoading ? (
-          <ActivityIndicator size="small" color="#FFD700" style={{ marginVertical: 12 }} />
+          <ActivityIndicator size="small" color={colors.gold} style={{ marginVertical: 12 }} />
         ) : photos.length > 0 ? (
-          <View style={styles.galleryGrid}>
-            {photos.map((photo) => (
-              <View key={photo.id} style={styles.galleryItem}>
-                <Image
-                  source={{ uri: photo.filename }}
-                  style={styles.galleryImage}
-                  resizeMode="cover"
-                  accessibilityLabel="Gallery photo"
-                />
-                <Text style={styles.galleryCaption}>
-                  {photo.originalName || new Date(photo.createdAt).toLocaleDateString()}
+          <>
+            <View style={styles.galleryGrid}>
+              {photos
+                .slice()
+                .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+                .slice(0, showAllPhotos ? photos.length : 5)
+                .map((photo) => (
+                  <View key={photo.id} style={styles.galleryItem}>
+                    <Image
+                      source={{ uri: photo.filename }}
+                      style={styles.galleryImage}
+                      resizeMode="cover"
+                      accessibilityLabel="Gallery photo"
+                    />
+                    <Text style={styles.galleryCaption}>
+                      {photo.originalName || new Date(photo.createdAt).toLocaleDateString()}
+                    </Text>
+                  </View>
+                ))}
+            </View>
+            {photos.length > 5 && (
+              <TouchableOpacity
+                style={{ alignSelf: 'flex-end', marginTop: 8 }}
+                onPress={() => setShowAllPhotos(!showAllPhotos)}
+                accessibilityLabel="Show all photos"
+              >
+                <Text style={{ color: colors.gold, fontSize: 14 }}>
+                  {showAllPhotos ? `Show recent 5` : `Show all ${photos.length} photos`}
                 </Text>
-              </View>
-            ))}
-          </View>
+              </TouchableOpacity>
+            )}
+          </>
         ) : (
           <View style={styles.emptyBlock}>
             <Ionicons name="images-outline" size={32} color="#9CA3AF" style={{ marginBottom: 6 }} />
@@ -631,109 +685,124 @@ export default function ClientProfile() {
       {/* Invoice History */}
       <View style={styles.card}>
         <View style={styles.sectionHeader}>
-          <Ionicons name="receipt-outline" size={18} color="#FFD700" style={{ marginRight: 6 }} />
+          <Ionicons name="receipt-outline" size={18} color={colors.gold} style={{ marginRight: 6 }} />
           <Text style={styles.sectionTitle}>Invoice History ({invoices.length})</Text>
         </View>
         {invoicesLoading ? (
-          <ActivityIndicator size="small" color="#FFD700" style={{ marginVertical: 12 }} />
+          <ActivityIndicator size="small" color={colors.gold} style={{ marginVertical: 12 }} />
         ) : invoicesError ? (
           <Text style={{ color: '#F87171', marginBottom: 8 }}>{invoicesError}</Text>
         ) : invoices.length > 0 ? (
-          invoices
-            .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-            .map((invoice) => {
-              let statusColor = '#F59E0B';
-              let statusBg = '#232323';
-              if (invoice.paymentStatus === 'paid') {
-                statusColor = '#22C55E';
-                statusBg = '#193a2f';
-              } else if (invoice.paymentStatus === 'unpaid') {
-                statusColor = '#F59E0B';
-                statusBg = '#2d230f';
-              }
-              let iconName: any = 'receipt-outline';
-              if (invoice.paymentMethod === 'stripe') iconName = 'card-outline';
-              else if (invoice.paymentMethod === 'apple_pay') iconName = 'phone-portrait-outline';
-              else if (invoice.paymentMethod === 'cash') iconName = 'cash-outline';
+          <>
+            {invoices
+              .slice()
+              .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+              .slice(0, showAllInvoices ? invoices.length : 5)
+              .map((invoice) => {
+                let statusColor = '#F59E0B';
+                let statusBg = '#232323';
+                if (invoice.paymentStatus === 'paid') {
+                  statusColor = '#22C55E';
+                  statusBg = '#193a2f';
+                } else if (invoice.paymentStatus === 'unpaid') {
+                  statusColor = '#F59E0B';
+                  statusBg = '#2d230f';
+                }
+                let iconName: any = 'receipt-outline';
+                if (invoice.paymentMethod === 'stripe') iconName = 'card-outline';
+                else if (invoice.paymentMethod === 'apple_pay') iconName = 'phone-portrait-outline';
+                else if (invoice.paymentMethod === 'cash') iconName = 'cash-outline';
 
-              const date = new Date(invoice.createdAt);
-              const dateStr = `${date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })} • ${date.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}`;
+                const date = new Date(invoice.createdAt);
+                const dateStr = `${date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })} • ${date.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}`;
 
-              return (
-                <TouchableOpacity
-                  key={invoice.id}
-                  style={{
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    paddingVertical: 14,
-                    paddingHorizontal: 12,
-                    borderBottomWidth: 1,
-                    borderBottomColor: '#232323',
-                    backgroundColor: '#1A1A1A',
-                  }}
-                  activeOpacity={0.85}
-                  onPress={() => {
-                    setSelectedInvoice(invoice);
-                    setShowInvoiceModal(true);
-                  }}
-                  accessibilityLabel="View invoice details"
-                >
-                  <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
-                    <View style={{
-                      width: 34, height: 34, borderRadius: 17, backgroundColor: '#232323',
-                      alignItems: 'center', justifyContent: 'center', marginRight: 10
-                    }}>
-                      <Ionicons name={iconName} size={18} color="#f59e0b" />
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={{ color: '#fff', fontWeight: '600', fontSize: 15 }}>
-                        Invoice #{invoice.id}
-                      </Text>
-                      <Text style={{ color: '#9CA3AF', fontSize: 12, marginTop: 2 }}>
-                        {dateStr}
-                      </Text>
-                    </View>
-                  </View>
-                  <View style={{ alignItems: 'flex-end', minWidth: 80 }}>
-                    <Text style={{ color: '#F59E0B', fontWeight: '700', fontSize: 15 }}>
-                      ${invoice.total}
-                    </Text>
-                    <View style={{ alignItems: 'flex-end', marginTop: 4 }}>
+                return (
+                  <TouchableOpacity
+                    key={invoice.id}
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      paddingVertical: 14,
+                      paddingHorizontal: 12,
+                      borderBottomWidth: 1,
+                      borderBottomColor: '#232323',
+                      backgroundColor: '#1A1A1A',
+                    }}
+                    activeOpacity={0.85}
+                    onPress={() => {
+                      setSelectedInvoice(invoice);
+                      setShowInvoiceModal(true);
+                    }}
+                    accessibilityLabel="View invoice details"
+                  >
+                    <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
                       <View style={{
-                        backgroundColor: statusBg,
-                        borderRadius: 6,
-                        paddingHorizontal: 6,
-                        paddingVertical: 2,
-                        marginBottom: 2,
-                        flexDirection: 'row',
-                        alignItems: 'center',
+                        width: 34, height: 34, borderRadius: 17, backgroundColor: '#232323',
+                        alignItems: 'center', justifyContent: 'center', marginRight: 10
                       }}>
-                        <Text style={{ color: statusColor, fontWeight: '600', fontSize: 10 }}>
-                          {invoice.paymentStatus === 'paid' ? '✅ Paid' : '⏳ Unpaid'}
+                        <Ionicons name={iconName} size={18} color="#f59e0b" />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={{ color: '#fff', fontWeight: '600', fontSize: 15 }}>
+                          Invoice #{invoice.id}
+                        </Text>
+                        <Text style={{ color: '#9CA3AF', fontSize: 12, marginTop: 2 }}>
+                          {dateStr}
                         </Text>
                       </View>
-                      {invoice.paymentMethod && (
+                    </View>
+                    <View style={{ alignItems: 'flex-end', minWidth: 80 }}>
+                      <Text style={{ color: '#F59E0B', fontWeight: '700', fontSize: 15 }}>
+                        ${invoice.total}
+                      </Text>
+                      <View style={{ alignItems: 'flex-end', marginTop: 4 }}>
                         <View style={{
-                          backgroundColor: '#232323',
-                          borderRadius: 4,
-                          paddingHorizontal: 4,
-                          paddingVertical: 1,
+                          backgroundColor: statusBg,
+                          borderRadius: 6,
+                          paddingHorizontal: 6,
+                          paddingVertical: 2,
                           marginBottom: 2,
+                          flexDirection: 'row',
+                          alignItems: 'center',
                         }}>
-                          <Text style={{ color: '#9CA3AF', fontWeight: '500', fontSize: 9 }}>
-                            {invoice.paymentMethod === 'cash' ? 'Cash' :
-                              invoice.paymentMethod === 'stripe' ? 'Card' :
-                                invoice.paymentMethod === 'apple_pay' ? 'Apple Pay' :
-                                  invoice.paymentMethod}
+                          <Text style={{ color: statusColor, fontWeight: '600', fontSize: 10 }}>
+                            {invoice.paymentStatus === 'paid' ? '✅ Paid' : '⏳ Unpaid'}
                           </Text>
                         </View>
-                      )}
+                        {invoice.paymentMethod && (
+                          <View style={{
+                            backgroundColor: '#232323',
+                            borderRadius: 4,
+                            paddingHorizontal: 4,
+                            paddingVertical: 1,
+                            marginBottom: 2,
+                          }}>
+                            <Text style={{ color: '#9CA3AF', fontWeight: '500', fontSize: 9 }}>
+                              {invoice.paymentMethod === 'cash' ? 'Cash' :
+                                invoice.paymentMethod === 'stripe' ? 'Card' :
+                                  invoice.paymentMethod === 'apple_pay' ? 'Apple Pay' :
+                                    invoice.paymentMethod}
+                            </Text>
+                          </View>
+                        )}
+                      </View>
                     </View>
-                  </View>
-                </TouchableOpacity>
-              );
-            })
+                  </TouchableOpacity>
+                );
+              })}
+            {invoices.length > 5 && (
+              <TouchableOpacity
+                style={{ alignSelf: 'flex-end', marginTop: 8 }}
+                onPress={() => setShowAllInvoices(!showAllInvoices)}
+                accessibilityLabel="Show all invoices"
+              >
+                <Text style={{ color: colors.gold, fontSize: 14 }}>
+                  {showAllInvoices ? `Show recent 5` : `Show all ${invoices.length} invoices`}
+                </Text>
+              </TouchableOpacity>
+            )}
+          </>
         ) : (
           <View style={styles.emptyBlock}>
             <Ionicons name="receipt-outline" size={32} color="#9CA3AF" style={{ marginBottom: 6 }} />
@@ -751,6 +820,9 @@ export default function ClientProfile() {
           setSelectedInvoice(null);
         }}
         client={client}
+        onDelete={(invoiceId: number) => {
+          setInvoices((prev) => prev.filter((inv) => inv.id !== invoiceId));
+        }}
       />
     </ScrollView>
   );
@@ -762,11 +834,13 @@ function InvoiceDetailsModal({
   invoice,
   onClose,
   client,
+  onDelete, // new prop
 }: {
   visible: boolean;
   invoice: any;
   onClose: () => void;
   client: any;
+  onDelete?: (invoiceId: number) => void;
 }) {
   const [services, setServices] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
@@ -774,6 +848,7 @@ function InvoiceDetailsModal({
   const [marking, setMarking] = useState(false);
   const [sendingSMS, setSendingSMS] = useState(false);
   const [sendingEmail, setSendingEmail] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     if (!invoice) return;
@@ -867,6 +942,34 @@ function InvoiceDetailsModal({
     setSendingEmail(false);
   };
 
+  // Delete invoice
+  const handleDeleteInvoice = async () => {
+    if (!invoice) return;
+    Alert.alert(
+      'Delete Invoice',
+      'Are you sure you want to delete this invoice? This action cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            setDeleting(true);
+            try {
+              await apiRequest('DELETE', `/api/invoices/${invoice.id}`);
+              if (onDelete) onDelete(invoice.id);
+              onClose();
+              Alert.alert('Deleted', 'Invoice deleted successfully.');
+            } catch (e: any) {
+              Alert.alert('Error', e?.message || 'Failed to delete invoice');
+            }
+            setDeleting(false);
+          },
+        },
+      ]
+    );
+  };
+
   // Null check for invoice
   if (!invoice) {
     return (
@@ -878,14 +981,14 @@ function InvoiceDetailsModal({
       >
         <View style={styles.modalOverlay}>
           <View style={[styles.modalContent, { maxWidth: 440, alignItems: 'center', justifyContent: 'center' }]}>
-            <ActivityIndicator size="large" color="#FFD700" style={{ marginVertical: 16 }} />
+            <ActivityIndicator size="large" color={colors.gold} style={{ marginVertical: 16 }} />
             <Text style={{ color: '#fff', fontSize: 16, marginTop: 12 }}>No invoice selected</Text>
             <TouchableOpacity
               style={[styles.iconButton, { alignSelf: 'center', marginTop: 18 }]}
               onPress={onClose}
               accessibilityLabel="Close invoice modal"
             >
-              <Ionicons name="close" size={22} color="#FFD700" />
+              <Ionicons name="close" size={22} color={colors.gold} />
             </TouchableOpacity>
           </View>
         </View>
@@ -909,12 +1012,12 @@ function InvoiceDetailsModal({
               onPress={onClose}
               accessibilityLabel="Close invoice modal"
             >
-              <Ionicons name="close" size={22} color="#FFD700" />
+              <Ionicons name="close" size={22} color={colors.gold} />
             </TouchableOpacity>
           </View>
           <Text style={styles.modalMeta}>Invoice #{invoice?.id}</Text>
           {loading ? (
-            <ActivityIndicator size="small" color="#FFD700" style={{ marginVertical: 12 }} />
+            <ActivityIndicator size="small" color={colors.gold} style={{ marginVertical: 12 }} />
           ) : error ? (
             <Text style={{ color: '#F87171', marginBottom: 8 }}>{error}</Text>
           ) : (
@@ -964,10 +1067,10 @@ function InvoiceDetailsModal({
                             </Text>
                           ) : null}
                           {svc.quantity && svc.quantity > 1 ? (
-                            <Text style={{ color: '#FFD700', fontSize: 12 }}>x{svc.quantity}</Text>
+                            <Text style={{ color: colors.gold, fontSize: 12 }}>x{svc.quantity}</Text>
                           ) : null}
                         </View>
-                        <Text style={{ color: '#FFD700', fontWeight: '700', fontSize: 15 }}>
+                        <Text style={{ color: colors.gold, fontWeight: '700', fontSize: 15 }}>
                           ${((parseFloat(svc.price) || 0) * (svc.quantity || 1)).toFixed(2)}
                         </Text>
                       </View>
@@ -989,8 +1092,8 @@ function InvoiceDetailsModal({
                   </View>
                 )}
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                  <Text style={[styles.infoBlockText, { fontWeight: 'bold', color: '#FFD700' }]}>Total:</Text>
-                  <Text style={[styles.infoBlockText, { fontWeight: 'bold', color: '#FFD700' }]}>${invoice.total}</Text>
+                  <Text style={[styles.infoBlockText, { fontWeight: 'bold', color: colors.gold }]}>Total:</Text>
+                  <Text style={[styles.infoBlockText, { fontWeight: 'bold', color: colors.gold }]}>${invoice.total}</Text>
                 </View>
               </View>
               {/* Payment Method */}
@@ -1080,6 +1183,23 @@ function InvoiceDetailsModal({
                   )}
                 </View>
               </View>
+              {/* Trash Can Button */}
+              <View style={{ marginTop: 24, alignItems: 'center' }}>
+                <TouchableOpacity
+                  style={[
+                    styles.iconButton,
+                    { backgroundColor: '#F87171', flexDirection: 'row', justifyContent: 'center', alignItems: 'center', width: 160 }
+                  ]}
+                  onPress={handleDeleteInvoice}
+                  disabled={deleting}
+                  accessibilityLabel="Delete invoice"
+                >
+                  <Ionicons name="trash-outline" size={20} color="#fff" style={{ marginRight: 8 }} />
+                  <Text style={{ color: '#fff', fontWeight: 'bold', fontSize: 16 }}>
+                    {deleting ? 'Deleting...' : 'Delete Invoice'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
             </>
           )}
         </View>
@@ -1094,15 +1214,22 @@ export const screenOptions = {
 };
 
 const styles = StyleSheet.create({
+  summaryErrorText: {
+    color: '#F87171',
+    fontWeight: 'bold',
+    fontSize: 15,
+    marginBottom: 8,
+    textAlign: 'center',
+  },
   container: {
     flex: 1,
-    backgroundColor: '#0F0F0F',
+    backgroundColor: colors.background,
     paddingHorizontal: 12,
     paddingTop: Platform.OS === 'android' ? 50 : 50,
   },
   centered: {
     flex: 1,
-    backgroundColor: '#0F0F0F',
+    backgroundColor: colors.background,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1112,13 +1239,13 @@ const styles = StyleSheet.create({
     marginBottom: 18,
     marginTop: 20,
     justifyContent: 'space-between',
-    backgroundColor: '#0F0F0F',
+    backgroundColor: colors.background,
   },
   headerTitle: {
     flex: 1,
     fontSize: 22,
     fontWeight: 'bold',
-    color: '#fff',
+    color: colors.text,
     marginLeft: 8,
     marginRight: 8,
   },
@@ -1154,7 +1281,7 @@ const styles = StyleSheet.create({
   vipBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFD700',
+    backgroundColor: colors.gold,
     borderRadius: 6,
     paddingHorizontal: 6,
     paddingVertical: 2,
@@ -1235,7 +1362,7 @@ const styles = StyleSheet.create({
     marginHorizontal: 4,
   },
   statsValue: {
-    color: '#FFD700',
+    color: colors.white,
     fontWeight: 'bold',
     fontSize: 18,
     marginBottom: 2,
@@ -1273,7 +1400,7 @@ const styles = StyleSheet.create({
     fontSize: 13,
   },
   appointmentPrice: {
-    color: '#FFD700',
+    color: colors.gold,
     fontWeight: 'bold',
     fontSize: 15,
     textAlign: 'right',
@@ -1358,7 +1485,7 @@ const styles = StyleSheet.create({
     maxHeight: '90%',
   },
   modalTitle: {
-    color: '#FFD700',
+    color: colors.gold,
     fontWeight: 'bold',
     fontSize: 18,
     marginBottom: 8,

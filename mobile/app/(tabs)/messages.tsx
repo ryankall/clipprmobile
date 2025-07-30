@@ -66,10 +66,10 @@ function getStatusIcon(status: string, color: string) {
   }
 }
 
+
 export default function Messages() {
   const [filter, setFilter] = useState<string>('all');
   const [selectedMessage, setSelectedMessage] = useState<Message | null>(null);
-  const [modalVisible, setModalVisible] = useState(false);
 
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -119,7 +119,6 @@ export default function Messages() {
       queryClient.invalidateQueries({ queryKey: ['/api/messages'] });
       queryClient.invalidateQueries({ queryKey: ['/api/messages/unread-count'] });
       setSelectedMessage(null);
-      setModalVisible(false);
       Alert.alert('Deleted', 'Message deleted');
     },
     onError: (error: any) => {
@@ -221,15 +220,15 @@ export default function Messages() {
   // Action handlers using mutations
   const handleMarkAsReplied = (message: Message) => {
     repliedMutation.mutate(message.id);
-    setModalVisible(false);
+    setSelectedMessage(null);
   };
   const handleArchive = (message: Message) => {
     archiveMutation.mutate(message.id);
-    setModalVisible(false);
+    setSelectedMessage(null);
   };
   const handleCreateClient = (message: Message) => {
     createClientMutation.mutate(message);
-    setModalVisible(false);
+    setSelectedMessage(null);
   };
   const handleBookAppointment = (message: Message) => {
     // Extract appointment details from message
@@ -243,7 +242,7 @@ export default function Messages() {
 
     if (!dateMatch || !timeMatch) {
       Alert.alert('Error', 'Could not extract date and time from the booking request.');
-      setModalVisible(false);
+      setSelectedMessage(null);
       return;
     }
 
@@ -271,7 +270,7 @@ export default function Messages() {
       travel: hasTravel ? 'yes' : travelNo ? 'no' : undefined,
     };
 
-    setModalVisible(false);
+    setSelectedMessage(null);
 
     // Navigate to the new appointment screen with params
     router.push({
@@ -286,7 +285,7 @@ export default function Messages() {
     } else {
       blockClientMutation.mutate({ phoneNumber: message.customerPhone, reason: 'Blocked from messages' });
     }
-    setModalVisible(false);
+    setSelectedMessage(null);
   };
   const handleDelete = (message: Message) => {
     deleteMutation.mutate(message.id);
@@ -364,6 +363,8 @@ export default function Messages() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedMessage, clients]);
+
+  // (Removed navigation param-based modal logic)
 
   return (
     <SafeAreaView style={styles.container}>
@@ -446,10 +447,6 @@ export default function Messages() {
             <TouchableOpacity
               onPress={() => {
                 setSelectedMessage(item);
-                if (item.status === 'unread') {
-                  markAsReadMutation.mutate(item.id);
-                }
-                setModalVisible(true);
               }}
               activeOpacity={0.85}
             >
@@ -506,10 +503,10 @@ export default function Messages() {
       {/* Message Detail Modal */}
       {selectedMessage && (
         <Modal
-          visible={modalVisible}
+          visible={!!selectedMessage}
           animationType="slide"
           transparent={true}
-          onRequestClose={() => setModalVisible(false)}
+          onRequestClose={() => setSelectedMessage(null)}
         >
           <View style={modalStyles.overlay}>
             <View style={modalStyles.modalContainer}>
@@ -518,7 +515,7 @@ export default function Messages() {
                 <Text style={modalStyles.modalTitle} numberOfLines={2}>
                   {selectedMessage.subject}
                 </Text>
-                <TouchableOpacity onPress={() => setModalVisible(false)}>
+                <TouchableOpacity onPress={() => setSelectedMessage(null)}>
                   <Ionicons name="close" size={24} color="#fff" />
                 </TouchableOpacity>
               </View>

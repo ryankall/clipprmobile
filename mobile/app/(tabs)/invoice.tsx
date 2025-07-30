@@ -1,5 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Alert, Modal, TextInput, FlatList, ActivityIndicator } from 'react-native';
+import { 
+  View, 
+  Text, 
+  ScrollView, 
+  TouchableOpacity, 
+  StyleSheet, 
+  Alert, 
+  Modal, 
+  TextInput, 
+  FlatList, 
+  ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -7,6 +17,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { apiRequest } from '../../lib/api';
 import { Service } from '../../lib/types';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { colors, theme } from '../../lib/theme';
 
 // --- Invoice and Client Types ---
 type PaymentStatus = 'paid' | 'unpaid';
@@ -255,7 +266,7 @@ const CreateInvoiceModalContent: React.FC<CreateInvoiceModalContentProps> = ({
                     onPress={() => toggleService(item.id)}
                   >
                     <Text style={{ color: '#fff', flex: 1 }}>{item.name}</Text>
-                    <Text style={{ color: '#F59E0B', marginLeft: 8 }}>${item.price}</Text>
+                    <Text style={{ color: colors.gold, marginLeft: 8 }}>${item.price}</Text>
                     {selected && (
                       <Ionicons name="checkmark-circle" size={20} color="#22C55E" style={{ marginLeft: 8 }} />
                     )}
@@ -345,7 +356,7 @@ const CreateInvoiceModalContent: React.FC<CreateInvoiceModalContentProps> = ({
       {/* Total */}
       <View style={{ width: '100%', marginBottom: 12, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
         <Text style={{ color: '#fff', fontWeight: '700', fontSize: 17 }}>Total:</Text>
-        <Text style={{ color: '#F59E0B', fontWeight: '700', fontSize: 18 }}>${total.toFixed(2)}</Text>
+        <Text style={{ color: colors.gold, fontWeight: '700', fontSize: 18 }}>${total.toFixed(2)}</Text>
       </View>
 
       {/* Error/Feedback */}
@@ -581,7 +592,7 @@ export default function Invoice() {
   const getCategoryColor = (category: string) => {
     switch (category.toLowerCase()) {
       case 'haircut': return '#22C55E';
-      case 'beard': return '#F59E0B';
+      case 'beard': return colors.gold;
       case 'styling': return '#8B5CF6';
       case 'color': return '#EF4444';
       case 'treatment': return '#3B82F6';
@@ -659,7 +670,7 @@ export default function Invoice() {
   const renderTabButton = (tab: 'recentInvoice' | 'export' | 'services' | 'stats', title: string, icon: string) => (
     <TouchableOpacity
       key={tab}
-      style={[styles.tabButton, activeTab === tab && styles.activeTab]}
+      style={[theme.tabButton, activeTab === tab && theme.activeTab]}
       onPress={() => setActiveTab(tab)}
     >
       <Ionicons name={icon as any} size={16} color={activeTab === tab ? '#1F2937' : '#6B7280'} />
@@ -668,7 +679,7 @@ export default function Invoice() {
   );
 
   const renderRecentInvoiceTab = () => (
-    <ScrollView style={styles.tabContent}>
+    <ScrollView style={theme.tabContent}>
       {/* --- Recent Invoices Section --- */}
         <View style={{ marginBottom: 24 }}>
           <Text style={styles.title}>
@@ -689,13 +700,13 @@ export default function Invoice() {
                 .slice(0, 10)
                 .map((invoice) => {
                   const client = clients.find((c) => c.id === invoice.clientId);
-                  let statusColor = '#F59E0B';
+                  let statusColor = colors.gold;
                   let statusBg = '#232323';
                   if (invoice.paymentStatus === 'paid') {
                     statusColor = '#22C55E';
                     statusBg = '#193a2f';
                   } else if (invoice.paymentStatus === 'unpaid') {
-                    statusColor = '#F59E0B';
+                    statusColor = colors.gold;
                     statusBg = '#2d230f';
                   }
                   let iconName: any = 'receipt-outline';
@@ -773,7 +784,7 @@ export default function Invoice() {
                         </View>
                       </View>
                       <View style={{ alignItems: 'flex-end', minWidth: 90 }}>
-                        <Text style={{ color: '#F59E0B', fontWeight: '700', fontSize: 16 }}>
+                        <Text style={{ color: colors.gold, fontWeight: '700', fontSize: 16 }}>
                           ${invoice.total}
                         </Text>
                         <View style={{ alignItems: 'flex-end', marginTop: 4 }}>
@@ -896,7 +907,7 @@ export default function Invoice() {
   );
 
   const renderExportTab = () => (
-    <ScrollView style={styles.tabContent}>
+    <ScrollView style={theme.tabContent}>
       {/* --- Export Invoices Section --- */}
         <View style={{
           backgroundColor: '#1A1A1A',
@@ -946,7 +957,7 @@ export default function Invoice() {
   );
   
   const renderServicesTab = () => (
-    <ScrollView style={styles.tabContent}>
+    <ScrollView style={theme.tabContent}>
        {/* Add Service Button */}
         <TouchableOpacity
           style={styles.addServiceButton}
@@ -1216,7 +1227,7 @@ export default function Invoice() {
         <TouchableOpacity
           style={[
             styles.quickTemplateCard,
-            { backgroundColor: '#1A1A1A', borderColor: '#F59E0B' }
+            { backgroundColor: '#1A1A1A', borderColor: colors.gold }
           ]}
           activeOpacity={0.7}
           onPress={() => {
@@ -1236,7 +1247,7 @@ export default function Invoice() {
         <TouchableOpacity
           style={[
             styles.quickTemplateCard,
-            { backgroundColor: '#1A1A1A', borderColor: '#F59E0B' }
+            { backgroundColor: '#1A1A1A', borderColor: colors.gold }
           ]}
           activeOpacity={0.7}
           onPress={() => {
@@ -1256,7 +1267,7 @@ export default function Invoice() {
         <TouchableOpacity
           style={[
             styles.quickTemplateCard,
-            { backgroundColor: '#1A1A1A', borderColor: '#F59E0B' }
+            { backgroundColor: '#1A1A1A', borderColor: colors.gold }
           ]}
           activeOpacity={0.7}
           onPress={() => {
@@ -1277,7 +1288,7 @@ export default function Invoice() {
         {customTemplates.map((tpl) => (
           <TouchableOpacity
             key={tpl.id}
-            style={[styles.quickTemplateCard, { backgroundColor: '#232323', borderColor: '#F59E0B' }]}
+            style={[styles.quickTemplateCard, { backgroundColor: '#232323', borderColor: colors.gold }]}
             activeOpacity={0.7}
             onPress={() => {
               setSelectedTemplate({
@@ -1300,7 +1311,7 @@ export default function Invoice() {
           onPress={() => setShowTemplateModal(true)}
         >
           <Ionicons name="add" size={24} color="#f59e0b" style={{ marginBottom: 6 }} />
-          <Text style={[styles.quickTemplateName, { color: '#F59E0B' }]}>New</Text>
+          <Text style={[styles.quickTemplateName, { color: colors.gold }]}>New</Text>
         </TouchableOpacity>
       </ScrollView>
       {/* New Template Modal */}
@@ -1349,7 +1360,7 @@ export default function Invoice() {
                     onPress={() => handleServiceSelect(item.id)}
                   >
                     <Text style={{ color: '#fff', flex: 1 }}>{item.name}</Text>
-                    <Text style={{ color: '#F59E0B', marginLeft: 8 }}>${item.price}</Text>
+                    <Text style={{ color: colors.gold, marginLeft: 8 }}>${item.price}</Text>
                     {templateServiceIds.includes(item.id) && (
                       <Ionicons name="checkmark-circle" size={20} color="#22C55E" style={{ marginLeft: 8 }} />
                     )}
@@ -1522,6 +1533,7 @@ function InvoiceDetailsModal({
   const [marking, setMarking] = React.useState(false);
   const [sendingSMS, setSendingSMS] = React.useState(false);
   const [sendingEmail, setSendingEmail] = React.useState(false);
+  const [deleting, setDeleting] = React.useState(false);
 
   // Always fetch the latest invoice by ID when modal opens
   React.useEffect(() => {
@@ -1591,6 +1603,34 @@ function InvoiceDetailsModal({
       Alert.alert('Error', e?.message || 'Failed to send email');
     }
     setSendingEmail(false);
+  };
+
+  // Delete invoice
+  const handleDeleteInvoice = async () => {
+    if (!invoice) return;
+    Alert.alert(
+      'Delete Invoice',
+      'Are you sure you want to delete this invoice? This action cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            setDeleting(true);
+            try {
+              await apiRequest('DELETE', `/api/invoices/${invoice.id}`);
+              await reloadInvoices();
+              onClose();
+              Alert.alert('Deleted', 'Invoice deleted successfully.');
+            } catch (e: any) {
+              Alert.alert('Error', e?.message || 'Failed to delete invoice');
+            }
+            setDeleting(false);
+          },
+        },
+      ]
+    );
   };
 
   if (!invoice) {
@@ -1693,10 +1733,10 @@ function InvoiceDetailsModal({
                           </Text>
                         ) : null}
                         {svc.quantity && svc.quantity > 1 ? (
-                          <Text style={{ color: '#FFD700', fontSize: 12 }}>x{svc.quantity}</Text>
+                          <Text style={{ color: colors.gold, fontSize: 12 }}>x{svc.quantity}</Text>
                         ) : null}
                       </View>
-                      <Text style={{ color: '#FFD700', fontWeight: '700', fontSize: 15 }}>
+                      <Text style={{ color: colors.gold, fontWeight: '700', fontSize: 15 }}>
                         ${((parseFloat(svc.price) || 0) * (svc.quantity || 1)).toFixed(2)}
                       </Text>
                     </View>
@@ -1741,7 +1781,7 @@ function InvoiceDetailsModal({
                     <Text style={{ color: '#fff', fontWeight: '600', fontSize: 14 }}>
                       Total Price:
                     </Text>
-                    <Text style={{ color: '#FFD700', fontWeight: '700', fontSize: 15 }}>
+                    <Text style={{ color: colors.gold, fontWeight: '700', fontSize: 15 }}>
                       $
                       {services
                         .reduce(
@@ -1776,8 +1816,8 @@ function InvoiceDetailsModal({
                 </View>
               )}
               <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                <Text style={[styles.infoBlockText, { fontWeight: 'bold', color: '#FFD700' }]}>Total:</Text>
-                <Text style={[styles.infoBlockText, { fontWeight: 'bold', color: '#FFD700' }]}>${invoice.total}</Text>
+                <Text style={[styles.infoBlockText, { fontWeight: 'bold', color: colors.gold }]}>Total:</Text>
+                <Text style={[styles.infoBlockText, { fontWeight: 'bold', color: colors.gold }]}>${invoice.total}</Text>
               </View>
             </View>
             {/* Payment Method */}
@@ -1801,7 +1841,7 @@ function InvoiceDetailsModal({
                     styles.infoBlockText,
                     invoice.paymentStatus === 'paid'
                       ? { color: '#22C55E', fontWeight: 'bold' }
-                      : { color: '#FFD700', fontWeight: 'bold' }
+                      : { color: colors.gold, fontWeight: 'bold' }
                   ]}>
                     {invoice.paymentStatus === 'paid' ? 'Paid' : 'Unpaid'}
                   </Text>
@@ -1867,6 +1907,23 @@ function InvoiceDetailsModal({
                 )}
               </View>
             </View>
+            {/* Trash Can Button */}
+            <View style={{ marginTop: 24, alignItems: 'center' }}>
+              <TouchableOpacity
+                style={[
+                  styles.iconButton,
+                  { backgroundColor: '#F87171', flexDirection: 'row', justifyContent: 'center', alignItems: 'center', width: 160 }
+                ]}
+                onPress={handleDeleteInvoice}
+                disabled={deleting}
+                accessibilityLabel="Delete invoice"
+              >
+                <Ionicons name="trash-outline" size={20} color="#fff" style={{ marginRight: 8 }} />
+                <Text style={{ color: '#fff', fontWeight: 'bold', fontSize: 16 }}>
+                  {deleting ? 'Deleting...' : 'Delete Invoice'}
+                </Text>
+              </TouchableOpacity>
+            </View>
           </ScrollView>
         </View>
       </SafeAreaView>
@@ -1899,11 +1956,11 @@ const styles = StyleSheet.create({
     createButton: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: '#f59e0b', // gold
+        backgroundColor: colors.gold, // gold
         borderRadius: 20,
         paddingVertical: 8,
         paddingHorizontal: 18,
-        shadowColor: '#f59e0b', // gold
+        shadowColor: colors.gold, // gold
         shadowOpacity: 0.25,
         shadowRadius: 6,
         shadowOffset: { width: 0, height: 2 },
@@ -1918,14 +1975,14 @@ const styles = StyleSheet.create({
     addServiceButton: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: '#f59e0b', // gold
+        backgroundColor: colors.gold, // gold
         borderRadius: 20,
         paddingVertical: 8,
         paddingHorizontal: 18,
         alignSelf: 'flex-end',
         marginBottom: 12,
         marginRight: 16,
-        shadowColor: '#f59e0b', // gold
+        shadowColor: colors.gold, // gold
         shadowOpacity: 0.18,
         shadowRadius: 4,
         shadowOffset: { width: 0, height: 2 },
@@ -2186,8 +2243,8 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     paddingHorizontal: 10,
     backgroundColor: '#1e1e1e', // charcoal
-    borderColor: '#f59e0b', // gold
-    shadowColor: '#f59e0b', // gold
+    borderColor: colors.gold, // gold
+    shadowColor: colors.gold, // gold
     shadowOpacity: 0.12,
     shadowRadius: 4,
     shadowOffset: { width: 0, height: 2 },
@@ -2202,7 +2259,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.1,
   },
   quickTemplatePrice: {
-    color: '#f59e0b', // gold
+    color: colors.gold, // gold
     fontWeight: '700',
     fontSize: 16,
     letterSpacing: 0.1,
@@ -2210,7 +2267,7 @@ const styles = StyleSheet.create({
   addTemplateCard: {
     backgroundColor: '#181818',
     borderStyle: 'dashed',
-    borderColor: '#f59e0b', // gold
+    borderColor: colors.gold, // gold
     borderWidth: 2,
     justifyContent: 'center',
     alignItems: 'center',
@@ -2259,8 +2316,8 @@ const styles = StyleSheet.create({
     borderColor: '#737b89', // steel
   },
   categoryChipSelected: {
-    backgroundColor: '#f59e0b', // gold
-    borderColor: '#f59e0b', // gold
+    backgroundColor: colors.gold, // gold
+    borderColor: colors.gold, // gold
   },
   categoryChipText: {
     color: '#fff',
@@ -2289,7 +2346,7 @@ const styles = StyleSheet.create({
     minWidth: '30%',
   },
   activeTab: {
-    backgroundColor: '#F59E0B',
+    backgroundColor: colors.gold,
   },
   infoBlock: {
     backgroundColor: '#23232A',

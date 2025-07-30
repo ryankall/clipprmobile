@@ -7,6 +7,7 @@ import type { Client } from "../../lib/types";
 import { toZonedTime, format } from "date-fns-tz";
 import { Ionicons } from '@expo/vector-icons';
 
+import { colors } from '../../lib/theme';
 export default function NewAppointment() {
   const router = useRouter();
   const params = useLocalSearchParams();
@@ -277,7 +278,7 @@ export default function NewAppointment() {
           onPress={() => router.back()}
           accessibilityLabel="Go back"
           >
-          <Ionicons name="arrow-back" size={22} color="#FFD700" />
+          <Ionicons name="arrow-back" size={22} color={colors.gold} />
         </TouchableOpacity>
         <Text style={styles.heading}>Create Appointment</Text>
       </View>
@@ -497,7 +498,7 @@ export default function NewAppointment() {
             Alert.alert("Error", e?.message || "Failed to create appointment");
           }
         }}
-        color="#FFD700"
+        color={colors.gold}
       />
     </ScrollView>
   );
@@ -623,7 +624,7 @@ const styles = StyleSheet.create({
   container: {
     flexGrow: 1,
     padding: 24,
-    backgroundColor: "#fff",
+    backgroundColor: colors.background,
     justifyContent: "flex-start",
     paddingTop: Platform.OS === 'android' ? 50 : 50,
   },
@@ -633,6 +634,7 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     marginBottom: 24,
     textAlign: "center",
+    color: colors.text,
   },
   header: {
     flexDirection: 'row',
@@ -646,14 +648,17 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     marginBottom: 8,
     marginTop: 16,
+    color: colors.text,
   },
   input: {
     borderWidth: 1,
-    borderColor: "#ccc",
+    borderColor: colors.borderCard,
     borderRadius: 6,
     padding: 12,
     marginBottom: 12,
     fontSize: 16,
+    backgroundColor: colors.backgroundCard,
+    color: colors.text,
   },
   clientList: {
     marginBottom: 8,
@@ -661,29 +666,30 @@ const styles = StyleSheet.create({
   clientItem: {
     padding: 12,
     borderWidth: 1,
-    borderColor: "#ccc",
+    borderColor: colors.borderCard,
     borderRadius: 6,
     marginBottom: 6,
-    backgroundColor: "#f9f9f9",
+    backgroundColor: colors.backgroundCardAlt,
   },
   clientItemSelected: {
-    borderColor: "#FFD700",
-    backgroundColor: "#FFFBEA",
+    borderColor: colors.gold,
+    backgroundColor: colors.goldLight,
   },
   clientName: {
     fontWeight: "bold",
     fontSize: 16,
+    color: colors.text,
   },
   clientPhone: {
-    color: "#555",
+    color: colors.textSteel,
     fontSize: 14,
   },
   clientEmail: {
-    color: "#888",
+    color: colors.textSecondary,
     fontSize: 13,
   },
   error: {
-    color: "#F87171",
+    color: colors.red,
     marginTop: 8,
     marginBottom: 8,
     fontSize: 14,
@@ -694,19 +700,20 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     borderWidth: 1,
-    borderColor: "#ccc",
+    borderColor: colors.borderCard,
     borderRadius: 6,
     padding: 12,
     marginBottom: 8,
-    backgroundColor: "#f6f6f6",
+    backgroundColor: colors.backgroundCardAlt,
   },
   serviceName: {
     fontWeight: "bold",
     fontSize: 16,
     marginBottom: 2,
+    color: colors.text,
   },
   serviceDetails: {
-    color: "#555",
+    color: colors.textSteel,
     fontSize: 14,
   },
   serviceActions: {
@@ -718,7 +725,7 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: "#FFD700",
+    backgroundColor: colors.gold,
     alignItems: "center",
     justifyContent: "center",
     marginHorizontal: 4,
@@ -726,16 +733,17 @@ const styles = StyleSheet.create({
   serviceButtonText: {
     fontSize: 20,
     fontWeight: "bold",
-    color: "#18181B",
+    color: colors.textCharcoal,
   },
   serviceQty: {
     fontSize: 16,
     fontWeight: "bold",
     minWidth: 24,
     textAlign: "center",
+    color: colors.text,
   },
   iconButton: {
-    backgroundColor: '#23232A',
+    backgroundColor: colors.backgroundCardAlt,
     borderRadius: 8,
     padding: 8,
     marginHorizontal: 2,
@@ -745,7 +753,7 @@ const styles = StyleSheet.create({
   backButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#23232A',
+    backgroundColor: colors.backgroundCardAlt,
     borderRadius: 8,
     padding: 10,
   },
@@ -758,22 +766,22 @@ const styles = StyleSheet.create({
   },
   travelTimeLabel: {
     fontSize: 15,
-    color: "#555",
+    color: colors.textSteel,
     marginBottom: 8,
     marginLeft: 2,
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: "rgba(0,0,0,0.3)",
+    backgroundColor: colors.backgroundOverlayAlt,
     justifyContent: "center",
     alignItems: "center",
   },
   modalContent: {
     width: "90%",
-    backgroundColor: "#fff",
+    backgroundColor: colors.backgroundCard,
     borderRadius: 12,
     padding: 20,
-    shadowColor: "#000",
+    shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.2,
     shadowRadius: 4,

@@ -1,65 +1,66 @@
 import React from 'react';
 import { render, fireEvent, waitFor } from '@testing-library/react-native';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import Invoice from '../app/(tabs)/invoice';
 import { Alert } from 'react-native';
 
 // Mock hooks and dependencies
-jest.mock('../hooks/useAuth', () => ({
+vi.mock('../hooks/useAuth', () => ({
   useAuth: () => ({ isAuthenticated: true }),
 }));
-jest.mock('../lib/api', () => ({
-  apiRequest: jest.fn().mockResolvedValue([]),
+vi.mock('../lib/api', () => ({
+  apiRequest: vi.fn().mockResolvedValue([]),
 }));
-jest.mock('@react-native-async-storage/async-storage', () => ({
-  getItem: jest.fn().mockResolvedValue('[]'),
-  setItem: jest.fn(),
+vi.mock('@react-native-async-storage/async-storage', () => ({
+  getItem: vi.fn().mockResolvedValue('[]'),
+  setItem: vi.fn(),
 }));
 
 // Silence Alert.alert
-jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+vi.spyOn(Alert, 'alert').mockImplementation(() => {});
 
 describe('Invoice Tab UI interactions', () => {
   it('opens and closes the Service Modal via Add Service button', async () => {
-    const { getByText, queryByText, getByA11yLabel } = render(<Invoice />);
+    const { getByText, queryByText, getByLabelText } = render(<Invoice />);
     // Open Service Modal
     await waitFor(() => expect(getByText('Add Service')).toBeTruthy());
     fireEvent.press(getByText('Add Service'));
     expect(getByText(/Add Service|Edit Service/i)).toBeTruthy();
     // Close Service Modal
-    fireEvent.press(getByA11yLabel('Close'));
+    fireEvent.press(getByLabelText('Close'));
     await waitFor(() => expect(queryByText(/Add Service|Edit Service/i)).toBeNull());
   });
 
   it('opens and closes the Create Invoice Modal via Create button', async () => {
-    const { getByText, queryByText, getAllByText, getByA11yLabel } = render(<Invoice />);
+    const { getByText, queryByText, getAllByText, getByLabelText } = render(<Invoice />);
     // Open Create Invoice Modal
     await waitFor(() => expect(getByText('Create')).toBeTruthy());
     fireEvent.press(getByText('Create'));
     expect(getByText('Create Invoice')).toBeTruthy();
     // Close Create Invoice Modal
-    fireEvent.press(getByA11yLabel('Close'));
+    fireEvent.press(getByLabelText('Close'));
     await waitFor(() => expect(queryByText('Create Invoice')).toBeNull());
   });
 
   it('opens and closes the Create Invoice Modal via quick template', async () => {
-    const { getByText, queryByText, getByA11yLabel } = render(<Invoice />);
+    const { getByText, queryByText, getByLabelText } = render(<Invoice />);
     // Open via "Haircut" quick template
     await waitFor(() => expect(getByText('Haircut')).toBeTruthy());
     fireEvent.press(getByText('Haircut'));
     expect(getByText('Create Invoice')).toBeTruthy();
     // Close
-    fireEvent.press(getByA11yLabel('Close'));
+    fireEvent.press(getByLabelText('Close'));
     await waitFor(() => expect(queryByText('Create Invoice')).toBeNull());
   });
 
   it('opens and closes the Template Modal via New button', async () => {
-    const { getByText, queryByText, getByA11yLabel } = render(<Invoice />);
+    const { getByText, queryByText, getByLabelText } = render(<Invoice />);
     // Open Template Modal
     await waitFor(() => expect(getByText('New')).toBeTruthy());
     fireEvent.press(getByText('New'));
     expect(getByText('Create Template')).toBeTruthy();
     // Close Template Modal
-    fireEvent.press(getByA11yLabel('Close'));
+    fireEvent.press(getByLabelText('Close'));
     await waitFor(() => expect(queryByText('Create Template')).toBeNull());
   });
 
@@ -76,20 +77,20 @@ describe('Invoice Tab UI interactions', () => {
       createdAt: new Date().toISOString(),
     };
     const client = { id: 1, name: 'Test Client', phone: '123' };
-    jest.mocked(require('../lib/api').apiRequest)
-      .mockImplementation((method, url) => {
+    (require('../lib/api').apiRequest as any)
+      .mockImplementation((method: string, url: string) => {
         if (url === '/api/invoices') return Promise.resolve([invoice]);
         if (url === '/api/clients') return Promise.resolve([client]);
         return Promise.resolve([]);
       });
 
-    const { getByText, queryByText, getByA11yLabel } = render(<Invoice />);
+    const { getByText, queryByText, getByLabelText } = render(<Invoice />);
     // Wait for invoice to appear
     await waitFor(() => expect(getByText('Test Client')).toBeTruthy());
     fireEvent.press(getByText('Test Client'));
     expect(getByText('Invoice Details')).toBeTruthy();
     // Close Invoice Details Modal
-    fireEvent.press(getByA11yLabel('Close'));
+    fireEvent.press(getByLabelText('Close'));
     await waitFor(() => expect(queryByText('Invoice Details')).toBeNull());
   });
 
@@ -109,8 +110,8 @@ describe('Invoice Tab UI interactions', () => {
       createdAt: new Date().toISOString(),
     };
     const client = { id: 1, name: 'Test Client', phone: '123' };
-    jest.mocked(require('../lib/api').apiRequest)
-      .mockImplementation((method, url) => {
+    (require('../lib/api').apiRequest as any)
+      .mockImplementation((method: string, url: string) => {
         if (url === '/api/invoices') return Promise.resolve([invoice]);
         if (url === '/api/clients') return Promise.resolve([client]);
         return Promise.resolve([]);
@@ -130,8 +131,8 @@ describe('Invoice Tab UI interactions', () => {
       category: 'Haircuts',
       isActive: true,
     };
-    jest.mocked(require('../lib/api').apiRequest)
-      .mockImplementation((method, url) => {
+    (require('../lib/api').apiRequest as any)
+      .mockImplementation((method: string, url: string) => {
         if (url === '/api/services') return Promise.resolve([service]);
         return Promise.resolve([]);
       });
@@ -142,7 +143,7 @@ describe('Invoice Tab UI interactions', () => {
   });
 
   it('shows and closes all modals independently', async () => {
-    const { getByText, queryByText, getAllByA11yLabel } = render(<Invoice />);
+    const { getByText, queryByText, getAllByLabelText } = render(<Invoice />);
     // Open Service Modal
     fireEvent.press(getByText('Add Service'));
     expect(getByText(/Add Service|Edit Service/i)).toBeTruthy();
@@ -153,7 +154,7 @@ describe('Invoice Tab UI interactions', () => {
     fireEvent.press(getByText('New'));
     expect(getByText('Create Template')).toBeTruthy();
     // Close all modals
-    getAllByA11yLabel('Close').forEach(btn => fireEvent.press(btn));
+    getAllByLabelText('Close').forEach((btn: any) => fireEvent.press(btn));
     await waitFor(() => {
       expect(queryByText(/Add Service|Edit Service/i)).toBeNull();
       expect(queryByText('Create Invoice')).toBeNull();
@@ -164,15 +165,18 @@ describe('Invoice Tab UI interactions', () => {
 describe('Dashboard "Invoice" button', () => {
   it('navigates to invoice tab and pre-fills client and services', async () => {
     // Mock router and navigation
-    const mockPush = jest.fn();
-    jest.mock('expo-router', () => ({
-      ...jest.requireActual('expo-router'),
-      router: { push: mockPush },
-      useLocalSearchParams: () => ({
-        prefillClientId: '1',
-        prefillServices: JSON.stringify([2, 3]),
-      }),
-    }));
+    const mockPush = vi.fn();
+    vi.mock('expo-router', () => {
+      const actual = vi.importActual('expo-router');
+      return {
+        ...actual,
+        router: { push: mockPush },
+        useLocalSearchParams: () => ({
+          prefillClientId: '1',
+          prefillServices: JSON.stringify([2, 3]),
+        }),
+      };
+    });
 
     // Mock current appointment with client and services
     const currentAppointment = {
@@ -189,8 +193,8 @@ describe('Dashboard "Invoice" button', () => {
     };
 
     // Mock todayAppointments to include currentAppointment
-    jest.mocked(require('../lib/api').apiRequest)
-      .mockImplementation((method, url) => {
+    (require('../lib/api').apiRequest as any)
+      .mockImplementation((method: string, url: string) => {
         if (url === '/api/dashboard') return Promise.resolve({});
         if (url === '/api/appointments/today') return Promise.resolve([currentAppointment]);
         if (url === '/api/messages/unread-count') return Promise.resolve({ count: 0 });

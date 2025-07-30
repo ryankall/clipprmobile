@@ -1,5 +1,6 @@
 import React from 'react';
 import { render, fireEvent, waitFor } from '@testing-library/react-native';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import Dashboard from '../app/(tabs)/index';
 import * as api from '../lib/api';
 import { router } from 'expo-router';
@@ -186,7 +187,7 @@ describe('Dashboard (Mobile)', () => {
   });
 
   it('handles edge case: no appointments', async () => {
-    (api.apiRequest as any).mockImplementationOnce((method, endpoint) => {
+    (api.apiRequest as any).mockImplementationOnce((method: string, endpoint: string) => {
       if (endpoint === '/api/appointments/today') return Promise.resolve([]);
       if (endpoint === '/api/dashboard') return Promise.resolve(mockStats);
       if (endpoint === '/api/messages/unread-count') return Promise.resolve({ count: 0 });
@@ -217,7 +218,7 @@ describe('Dashboard (Mobile)', () => {
   });
 
   it('handles edge case: no pending appointments', async () => {
-    (api.apiRequest as any).mockImplementation((method, endpoint) => {
+    (api.apiRequest as any).mockImplementation((method: string, endpoint: string) => {
       if (endpoint === '/api/appointments/pending') return Promise.resolve([]);
       if (endpoint === '/api/dashboard') return Promise.resolve(mockStats);
       if (endpoint === '/api/appointments/today') return Promise.resolve(mockAppointments);

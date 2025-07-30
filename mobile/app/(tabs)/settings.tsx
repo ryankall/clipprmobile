@@ -31,6 +31,7 @@ import { User } from '../../lib/types';
 import * as ImagePicker from 'expo-image-picker';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useFocusEffect } from '@react-navigation/native';
+import { colors, theme } from '../../lib/theme';
 
 interface NotificationSettings {
   newBookingRequests: boolean;
@@ -663,11 +664,11 @@ export default function Settings() {
   );
 
   const renderProfileTab = () => (
-    <ScrollView style={styles.tabContent}>
+    <ScrollView style={theme.tabContent}>
       {/* Profile Section */}
-      <View style={styles.card}>
-        <View style={styles.cardHeader}>
-          <Text style={styles.cardTitle}>Profile & Business Info</Text>
+      <View style={theme.card}>
+        <View style={theme.cardHeader}>
+          <Text style={theme.cardTitle}>Profile & Business Info</Text>
           <TouchableOpacity onPress={() => setIsEditingProfile(true)}>
             <Ionicons name="create-outline" size={20} color="#F59E0B" />
           </TouchableOpacity>
@@ -718,8 +719,8 @@ export default function Settings() {
       </View>
 
       {/* Booking Link Section */}
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>Public Booking Link</Text>
+      <View style={theme.card}>
+        <Text style={theme.cardTitle}>Public Booking Link</Text>
         {user?.phone ? (
           <View style={styles.bookingLinkContainer}>
             <Text style={styles.bookingLinkText}>
@@ -749,9 +750,9 @@ export default function Settings() {
       </View>
 
       {/* Quick Action Messages Section */}
-      <View style={styles.card}>
-        <View style={styles.cardHeader}>
-          <Text style={styles.cardTitle}>Quick Action Messages</Text>
+      <View style={theme.card}>
+        <View style={theme.cardHeader}>
+          <Text style={theme.cardTitle}>Quick Action Messages</Text>
         </View>
         <View style={{ gap: 12 }}>
           <View>
@@ -784,7 +785,7 @@ export default function Settings() {
               </Text>
             </View>
           </View>
-          <View style={{ borderTopWidth: 1, borderTopColor: '#374151', paddingTop: 16 }}>
+          <View style={{ borderTopWidth: 1, borderTopColor: colors.highlightOnCard, paddingTop: 16 }}>
             <TouchableOpacity
               style={styles.quickActionButton}
               onPress={() => Alert.alert('Feature Coming Soon', 'Custom quick action messages will be available in a future update.')}
@@ -803,8 +804,8 @@ export default function Settings() {
       </View>
 
       {/* Security Section */}
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>Security</Text>
+      <View style={theme.card}>
+        <Text style={theme.cardTitle}>Security</Text>
         <TouchableOpacity
           style={styles.securityItem}
           onPress={() => setIsChangingPassword(true)}
@@ -828,9 +829,9 @@ export default function Settings() {
   );
 
   const renderNotificationsTab = () => (
-    <View style={styles.tabContent}>
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>Push Notifications</Text>
+    <ScrollView style={styles.tabContent}>
+      <View style={theme.card}>
+        <Text style={theme.cardTitle}>Push Notifications</Text>
         <View style={styles.notificationItem}>
           <View style={styles.notificationInfo}>
             <Text style={styles.notificationTitle}>Push Notifications</Text>
@@ -839,7 +840,7 @@ export default function Settings() {
           <Switch
             value={pushNotificationsEnabled}
             onValueChange={handleNotificationToggle}
-            trackColor={{ false: '#374151', true: '#F59E0B' }}
+            trackColor={{ false: colors.highlightOnCard, true: '#F59E0B' }}
             thumbColor={pushNotificationsEnabled ? '#FFF' : '#9CA3AF'}
           />
         </View>
@@ -861,13 +862,13 @@ export default function Settings() {
             <Switch
               value={value}
               onValueChange={(newValue) => handleNotificationTypeToggle(key as keyof NotificationSettings, newValue)}
-              trackColor={{ false: '#374151', true: '#F59E0B' }}
+              trackColor={{ false: colors.highlightOnCard, true: '#F59E0B' }}
               thumbColor={value ? '#FFF' : '#9CA3AF'}
             />
           </View>
         ))}
       </View>
-    </View>
+    </ScrollView>
   );
 
   const renderBlockedTab = () => (
@@ -881,12 +882,12 @@ export default function Settings() {
           data={blockedClients}
           keyExtractor={(client: BlockedClient) => client.id.toString()}
           ListHeaderComponent={
-            <View style={styles.card}>
-              <Text style={styles.cardTitle}>Blocked Clients</Text>
+            <View style={theme.card}>
+              <Text style={theme.cardTitle}>Blocked Clients</Text>
             </View>
           }
           ListEmptyComponent={
-            <View style={[styles.card, styles.emptyState]}>
+            <View style={[theme.card, styles.emptyState]}>
               <Ionicons name="shield-checkmark-outline" size={64} color="#10B981" />
               <Text style={styles.emptyStateTitle}>No Blocked Clients</Text>
               <Text style={styles.emptyStateText}>
@@ -895,7 +896,7 @@ export default function Settings() {
             </View>
           }
           renderItem={({ item: client }: { item: BlockedClient }) => (
-            <View style={styles.card}>
+            <View style={theme.card}>
               <View style={styles.blockedClientItem}>
                 <View style={styles.blockedClientInfo}>
                   <View style={styles.blockedClientIcon}>
@@ -928,8 +929,8 @@ export default function Settings() {
 
   const renderPaymentTab = () => (
     <ScrollView style={styles.tabContent}>
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>Payment Settings</Text>
+      <View style={theme.card}>
+        <Text style={theme.cardTitle}>Payment Settings</Text>
         {stripeStatus?.connected ? (
           <View style={styles.paymentConnected}>
             <View style={styles.paymentStatus}>
@@ -1033,8 +1034,8 @@ export default function Settings() {
 
   const renderSubscriptionTab = () => (
     <ScrollView style={styles.tabContent}>
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>Subscription Plan</Text>
+      <View style={theme.card}>
+        <Text style={theme.cardTitle}>Subscription Plan</Text>
         <View style={styles.currentPlan}>
           <View style={styles.planHeader}>
             <View style={styles.planIcon}>
@@ -1162,8 +1163,8 @@ export default function Settings() {
 
   const renderHelpTab = () => (
     <ScrollView style={styles.tabContent}>
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>Help & Support</Text>
+      <View style={theme.card}>
+        <Text style={theme.cardTitle}>Help & Support</Text>
         <View style={styles.helpHeader}>
           <Text style={styles.helpTitle}>Need Help?</Text>
           <Text style={styles.helpSubtitle}>
@@ -1415,7 +1416,7 @@ export default function Settings() {
               </View>
 
               {/* --- SMART SCHEDULING SETTINGS SECTION --- */}
-              <View style={[styles.fieldGroup, { borderTopWidth: 1, borderTopColor: '#374151', paddingTop: 20, marginTop: 8 }]}>
+              <View style={[styles.fieldGroup, { borderTopWidth: 1, borderTopColor: colors.highlightOnCard, paddingTop: 20, marginTop: 8 }]}>
                 <Text style={[styles.fieldLabel, { fontSize: 17, marginBottom: 12 }]}>Smart Scheduling Settings</Text>
 
                 {/* Home Base Address */}
@@ -1648,7 +1649,7 @@ export default function Settings() {
                 <TouchableOpacity
                   style={{
                     marginTop: 18,
-                    backgroundColor: '#374151',
+                    backgroundColor: colors.highlightOnCard,
                     borderRadius: 8,
                     paddingVertical: 10,
                     paddingHorizontal: 24,
@@ -1666,7 +1667,7 @@ export default function Settings() {
                 </Text>
                 <TextInput
                   style={{
-                    backgroundColor: '#374151',
+                    backgroundColor: colors.highlightOnCard,
                     borderRadius: 8,
                     borderWidth: 1,
                     borderColor: '#4B5563',
@@ -1723,7 +1724,7 @@ export default function Settings() {
                         paddingHorizontal: 8,
                         paddingVertical: 4,
                         borderRadius: 6,
-                        backgroundColor: '#374151',
+                        backgroundColor: colors.highlightOnCard,
                       }}
                     >
                       {resendLoading ? (
@@ -1740,7 +1741,7 @@ export default function Settings() {
                 <TouchableOpacity
                   style={{
                     marginTop: 18,
-                    backgroundColor: '#374151',
+                    backgroundColor: colors.highlightOnCard,
                     borderRadius: 8,
                     paddingVertical: 10,
                     paddingHorizontal: 24,
@@ -1869,7 +1870,7 @@ function ContactSupportModal({
           maxWidth: 400,
           alignItems: 'center',
           borderWidth: 1,
-          borderColor: '#374151',
+          borderColor: colors.highlightOnCard,
         }}>
           <Text style={{ color: '#fff', fontSize: 20, fontWeight: '700', marginBottom: 12 }}>
             Contact Support
@@ -1879,7 +1880,7 @@ function ContactSupportModal({
           </Text>
           <TextInput
             style={{
-              backgroundColor: '#374151',
+              backgroundColor: colors.highlightOnCard,
               borderRadius: 8,
               borderWidth: 1,
               borderColor: '#4B5563',
@@ -1925,7 +1926,7 @@ function ContactSupportModal({
           <TouchableOpacity
             style={{
               marginTop: 2,
-              backgroundColor: '#374151',
+              backgroundColor: colors.highlightOnCard,
               borderRadius: 8,
               paddingVertical: 10,
               paddingHorizontal: 24,
@@ -1948,7 +1949,7 @@ import { Picker } from '@react-native-picker/picker';
 function TimezonePicker({ value, onChange }: { value: string, onChange: (val: string) => void }) {
   return (
     <View style={{
-      backgroundColor: '#374151',
+      backgroundColor: colors.highlightOnCard,
       borderRadius: 8,
       borderWidth: 1,
       borderColor: '#4B5563',
@@ -1982,7 +1983,7 @@ const TRANSPORTATION_OPTIONS = [
 function TransportationModePicker({ value, onChange }: { value: string, onChange: (val: string) => void }) {
   return (
     <View style={{
-      backgroundColor: '#374151',
+      backgroundColor: colors.highlightOnCard,
       borderRadius: 8,
       borderWidth: 1,
       borderColor: '#4B5563',
@@ -2011,19 +2012,19 @@ function TransportationModePicker({ value, onChange }: { value: string, onChange
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#121212', // match Invoice tab dark background
+    backgroundColor: colors.background, // '#121212'
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#111827',
+    backgroundColor: colors.backgroundAlt, // '#18181B' or '#111827'
   },
   header: {
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#374151',
+    borderBottomColor: colors.border,
   },
   headerContent: {
     flexDirection: 'row',
@@ -2032,7 +2033,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 20,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: colors.text,
     marginLeft: 12,
   },
   tabContainer: {
@@ -2048,34 +2049,34 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 8,
-    backgroundColor: '#374151',
+    backgroundColor: colors.backgroundAlt,
     gap: 6,
     flex: 1,
     minWidth: '30%',
   },
   activeTab: {
-    backgroundColor: '#F59E0B',
+    backgroundColor: colors.gold,
   },
   tabText: {
     fontSize: 12,
     fontWeight: '500',
-    color: '#6B7280',
+    color: colors.textSteel,
   },
   activeTabText: {
-    color: '#1F2937',
+    color: colors.textCharcoal,
   },
   tabContent: {
     flex: 1,
     padding: 16,
   },
   card: {
-    backgroundColor: '#2e2e2e', // match Invoice tab card
+    backgroundColor: colors.backgroundDarkCard,
     borderRadius: 16,
     padding: 20,
     marginBottom: 20,
     borderWidth: 1,
-    borderColor: '#232323',
-    shadowColor: '#000',
+    borderColor: colors.borderCard,
+    shadowColor: colors.shadow,
     shadowOpacity: 0.10,
     shadowRadius: 6,
     shadowOffset: { width: 0, height: 2 },
@@ -2112,7 +2113,7 @@ const styles = StyleSheet.create({
   profilePlaceholder: {
     width: '100%',
     height: '100%',
-    backgroundColor: '#374151',
+    backgroundColor: colors.highlightOnCard,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -2144,7 +2145,7 @@ const styles = StyleSheet.create({
   bookingLinkBox: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#374151',
+    backgroundColor: colors.highlightOnCard,
     borderRadius: 8,
     padding: 12,
     gap: 12,
@@ -2220,7 +2221,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: '#374151',
+    backgroundColor: colors.highlightOnCard,
     borderRadius: 8,
     padding: 16,
     marginBottom: 8,
@@ -2304,7 +2305,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#374151',
+    borderBottomColor: colors.highlightOnCard,
   },
   modalCancelButton: {
     fontSize: 16,
@@ -2348,7 +2349,7 @@ const styles = StyleSheet.create({
     width: 96,
     height: 96,
     borderRadius: 48,
-    backgroundColor: '#374151',
+    backgroundColor: colors.highlightOnCard,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -2382,7 +2383,7 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   textInput: {
-    backgroundColor: '#374151',
+    backgroundColor: colors.highlightOnCard,
     borderRadius: 8,
     borderWidth: 1,
     borderColor: '#4B5563',
@@ -2405,7 +2406,7 @@ const styles = StyleSheet.create({
   paymentStatus: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#374151',
+    backgroundColor: colors.highlightOnCard,
     borderRadius: 8,
     padding: 12,
     gap: 12,
@@ -2457,7 +2458,7 @@ const styles = StyleSheet.create({
   paymentButtonOutline: {
     backgroundColor: 'transparent',
     borderWidth: 1,
-    borderColor: '#374151',
+    borderColor: colors.highlightOnCard,
     borderRadius: 20,
     paddingVertical: 12,
     paddingHorizontal: 18,
@@ -2480,7 +2481,7 @@ const styles = StyleSheet.create({
   planHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#374151',
+    backgroundColor: colors.highlightOnCard,
     borderRadius: 8,
     padding: 12,
     gap: 12,
@@ -2521,7 +2522,7 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   upgradeHeader: {
-    backgroundColor: '#374151',
+    backgroundColor: colors.highlightOnCard,
     borderRadius: 8,
     padding: 16,
     borderWidth: 1,
@@ -2538,7 +2539,7 @@ const styles = StyleSheet.create({
   pricingOption: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#374151',
+    backgroundColor: colors.highlightOnCard,
     borderRadius: 8,
     padding: 12,
     gap: 12,
@@ -2584,7 +2585,7 @@ const styles = StyleSheet.create({
   },
   premiumFeature: {
     flex: 1,
-    backgroundColor: '#374151',
+    backgroundColor: colors.highlightOnCard,
     borderRadius: 8,
     padding: 12,
     alignItems: 'center',
@@ -2631,7 +2632,7 @@ const styles = StyleSheet.create({
   premiumButtonOutline: {
     backgroundColor: 'transparent',
     borderWidth: 1,
-    borderColor: '#374151',
+    borderColor: colors.highlightOnCard,
   },
   premiumButtonRefund: {
     backgroundColor: 'transparent',
@@ -2650,7 +2651,7 @@ const styles = StyleSheet.create({
   },
   // Help styles
   helpHeader: {
-    backgroundColor: '#374151',
+    backgroundColor: colors.highlightOnCard,
     borderRadius: 8,
     padding: 16,
     marginBottom: 16,
@@ -2689,7 +2690,7 @@ const styles = StyleSheet.create({
   helpButtonOutline: {
     backgroundColor: 'transparent',
     borderWidth: 1,
-    borderColor: '#374151',
+    borderColor: colors.highlightOnCard,
     borderRadius: 20,
     paddingVertical: 12,
     paddingHorizontal: 18,
@@ -2715,7 +2716,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   faqItem: {
-    backgroundColor: '#374151',
+    backgroundColor: colors.highlightOnCard,
     borderRadius: 8,
     overflow: 'hidden',
   },
@@ -2796,8 +2797,6 @@ const styles = StyleSheet.create({
     fontWeight: '400',
     opacity: 0.85,
   },
-  // ...rest of styles...
-
   quickActionLabel: {
     color: '#FFFFFF',
     fontSize: 15,
@@ -2813,7 +2812,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#232B39',
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: '#374151',
+    borderColor: colors.highlightOnCard,
     padding: 12,
     marginBottom: 0,
   },
@@ -2829,7 +2828,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   quickActionBadge: {
-    backgroundColor: '#374151',
+    backgroundColor: colors.highlightOnCard,
     borderRadius: 6,
     paddingHorizontal: 8,
     paddingVertical: 2,
@@ -2888,3 +2887,4 @@ const styles = StyleSheet.create({
     marginTop: 0,
   },
 });
+

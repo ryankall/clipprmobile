@@ -1,10 +1,11 @@
 import React from 'react';
 import { render, fireEvent, waitFor } from '@testing-library/react-native';
+import { describe, it, expect, beforeEach, afterEach, beforeAll, afterAll } from 'vitest';
 import { vi } from 'vitest';
 import Calendar from '../app/(tabs)/calendar';
 import * as useAuthModule from '../../mobile/hooks/useAuth';
 import { server } from './mocks/server';
-import { rest } from 'msw';
+import { http, HttpResponse } from 'msw';
 
 // Mock expo-router
 vi.mock('expo-router', () => ({
@@ -16,7 +17,22 @@ vi.mock('expo-router', () => ({
 const { router } = require('expo-router');
 
 // Mock useAuth to always be authenticated
-vi.spyOn(useAuthModule, 'useAuth').mockReturnValue({ isAuthenticated: true });
+vi.spyOn(useAuthModule, 'useAuth').mockReturnValue({
+  isAuthenticated: true,
+  isLoading: false,
+  user: {
+    id: 1,
+    email: 'test@example.com',
+    firstName: 'Test',
+    lastName: 'User',
+    phone: '1234567890',
+    createdAt: '',
+    updatedAt: '',
+  },
+  signIn: vi.fn(),
+  signOut: vi.fn(),
+  checkAuth: vi.fn(),
+});
 
 // Helper: Provide appointments, including overlaps
 const makeAppointments = () => [
@@ -69,7 +85,7 @@ describe('Mobile Calendar Page', () => {
   it('shows "+" button and navigates to appointment creation', async () => {
     // Mock API to return empty appointments
     server.use(
-      rest.get('/api/appointments', (req, res, ctx) => res(ctx.json([])))
+      http.get('/api/appointments', () => HttpResponse.json([]))
     );
     const { getByTestId } = render(<Calendar />);
     const addBtn = getByTestId('add-appointment-btn');
@@ -82,7 +98,7 @@ describe('Mobile Calendar Page', () => {
   it('renders overlapping appointments side-by-side in timeline view', async () => {
     // Mock API to return overlapping appointments
     server.use(
-      rest.get('/api/appointments', (req, res, ctx) => res(ctx.json(makeAppointments())))
+      http.get('/api/appointments', () => HttpResponse.json(makeAppointments()))
     );
     const { findByTestId, getByTestId } = render(<Calendar />);
     // Wait for both overlapping appointments to appear
@@ -90,8 +106,8 @@ describe('Mobile Calendar Page', () => {
     const apt2 = await findByTestId('appointment-block-2');
 
     // Check that both are rendered and have different "left" style (side-by-side)
-    const left1 = apt1.props.style.find(s => s.left !== undefined)?.left;
-    const left2 = apt2.props.style.find(s => s.left !== undefined)?.left;
+    const left1 = apt1.props.style.find((s: any) => s.left !== undefined)?.left;
+    const left2 = apt2.props.style.find((s: any) => s.left !== undefined)?.left;
     expect(left1).not.toBe(left2);
 
     // Both should be visible
@@ -101,17 +117,17 @@ describe('Mobile Calendar Page', () => {
 
   it('navigates to appointment detail when an appointment is tapped (timeline view)', async () => {
     server.use(
-      rest.get('/api/appointments', (req, res, ctx) => res(ctx.json(makeAppointments())))
+      http.get('/api/appointments', () => HttpResponse.json(makeAppointments()))
     );
     const { findByTestId } = render(<Calendar />);
     const apt1 = await findByTestId('appointment-block-1');
     fireEvent.press(apt1);
-    expect(router.push).toHaveBeenCalledWith('/clients/1');
+    expect(router.push).toHaveBeenCalledWith('/appointment-details?id=1');
   });
 
   it('navigates to appointment detail when an appointment is tapped (list view)', async () => {
     server.use(
-      rest.get('/api/appointments', (req, res, ctx) => res(ctx.json(makeAppointments())))
+      http.get('/api/appointments', () => HttpResponse.json(makeAppointments()))
     );
     const { findByTestId, getByText } = render(<Calendar />);
     // Switch to list view
@@ -126,7 +142,7 @@ describe('Mobile Calendar Page', () => {
 
   it('shows empty state when there are no appointments', async () => {
     server.use(
-      rest.get('/api/appointments', (req, res, ctx) => res(ctx.json([])))
+      http.get('/api/appointments', () => HttpResponse.json([]))
     );
     const { findByText } = render(<Calendar />);
     expect(await findByText('No appointments')).toBeTruthy();
@@ -134,7 +150,7 @@ describe('Mobile Calendar Page', () => {
 
   it('switches between timeline and list view', async () => {
     server.use(
-      rest.get('/api/appointments', (req, res, ctx) => res(ctx.json(makeAppointments())))
+      http.get('/api/appointments', () => HttpResponse.json(makeAppointments()))
     );
     const { getByText, findByTestId } = render(<Calendar />);
     // Timeline view by default
@@ -153,7 +169,7 @@ describe('Mobile Calendar Page', () => {
 
   it('changes date when a date button is pressed', async () => {
     server.use(
-      rest.get('/api/appointments', (req, res, ctx) => res(ctx.json([])))
+      http.get('/api/appointments', () => HttpResponse.json([]))
     );
     const { getAllByText, findByText } = render(<Calendar />);
     // Find a date button (e.g., "Thu" for Thursday)
@@ -169,12 +185,12 @@ describe('Appointment Details Screen', () => {
   it('shows correct details after navigating from calendar', async () => {
     // Mock API for appointments list
     server.use(
-      rest.get('/api/appointments', (req, res, ctx) => res(ctx.json(makeAppointments())))
+      http.get('/api/appointments', () => HttpResponse.json(makeAppointments()))
     );
     // Mock API for appointment details
     server.use(
-      rest.get('/api/appointments/1', (req, res, ctx) =>
-        res(ctx.json({
+      http.get('/api/appointments/1', () =>
+        HttpResponse.json({
           id: 1,
           scheduledAt: new Date('2025-07-24T10:00:00Z').toISOString(),
           status: 'confirmed',
@@ -183,7 +199,7 @@ describe('Appointment Details Screen', () => {
           client: { id: 1, name: 'John Doe' },
           service: { id: 1, name: 'Haircut' },
           travelRequired: false,
-        }))
+        })
       )
     );
 

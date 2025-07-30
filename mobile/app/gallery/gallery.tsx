@@ -7,6 +7,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { apiRequest, API_BASE_URL } from '../../lib/api';
 import { GalleryPhoto } from '../../lib/types';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { colors } from '../../lib/theme';
 
 const numColumns = 3;
 const screenWidth = Dimensions.get('window').width;
@@ -330,7 +331,7 @@ export default function GalleryPage() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#1A1A1A',
+    backgroundColor: colors.backgroundCard,
     paddingHorizontal: 16,
     paddingTop: 0,
   },
@@ -338,7 +339,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 0,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#374151',
+    borderBottomColor: colors.border,
     marginBottom: 0,
   },
   headerContent: {
@@ -348,7 +349,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 20,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: colors.text,
     marginLeft: 12,
   },
   topBar: {

@@ -1,21 +1,22 @@
 import React from 'react';
 import { render, fireEvent, waitFor } from '@testing-library/react-native';
 import { act } from 'react-test-renderer';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { router } from 'expo-router';
 import Invoice from '../app/(tabs)/invoice';
 import Dashboard from '../app/(tabs)/index';
 
 // Mock router
-jest.mock('expo-router', () => {
-  const actual = jest.requireActual('expo-router');
+vi.mock('expo-router', () => {
+  const actual = vi.importActual('expo-router');
   return {
     ...actual,
     router: {
-      push: jest.fn(),
-      replace: jest.fn(),
-      setParams: jest.fn(),
+      push: vi.fn(),
+      replace: vi.fn(),
+      setParams: vi.fn(),
     },
-    useLocalSearchParams: jest.fn(),
+    useLocalSearchParams: vi.fn(),
   };
 });
 
@@ -39,7 +40,7 @@ const mockAppointment = {
 
 describe('Invoice Modal Prefill Flow', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     // Reset params
     require('expo-router').useLocalSearchParams.mockReturnValue({});
   });

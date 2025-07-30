@@ -241,6 +241,10 @@ class MobileNotificationService {
   }
 
   async clearBadge(): Promise<void> {
+    // Set badge property to false for all scheduled notifications
+    this.scheduledNotifications.forEach(n => {
+      n.badge = false;
+    });
     await this.setBadgeCount(0);
   }
 

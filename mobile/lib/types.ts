@@ -125,4 +125,5 @@ export interface Message {
   isTravel: boolean;
   address?: string;
   createdAt: string;
+  read?: boolean; // true if the message has been read, false or undefined if unread
 }

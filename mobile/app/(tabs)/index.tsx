@@ -9,6 +9,7 @@ import { DashboardStats, AppointmentWithRelations, User, GalleryPhoto } from '..
 import { replaceMessageTemplate, DEFAULT_QUICK_ACTION_MESSAGES, globalEventEmitter } from '../../lib/utils';
 import { useQuery } from '@tanstack/react-query';
 import { useFocusEffect } from '@react-navigation/native';
+import { colors } from '../../lib/theme';
 
 export default function Dashboard() {
   // Confirm/cancel handlers for pending appointments
@@ -839,7 +840,7 @@ export default function Dashboard() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#1A1A1A', // Match web version dark background
+    backgroundColor: colors.backgroundCard, // '#1A1A1A'
   },
   scrollView: {
     flex: 1,
@@ -852,12 +853,12 @@ const styles = StyleSheet.create({
   greeting: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#FFFFFF',
+    color: colors.text,
     marginBottom: 8,
   },
   subGreeting: {
     fontSize: 16,
-    color: '#9CA3AF',
+    color: colors.textSecondary,
   },
   statsContainer: {
     flexDirection: 'row',
@@ -866,7 +867,7 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   statCard: {
-    backgroundColor: '#2A2A2A', // Match web version card background
+    backgroundColor: colors.backgroundCharcoal, // '#1e1e1e' or '#2A2A2A'
     borderRadius: 12,
     padding: 16,
     flexDirection: 'row',
@@ -875,7 +876,7 @@ const styles = StyleSheet.create({
     minWidth: '47%',
     flex: 1,
     borderWidth: 1,
-    borderColor: '#374151', // Add subtle border
+    borderColor: colors.borderCard, // '#232323' or '#374151'
   },
   statContent: {
     flex: 1,
@@ -883,12 +884,12 @@ const styles = StyleSheet.create({
   statValue: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#FFFFFF',
+    color: colors.text,
     marginBottom: 4,
   },
   statLabel: {
     fontSize: 14,
-    color: '#9CA3AF',
+    color: colors.textSecondary,
   },
   appointmentSection: {
     marginBottom: 24,
@@ -896,15 +897,15 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: colors.text,
     marginBottom: 12,
   },
   appointmentCard: {
-    backgroundColor: '#2A2A2A', // Match web version card background
+    backgroundColor: colors.backgroundCharcoal,
     borderRadius: 12,
     padding: 16,
     borderWidth: 1,
-    borderColor: '#374151', // Add subtle border
+    borderColor: colors.borderCard,
   },
   appointmentHeader: {
     flexDirection: 'row',
@@ -915,21 +916,21 @@ const styles = StyleSheet.create({
   appointmentClient: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: colors.text,
   },
   appointmentTime: {
     fontSize: 16,
-    color: '#22C55E',
+    color: colors.green,
     fontWeight: '500',
   },
   appointmentService: {
     fontSize: 14,
-    color: '#9CA3AF',
+    color: colors.textSecondary,
     marginBottom: 4,
   },
   appointmentPrice: {
     fontSize: 16,
-    color: '#22C55E',
+    color: colors.green,
     fontWeight: '600',
   },
   quickActionsSection: {
@@ -941,11 +942,11 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   quickActionCard: {
-    backgroundColor: '#2A2A2A', // Match web version card background
+    backgroundColor: colors.backgroundCharcoal,
     borderRadius: 12,
     padding: 16,
     borderWidth: 1,
-    borderColor: '#374151', // Add subtle border
+    borderColor: colors.borderCard,
     minWidth: '47%',
     flex: 1,
   },
@@ -954,7 +955,7 @@ const styles = StyleSheet.create({
   },
   quickActionLabel: {
     fontSize: 14,
-    color: '#FFFFFF',
+    color: colors.text,
     marginTop: 8,
     textAlign: 'center',
   },
@@ -962,7 +963,7 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   appointmentListItem: {
-    backgroundColor: '#1A1A1A',
+    backgroundColor: colors.backgroundCard,
     borderRadius: 8,
     padding: 12,
     marginBottom: 8,
@@ -977,16 +978,16 @@ const styles = StyleSheet.create({
   appointmentClientName: {
     fontSize: 16,
     fontWeight: '500',
-    color: '#FFFFFF',
+    color: colors.text,
     marginBottom: 4,
   },
   appointmentDetails: {
     fontSize: 14,
-    color: '#9CA3AF',
+    color: colors.textSecondary,
   },
   appointmentTimeSmall: {
     fontSize: 14,
-    color: '#22C55E',
+    color: colors.green,
     fontWeight: '500',
   },
   authPrompt: {
@@ -997,18 +998,18 @@ const styles = StyleSheet.create({
   },
   authPromptText: {
     fontSize: 18,
-    color: '#9CA3AF',
+    color: colors.textSecondary,
     textAlign: 'center',
     marginBottom: 24,
   },
   signInButton: {
-    backgroundColor: '#22C55E',
+    backgroundColor: colors.green,
     paddingHorizontal: 32,
     paddingVertical: 12,
     borderRadius: 8,
   },
   signInButtonText: {
-    color: '#FFFFFF',
+    color: colors.text,
     fontSize: 16,
     fontWeight: '600',
   },
@@ -1024,7 +1025,7 @@ const styles = StyleSheet.create({
     minWidth: 70,
     justifyContent: 'center',
   },
-    actionCancelButton: {
+  actionCancelButton: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     borderRadius: 6,
@@ -1037,7 +1038,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   actionButtonText: {
-    color: '#fff',
+    color: colors.text,
     fontSize: 12,
     fontWeight: '600',
   },
@@ -1048,11 +1049,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
   },
   recentCard: {
-    backgroundColor: '#2A2A2A',
+    backgroundColor: colors.backgroundCharcoal,
     borderRadius: 12,
     padding: 16,
     borderWidth: 1,
-    borderColor: '#374151',
+    borderColor: colors.borderCard,
     marginRight: 16,
     width: 220,
     minHeight: 140,

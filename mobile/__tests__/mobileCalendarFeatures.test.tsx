@@ -42,8 +42,8 @@ function generateMobileTimeSlots(appointments: MobileAppointment[], workingHours
   for (let hour = 8; hour <= 20; hour++) {
     const timeString = `${hour.toString().padStart(2, '0')}:00`;
     const appointment = appointments.find(apt => {
-      const aptHour = new Date(apt.scheduledAt).getHours();
-      return aptHour === hour;
+      const aptDate = new Date(apt.scheduledAt);
+      return aptDate.getUTCHours() === hour;
     });
 
     slots.push({

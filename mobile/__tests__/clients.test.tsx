@@ -1,18 +1,19 @@
 import React from 'react';
 import { render, fireEvent, waitFor, act } from '@testing-library/react-native';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import Clients from '../app/(tabs)/clients';
 import * as api from '../lib/api';
 import { Linking, Alert } from 'react-native';
 
 // Mock navigation
-jest.mock('expo-router', () => ({
+vi.mock('expo-router', () => ({
   router: {
-    push: jest.fn(),
+    push: vi.fn(),
   },
 }));
 
 // Mock useAuth
-jest.mock('../hooks/useAuth', () => ({
+vi.mock('../hooks/useAuth', () => ({
   useAuth: () => ({ isAuthenticated: true }),
 }));
 
@@ -78,7 +79,7 @@ const mockAnalytics = {
     })),
 };
 
-jest.spyOn(api, 'apiRequest').mockImplementation((method, url) => {
+vi.spyOn(api, 'apiRequest').mockImplementation((method, url) => {
   if (url === '/api/clients') return Promise.resolve(mockClients);
   if (url === '/api/clients/stats') return Promise.resolve(mockAnalytics);
   if (url.includes('/appointments')) return Promise.resolve([{ id: 1, date: '2025-07-20' }]);
@@ -89,14 +90,14 @@ jest.spyOn(api, 'apiRequest').mockImplementation((method, url) => {
 });
 
 // Mock Linking
-jest.spyOn(Linking, 'openURL').mockImplementation(() => Promise.resolve());
+vi.spyOn(Linking, 'openURL').mockImplementation(() => Promise.resolve());
 
 // Silence Alert
-jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+vi.spyOn(Alert, 'alert').mockImplementation(() => {});
 
 describe('Clients Tab', () => {
   afterEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   it('renders analytics for top 10 clients', async () => {
@@ -284,7 +285,7 @@ it('opens and closes the add client modal', async () => {
   });
 
   it('shows empty state when no clients', async () => {
-    (api.apiRequest as jest.Mock).mockImplementationOnce((method, url) => {
+    (api.apiRequest as any).mockImplementationOnce((method: string, url: string) => {
       if (url === '/api/clients') return Promise.resolve([]);
       if (url === '/api/clients/stats') return Promise.resolve(mockAnalytics);
       return Promise.resolve([]);
@@ -295,9 +296,9 @@ it('opens and closes the add client modal', async () => {
   });
 
   it('shows analytics loading and error states', async () => {
-    (api.apiRequest as jest.Mock)
-      .mockImplementationOnce((method, url) => Promise.resolve(mockClients))
-      .mockImplementationOnce((method, url) => Promise.reject('error'));
+    (api.apiRequest as any)
+      .mockImplementationOnce((method: string, url: string) => Promise.resolve(mockClients))
+      .mockImplementationOnce((method: string, url: string) => Promise.reject('error'));
     const { getByText } = render(<Clients />);
     await waitFor(() => getByText('Loading analytics...'));
     await waitFor(() => getByText('Failed to load analytics'));
