@@ -420,6 +420,28 @@ export default function Invoice() {
   const [defaultTemplates, setDefaultTemplates] = useState<any[]>([]);
   const [defaultTemplatesLoading, setDefaultTemplatesLoading] = useState(false);
 
+  // Fetch and cache default templates
+  const getDefaultTemplates = async () => {
+    setDefaultTemplatesLoading(true);
+    try {
+      // Try to get from AsyncStorage first
+      const cached = await AsyncStorage.getItem('invoiceDefaultTemplates');
+      if (cached) {
+        setDefaultTemplates(JSON.parse(cached));
+        setDefaultTemplatesLoading(false);
+        return;
+      }
+      // If not in cache, fetch from server
+      const data = await apiRequest<any[]>('GET', '/api/invoice-templates');
+      setDefaultTemplates(data);
+      await AsyncStorage.setItem('invoiceDefaultTemplates', JSON.stringify(data));
+    } catch (e) {
+      setDefaultTemplates([]);
+    } finally {
+      setDefaultTemplatesLoading(false);
+    }
+  };
+
   // Service Template Management Modal
   const [showServiceModal, setShowServiceModal] = useState(false);
   const [editingService, setEditingService] = useState<Service | null>(null);
@@ -430,6 +452,9 @@ export default function Invoice() {
   const [templateName, setTemplateName] = useState('');
   const [templateAmount, setTemplateAmount] = useState('');
   const [templateServiceIds, setTemplateServiceIds] = useState<number[]>([]);
+  // Template operation loading/error state
+  const [templateOpLoading, setTemplateOpLoading] = useState(false);
+  const [templateOpError, setTemplateOpError] = useState<string | null>(null);
 
   // --- Prefill from navigation params ---
   const params = useLocalSearchParams();
@@ -489,7 +514,7 @@ export default function Invoice() {
       loadServices();
       loadCustomTemplates();
       loadInvoicesAndClients();
-      loadDefaultTemplates();
+      getDefaultTemplates();
     }
   }, [isAuthenticated]);
 
@@ -511,20 +536,6 @@ export default function Invoice() {
     }
   };
 
-  // Fetch default templates from server
-  const loadDefaultTemplates = async () => {
-    setDefaultTemplatesLoading(true);
-    try {
-      // Replace endpoint with actual if different
-      const templates = await apiRequest<any[]>('GET', '/api/invoice/templates/default');
-      setDefaultTemplates(Array.isArray(templates) ? templates : []);
-    } catch (e) {
-      setDefaultTemplates([]);
-    } finally {
-      setDefaultTemplatesLoading(false);
-    }
-  };
-
   const loadCustomTemplates = async () => {
     try {
       const data = await AsyncStorage.getItem('invoiceCustomTemplates');
@@ -542,25 +553,103 @@ export default function Invoice() {
     setCustomTemplates(templates);
     await AsyncStorage.setItem('invoiceCustomTemplates', JSON.stringify(templates));
   };
-
-  const handleCreateTemplate = async () => {
-    if (!templateName.trim() ||templateServiceIds.length === 0) {
-      Alert.alert('All fields are required');
+  
+  /**
+   * Update a custom invoice template both on the server and in local storage.
+   * @param {object} updatedTemplate - The updated template object (must include id).
+   */
+  const handleUpdateTemplate = async (updatedTemplate: any) => {
+    if (!updatedTemplate?.id) {
+      setTemplateOpError('Template ID is required for update.');
       return;
     }
-    const newTemplate = {
-      id: Date.now(),
+    setTemplateOpLoading(true);
+    setTemplateOpError(null);
+    try {
+      // 1. Call the server API to update the template
+      const serverTemplate = await apiRequest(
+        "PATCH",
+        `/api/invoice/templates/${updatedTemplate.id}`,
+        updatedTemplate
+      );
+  
+      // 2. Use the server's returned template (with id, etc) for local storage
+      const newTemplate = {
+        ...updatedTemplate,
+        ...serverTemplate, // server may return updated fields
+      };
+  
+      // 3. Update local storage
+      const updatedTemplates = customTemplates.map((tpl) =>
+        tpl.id === newTemplate.id ? newTemplate : tpl
+      );
+      await saveCustomTemplates(updatedTemplates);
+      await loadCustomTemplates(); // Always reload from storage
+      setTemplateOpError(null);
+      Alert.alert('Success', 'Template updated successfully.');
+    } catch (error: any) {
+      setTemplateOpError(error?.message || "Failed to update template. Please try again.");
+      Alert.alert(
+        "Error",
+        error?.message || "Failed to update template. Please try again."
+      );
+    } finally {
+      setTemplateOpLoading(false);
+    }
+  };
+
+  const handleCreateTemplate = async () => {
+    if (!templateName.trim() || templateServiceIds.length === 0) {
+      setTemplateOpError('All fields are required');
+      return;
+    }
+    setTemplateOpLoading(true);
+    setTemplateOpError(null);
+    // Prepare template data for API
+    const templatePayload = {
       name: templateName.trim(),
-      amount: services.filter(x => templateServiceIds.includes(x.id)).reduce((accumulator, currentValue) => accumulator + parseFloat(currentValue.price.replace("$", "")), 0),
+      amount: services
+        .filter((x) => templateServiceIds.includes(x.id))
+        .reduce(
+          (accumulator, currentValue) =>
+            accumulator + parseFloat(currentValue.price.replace("$", "")),
+          0
+        ),
       serviceIds: templateServiceIds,
       createdAt: new Date().toISOString(),
     };
-    const updated = [...customTemplates, newTemplate];
-    await saveCustomTemplates(updated);
-    setShowTemplateModal(false);
-    setTemplateName('');
-    setTemplateAmount('');
-    setTemplateServiceIds([]);
+  
+    try {
+      // 1. Call the server API to add the template
+      const serverTemplate = await apiRequest(
+        "POST",
+        "/api/invoice/templates",
+        templatePayload
+      );
+  
+      // 2. Use the server's returned template (with id, etc) for local storage
+      const newTemplate = {
+        ...templatePayload,
+        id: serverTemplate?.id || Date.now(), // fallback to Date.now() if no id
+      };
+  
+      const updated = [...customTemplates, newTemplate];
+      await saveCustomTemplates(updated);
+      await loadCustomTemplates(); // Always reload from storage
+      setShowTemplateModal(false);
+      setTemplateName("");
+      setTemplateAmount("");
+      setTemplateServiceIds([]);
+      setTemplateOpError(null);
+    } catch (error: any) {
+      setTemplateOpError(error?.message || "Failed to add template. Please try again.");
+      Alert.alert(
+        "Error",
+        error?.message || "Failed to add template. Please try again."
+      );
+    } finally {
+      setTemplateOpLoading(false);
+    }
   };
 
   const handleServiceSelect = (id: number) => {
@@ -1248,10 +1337,6 @@ export default function Invoice() {
           <View style={{ justifyContent: 'center', alignItems: 'center', width: 110, height: 100 }}>
             <ActivityIndicator size="small" color={colors.gold} />
           </View>
-        ) : defaultTemplates.length === 0 ? (
-          <View style={{ justifyContent: 'center', alignItems: 'center', width: 110, height: 100 }}>
-            <Text style={{ color: '#9CA3AF', textAlign: 'center', fontSize: 13 }}>No default templates</Text>
-          </View>
         ) : (
           defaultTemplates.map((tpl: any) => (
             <TouchableOpacity
@@ -1303,7 +1388,9 @@ export default function Invoice() {
             </TouchableOpacity>
             <TouchableOpacity
               style={{ marginLeft: 8, padding: 4 }}
-              onPress={() => {
+              onPress={async () => {
+                setTemplateOpLoading(true);
+                setTemplateOpError(null);
                 Alert.alert(
                   'Delete Template',
                   'Are you sure you want to delete this template? This action cannot be undone.',
@@ -1313,8 +1400,29 @@ export default function Invoice() {
                       text: 'Delete',
                       style: 'destructive',
                       onPress: async () => {
-                        const updated = customTemplates.filter(t => t.id !== tpl.id);
-                        await saveCustomTemplates(updated);
+                        try {
+                          // 1. Call the server API to delete the template
+                          await apiRequest('DELETE', `/api/invoice/templates/${tpl.id}`);
+                          // 2. Update local storage
+                          const updated = customTemplates.filter(t => t.id !== tpl.id);
+                          await saveCustomTemplates(updated);
+                          await loadCustomTemplates(); // Always reload from storage
+                          setTemplateOpError(null);
+                        } catch (error) {
+                          setTemplateOpError(
+                            (error && typeof error === 'object' && 'message' in error)
+                              ? (error as any).message
+                              : String(error) || 'Failed to delete template. Please try again.'
+                          );
+                          Alert.alert(
+                            'Error',
+                            (error && typeof error === 'object' && 'message' in error)
+                              ? (error as any).message
+                              : String(error) || 'Failed to delete template. Please try again.'
+                          );
+                        } finally {
+                          setTemplateOpLoading(false);
+                        }
                       },
                     },
                   ]
@@ -1359,6 +1467,7 @@ export default function Invoice() {
                 value={templateName}
                 onChangeText={setTemplateName}
                 maxLength={60}
+                editable={!templateOpLoading}
               />
               <Text style={[styles.modalPlaceholderText, { marginTop: 12, marginBottom: 4 }]}>Select Services</Text>
               <FlatList
@@ -1371,7 +1480,8 @@ export default function Invoice() {
                       styles.serviceSelectItem,
                       templateServiceIds.includes(item.id) && styles.serviceSelectItemSelected
                     ]}
-                    onPress={() => handleServiceSelect(item.id)}
+                    onPress={() => !templateOpLoading && handleServiceSelect(item.id)}
+                    disabled={templateOpLoading}
                   >
                     <Text style={{ color: '#fff', flex: 1 }}>{item.name}</Text>
                     <Text style={{ color: colors.gold, marginLeft: 8 }}>${item.price}</Text>
@@ -1384,11 +1494,24 @@ export default function Invoice() {
                   <Text style={{ color: '#9CA3AF', textAlign: 'center', marginTop: 8 }}>No services available</Text>
                 }
               />
+              {templateOpError && (
+                <Text style={{ color: '#EF4444', marginTop: 8, fontWeight: '600', textAlign: 'center' }}>
+                  {templateOpError}
+                </Text>
+              )}
               <TouchableOpacity
-                style={[styles.createButton, { marginTop: 18, width: '100%', justifyContent: 'center' }]}
+                style={[
+                  styles.createButton,
+                  { marginTop: 18, width: '100%', justifyContent: 'center', opacity: templateOpLoading ? 0.7 : 1 }
+                ]}
                 onPress={handleCreateTemplate}
+                disabled={templateOpLoading}
               >
-                <Text style={styles.createButtonText}>Create Template</Text>
+                {templateOpLoading ? (
+                  <ActivityIndicator size="small" color={colors.gold} />
+                ) : (
+                  <Text style={styles.createButtonText}>Create Template</Text>
+                )}
               </TouchableOpacity>
             </View>
           </View>
