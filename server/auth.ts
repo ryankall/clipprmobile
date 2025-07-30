@@ -101,7 +101,7 @@ export function configurePassport() {
         privateKey: process.env.APPLE_PRIVATE_KEY,
         callbackURL: '/api/auth/apple/callback',
       },
-      async (accessToken, refreshToken, idToken, profile, done) => {
+      async (accessToken: any, refreshToken: any, idToken: any, profile: any, done: any) => {
         try {
           // Check if user exists with Apple ID
           let user = await storage.getUserByAppleId(profile.id);

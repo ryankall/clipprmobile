@@ -195,6 +195,10 @@ export default function InvoicePage() {
     queryKey: ["/api/appointments"],
   });
 
+  const { data: defaultTemplates, isLoading: templatesLoading } = useQuery({
+    queryKey: ["/api/invoice/templates/default"],
+  });
+
   const form = useForm<z.infer<typeof invoiceFormSchema>>({
     resolver: zodResolver(invoiceFormSchema),
     defaultValues: {
@@ -1470,78 +1474,26 @@ export default function InvoicePage() {
           <CardContent>
             <div className="grid grid-cols-2 gap-3">
               {/* Default Templates */}
-              {!hiddenTemplates.includes("haircut") && (
-                <div
-                  className="relative bg-charcoal border border-steel/40 rounded-lg p-4 text-center touch-target hover:bg-charcoal/80 cursor-pointer"
-                  onClick={() => handleQuickInvoice("haircut", "45.00")}
-                >
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="absolute top-1 right-1 text-red-400 hover:bg-red-400/10 h-6 w-6 p-0"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleDeleteDefaultTemplate("haircut");
-                    }}
+              {templatesLoading ? (
+                <div className="col-span-2 text-center text-steel">
+                  Loading templates...
+                </div>
+              ) : (
+                defaultTemplates?.map((template: any) => (
+                  <div
+                    key={template.id}
+                    className="relative bg-charcoal border border-steel/40 rounded-lg p-4 text-center touch-target hover:bg-charcoal/80 cursor-pointer"
+                    onClick={() => handleQuickInvoice(template.name.toLowerCase(), template.price)}
                   >
-                    <Trash2 className="w-3 h-3" />
-                  </Button>
-                  <div className="flex flex-col items-center space-y-2">
-                    <Receipt className="w-5 h-5 text-gold" />
-                    <div className="text-sm font-medium text-white">
-                      Haircut
+                    <div className="flex flex-col items-center space-y-2">
+                      <Receipt className="w-5 h-5 text-gold" />
+                      <div className="text-sm font-medium text-white">
+                        {template.name}
+                      </div>
+                      <div className="text-xs text-steel">${template.price}</div>
                     </div>
-                    <div className="text-xs text-steel">$45</div>
                   </div>
-                </div>
-              )}
-              {!hiddenTemplates.includes("beard") && (
-                <div
-                  className="relative bg-charcoal border border-steel/40 rounded-lg p-4 text-center touch-target hover:bg-charcoal/80 cursor-pointer"
-                  onClick={() => handleQuickInvoice("beard", "25.00")}
-                >
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="absolute top-1 right-1 text-red-400 hover:bg-red-400/10 h-6 w-6 p-0"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleDeleteDefaultTemplate("beard");
-                    }}
-                  >
-                    <Trash2 className="w-3 h-3" />
-                  </Button>
-                  <div className="flex flex-col items-center space-y-2">
-                    <Receipt className="w-5 h-5 text-gold" />
-                    <div className="text-sm font-medium text-white">
-                      Beard Trim
-                    </div>
-                    <div className="text-xs text-steel">$25</div>
-                  </div>
-                </div>
-              )}
-              {!hiddenTemplates.includes("combo") && (
-                <div
-                  className="relative bg-charcoal border border-steel/40 rounded-lg p-4 text-center touch-target hover:bg-charcoal/80 cursor-pointer"
-                  onClick={() => handleQuickInvoice("combo", "65.00")}
-                >
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="absolute top-1 right-1 text-red-400 hover:bg-red-400/10 h-6 w-6 p-0"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleDeleteDefaultTemplate("combo");
-                    }}
-                  >
-                    <Trash2 className="w-3 h-3" />
-                  </Button>
-                  <div className="flex flex-col items-center space-y-2">
-                    <Receipt className="w-5 h-5 text-gold" />
-                    <div className="text-sm font-medium text-white">Combo</div>
-                    <div className="text-xs text-steel">$65</div>
-                  </div>
-                </div>
+                ))
               )}
 
               {/* Saved Templates */}

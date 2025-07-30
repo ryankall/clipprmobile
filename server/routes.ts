@@ -1797,6 +1797,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get default invoice templates
+  app.get("/api/invoice/templates/default", requireAuth, async (req, res) => {
+    try {
+      const userId = (req.user as any).id;
+      const templates = await storage.getDefaultInvoiceTemplatesByUserId(userId);
+      res.json(templates);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
   // Mark invoice as paid (for cash payments)
   app.post("/api/invoices/:id/mark-paid", requireAuth, async (req, res) => {
     try {

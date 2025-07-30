@@ -10,6 +10,7 @@ import {
   messages,
   reservations,
   notifications,
+  defaultInvoiceTemplates,
   type User,
   type InsertUser,
   type Client,
@@ -32,6 +33,8 @@ import {
   type InsertReservation,
   type Notification,
   type InsertNotification,
+  type DefaultInvoiceTemplate,
+  type InsertDefaultInvoiceTemplate,
   type AppointmentWithRelations,
   type ClientWithStats,
   type DashboardStats,
@@ -136,6 +139,12 @@ export interface IStorage {
 
   // Dashboard
   getDashboardStats(userId: number): Promise<DashboardStats>;
+
+  // Default Invoice Templates
+  getDefaultInvoiceTemplatesByUserId(userId: number): Promise<DefaultInvoiceTemplate[]>;
+  createDefaultInvoiceTemplate(template: InsertDefaultInvoiceTemplate): Promise<DefaultInvoiceTemplate>;
+  updateDefaultInvoiceTemplate(id: number, template: Partial<InsertDefaultInvoiceTemplate>): Promise<DefaultInvoiceTemplate>;
+  deleteDefaultInvoiceTemplate(id: number): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -170,6 +179,41 @@ export class DatabaseStorage implements IStorage {
 
   async createUser(insertUser: InsertUser): Promise<User> {
     const [user] = await db.insert(users).values(insertUser).returning();
+    
+    // Create default invoice templates for new user
+    const defaultTemplates = [
+      {
+        userId: user.id,
+        name: "Haircut",
+        description: "Standard haircut service",
+        icon: "scissors-outline",
+        price: "45.00",
+        serviceIds: [],
+        displayOrder: 1,
+      },
+      {
+        userId: user.id,
+        name: "Beard Trim",
+        description: "Professional beard trimming",
+        icon: "fitness-outline",
+        price: "25.00",
+        serviceIds: [],
+        displayOrder: 2,
+      },
+      {
+        userId: user.id,
+        name: "Cut + Beard Combo",
+        description: "Haircut and beard trim combination",
+        icon: "star-outline",
+        price: "65.00",
+        serviceIds: [],
+        displayOrder: 3,
+      },
+    ];
+
+    // Insert default templates
+    await db.insert(defaultInvoiceTemplates).values(defaultTemplates);
+    
     return user;
   }
 
@@ -1191,6 +1235,38 @@ export class DatabaseStorage implements IStorage {
       .from(galleryPhotos)
       .where(eq(galleryPhotos.clientId, clientId))
       .orderBy(desc(galleryPhotos.createdAt));
+  }
+
+  // Default Invoice Templates
+  async getDefaultInvoiceTemplatesByUserId(userId: number): Promise<DefaultInvoiceTemplate[]> {
+    return await db
+      .select()
+      .from(defaultInvoiceTemplates)
+      .where(and(eq(defaultInvoiceTemplates.userId, userId), eq(defaultInvoiceTemplates.isActive, true)))
+      .orderBy(defaultInvoiceTemplates.displayOrder, defaultInvoiceTemplates.name);
+  }
+
+  async createDefaultInvoiceTemplate(template: InsertDefaultInvoiceTemplate): Promise<DefaultInvoiceTemplate> {
+    const [created] = await db
+      .insert(defaultInvoiceTemplates)
+      .values(template)
+      .returning();
+    return created;
+  }
+
+  async updateDefaultInvoiceTemplate(id: number, template: Partial<InsertDefaultInvoiceTemplate>): Promise<DefaultInvoiceTemplate> {
+    const [updated] = await db
+      .update(defaultInvoiceTemplates)
+      .set(template)
+      .where(eq(defaultInvoiceTemplates.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deleteDefaultInvoiceTemplate(id: number): Promise<void> {
+    await db
+      .delete(defaultInvoiceTemplates)
+      .where(eq(defaultInvoiceTemplates.id, id));
   }
 }
 
