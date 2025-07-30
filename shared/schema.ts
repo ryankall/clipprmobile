@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, boolean, timestamp, decimal, json, uniqueIndex } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, timestamp, decimal, numeric, json, jsonb, uniqueIndex } from "drizzle-orm/pg-core";
 import { relations, isNotNull } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
@@ -139,6 +139,19 @@ export const invoiceServices = pgTable("invoice_services", {
   serviceId: integer("service_id").notNull().references(() => services.id),
   quantity: integer("quantity").notNull().default(1),
   price: decimal("price", { precision: 10, scale: 2 }).notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const defaultInvoiceTemplates = pgTable("default_invoice_templates", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id),
+  name: text("name").notNull(),
+  description: text("description"),
+  icon: text("icon").default("receipt-outline"),
+  price: decimal("price", { precision: 10, scale: 2 }).notNull(),
+  serviceIds: json("service_ids").$type<number[]>().default([]), // array of service IDs
+  isActive: boolean("is_active").default(true),
+  displayOrder: integer("display_order").default(0),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -388,6 +401,13 @@ export const bookingRequestLogsRelations = relations(bookingRequestLogs, ({ one 
   }),
 }));
 
+export const defaultInvoiceTemplatesRelations = relations(defaultInvoiceTemplates, ({ one }) => ({
+  user: one(users, {
+    fields: [defaultInvoiceTemplates.userId],
+    references: [users.id],
+  }),
+}));
+
 // Insert schemas
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
@@ -464,6 +484,29 @@ export const insertBookingRequestLogSchema = createInsertSchema(bookingRequestLo
   createdAt: true,
 });
 
+export const insertDefaultInvoiceTemplateSchema = createInsertSchema(defaultInvoiceTemplates).omit({
+  id: true,
+  createdAt: true,
+});
+
+// Invoice Templates table
+export const invoiceTemplates = pgTable("invoice_templates", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id),
+  name: text("name").notNull(),
+  description: text("description"),
+  serviceIds: jsonb("service_ids").default([]).notNull(),
+  totalPrice: numeric("total_price", { precision: 10, scale: 2 }).notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertInvoiceTemplateSchema = createInsertSchema(invoiceTemplates).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
 // Types
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
@@ -505,6 +548,12 @@ export type BlockedClient = typeof blockedClients.$inferSelect;
 
 export type InsertBookingRequestLog = z.infer<typeof insertBookingRequestLogSchema>;
 export type BookingRequestLog = typeof bookingRequestLogs.$inferSelect;
+
+export type InsertDefaultInvoiceTemplate = z.infer<typeof insertDefaultInvoiceTemplateSchema>;
+export type DefaultInvoiceTemplate = typeof defaultInvoiceTemplates.$inferSelect;
+
+export type InsertInvoiceTemplate = z.infer<typeof insertInvoiceTemplateSchema>;
+export type InvoiceTemplate = typeof invoiceTemplates.$inferSelect;
 
 // Extended types for API responses
 export type AppointmentWithRelations = Appointment & {

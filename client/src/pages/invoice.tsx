@@ -195,6 +195,10 @@ export default function InvoicePage() {
     queryKey: ["/api/appointments"],
   });
 
+  const { data: invoiceTemplates, isLoading: templatesLoading } = useQuery({
+    queryKey: ["/api/invoice/templates"],
+  });
+
   const form = useForm<z.infer<typeof invoiceFormSchema>>({
     resolver: zodResolver(invoiceFormSchema),
     defaultValues: {
@@ -260,6 +264,53 @@ export default function InvoicePage() {
     },
   });
 
+  const createTemplateMutation = useMutation({
+    mutationFn: async (templateData: any) => {
+      return await apiRequest("/api/invoice/templates", {
+        method: "POST",
+        body: templateData,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/invoice/templates"] });
+      toast({
+        title: "Template created",
+        description: "Invoice template has been saved successfully.",
+      });
+      setIsTemplateDialogOpen(false);
+      templateForm.reset();
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to create template",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const deleteTemplateMutation = useMutation({
+    mutationFn: async (templateId: number) => {
+      return await apiRequest(`/api/invoice/templates/${templateId}`, {
+        method: "DELETE",
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/invoice/templates"] });
+      toast({
+        title: "Template deleted",
+        description: "Invoice template has been deleted successfully.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error", 
+        description: error.message || "Failed to delete template",
+        variant: "destructive",
+      });
+    },
+  });
+
   const serviceForm = useForm<z.infer<typeof serviceFormSchema>>({
     resolver: zodResolver(serviceFormSchema),
     defaultValues: {
@@ -319,43 +370,7 @@ export default function InvoicePage() {
     },
   });
 
-  const createTemplateMutation = useMutation({
-    mutationFn: async (data: z.infer<typeof templateFormSchema>) => {
-      // For now, we'll save templates to localStorage since there's no template table
-      // In production, this would save to a database table
-      const existingTemplates = JSON.parse(
-        localStorage.getItem("invoiceTemplates") || "[]",
-      );
-      const newTemplate = {
-        id: Date.now(),
-        ...data,
-        createdAt: new Date().toISOString(),
-      };
-      existingTemplates.push(newTemplate);
-      localStorage.setItem(
-        "invoiceTemplates",
-        JSON.stringify(existingTemplates),
-      );
-      return newTemplate;
-    },
-    onSuccess: () => {
-      toast({
-        title: "Template Created",
-        description: "Invoice template saved successfully",
-      });
-      setIsTemplateDialogOpen(false);
-      templateForm.reset();
-      // Refresh templates list
-      loadTemplates();
-    },
-    onError: (error: any) => {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to create template",
-        variant: "destructive",
-      });
-    },
-  });
+
 
   const exportInvoicesMutation = useMutation({
     mutationFn: async () => {
@@ -667,26 +682,66 @@ export default function InvoicePage() {
   };
 
   // Handle template deletion
-  const handleDeleteTemplate = (templateId: string) => {
+  const handleDeleteTemplate = (templateId: number) => {
     if (
       confirm(
         "Are you sure you want to delete this template? This action cannot be undone.",
       )
     ) {
-      const updatedTemplates = savedTemplates.filter(
-        (template) => template.id !== templateId,
-      );
-      setSavedTemplates(updatedTemplates);
-      localStorage.setItem(
-        "invoiceTemplates",
-        JSON.stringify(updatedTemplates),
-      );
-
-      toast({
-        title: "Template Deleted",
-        description: "Invoice template has been deleted successfully",
-      });
+      deleteTemplateMutation.mutate(templateId);
     }
+  };
+
+  // Handle template selection for invoice creation
+  const handleTemplateSelect = (template: any) => {
+    // Calculate total from service IDs
+    const templateServices = services?.filter((service) => 
+      template.serviceIds.includes(service.id)
+    ) || [];
+    
+    const templateTotal = templateServices.reduce((sum, service) => 
+      sum + parseFloat(service.price), 0
+    );
+
+    // Set selected services
+    setSelectedServices(
+      templateServices.map((service) => ({
+        serviceId: service.id,
+        serviceName: service.name,
+        price: parseFloat(service.price),
+        quantity: 1,
+      }))
+    );
+
+    // Update form values
+    form.setValue("subtotal", templateTotal.toFixed(2));
+    form.setValue("total", templateTotal.toFixed(2));
+    
+    // Open create invoice dialog
+    setIsDialogOpen(true);
+  };
+
+  // Template form submit
+  const onTemplateSubmit = (data: z.infer<typeof templateFormSchema>) => {
+    if (!services) return;
+
+    const selectedServiceObjects = services.filter((service) =>
+      data.services.includes(service.id)
+    );
+    
+    const totalPrice = selectedServiceObjects.reduce(
+      (sum, service) => sum + parseFloat(service.price),
+      0
+    );
+
+    const templateData = {
+      name: data.name,
+      description: `Template with ${selectedServiceObjects.map(s => s.name).join(", ")}`,
+      serviceIds: data.services,
+      totalPrice: totalPrice.toFixed(2),
+    };
+
+    createTemplateMutation.mutate(templateData);
   };
 
   // Handle default template deletion
@@ -858,25 +913,7 @@ export default function InvoicePage() {
     createInvoiceMutation.mutate(invoiceData);
   };
 
-  const onTemplateSubmit = (data: z.infer<typeof templateFormSchema>) => {
-    // Convert selected services to template format
-    const selectedServiceData =
-      services?.filter((s) => data.services.includes(s.id)) || [];
-    const totalAmount = selectedServiceData.reduce(
-      (sum, service) => sum + parseFloat(service.price || "0"),
-      0,
-    );
 
-    const templateData = {
-      name: data.name,
-      amount: totalAmount.toFixed(2),
-      category: "template",
-      description: selectedServiceData.map((s) => s.name).join(", "),
-    };
-
-    // Since the backend expects the old format, we need to convert to the old template structure
-    createTemplateMutation.mutate(templateData as any);
-  };
 
   const handleQuickInvoice = (
     serviceType: string,
@@ -1469,78 +1506,41 @@ export default function InvoicePage() {
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-2 gap-3">
-              {/* Default Templates */}
-              {!hiddenTemplates.includes("haircut") && (
-                <div
-                  className="relative bg-charcoal border border-steel/40 rounded-lg p-4 text-center touch-target hover:bg-charcoal/80 cursor-pointer"
-                  onClick={() => handleQuickInvoice("haircut", "45.00")}
-                >
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="absolute top-1 right-1 text-red-400 hover:bg-red-400/10 h-6 w-6 p-0"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleDeleteDefaultTemplate("haircut");
-                    }}
-                  >
-                    <Trash2 className="w-3 h-3" />
-                  </Button>
-                  <div className="flex flex-col items-center space-y-2">
-                    <Receipt className="w-5 h-5 text-gold" />
-                    <div className="text-sm font-medium text-white">
-                      Haircut
-                    </div>
-                    <div className="text-xs text-steel">$45</div>
-                  </div>
+              {/* Invoice Templates */}
+              {templatesLoading ? (
+                <div className="col-span-2 text-center text-steel">
+                  Loading templates...
                 </div>
-              )}
-              {!hiddenTemplates.includes("beard") && (
-                <div
-                  className="relative bg-charcoal border border-steel/40 rounded-lg p-4 text-center touch-target hover:bg-charcoal/80 cursor-pointer"
-                  onClick={() => handleQuickInvoice("beard", "25.00")}
-                >
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="absolute top-1 right-1 text-red-400 hover:bg-red-400/10 h-6 w-6 p-0"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleDeleteDefaultTemplate("beard");
-                    }}
+              ) : invoiceTemplates && invoiceTemplates.length > 0 ? (
+                invoiceTemplates.map((template: any) => (
+                  <div
+                    key={template.id}
+                    className="relative bg-charcoal border border-steel/40 rounded-lg p-4 text-center touch-target hover:bg-charcoal/80 cursor-pointer"
+                    onClick={() => handleTemplateSelect(template)}
                   >
-                    <Trash2 className="w-3 h-3" />
-                  </Button>
-                  <div className="flex flex-col items-center space-y-2">
-                    <Receipt className="w-5 h-5 text-gold" />
-                    <div className="text-sm font-medium text-white">
-                      Beard Trim
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="absolute top-1 right-1 text-red-400 hover:bg-red-400/10 h-6 w-6 p-0"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDeleteTemplate(template.id);
+                      }}
+                    >
+                      <Trash2 className="w-3 h-3" />
+                    </Button>
+                    <div className="flex flex-col items-center space-y-2">
+                      <Receipt className="w-5 h-5 text-gold" />
+                      <div className="text-sm font-medium text-white">
+                        {template.name}
+                      </div>
+                      <div className="text-xs text-steel">${template.totalPrice}</div>
                     </div>
-                    <div className="text-xs text-steel">$25</div>
                   </div>
-                </div>
-              )}
-              {!hiddenTemplates.includes("combo") && (
-                <div
-                  className="relative bg-charcoal border border-steel/40 rounded-lg p-4 text-center touch-target hover:bg-charcoal/80 cursor-pointer"
-                  onClick={() => handleQuickInvoice("combo", "65.00")}
-                >
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="absolute top-1 right-1 text-red-400 hover:bg-red-400/10 h-6 w-6 p-0"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleDeleteDefaultTemplate("combo");
-                    }}
-                  >
-                    <Trash2 className="w-3 h-3" />
-                  </Button>
-                  <div className="flex flex-col items-center space-y-2">
-                    <Receipt className="w-5 h-5 text-gold" />
-                    <div className="text-sm font-medium text-white">Combo</div>
-                    <div className="text-xs text-steel">$65</div>
-                  </div>
+                ))
+              ) : (
+                <div className="col-span-2 text-center text-steel text-sm">
+                  No templates saved yet. Create your first template below.
                 </div>
               )}
 

@@ -1797,6 +1797,64 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Invoice Templates CRUD
+  app.get("/api/invoice/templates", requireAuth, async (req, res) => {
+    try {
+      const userId = (req.user as any).id;
+      const templates = await storage.getInvoiceTemplatesByUserId(userId);
+      res.json(templates);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/invoice/templates", requireAuth, async (req, res) => {
+    try {
+      const userId = (req.user as any).id;
+      const templateData = { ...req.body, userId };
+      const template = await storage.createInvoiceTemplate(templateData);
+      res.json(template);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.patch("/api/invoice/templates/:id", requireAuth, async (req, res) => {
+    try {
+      const userId = (req.user as any).id;
+      const templateId = parseInt(req.params.id);
+      
+      // Verify template belongs to user
+      const existingTemplate = await storage.getInvoiceTemplate(templateId);
+      if (!existingTemplate || existingTemplate.userId !== userId) {
+        return res.status(404).json({ message: "Template not found" });
+      }
+      
+      const template = await storage.updateInvoiceTemplate(templateId, req.body);
+      res.json(template);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.delete("/api/invoice/templates/:id", requireAuth, async (req, res) => {
+    try {
+      const userId = (req.user as any).id;
+      const templateId = parseInt(req.params.id);
+      
+      // Verify template belongs to user
+      const existingTemplate = await storage.getInvoiceTemplate(templateId);
+      if (!existingTemplate || existingTemplate.userId !== userId) {
+        return res.status(404).json({ message: "Template not found" });
+      }
+      
+      await storage.deleteInvoiceTemplate(templateId);
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
   // Mark invoice as paid (for cash payments)
   app.post("/api/invoices/:id/mark-paid", requireAuth, async (req, res) => {
     try {

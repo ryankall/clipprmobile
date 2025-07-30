@@ -10,6 +10,8 @@ import {
   messages,
   reservations,
   notifications,
+  defaultInvoiceTemplates,
+  invoiceTemplates,
   type User,
   type InsertUser,
   type Client,
@@ -32,6 +34,10 @@ import {
   type InsertReservation,
   type Notification,
   type InsertNotification,
+  type DefaultInvoiceTemplate,
+  type InsertDefaultInvoiceTemplate,
+  type InvoiceTemplate,
+  type InsertInvoiceTemplate,
   type AppointmentWithRelations,
   type ClientWithStats,
   type DashboardStats,
@@ -136,6 +142,12 @@ export interface IStorage {
 
   // Dashboard
   getDashboardStats(userId: number): Promise<DashboardStats>;
+
+  // Default Invoice Templates
+  getDefaultInvoiceTemplatesByUserId(userId: number): Promise<DefaultInvoiceTemplate[]>;
+  createDefaultInvoiceTemplate(template: InsertDefaultInvoiceTemplate): Promise<DefaultInvoiceTemplate>;
+  updateDefaultInvoiceTemplate(id: number, template: Partial<InsertDefaultInvoiceTemplate>): Promise<DefaultInvoiceTemplate>;
+  deleteDefaultInvoiceTemplate(id: number): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1191,6 +1203,46 @@ export class DatabaseStorage implements IStorage {
       .from(galleryPhotos)
       .where(eq(galleryPhotos.clientId, clientId))
       .orderBy(desc(galleryPhotos.createdAt));
+  }
+
+  // Invoice Templates
+  async getInvoiceTemplatesByUserId(userId: number): Promise<InvoiceTemplate[]> {
+    return await db
+      .select()
+      .from(invoiceTemplates)
+      .where(eq(invoiceTemplates.userId, userId))
+      .orderBy(invoiceTemplates.createdAt);
+  }
+
+  async createInvoiceTemplate(template: InsertInvoiceTemplate): Promise<InvoiceTemplate> {
+    const [created] = await db
+      .insert(invoiceTemplates)
+      .values(template)
+      .returning();
+    return created;
+  }
+
+  async updateInvoiceTemplate(id: number, template: Partial<InsertInvoiceTemplate>): Promise<InvoiceTemplate> {
+    const [updated] = await db
+      .update(invoiceTemplates)
+      .set({ ...template, updatedAt: new Date() })
+      .where(eq(invoiceTemplates.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deleteInvoiceTemplate(id: number): Promise<void> {
+    await db
+      .delete(invoiceTemplates)
+      .where(eq(invoiceTemplates.id, id));
+  }
+
+  async getInvoiceTemplate(id: number): Promise<InvoiceTemplate | undefined> {
+    const [template] = await db
+      .select()
+      .from(invoiceTemplates)
+      .where(eq(invoiceTemplates.id, id));
+    return template;
   }
 }
 
