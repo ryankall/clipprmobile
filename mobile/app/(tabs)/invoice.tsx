@@ -424,8 +424,7 @@ export default function Invoice() {
   const [showServiceModal, setShowServiceModal] = useState(false);
   const [editingService, setEditingService] = useState<Service | null>(null);
 
-  // Custom Templates State
-  const [customTemplates, setCustomTemplates] = useState<any[]>([]);
+  // Template State
   const [showTemplateModal, setShowTemplateModal] = useState(false);
   const [templateName, setTemplateName] = useState('');
   const [templateAmount, setTemplateAmount] = useState('');
@@ -487,7 +486,6 @@ export default function Invoice() {
   useEffect(() => {
     if (isAuthenticated) {
       loadServices();
-      loadCustomTemplates();
       loadInvoicesAndClients();
       loadDefaultTemplates();
     }
@@ -511,12 +509,11 @@ export default function Invoice() {
     }
   };
 
-  // Fetch default templates from server
+  // Fetch invoice templates from server
   const loadDefaultTemplates = async () => {
     setDefaultTemplatesLoading(true);
     try {
-      // Replace endpoint with actual if different
-      const templates = await apiRequest<any[]>('GET', '/api/invoice/templates/default');
+      const templates = await apiRequest<any[]>('GET', '/api/invoice/templates');
       setDefaultTemplates(Array.isArray(templates) ? templates : []);
     } catch (e) {
       setDefaultTemplates([]);
@@ -525,42 +522,65 @@ export default function Invoice() {
     }
   };
 
-  const loadCustomTemplates = async () => {
-    try {
-      const data = await AsyncStorage.getItem('invoiceCustomTemplates');
-      if (data) {
-        setCustomTemplates(JSON.parse(data));
-      } else {
-        setCustomTemplates([]);
-      }
-    } catch (e) {
-      setCustomTemplates([]);
-    }
-  };
 
-  const saveCustomTemplates = async (templates: any[]) => {
-    setCustomTemplates(templates);
-    await AsyncStorage.setItem('invoiceCustomTemplates', JSON.stringify(templates));
-  };
 
   const handleCreateTemplate = async () => {
-    if (!templateName.trim() ||templateServiceIds.length === 0) {
+    if (!templateName.trim() || templateServiceIds.length === 0) {
       Alert.alert('All fields are required');
       return;
     }
-    const newTemplate = {
-      id: Date.now(),
-      name: templateName.trim(),
-      amount: services.filter(x => templateServiceIds.includes(x.id)).reduce((accumulator, currentValue) => accumulator + parseFloat(currentValue.price.replace("$", "")), 0),
-      serviceIds: templateServiceIds,
-      createdAt: new Date().toISOString(),
-    };
-    const updated = [...customTemplates, newTemplate];
-    await saveCustomTemplates(updated);
-    setShowTemplateModal(false);
-    setTemplateName('');
-    setTemplateAmount('');
-    setTemplateServiceIds([]);
+    
+    try {
+      const selectedServices = services.filter(x => templateServiceIds.includes(x.id));
+      const totalPrice = selectedServices.reduce((accumulator, currentValue) => 
+        accumulator + parseFloat(currentValue.price.replace("$", "")), 0);
+      
+      const templateData = {
+        name: templateName.trim(),
+        description: `Template with ${selectedServices.map(s => s.name).join(", ")}`,
+        serviceIds: templateServiceIds,
+        totalPrice: totalPrice.toFixed(2),
+      };
+
+      await apiRequest('POST', '/api/invoice/templates', templateData);
+      
+      // Reload templates from server
+      await loadDefaultTemplates();
+      
+      setShowTemplateModal(false);
+      setTemplateName('');
+      setTemplateAmount('');
+      setTemplateServiceIds([]);
+      
+      Alert.alert('Success', 'Template created successfully');
+    } catch (error) {
+      console.error('Failed to create template:', error);
+      Alert.alert('Error', 'Failed to create template');
+    }
+  };
+
+  const handleDeleteTemplate = async (templateId: number) => {
+    Alert.alert(
+      'Delete Template',
+      'Are you sure you want to delete this template? This action cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await apiRequest('DELETE', `/api/invoice/templates/${templateId}`);
+              await loadDefaultTemplates();
+              Alert.alert('Success', 'Template deleted successfully');
+            } catch (error) {
+              console.error('Failed to delete template:', error);
+              Alert.alert('Error', 'Failed to delete template');
+            }
+          },
+        },
+      ]
+    );
   };
 
   const handleServiceSelect = (id: number) => {
@@ -1254,78 +1274,49 @@ export default function Invoice() {
           </View>
         ) : (
           defaultTemplates.map((tpl: any) => (
-            <TouchableOpacity
-              key={tpl.id || tpl.name}
-              style={[
-                styles.quickTemplateCard,
-                { backgroundColor: '#1A1A1A', borderColor: colors.gold }
-              ]}
-              activeOpacity={0.7}
-              onPress={() => {
-                setSelectedTemplate({
-                  type: 'default',
-                  ...tpl,
-                  // Optionally map services if needed
-                });
-                setShowCreateModal(true);
-              }}
-            >
-              <Ionicons name={tpl.icon || "receipt-outline"} size={24} color="#f59e0b" style={{ marginBottom: 6 }} />
-              <Text style={styles.quickTemplateName}>{tpl.name}</Text>
-              <Text style={styles.quickTemplatePrice}>${tpl.amount}</Text>
-            </TouchableOpacity>
+            <View key={tpl.id || tpl.name} style={{ position: 'relative' }}>
+              <TouchableOpacity
+                style={[
+                  styles.quickTemplateCard,
+                  { backgroundColor: '#1A1A1A', borderColor: colors.gold }
+                ]}
+                activeOpacity={0.7}
+                onPress={() => {
+                  setSelectedTemplate({
+                    type: 'default',
+                    ...tpl,
+                    // Optionally map services if needed
+                  });
+                  setShowCreateModal(true);
+                }}
+              >
+                <Ionicons name={tpl.icon || "receipt-outline"} size={24} color="#f59e0b" style={{ marginBottom: 6 }} />
+                <Text style={styles.quickTemplateName}>{tpl.name}</Text>
+                <Text style={styles.quickTemplatePrice}>${tpl.price || tpl.amount}</Text>
+              </TouchableOpacity>
+              {/* Delete button */}
+              <TouchableOpacity
+                style={{
+                  position: 'absolute',
+                  top: 4,
+                  right: 4,
+                  backgroundColor: '#EF4444',
+                  borderRadius: 12,
+                  width: 24,
+                  height: 24,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+                onPress={(e) => {
+                  e.stopPropagation();
+                  handleDeleteTemplate(tpl.id);
+                }}
+              >
+                <Ionicons name="trash" size={14} color="#fff" />
+              </TouchableOpacity>
+            </View>
           ))
         )}
-        {/* Custom Templates */}
-        {customTemplates.map((tpl) => (
-          <View
-            key={tpl.id}
-            style={[
-              styles.quickTemplateCard,
-              { backgroundColor: '#232323', borderColor: colors.gold, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', position: 'relative' }
-            ]}
-          >
-            <TouchableOpacity
-              style={{ flex: 1, minWidth: 0 }}
-              activeOpacity={0.7}
-              onPress={() => {
-                setSelectedTemplate({
-                  type: 'custom',
-                  ...tpl,
-                  services: tpl.serviceIds.map((id: number) => services.find(s => s.id === id)).filter(Boolean),
-                });
-                setShowCreateModal(true);
-              }}
-            >
-              <Ionicons name="star" size={22} color="#f59e0b" style={{ marginBottom: 6 }} />
-              <Text style={styles.quickTemplateName} numberOfLines={1}>{tpl.name}</Text>
-              <Text style={styles.quickTemplatePrice}>${tpl.amount}</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={{ marginLeft: 8, padding: 4 }}
-              onPress={() => {
-                Alert.alert(
-                  'Delete Template',
-                  'Are you sure you want to delete this template? This action cannot be undone.',
-                  [
-                    { text: 'Cancel', style: 'cancel' },
-                    {
-                      text: 'Delete',
-                      style: 'destructive',
-                      onPress: async () => {
-                        const updated = customTemplates.filter(t => t.id !== tpl.id);
-                        await saveCustomTemplates(updated);
-                      },
-                    },
-                  ]
-                );
-              }}
-              accessibilityLabel="Delete template"
-            >
-              <Ionicons name="trash" size={20} color="#EF4444" />
-            </TouchableOpacity>
-          </View>
-        ))}
         {/* Add Template Button */}
         <TouchableOpacity
           style={[styles.quickTemplateCard, styles.addTemplateCard]}
