@@ -20,6 +20,18 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { colors, theme } from '../../lib/theme';
 import { Parser } from 'date-fns/parse/_lib/Parser';
 
+
+// --- Safe ISO String Helper ---
+function toISOStringSafe(value: Date): string {
+  if (value instanceof Date && typeof value.toISOString === 'function') {
+    return value.toISOString();
+  }
+  if (typeof value === 'string' && !isNaN(Date.parse(value))) {
+    return new Date(value).toISOString();
+  }
+  return new Date().toISOString();
+}
+
 // --- Invoice and Client Types ---
 type PaymentStatus = 'paid' | 'unpaid';
 type PaymentMethod = 'stripe' | 'apple_pay' | 'cash' | undefined;
@@ -432,7 +444,7 @@ export default function Invoice() {
         return;
       }
       // If not in cache, fetch from server
-      const data = await apiRequest<any[]>('GET', '/api/invoice-templates');
+      const data = await apiRequest<any[]>('GET', '/api/invoice/templates');
       setDefaultTemplates(data);
       await AsyncStorage.setItem('invoiceDefaultTemplates', JSON.stringify(data));
     } catch (e) {
@@ -455,6 +467,14 @@ export default function Invoice() {
   // Template operation loading/error state
   const [templateOpLoading, setTemplateOpLoading] = useState(false);
   const [templateOpError, setTemplateOpError] = useState<string | null>(null);
+  
+  // --- Reset Template Form Helper ---
+  const resetTemplateForm = () => {
+    setTemplateName('');
+    setTemplateAmount('');
+    setTemplateServiceIds([]);
+    setTemplateOpError(null);
+  };
 
   // --- Prefill from navigation params ---
   const params = useLocalSearchParams();
@@ -615,8 +635,7 @@ export default function Invoice() {
             accumulator + parseFloat(currentValue.price.replace("$", "")),
           0
         ),
-      serviceIds: templateServiceIds,
-      createdAt: new Date().toISOString(),
+      serviceIds: templateServiceIds
     };
   
     try {
@@ -624,7 +643,11 @@ export default function Invoice() {
       const serverTemplate = await apiRequest(
         "POST",
         "/api/invoice/templates",
-        templatePayload
+        {
+          name: templatePayload.name,
+          totalPrice: templatePayload.amount,
+          serviceIds: templatePayload.serviceIds,
+        }
       );
   
       // 2. Use the server's returned template (with id, etc) for local storage
@@ -637,10 +660,7 @@ export default function Invoice() {
       await saveCustomTemplates(updated);
       await loadCustomTemplates(); // Always reload from storage
       setShowTemplateModal(false);
-      setTemplateName("");
-      setTemplateAmount("");
-      setTemplateServiceIds([]);
-      setTemplateOpError(null);
+      resetTemplateForm();
     } catch (error: any) {
       setTemplateOpError(error?.message || "Failed to add template. Please try again.");
       Alert.alert(
@@ -1332,35 +1352,19 @@ export default function Invoice() {
         style={styles.quickTemplatesScroll}
         contentContainerStyle={styles.quickTemplatesContainer}
       >
-        {/* Default Templates (fetched from server) */}
-        {defaultTemplatesLoading ? (
-          <View style={{ justifyContent: 'center', alignItems: 'center', width: 110, height: 100 }}>
-            <ActivityIndicator size="small" color={colors.gold} />
-          </View>
-        ) : (
-          defaultTemplates.map((tpl: any) => (
-            <TouchableOpacity
-              key={tpl.id || tpl.name}
-              style={[
-                styles.quickTemplateCard,
-                { backgroundColor: '#1A1A1A', borderColor: colors.gold }
-              ]}
-              activeOpacity={0.7}
-              onPress={() => {
-                setSelectedTemplate({
-                  type: 'default',
-                  ...tpl,
-                  // Optionally map services if needed
-                });
-                setShowCreateModal(true);
-              }}
-            >
-              <Ionicons name={tpl.icon || "receipt-outline"} size={24} color="#f59e0b" style={{ marginBottom: 6 }} />
-              <Text style={styles.quickTemplateName}>{tpl.name}</Text>
-              <Text style={styles.quickTemplatePrice}>${tpl.amount}</Text>
-            </TouchableOpacity>
-          ))
-        )}
+  
+        {/* Add Template Button */}
+        <TouchableOpacity
+          style={[styles.quickTemplateCard, styles.addTemplateCard]}
+          activeOpacity={0.7}
+          onPress={() => {
+            setShowTemplateModal(true);
+            resetTemplateForm();
+          }}
+        >
+          <Ionicons name="add" size={24} color="#f59e0b" style={{ marginBottom: 6 }} />
+          <Text style={[styles.quickTemplateName, { color: colors.gold }]}>New</Text>
+        </TouchableOpacity>            
         {/* Custom Templates */}
         {customTemplates.map((tpl) => (
           <View
@@ -1371,7 +1375,7 @@ export default function Invoice() {
             ]}
           >
             <TouchableOpacity
-              style={{ flex: 1, minWidth: 0 }}
+              style={{  flex: 1, alignItems: 'center', minWidth: 0 }}
               activeOpacity={0.7}
               onPress={() => {
                 setSelectedTemplate({
@@ -1387,7 +1391,13 @@ export default function Invoice() {
               <Text style={styles.quickTemplatePrice}>${tpl.amount}</Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={{ marginLeft: 8, padding: 4 }}
+              style={{
+                position: 'absolute',
+                top: 0,
+                right: 0,
+                padding: 4,
+                zIndex: 1, // make sure it stays on top
+              }}
               onPress={async () => {
                 setTemplateOpLoading(true);
                 setTemplateOpError(null);
@@ -1401,25 +1411,18 @@ export default function Invoice() {
                       style: 'destructive',
                       onPress: async () => {
                         try {
-                          // 1. Call the server API to delete the template
                           await apiRequest('DELETE', `/api/invoice/templates/${tpl.id}`);
-                          // 2. Update local storage
                           const updated = customTemplates.filter(t => t.id !== tpl.id);
                           await saveCustomTemplates(updated);
-                          await loadCustomTemplates(); // Always reload from storage
+                          await loadCustomTemplates();
                           setTemplateOpError(null);
                         } catch (error) {
-                          setTemplateOpError(
+                          const msg =
                             (error && typeof error === 'object' && 'message' in error)
                               ? (error as any).message
-                              : String(error) || 'Failed to delete template. Please try again.'
-                          );
-                          Alert.alert(
-                            'Error',
-                            (error && typeof error === 'object' && 'message' in error)
-                              ? (error as any).message
-                              : String(error) || 'Failed to delete template. Please try again.'
-                          );
+                              : String(error) || 'Failed to delete template. Please try again.';
+                          setTemplateOpError(msg);
+                          Alert.alert('Error', msg);
                         } finally {
                           setTemplateOpLoading(false);
                         }
@@ -1430,32 +1433,34 @@ export default function Invoice() {
               }}
               accessibilityLabel="Delete template"
             >
-              <Ionicons name="trash" size={20} color="#EF4444" />
+  <Ionicons name="close" size={16} color="#EF4444" />
             </TouchableOpacity>
+
           </View>
         ))}
-        {/* Add Template Button */}
-        <TouchableOpacity
-          style={[styles.quickTemplateCard, styles.addTemplateCard]}
-          activeOpacity={0.7}
-          onPress={() => setShowTemplateModal(true)}
-        >
-          <Ionicons name="add" size={24} color="#f59e0b" style={{ marginBottom: 6 }} />
-          <Text style={[styles.quickTemplateName, { color: colors.gold }]}>New</Text>
-        </TouchableOpacity>
+
       </ScrollView>
       {/* New Template Modal */}
       <Modal
         visible={showTemplateModal}
         animationType="slide"
         transparent
-        onRequestClose={() => setShowTemplateModal(false)}
+        onRequestClose={() => {
+          setShowTemplateModal(false);
+          resetTemplateForm();
+        }}
       >
         <SafeAreaView style={styles.modalOverlay}>
           <View style={styles.modalContentBox}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Create Template</Text>
-              <TouchableOpacity onPress={() => setShowTemplateModal(false)} style={styles.modalCloseButton}>
+              <TouchableOpacity
+                onPress={() => {
+                  setShowTemplateModal(false);
+                  resetTemplateForm();
+                }}
+                style={styles.modalCloseButton}
+              >
                 <Ionicons name="close" size={24} color="#6B7280" />
               </TouchableOpacity>
             </View>

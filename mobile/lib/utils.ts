@@ -56,3 +56,9 @@ class SimpleEventEmitter {
   }
 }
 export const globalEventEmitter = new SimpleEventEmitter();
+
+export function toISOStringSafe(date: Date): string {
+  return date instanceof Date && !isNaN(date.getTime())
+    ? date.toISOString()
+    : '';
+}
