@@ -476,6 +476,13 @@ export default function Invoice() {
     setTemplateOpError(null);
   };
 
+  const resetAddServiceForm = () => {
+    setServiceName('');
+    setServiceDescription('');
+    setServicePrice('');
+    setServiceDuration('');
+  }
+
   // --- Prefill from navigation params ---
   const params = useLocalSearchParams();
 
@@ -783,11 +790,7 @@ export default function Invoice() {
       }
       await loadServices();
       setShowServiceModal(false);
-      setServiceName('');
-      setServiceDescription('');
-      setServicePrice('');
-      setServiceDuration('');
-      setServiceCategory('');
+      resetAddServiceForm();
       setEditingService(null);
     } catch (error) {
       Alert.alert('Error', editingService ? 'Failed to update service' : 'Failed to create service');
@@ -1255,6 +1258,7 @@ export default function Invoice() {
                 onPress={() => {
                   setShowServiceModal(false);
                   setEditingService(null);
+                  resetAddServiceForm();
                 }}
                 style={styles.modalCloseButton}
               >
