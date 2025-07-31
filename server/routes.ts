@@ -34,6 +34,9 @@ import {
   startReminderScheduler,
 } from "./pushNotifications";
 
+import { AppointmentStatus } from "./enums";
+import { aP } from "vitest/dist/chunks/reporters.d.BFLkQcL6.js";
+
 // Configure multer for memory storage
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -1450,9 +1453,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Check if service is used in existing appointments
       const appointments = await storage.getAppointmentsByUserId(userId);
-      const serviceInUse = appointments.some(
-        (apt) => apt.serviceId === serviceId,
-      );
+      const nowUtc = new Date();
+
+      const serviceInUse = appointments.some((apt) => {
+        if (!apt.scheduledAt || 
+          typeof apt.duration !== 'number' ||
+          apt.status === AppointmentStatus.Cancelled ||
+          apt.status === AppointmentStatus.NoShow ||
+          apt.status === AppointmentStatus.Expired
+        ) return false;
+
+        const startUtc = new Date(apt.scheduledAt); // assume ISO 8601 string or UTC timestamp
+        const endUtc = new Date(startUtc.getTime() + apt.duration * 60_000); // duration in ms
+
+        return apt.serviceId === serviceId && endUtc > nowUtc;
+      });
 
       if (serviceInUse) {
         return res.status(400).json({

@@ -49,6 +49,17 @@ export async function apiRequest(
     ...options,
   };
 
+  // Debug logging for authentication inspection
+  if (url.startsWith("/api/messages")) {
+    console.log("[apiRequest] /api/messages request:");
+    console.log("  Method:", method);
+    console.log("  URL:", url);
+    console.log("  Token:", token);
+    console.log("  Headers:", headers);
+    // Cookies are not directly accessible from JS due to httpOnly, but log what we can
+    console.log("  Document.cookie:", document.cookie);
+  }
+
   if (data && (method === "POST" || method === "PUT" || method === "PATCH")) {
     config.body = JSON.stringify(data);
   }
