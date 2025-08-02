@@ -14,11 +14,14 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useAuth } from '../../hooks/useAuth';
+import { utcToLocal } from '../../lib/utils';
 import { apiRequest } from '../../lib/api';
 import { Service } from '../../lib/types';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { colors, theme } from '../../lib/theme';
 import { Parser } from 'date-fns/parse/_lib/Parser';
+import { validators } from '../../lib/utils';
+import ValidatedRequiredTextInput from '../components/InputValidations'
 
 
 // --- Safe ISO String Helper ---
@@ -101,6 +104,7 @@ const CreateInvoiceModalContent: React.FC<CreateInvoiceModalContentProps> = ({
   const [notifyClient, setNotifyClient] = useState<boolean>(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [addFieldErrors, setAddFieldErrors] = useState<{ [key: string]: string }>({});
 
   // Prefill support for amount if template has amount
   const prefillAmount = selectedTemplate?.amount
@@ -313,7 +317,10 @@ const CreateInvoiceModalContent: React.FC<CreateInvoiceModalContentProps> = ({
         placeholder="Tip (optional)"
         placeholderTextColor="#9CA3AF"
         value={tip}
-        onChangeText={setTip}
+        onChangeText={text => {
+          const formatted = validators.formatCurrencyInput(text);
+          setTip(formatted);
+        }}
         keyboardType="numeric"
         maxLength={8}
       />
@@ -405,6 +412,7 @@ export default function Invoice() {
   const [serviceDuration, setServiceDuration] = useState('');
   const [serviceCategory, setServiceCategory] = useState('');
   const [serviceSubmitting, setServiceSubmitting] = useState(false);
+  const [addFieldErrors, setAddFieldErrors] = useState<{ [key: string]: string }>({});
 
   const [services, setServices] = useState<Service[]>([]);
   const [loading, setLoading] = useState(true);
@@ -860,8 +868,14 @@ export default function Invoice() {
                   } 
 
                   // Format date
-                  const date = new Date(invoice.createdAt);
-                  const dateStr = `${date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })} • ${date.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}`;
+                  const { user } = useAuth();
+                  const localDate = utcToLocal(
+                    typeof invoice.createdAt === "string"
+                      ? invoice.createdAt
+                      : "",
+                    user?.timezone
+                  );
+                  const dateStr = `${localDate.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })} • ${localDate.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}`;
 
                   return (
                     <TouchableOpacity
@@ -1266,13 +1280,14 @@ export default function Invoice() {
               </TouchableOpacity>
             </View>
             <View style={styles.modalBody}>
-              <TextInput
+              <ValidatedRequiredTextInput
                 style={styles.input}
                 placeholder="Service Name"
                 placeholderTextColor="#9CA3AF"
+                required={true}
                 value={serviceName}
-                onChangeText={setServiceName}
-                maxLength={60}
+                onTextChange={setServiceName}
+                maxLength={30}
               />
               <TextInput
                 style={styles.input}
@@ -1282,22 +1297,24 @@ export default function Invoice() {
                 onChangeText={setServiceDescription}
                 maxLength={200}
               />
-              <TextInput
+              <ValidatedRequiredTextInput
                 style={styles.input}
                 placeholder="Price (e.g. 45)"
                 placeholderTextColor="#9CA3AF"
                 value={servicePrice}
-                onChangeText={setServicePrice}
-                keyboardType="numeric"
+                required={true}
+                onTextChange={setServicePrice}
+                type={'currency'}
                 maxLength={10}
               />
-              <TextInput
+              <ValidatedRequiredTextInput
                 style={styles.input}
                 placeholder="Duration (minutes)"
                 placeholderTextColor="#9CA3AF"
                 value={serviceDuration}
-                onChangeText={setServiceDuration}
-                keyboardType="numeric"
+                required={true}
+                onTextChange={setServiceDuration}
+                type={'number'}
                 maxLength={5}
               />
               <Text style={[styles.modalPlaceholderText, { marginTop: 8, marginBottom: 4 }]}>Category</Text>
@@ -1805,8 +1822,17 @@ function InvoiceDetailsModal({
 
   // Format date
   const date = invoice.createdAt ? new Date(invoice.createdAt) : null;
-  const dateStr = date
-    ? `${date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })} • ${date.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}`
+  const { user } = useAuth();
+  const localDate = invoice.createdAt
+    ? utcToLocal(
+        typeof invoice.createdAt === "string"
+          ? invoice.createdAt
+          : "",
+        user?.timezone
+      )
+    : null;
+  const dateStr = localDate
+    ? `${localDate.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })} • ${localDate.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}`
     : 'Unknown';
 
   return (
@@ -2019,7 +2045,12 @@ function InvoiceDetailsModal({
                 <Text style={styles.infoBlockLabel}>Created</Text>
                 <Text style={styles.infoBlockText}>
                   {invoice.createdAt
-                    ? new Date(invoice.createdAt).toLocaleString()
+                    ? utcToLocal(
+                        typeof invoice.createdAt === "string"
+                          ? invoice.createdAt
+                          : "",
+                        user?.timezone
+                      ).toLocaleString()
                     : 'Unknown'}
                 </Text>
               </View>

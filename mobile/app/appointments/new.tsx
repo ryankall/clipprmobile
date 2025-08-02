@@ -4,13 +4,15 @@ import DateTimePicker from "@react-native-community/datetimepicker";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { apiRequest } from "../../lib/api";
 import type { Client } from "../../lib/types";
-import { toZonedTime, format } from "date-fns-tz";
+import { localToUTC, utcToLocal } from "../../lib/utils";
+import { useAuth } from "../../hooks/useAuth";
 import { Ionicons } from '@expo/vector-icons';
 
 import { colors } from '../../lib/theme';
 export default function NewAppointment() {
   const router = useRouter();
   const params = useLocalSearchParams();
+  const { user } = useAuth();
 
   // State for clients and selection/creation
   const [clients, setClients] = useState<Client[]>([]);
@@ -45,8 +47,9 @@ export default function NewAppointment() {
   function getDisplayDate() {
     if (!date) return "Select date & time";
     try {
-      const d = new Date(date);
-      return d.toLocaleString();
+      // Use utcToLocal for display, passing user's timezone if available
+      const localDate = utcToLocal(date, user?.timezone);
+      return localDate.toLocaleString();
     } catch {
       return date;
     }
@@ -473,20 +476,12 @@ export default function NewAppointment() {
             return;
           }
           // Prepare data
-          // Convert selected date/time to America/New_York before sending to backend
-          let scheduledAtET = date;
-          try {
-            const userDate = new Date(date);
-            const zoned = toZonedTime(userDate, "America/New_York");
-            scheduledAtET = format(zoned, "yyyy-MM-dd'T'HH:mm:ssXXX", { timeZone: "America/New_York" });
-          } catch (e) {
-            // fallback to original date if conversion fails
-            scheduledAtET = date;
-          }
+          // Use localToUTC for API call
+          const scheduledAtUTC = localToUTC(new Date(date));
           const appointmentData = {
             clientId: selectedClientId,
             services: serviceSelections,
-            scheduledAt: scheduledAtET,
+            scheduledAt: scheduledAtUTC,
             address: includeTravel ? address : "",
             travelTime: includeTravel ? travelTime : 0,
           };
@@ -627,6 +622,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
     justifyContent: "flex-start",
     paddingTop: Platform.OS === 'android' ? 50 : 50,
+    paddingBottom: 100
   },
   heading: {
     flex: 1,

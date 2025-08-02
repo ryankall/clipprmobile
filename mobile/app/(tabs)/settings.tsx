@@ -32,6 +32,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useFocusEffect } from '@react-navigation/native';
 import { colors, theme } from '../../lib/theme';
+import { utcToLocal } from '../../lib/utils';
 
 interface NotificationSettings {
   newBookingRequests: boolean;
@@ -813,7 +814,7 @@ export default function Settings() {
           <View>
             <Text style={styles.securityItemTitle}>Password</Text>
             <Text style={styles.securityItemSubtitle}>
-              Last updated: {new Date().toLocaleDateString()}
+              Last updated: {utcToLocal(new Date().toISOString(), user?.timezone).toLocaleDateString()}
             </Text>
           </View>
           <Ionicons name="chevron-forward" size={20} color="#6B7280" />
@@ -905,7 +906,12 @@ export default function Settings() {
                   <View style={styles.blockedClientDetails}>
                     <Text style={styles.blockedClientPhone}>{client.phoneNumber}</Text>
                     <Text style={styles.blockedClientDate}>
-                      Blocked {new Date(client.blockedAt).toLocaleDateString()}
+                      Blocked {utcToLocal(
+                        typeof client.blockedAt === "string"
+                          ? client.blockedAt
+                          : "",
+                        user?.timezone
+                      ).toLocaleDateString()}
                     </Text>
                     {client.reason && (
                       <Text style={styles.blockedClientReason}>Reason: {client.reason}</Text>
@@ -1136,7 +1142,14 @@ export default function Settings() {
             <View style={styles.premiumStatus}>
               <Text style={styles.premiumStatusTitle}>Premium Plan Active</Text>
               <Text style={styles.premiumStatusSubtitle}>
-                Next billing: {subscriptionStatus.endDate ? new Date(subscriptionStatus.endDate).toLocaleDateString() : 'N/A'}
+                Next billing: {subscriptionStatus.endDate
+                  ? utcToLocal(
+                      typeof subscriptionStatus.endDate === "string"
+                        ? subscriptionStatus.endDate
+                        : "",
+                      user?.timezone
+                    ).toLocaleDateString()
+                  : 'N/A'}
               </Text>
             </View>
             <View style={styles.premiumActions}>

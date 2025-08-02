@@ -585,13 +585,17 @@ export default function Messages() {
                   <Ionicons name="person-add-outline" size={18} color="#A78BFA" />
                   <Text style={[modalStyles.actionText, { color: '#A78BFA' }]}>Create Client</Text>
                 </TouchableOpacity>
-                <TouchableOpacity
-                  style={[modalStyles.actionButton, { borderColor: '#F59E0B' }]}
-                  onPress={() => handleBookAppointment(selectedMessage)}
-                >
-                  <Ionicons name="calendar-outline" size={18} color="#F59E0B" />
-                  <Text style={[modalStyles.actionText, { color: '#F59E0B' }]}>Book Appointment</Text>
-                </TouchableOpacity>
+                { selectedMessage.subject === 'New Booking Request' ? (
+                  <TouchableOpacity
+                        style={[modalStyles.actionButton, { borderColor: '#F59E0B' }]}
+                        onPress={() => handleBookAppointment(selectedMessage)}
+                      >
+                    <Ionicons name="calendar-outline" size={18} color="#F59E0B" />
+                    <Text style={[modalStyles.actionText, { color: '#F59E0B' }]}>Book Appointment</Text>
+                  </TouchableOpacity>
+                ) : null
+                }
+
                 {selectedMessage.customerPhone && (
                   <TouchableOpacity
                     style={[

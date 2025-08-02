@@ -1,3 +1,4 @@
+// [DEBUG] Audit: All hooks in this file are called at the top level of function components. No hook usage violations found.
 import React, { useEffect, useState } from 'react';
 import {
   View,
@@ -21,7 +22,11 @@ import { clientFormSchema } from '../../lib/clientSchema';
 import { z } from 'zod';
 
 import { colors } from '../../lib/theme';
+import { utcToLocal } from '../../lib/utils';
+import { useAuth } from '../../hooks/useAuth';
 export default function ClientProfile() {
+  // FIX: Call useAuth at the very top, before any conditional returns
+  const { user } = useAuth();
   const { id } = useLocalSearchParams();
   const clientId = typeof id === 'string' ? parseInt(id, 10) : 0;
   const router = useRouter();
@@ -242,7 +247,15 @@ export default function ClientProfile() {
   // Stats
   const totalSpent = parseFloat(client.totalSpent || '0');
   const totalVisits = client.totalVisits || 0;
-  const lastVisit = client.lastVisit ? new Date(client.lastVisit).toLocaleDateString() : '--';
+  // useAuth is now called at the top of the component (see above)
+  const lastVisit = client.lastVisit
+    ? utcToLocal(
+        typeof client.lastVisit === "string"
+          ? client.lastVisit
+          : "",
+        user?.timezone
+      ).toLocaleDateString()
+    : '--';
   const upcomingAppointments = appointments.filter(a =>
     new Date(a.scheduledAt) > new Date() && a.status === 'confirmed'
   ).length;
@@ -502,7 +515,12 @@ export default function ClientProfile() {
                 <View>
                   <Text style={styles.appointmentService}>{apt.service?.name}</Text>
                   <Text style={styles.appointmentDate}>
-                    {new Date(apt.scheduledAt).toLocaleString()}
+                    {utcToLocal(
+                      typeof apt.scheduledAt === "string"
+                        ? apt.scheduledAt
+                        : "",
+                      user?.timezone
+                    ).toLocaleString()}
                   </Text>
                 </View>
                 <View style={{ alignItems: 'flex-end' }}>
@@ -562,7 +580,12 @@ export default function ClientProfile() {
                       {msg.services?.join(', ') || msg.message?.slice(0, 20) || 'Message'}
                     </Text>
                     <Text style={styles.messageMeta}>
-                      From: {msg.customerName} • {new Date(msg.createdAt).toLocaleString()}
+                      From: {msg.customerName} • {utcToLocal(
+                        typeof msg.createdAt === "string"
+                          ? msg.createdAt
+                          : "",
+                        user?.timezone
+                      ).toLocaleString()}
                     </Text>
                   </View>
                   {msg.read ? (
@@ -614,7 +637,12 @@ export default function ClientProfile() {
               <>
                 <Text style={styles.modalTitle}>{messageModal.services?.join(', ') || 'Message'}</Text>
                 <Text style={styles.modalMeta}>From: {messageModal.customerName}</Text>
-                <Text style={styles.modalMeta}>Date: {new Date(messageModal.createdAt).toLocaleString()}</Text>
+                <Text style={styles.modalMeta}>Date: {utcToLocal(
+                  typeof messageModal.createdAt === "string"
+                    ? messageModal.createdAt
+                    : "",
+                  user?.timezone
+                ).toLocaleString()}</Text>
                 {messageModal.customerPhone ? <Text style={styles.modalMeta}>Phone: {messageModal.customerPhone}</Text> : null}
                 {/* Email field not present in Message type, so skip */}
                 <View style={styles.modalBlock}>
@@ -657,7 +685,13 @@ export default function ClientProfile() {
                       accessibilityLabel="Gallery photo"
                     />
                     <Text style={styles.galleryCaption}>
-                      {photo.originalName || new Date(photo.createdAt).toLocaleDateString()}
+                      {photo.originalName ||
+                        utcToLocal(
+                          typeof photo.createdAt === "string"
+                            ? photo.createdAt
+                            : "",
+                          user?.timezone
+                        ).toLocaleDateString()}
                     </Text>
                   </View>
                 ))}
@@ -713,8 +747,13 @@ export default function ClientProfile() {
                 else if (invoice.paymentMethod === 'apple_pay') iconName = 'phone-portrait-outline';
                 else if (invoice.paymentMethod === 'cash') iconName = 'cash-outline';
 
-                const date = new Date(invoice.createdAt);
-                const dateStr = `${date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })} • ${date.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}`;
+                const localDate = utcToLocal(
+                  typeof invoice.createdAt === "string"
+                    ? invoice.createdAt
+                    : "",
+                  user?.timezone
+                );
+                const dateStr = `${localDate.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })} • ${localDate.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}`;
 
                 return (
                   <TouchableOpacity
@@ -842,6 +881,8 @@ function InvoiceDetailsModal({
   client: any;
   onDelete?: (invoiceId: number) => void;
 }) {
+  console.log('[InvoiceDetailsModal] useAuth called at top level');
+  const { user } = useAuth();
   const [services, setServices] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -1149,7 +1190,12 @@ function InvoiceDetailsModal({
                 <Text style={styles.infoBlockLabel}>Created</Text>
                 <Text style={styles.infoBlockText}>
                   {invoice.createdAt
-                    ? new Date(invoice.createdAt).toLocaleString()
+                    ? utcToLocal(
+                        typeof invoice.createdAt === "string"
+                          ? invoice.createdAt
+                          : "",
+                        user?.timezone
+                      ).toLocaleString()
                     : 'Unknown'}
                 </Text>
               </View>
