@@ -34,7 +34,7 @@ import {
   startReminderScheduler,
 } from "./pushNotifications";
 
-import { AppointmentStatus } from "./enums";
+import { AppointmentStatus, SubscriptionStatus } from "./enums";
 import { aP } from "vitest/dist/chunks/reporters.d.BFLkQcL6.js";
 
 // Configure multer for memory storage
@@ -1328,15 +1328,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(client);
     } catch (error: any) {
       console.error("❌ Client update error:", error);
-      
+
       // Handle phone number duplicate error
-      if (error.message.includes('phone number already exists')) {
+      if (error.message.includes("phone number already exists")) {
         return res.status(409).json({
           message: error.message,
-          type: 'DUPLICATE_PHONE'
+          type: "DUPLICATE_PHONE",
         });
       }
-      
+
       res.status(500).json({ message: error.message });
     }
   });
@@ -1456,16 +1456,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const nowUtc = new Date();
 
       const serviceInUse = appointments.some((apt) => {
-        if (!apt.scheduledAt || 
-          typeof apt.duration !== 'number' ||
+        if (
+          !apt.scheduledAt ||
+          typeof apt.duration !== "number" ||
           apt.status === AppointmentStatus.Cancelled ||
           apt.status === AppointmentStatus.NoShow ||
           apt.status === AppointmentStatus.Expired
-        ) return false;
+        )
+          return false;
 
         const startUtc = new Date(apt.scheduledAt); // assume ISO 8601 string or UTC timestamp
         const endUtc = new Date(startUtc.getTime() + apt.duration * 60_000); // duration in ms
 
+        console.log({
+          isFuture: endUtc > nowUtc,
+          endUtc: endUtc.toISOString(),
+          now: nowUtc.toISOString(),
+          scheduled_at: apt.scheduledAt,
+          duration: apt.duration,
+          id: apt.id,
+          status: apt.status,
+        });
         return apt.serviceId === serviceId && endUtc > nowUtc;
       });
 
@@ -1838,14 +1849,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = (req.user as any).id;
       const templateId = parseInt(req.params.id);
-      
+
       // Verify template belongs to user
       const existingTemplate = await storage.getInvoiceTemplate(templateId);
       if (!existingTemplate || existingTemplate.userId !== userId) {
         return res.status(404).json({ message: "Template not found" });
       }
-      
-      const template = await storage.updateInvoiceTemplate(templateId, req.body);
+
+      const template = await storage.updateInvoiceTemplate(
+        templateId,
+        req.body,
+      );
       res.json(template);
     } catch (error: any) {
       res.status(500).json({ message: error.message });
@@ -1856,13 +1870,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = (req.user as any).id;
       const templateId = parseInt(req.params.id);
-      
+
       // Verify template belongs to user
       const existingTemplate = await storage.getInvoiceTemplate(templateId);
       if (!existingTemplate || existingTemplate.userId !== userId) {
         return res.status(404).json({ message: "Template not found" });
       }
-      
+
       await storage.deleteInvoiceTemplate(templateId);
       res.json({ success: true });
     } catch (error: any) {
@@ -1984,12 +1998,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (invoice.paymentMethod === "stripe") {
         try {
           // Create Stripe payment link for mobile-friendly payments
-          const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
+          const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
           const paymentLinkData = await stripe.paymentLinks.create({
             line_items: [
               {
                 price_data: {
-                  currency: 'usd',
+                  currency: "usd",
                   product_data: {
                     name: `Clippr Invoice #${invoice.id}`,
                     description: serviceNames,
@@ -2011,7 +2025,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Format SMS message with payment link
-      const smsMessage = paymentLink 
+      const smsMessage = paymentLink
         ? `Hi ${client.name}! Your Clippr invoice: ${serviceNames} - $${invoice.total}. Pay now: ${paymentLink}`
         : `Hi ${client.name}! Your Clippr invoice: ${serviceNames} - $${invoice.total}. Payment method: ${invoice.paymentMethod}`;
 
@@ -2071,12 +2085,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (invoice.paymentMethod === "stripe") {
         try {
           // Create Stripe payment link for mobile-friendly payments
-          const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
+          const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
           const paymentLinkData = await stripe.paymentLinks.create({
             line_items: [
               {
                 price_data: {
-                  currency: 'usd',
+                  currency: "usd",
                   product_data: {
                     name: `Clippr Invoice #${invoice.id}`,
                     description: serviceNames,
@@ -2099,7 +2113,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Format email message with payment link
       const emailSubject = `Clippr Invoice #${invoice.id} - $${invoice.total}`;
-      const emailMessage = paymentLink 
+      const emailMessage = paymentLink
         ? `Hi ${client.name}!\n\nYour Clippr invoice is ready:\n${serviceNames}\nTotal: $${invoice.total}\n\nPay now: ${paymentLink}\n\nThank you!`
         : `Hi ${client.name}!\n\nYour Clippr invoice is ready:\n${serviceNames}\nTotal: $${invoice.total}\nPayment method: ${invoice.paymentMethod}\n\nThank you!`;
 
@@ -2367,7 +2381,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         // Update user to basic plan immediately
         await storage.updateUser(userId, {
-          subscriptionStatus: "basic",
+          subscriptionStatus: SubscriptionStatus.Basic,
           subscriptionStartDate: null,
           subscriptionEndDate: null,
           subscriptionInterval: null,
@@ -2410,7 +2424,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               30;
 
           res.json({
-            status: user.subscriptionStatus || "basic",
+            status: user.subscriptionStatus || SubscriptionStatus.Basic,
             interval: user.subscriptionInterval,
             startDate: user.subscriptionStartDate,
             endDate: user.subscriptionEndDate,
@@ -3006,10 +3020,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const phoneParam = req.params.phone;
       // Extract phone number from format like "6467891820-clipcutman"
       const phoneDigits = phoneParam.split("-")[0];
-      
+
       // Try unformatted phone number first
       let user = await storage.getUserByPhone(phoneDigits);
-      
+
       // If not found, try formatted phone number for backward compatibility
       if (!user) {
         const formattedPhone = `(${phoneDigits.slice(0, 3)}) ${phoneDigits.slice(3, 6)}-${phoneDigits.slice(6)}`;
@@ -3042,10 +3056,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const phoneParam = req.params.phone;
       const phoneDigits = phoneParam.split("-")[0];
-      
+
       // Try unformatted phone number first
       let user = await storage.getUserByPhone(phoneDigits);
-      
+
       // If not found, try formatted phone number for backward compatibility
       if (!user) {
         const formattedPhone = `(${phoneDigits.slice(0, 3)}) ${phoneDigits.slice(3, 6)}-${phoneDigits.slice(6)}`;
@@ -3092,7 +3106,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Try unformatted phone number first
       let user = await storage.getUserByPhone(phoneDigits);
-      
+
       // If not found, try formatted phone number for backward compatibility
       if (!user) {
         const formattedPhone = `(${phoneDigits.slice(0, 3)}) ${phoneDigits.slice(3, 6)}-${phoneDigits.slice(6)}`;
@@ -3182,7 +3196,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Try unformatted phone number first
       let user = await storage.getUserByPhone(phoneDigits);
-      
+
       // If not found, try formatted phone number for backward compatibility
       if (!user) {
         const formattedPhone = `(${phoneDigits.slice(0, 3)}) ${phoneDigits.slice(3, 6)}-${phoneDigits.slice(6)}`;
@@ -3404,7 +3418,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Try unformatted phone number first
       let barber = await storage.getUserByPhone(phoneDigits);
-      
+
       // If not found, try formatted phone number for backward compatibility
       if (!barber) {
         const barberPhone = `(${phoneDigits.slice(0, 3)}) ${phoneDigits.slice(3, 6)}-${phoneDigits.slice(6)}`;
@@ -3416,20 +3430,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Find client by phone number for this barber
       // Normalize phone numbers for comparison (remove all non-digits)
-      const normalizePhone = (phone: string) => phone.replace(/\D/g, '');
+      const normalizePhone = (phone: string) => phone.replace(/\D/g, "");
       const normalizedClientPhone = normalizePhone(clientPhone);
-      
+
       const clients = await storage.getClientsByUserId(barber.id);
-      const client = clients.find((c) => 
-        normalizePhone(c.phone) === normalizedClientPhone
+      const client = clients.find(
+        (c) => normalizePhone(c.phone) === normalizedClientPhone,
       );
-      
-      console.log(`Client lookup for phone: ${clientPhone} (normalized: ${normalizedClientPhone})`);
+
+      console.log(
+        `Client lookup for phone: ${clientPhone} (normalized: ${normalizedClientPhone})`,
+      );
       console.log(`Found ${clients.length} clients for barber ${barber.id}`);
       if (client) {
         console.log(`Found matching client: ${client.name} (${client.phone})`);
       } else {
-        console.log('No matching client found');
+        console.log("No matching client found");
       }
 
       if (client) {
@@ -3540,7 +3556,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Get service details and calculate total duration
       const services = await storage.getServicesByUserId(user.id);
-      
+
       // Handle both service IDs and service names for backward compatibility
       let requestedServices = [];
       if (selectedServices.length > 0 && !isNaN(Number(selectedServices[0]))) {
