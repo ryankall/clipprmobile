@@ -53,6 +53,7 @@ interface BookingRequest {
   selectedDate: string;
   selectedTime: string;
   selectedServices: string[];
+  selectedServicesIds: number[];
   customService?: string;
   needsTravel: boolean;
   clientAddress?: string;
@@ -70,6 +71,7 @@ export default function EnhancedBookingPage() {
   const [selectedDate, setSelectedDate] = useState("");
   const [selectedTime, setSelectedTime] = useState("");
   const [selectedServices, setSelectedServices] = useState<string[]>([]);
+  const [selectedServicesIds, setSelectedServicesIds] = useState<number[]>([]);
   const [customService, setCustomService] = useState("");
   const [clientPhone, setClientPhone] = useState("");
   const [clientName, setClientName] = useState("");
@@ -130,7 +132,7 @@ export default function EnhancedBookingPage() {
         if (data.address) {
           setClientAddress(data.address);
         }
-        console.log('Client lookup successful:', data);
+        console.log("Client lookup successful:", data);
         toast({
           title: "Welcome back!",
           description: `Found your information: ${data.name}`,
@@ -169,7 +171,7 @@ export default function EnhancedBookingPage() {
       const timeoutId = setTimeout(() => {
         checkClientMutation.mutate(clientPhone);
       }, 500);
-      
+
       return () => clearTimeout(timeoutId);
     } else {
       // Clear existing client data if phone number is too short
@@ -265,6 +267,7 @@ export default function EnhancedBookingPage() {
       selectedDate,
       selectedTime,
       selectedServices: selectedServices.filter(Boolean),
+      selectedServicesIds: selectedServicesIds.filter(Boolean),
       customService: customService || undefined,
       needsTravel: needsTravel || false,
       clientAddress: needsTravel ? clientAddress : undefined,
@@ -445,7 +448,9 @@ export default function EnhancedBookingPage() {
                 <div className="bg-gold/10 border border-gold/20 rounded-lg p-3 mt-3">
                   <div className="flex items-center text-gold">
                     <CheckCircle className="w-4 h-4 mr-2" />
-                    <span className="font-medium">Welcome back, {existingClient.name}!</span>
+                    <span className="font-medium">
+                      Welcome back, {existingClient.name}!
+                    </span>
                   </div>
                   <p className="text-gold/80 text-sm mt-1">
                     We found your information from previous visits
@@ -594,14 +599,21 @@ export default function EnhancedBookingPage() {
                             : "border-steel/40 bg-charcoal hover:border-gold/50"
                         }`}
                         onClick={() => {
-                          if (selectedServices.includes(service.name)) {
+                          if (selectedServicesIds.includes(service.id)) {
                             setSelectedServices((prev) =>
                               prev.filter((s) => s !== service.name),
+                            );
+                            setSelectedServicesIds((prev) =>
+                              prev.filter((s) => s !== service.id),
                             );
                           } else {
                             setSelectedServices((prev) => [
                               ...prev,
                               service.name,
+                            ]);
+                            setSelectedServicesIds((prev) => [
+                              ...prev,
+                              service.id,
                             ]);
                           }
                         }}
@@ -609,7 +621,7 @@ export default function EnhancedBookingPage() {
                         <div className="flex items-center justify-between">
                           <div className="flex items-center space-x-3">
                             <Checkbox
-                              checked={selectedServices.includes(service.name)}
+                              checked={selectedServicesIds.includes(service.id)}
                               className="data-[state=checked]:bg-gold data-[state=checked]:border-gold"
                             />
                             <div>
@@ -631,7 +643,7 @@ export default function EnhancedBookingPage() {
                     ))}
 
                     {/* Custom Service Option */}
-                    <div
+                    {/* <div
                       className={`border rounded-lg p-3 cursor-pointer transition-colors ${
                         selectedServices.includes("Custom")
                           ? "border-gold bg-gold/10"
@@ -666,7 +678,7 @@ export default function EnhancedBookingPage() {
                           onClick={(e) => e.stopPropagation()}
                         />
                       )}
-                    </div>
+                    </div>*/}
                   </div>
 
                   {(selectedServices.length > 0 || customService) && (
