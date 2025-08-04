@@ -19,6 +19,7 @@ type Message = {
   status: 'unread' | 'read' | 'replied' | 'archived';
   priority: 'low' | 'normal' | 'high' | 'urgent';
   serviceRequested?: string;
+  serviceIds: number[];
   preferredDate?: string;
   notes?: string;
   createdAt: string;
@@ -192,6 +193,7 @@ export default function Messages() {
     status: msg.status,
     priority: msg.priority,
     serviceRequested: msg.serviceRequested,
+    serviceIds: msg.serviceIds,
     preferredDate: msg.preferredDate,
     notes: msg.notes,
     createdAt: msg.createdAt,
@@ -264,12 +266,12 @@ export default function Messages() {
       date: selectedDate,
       time: selectedTime,
       services: services,
+      serviceIds: message.serviceIds,
       customService: customService,
       address: address,
       notes: notes,
       travel: hasTravel ? 'yes' : travelNo ? 'no' : undefined,
     };
-
     setSelectedMessage(null);
 
     // Navigate to the new appointment screen with params
@@ -299,7 +301,7 @@ export default function Messages() {
 // Mutation for updating client info from message content
   const updateClientMutation = useMutation({
     mutationFn: async ({ clientId, updateData }: { clientId: number; updateData: any }) => {
-      return await apiRequest('PATCH', `/api/clients/${clientId}`, updateData);
+      return await apiRequest('PUT', `/api/clients/${clientId}`, updateData);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/clients'] });

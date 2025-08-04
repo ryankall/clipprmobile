@@ -881,7 +881,6 @@ function InvoiceDetailsModal({
   client: any;
   onDelete?: (invoiceId: number) => void;
 }) {
-  console.log('[InvoiceDetailsModal] useAuth called at top level');
   const { user } = useAuth();
   const [services, setServices] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
@@ -897,9 +896,6 @@ function InvoiceDetailsModal({
     setError(null);
     apiRequest<any>('GET', `/api/invoices/${invoice.id}`)
       .then((data) => {
-        // Debug: log the full invoice data
-        console.log('[ClientProfile/InvoiceDetailsModal] Loaded invoice data:', data);
-
         // Check all possible service arrays
         let found = null;
         if (Array.isArray(data.services) && data.services.length > 0) {

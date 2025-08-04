@@ -83,7 +83,6 @@ export default function NewAppointment() {
         } else if (prefillPhone) {
           found = data.find(c => c.phone === prefillPhone);
         }
-
         if (found) {
           setSelectedClientId(found.id);
         }
@@ -188,17 +187,24 @@ export default function NewAppointment() {
 
   // Prefill services from params after services are loaded
   useEffect(() => {
+    const serviceIdsParam = params.serviceIds as string;
+    const serviceIds = serviceIdsParam
+                        .split(',')
+                        .filter(id => id !== '')
+                        .map(id => parseInt(id, 10));
+
     if (
       !servicesLoading &&
       services.length > 0 &&
-      params.services &&
-      Array.isArray(params.services)
+      serviceIdsParam &&
+      Array.isArray(serviceIds)
     ) {
+      
       // params.services is an array of service names
       const serviceNames: string[] = params.services as string[];
       const selections: { serviceId: number; quantity: number }[] = [];
-      serviceNames.forEach((name) => {
-        const svc = services.find((s) => s.name === name);
+      serviceIds.forEach((id) => {
+        const svc = services.find((s) => s.id === id);
         if (svc) {
           // If already in selections, increment quantity
           const idx = selections.findIndex(sel => sel.serviceId === svc.id);
@@ -217,7 +223,7 @@ export default function NewAppointment() {
       }
       setServiceSelections(selections);
     }
-  }, [servicesLoading, services, params.services, params.customService]);
+  }, [servicesLoading, services, params.services, params.customService, params.serviceIds]);
 
   // Schedule conflict validation
   useEffect(() => {
@@ -298,7 +304,7 @@ export default function NewAppointment() {
             ]}
             onPress={() => setClientModalVisible(true)}
           >
-            <Text style={{ fontSize: 16, color: selectedClientId ? "#18181B" : "#888" }}>
+            <Text style={{ fontSize: 16, color: selectedClientId ? colors.text : "#888" }}>
               {selectedClientId
                 ? clients.find(c => c.id === selectedClientId)?.name || "Select client..."
                 : "Select client..."}
@@ -412,7 +418,7 @@ export default function NewAppointment() {
         onPress={() => setShowDatePicker(true)}
         activeOpacity={0.7}
       >
-        <Text style={{ fontSize: 16, color: date ? "#18181B" : "#888" }}>
+        <Text style={{ fontSize: 16, color: date ? colors.text : "#888" }}>
           {getDisplayDate()}
         </Text>
       </TouchableOpacity>
