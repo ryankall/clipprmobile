@@ -5,12 +5,14 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useAuth } from '../../hooks/useAuth';
+import { utcToLocal } from '../../lib/utils';
 import { apiRequest } from '../../lib/api';
 import { ClientWithStats } from '../../lib/types';
 import { ClientAnalytics } from '../../lib/types';
 import { clientFormSchema } from '../../lib/clientSchema';
 import { theme, colors } from '../../lib/theme';
 import { z } from 'zod';
+import ValidatedRequiredTextInput from '../components/InputValidations'
 
 /** Centralized color palette for consistent theming across tabs */
 const COLORS = {
@@ -42,7 +44,7 @@ export default function Clients() {
   const [analytics, setAnalytics] = useState<ClientAnalytics | null>(null);
   const [analyticsLoading, setAnalyticsLoading] = useState(true);
   const [analyticsError, setAnalyticsError] = useState<string | null>(null);
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
 
   // Collapsible analytics state
   const [analyticsExpanded, setAnalyticsExpanded] = useState(false);
@@ -308,9 +310,18 @@ export default function Clients() {
     return { label: 'New', color: COLORS.steel };
   };
 
-  const renderClient = ({ item }: { item: ClientWithStats }) => {
+  const renderClient = ({ item, user }: { item: ClientWithStats, user: any }) => {
     const badge = getClientBadge(item);
-    const lastVisit = item.lastVisit ? new Date(item.lastVisit).toLocaleDateString() : null;
+    const lastVisit = item.lastVisit
+      ? utcToLocal(
+          typeof item.lastVisit === "string"
+            ? item.lastVisit
+            : (typeof item.lastVisit === "object" && item.lastVisit !== null && "toISOString" in item.lastVisit)
+              ? (item.lastVisit as Date).toISOString()
+              : "",
+          user?.timezone
+        ).toLocaleDateString()
+      : null;
     const initials = item.name.split(' ').map(n => n[0]).join('').toUpperCase();
     const isVIP = badge.label === 'VIP';
 
@@ -409,51 +420,39 @@ export default function Clients() {
             <Text style={{ fontSize: 22, fontWeight: 'bold', color: '#fff', marginBottom: 16, textAlign: 'center' }}>
               Add New Client
             </Text>
-            <TextInput
+            <ValidatedRequiredTextInput
               style={[styles.searchInput, { marginBottom: 12 }]}
               placeholder="Name"
               placeholderTextColor="#666"
               value={addName}
-              onChangeText={text => {
-                setAddName(text);
-                setAddFieldErrors(prev => ({ ...prev, name: '' }));
-              }}
+              onTextChange={setAddName}
+              required={true}
               autoFocus
               accessibilityLabel="Add client name"
+              maxLength={30}
             />
-            {addFieldErrors.name ? (
-              <Text style={{ color: '#F87171', marginBottom: 4 }}>{addFieldErrors.name}</Text>
-            ) : null}
-            <TextInput
+            <ValidatedRequiredTextInput
               style={[styles.searchInput, { marginBottom: 12 }]}
               placeholder="Phone"
               placeholderTextColor="#666"
               value={addPhone}
-              onChangeText={text => {
-                setAddPhone(text);
-                setAddFieldErrors(prev => ({ ...prev, phone: '' }));
-              }}
+              onTextChange={setAddPhone}
+              required={true}
+              type='phone'
               keyboardType="phone-pad"
               accessibilityLabel="Add client phone"
             />
-            {addFieldErrors.phone ? (
-              <Text style={{ color: '#F87171', marginBottom: 4 }}>{addFieldErrors.phone}</Text>
-            ) : null}
-            <TextInput
+            <ValidatedRequiredTextInput
               style={[styles.searchInput, { marginBottom: 12 }]}
               placeholder="Email"
               placeholderTextColor="#666"
               value={addEmail}
-              onChangeText={text => {
-                setAddEmail(text);
-                setAddFieldErrors(prev => ({ ...prev, email: '' }));
-              }}
+              onTextChange={setAddEmail}
+              type='email'
+              maxLength={60}
               keyboardType="email-address"
               accessibilityLabel="Add client email"
             />
-            {addFieldErrors.email ? (
-              <Text style={{ color: '#F87171', marginBottom: 4 }}>{addFieldErrors.email}</Text>
-            ) : null}
             <TextInput
               style={[styles.searchInput, { marginBottom: 12 }]}
               placeholder="Address"
@@ -476,6 +475,7 @@ export default function Clients() {
               onChangeText={setAddNotes}
               multiline
               accessibilityLabel="Add client notes"
+              maxLength={200}
             />
             {/* Loyalty Status Picker */}
             <View style={{ marginBottom: 12 }}>
@@ -510,9 +510,6 @@ export default function Clients() {
                 </TouchableOpacity>
               </View>
             </View>
-            {addError ? (
-              <Text style={{ color: '#F87171', marginBottom: 8, textAlign: 'center' }}>{addError}</Text>
-            ) : null}
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 8 }}>
               <TouchableOpacity
                 style={[styles.addButton, { backgroundColor: '#374151', flex: 1, marginRight: 8 }]}
@@ -721,7 +718,18 @@ export default function Clients() {
                                 <View style={{ flex: 1, minWidth: 0 }}>
                                   <Text style={styles.analyticsClientNameWeb} numberOfLines={1} ellipsizeMode="tail">{client.name}</Text>
                                   <Text style={styles.analyticsSubLabelWeb}>
-                                    {client.lastVisit ? `Last: ${new Date(client.lastVisit).toLocaleDateString()}` : ''}
+                                    {client.lastVisit
+                                      ? `Last: ${
+                                          utcToLocal(
+                                            typeof client.lastVisit === "string"
+                                              ? client.lastVisit
+                                              : (typeof client.lastVisit === "object" && client.lastVisit !== null && "toISOString" in client.lastVisit)
+                                                ? (client.lastVisit as Date).toISOString()
+                                                : "",
+                                            user?.timezone
+                                          ).toLocaleDateString()
+                                        }`
+                                      : ''}
                                   </Text>
                                 </View>
                                 <View style={{ alignItems: 'flex-end' }}>
@@ -803,7 +811,7 @@ export default function Clients() {
         ) : (
           filteredClients.map((item) => (
             <React.Fragment key={item.id}>
-              {renderClient({ item })}
+              {renderClient({ item, user })}
             </React.Fragment>
           ))
         )}

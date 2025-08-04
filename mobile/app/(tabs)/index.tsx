@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useAuth } from '../../hooks/useAuth';
 import { apiRequest, API_BASE_URL } from '../../lib/api';
+import { utcToLocal, localToUTC } from '../../lib/utils';
 import { DashboardStats, AppointmentWithRelations, User, GalleryPhoto } from '../../lib/types';
 import { replaceMessageTemplate, DEFAULT_QUICK_ACTION_MESSAGES, globalEventEmitter } from '../../lib/utils';
 import { useQuery } from '@tanstack/react-query';
@@ -117,7 +118,11 @@ export default function Dashboard() {
                   origin: userProfile.homeBaseAddress,
                   destination: apt.address,
                   transportationMode: userProfile.transportationMode || 'driving',
-                  appointmentTime: apt.scheduledAt,
+                  appointmentTime: localToUTC(
+                    typeof apt.scheduledAt === "string"
+                      ? new Date(apt.scheduledAt)
+                      : apt.scheduledAt
+                  ),
                 });
                 if (response.success) {
                   // Calculate departure time (appointment time - travelTime - 5min buffer)
@@ -126,7 +131,10 @@ export default function Dashboard() {
                   travelTimes[apt.id] = {
                     travelTime: response.travelTime,
                     distance: response.distance || 'N/A',
-                    departureTime: departure.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }),
+                    departureTime: utcToLocal(
+                      departure.toISOString(),
+                      userProfile?.timezone
+                    ).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }),
                     travelMode: userProfile.transportationMode || 'driving',
                   };
                 }
@@ -401,7 +409,12 @@ export default function Dashboard() {
                     {currentAppointment.client?.name}
                   </Text>
                   <Text style={styles.appointmentTime}>
-                    {new Date(currentAppointment.scheduledAt).toLocaleTimeString('en-US', {
+                    {utcToLocal(
+                      typeof currentAppointment.scheduledAt === "string"
+                        ? currentAppointment.scheduledAt
+                        : currentAppointment.scheduledAt.toISOString(),
+                      user?.timezone
+                    ).toLocaleTimeString('en-US', {
                       hour: 'numeric',
                       minute: '2-digit',
                       hour12: true
@@ -515,7 +528,12 @@ export default function Dashboard() {
                     {nextAppointment.client?.name}
                   </Text>
                   <Text style={styles.appointmentTime}>
-                    {new Date(nextAppointment.scheduledAt).toLocaleTimeString('en-US', {
+                    {utcToLocal(
+                      typeof nextAppointment.scheduledAt === "string"
+                        ? nextAppointment.scheduledAt
+                        : nextAppointment.scheduledAt.toISOString(),
+                      user?.timezone
+                    ).toLocaleTimeString('en-US', {
                       hour: 'numeric',
                       minute: '2-digit',
                       hour12: true
@@ -680,7 +698,12 @@ export default function Dashboard() {
                         : serviceName} • ${appointment.price}
                     </Text>
                     <Text style={{ color: '#9CA3AF', fontSize: 13 }}>
-                      {new Date(appointment.scheduledAt).toLocaleTimeString('en-US', {
+                      {utcToLocal(
+                        typeof appointment.scheduledAt === "string"
+                          ? appointment.scheduledAt
+                          : appointment.scheduledAt.toISOString(),
+                        user?.timezone
+                      ).toLocaleTimeString('en-US', {
                         hour: 'numeric',
                         minute: '2-digit',
                         hour12: true
@@ -688,7 +711,14 @@ export default function Dashboard() {
                     </Text>
                     {expiresAt && (
                       <Text style={{ color: '#F59E0B', fontSize: 13 }}>
-                        Expires: {expiresAt.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}
+                        Expires: {expiresAt
+                          ? utcToLocal(
+                              typeof expiresAt === "string"
+                                ? expiresAt
+                                : expiresAt.toISOString(),
+                              user?.timezone
+                            ).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })
+                          : ""}
                       </Text>
                     )}
                     <Text style={{ color: '#9CA3AF', fontSize: 13 }}>
@@ -781,7 +811,12 @@ export default function Dashboard() {
                   </Text>
                 </View>
                 <Text style={styles.appointmentTimeSmall}>
-                  {new Date(appointment.scheduledAt).toLocaleTimeString('en-US', {
+                  {utcToLocal(
+                    typeof appointment.scheduledAt === "string"
+                      ? appointment.scheduledAt
+                      : appointment.scheduledAt.toISOString(),
+                    user?.timezone
+                  ).toLocaleTimeString('en-US', {
                     hour: 'numeric',
                     minute: '2-digit',
                     hour12: true

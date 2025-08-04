@@ -6,6 +6,8 @@ import { apiRequest } from '../lib/api';
 import { AppointmentWithRelations } from '../lib/types';
 
 import { colors } from '../lib/theme';
+import { utcToLocal } from '../lib/utils';
+import { useAuth } from '../hooks/useAuth';
 export default function AppointmentDetails() {
   const { id } = useLocalSearchParams();
   // Ensure appointmentId is a valid positive integer
@@ -93,7 +95,13 @@ export default function AppointmentDetails() {
     );
   }
 
-  const startTime = new Date(appointment.scheduledAt);
+  const { user } = useAuth();
+  const startTime = utcToLocal(
+    typeof appointment.scheduledAt === "string"
+      ? appointment.scheduledAt
+      : appointment.scheduledAt.toISOString(),
+    user?.timezone
+  );
   const endTime = new Date(startTime.getTime() + appointment.duration * 60000);
 
   return (

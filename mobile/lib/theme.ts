@@ -114,4 +114,31 @@ export const theme = StyleSheet.create({
     shadowRadius: 4,
     elevation: 2,
   },
+  errorText: {
+    color: '#F87171',
+    marginBottom: 8,
+    textAlign: 'center'
+  },
+  submittButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.gold, // gold
+    borderRadius: 20,
+    paddingVertical: 8,
+    paddingHorizontal: 18,
+    alignSelf: 'flex-end',
+    marginBottom: 12,
+    marginRight: 16,
+    shadowColor: colors.gold, // gold
+    shadowOpacity: 0.18,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
+},
+submittButtonText: {
+    color: '#1e1e1e', // charcoal
+    fontWeight: '700',
+    fontSize: 16,
+    letterSpacing: 0.1,
+},
 });

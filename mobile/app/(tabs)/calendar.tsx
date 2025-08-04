@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useAuth } from '../../hooks/useAuth';
+import { utcToLocal } from '../../lib/utils';
 import { apiRequest } from '../../lib/api';
 import { globalEventEmitter } from '../../lib/utils';
 import { AppointmentWithRelations } from '../../lib/types';
@@ -56,7 +57,7 @@ export default function Calendar() {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<'timeline' | 'list'>('timeline');
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
 
   // Pull-to-refresh handler
   const handleRefresh = async () => {
@@ -363,9 +364,15 @@ export default function Calendar() {
   };
 
   const renderAppointment = (appointment: AppointmentWithRelations) => {
-    const startTime = new Date(appointment.scheduledAt);
+    const { user } = useAuth();
+    const startTime = utcToLocal(
+      typeof appointment.scheduledAt === "string"
+        ? appointment.scheduledAt
+        : appointment.scheduledAt.toISOString(),
+      user?.timezone
+    );
     const endTime = new Date(startTime.getTime() + appointment.duration * 60000);
-    
+
     return (
       // When an appointment is pressed, navigate to details with the correct ID
       <TouchableOpacity
@@ -463,9 +470,10 @@ export default function Calendar() {
       <View style={styles.dateSelector}>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.dateScrollView}>
           {generateDateButtons().map((date, index) => {
-            const isSelected = date.toDateString() === selectedDate.toDateString();
-            const isToday = date.toDateString() === new Date().toDateString();
-            
+            const localDate = utcToLocal(date.toISOString(), user?.timezone);
+            const isSelected = localDate.toDateString() === utcToLocal(selectedDate.toISOString(), user?.timezone).toDateString();
+            const isToday = localDate.toDateString() === utcToLocal(new Date().toISOString(), user?.timezone).toDateString();
+
             return (
               <TouchableOpacity
                 key={index}
@@ -480,13 +488,13 @@ export default function Calendar() {
                   styles.dayText,
                   isSelected && styles.selectedDayText
                 ]}>
-                  {date.toLocaleDateString('en-US', { weekday: 'short' })}
+                  {localDate.toLocaleDateString('en-US', { weekday: 'short' })}
                 </Text>
                 <Text style={[
                   styles.dateText,
                   isSelected && styles.selectedDateText
                 ]}>
-                  {date.getDate()}
+                  {localDate.getDate()}
                 </Text>
               </TouchableOpacity>
             );
@@ -525,12 +533,20 @@ export default function Calendar() {
           }
         >
           <Text style={styles.sectionTitle}>
-            {selectedDate.toLocaleDateString('en-US', {
-              weekday: 'long',
-              year: 'numeric',
-              month: 'long',
-              day: 'numeric'
-            })}
+            {(() => {
+              const localSelectedDate = utcToLocal(
+                typeof selectedDate === "string"
+                  ? selectedDate
+                  : selectedDate.toISOString(),
+                user?.timezone
+              );
+              return localSelectedDate.toLocaleDateString('en-US', {
+                weekday: 'long',
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+              });
+            })()}
           </Text>
           
           {/* Only show appointments for the selected date */}
