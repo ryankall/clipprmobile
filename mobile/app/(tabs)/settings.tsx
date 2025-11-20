@@ -1338,7 +1338,7 @@ export default function Settings() {
           paddingTop: '50%'
         }}>
           <View style={{
-            backgroundColor: '#2e2e2e',
+            backgroundColor: colors.backgroundAlt,
             borderRadius: 18,
             paddingVertical: 28,
             paddingHorizontal: 22,
@@ -1446,7 +1446,7 @@ export default function Settings() {
                     placeholderTextColor="#6B7280"
                     autoCapitalize="words"
                   />
-                  <Text style={{ color: '#6B7280', fontSize: 12, marginTop: 4 }}>
+                  <Text style={{ color: colors.textSteel, fontSize: 12, marginTop: 4 }}>
                     Starting point for calculating travel time to your first appointment. Enter your full address including city and state.
                   </Text>
                   {smartErrors.homeBaseAddress ? (
@@ -1465,7 +1465,7 @@ export default function Settings() {
                       setSmartErrors((e) => ({ ...e, timezone: '' }));
                     }}
                   />
-                  <Text style={{ color: '#6B7280', fontSize: 12, marginTop: 4 }}>
+                  <Text style={{ color: colors.textSteel, fontSize: 12, marginTop: 4 }}>
                     Your local timezone for appointment scheduling and display
                   </Text>
                   {smartErrors.timezone ? (
@@ -1971,15 +1971,15 @@ function TimezonePicker({ value, onChange }: { value: string, onChange: (val: st
       <Picker
         selectedValue={value}
         onValueChange={onChange}
-        style={{ color: '#fff', fontSize: 16 }}
+        style={{ color: colors.text, fontSize: 16 }}
         dropdownIconColor="#F59E0B"
       >
-        <Picker.Item label="Eastern Time (ET)" value="America/New_York" />
-        <Picker.Item label="Central Time (CT)" value="America/Chicago" />
-        <Picker.Item label="Mountain Time (MT)" value="America/Denver" />
-        <Picker.Item label="Pacific Time (PT)" value="America/Los_Angeles" />
-        <Picker.Item label="Alaska Time (AKT)" value="America/Anchorage" />
-        <Picker.Item label="Hawaii Time (HST)" value="Pacific/Honolulu" />
+        <Picker.Item color={colors.text} label="Eastern Time (ET)" value="America/New_York" />
+        <Picker.Item color={colors.text} label="Central Time (CT)" value="America/Chicago" />
+        <Picker.Item color={colors.text} label="Mountain Time (MT)" value="America/Denver" />
+        <Picker.Item color={colors.text} label="Pacific Time (PT)" value="America/Los_Angeles" />
+        <Picker.Item color={colors.text} label="Alaska Time (AKT)" value="America/Anchorage" />
+        <Picker.Item color={colors.text} label="Hawaii Time (HST)" value="Pacific/Honolulu" />
       </Picker>
     </View>
   );
@@ -2005,11 +2005,12 @@ function TransportationModePicker({ value, onChange }: { value: string, onChange
       <Picker
         selectedValue={value}
         onValueChange={onChange}
-        style={{ color: '#fff', fontSize: 16 }}
+        style={{ color: colors.text, fontSize: 16 }}
         dropdownIconColor="#F59E0B"
       >
         {TRANSPORTATION_OPTIONS.map(opt => (
           <Picker.Item
+            color={colors.text}
             key={opt.value}
             label={`${opt.label}`}
             value={opt.value}

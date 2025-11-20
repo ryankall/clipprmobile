@@ -188,10 +188,10 @@ export default function NewAppointment() {
   // Prefill services from params after services are loaded
   useEffect(() => {
     const serviceIdsParam = params.serviceIds as string;
-    const serviceIds = serviceIdsParam
+    const serviceIds = serviceIdsParam ? serviceIdsParam
                         .split(',')
                         .filter(id => id !== '')
-                        .map(id => parseInt(id, 10));
+                        .map(id => parseInt(id, 10)) : [] ;
 
     if (
       !servicesLoading &&

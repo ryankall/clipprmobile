@@ -21,9 +21,37 @@ import { ClientWithStats, AppointmentWithRelations, GalleryPhoto, Message } from
 import { clientFormSchema } from '../../lib/clientSchema';
 import { z } from 'zod';
 
+import {
+  useMarkAsReadMutation,
+  useArchiveMutation,
+  useRepliedMutation,
+  useCreateClientMutation,
+  useBlockClientMutation,
+  useUnblockClientMutation
+} from '../../hooks/message';
+import { FILTERS, getPriorityColor } from '../../lib/utils';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { colors } from '../../lib/theme';
 import { utcToLocal } from '../../lib/utils';
 import { useAuth } from '../../hooks/useAuth';
+import { useRef } from 'react';
+
+function getStatusIcon(status: string, color: string) {
+  switch (status) {
+    case 'unread':
+      return <Ionicons name="mail-unread-outline" size={18} color={color} />;
+    case 'read':
+      return <Ionicons name="mail-open-outline" size={18} color={color} />;
+    case 'replied':
+      return <Ionicons name="checkmark-done-outline" size={18} color={color} />;
+    case 'archived':
+      return <Ionicons name="archive-outline" size={18} color={color} />;
+    default:
+      return <Ionicons name="mail-outline" size={18} color={color} />;
+  }
+}
+
+
 export default function ClientProfile() {
   // FIX: Call useAuth at the very top, before any conditional returns
   const { user } = useAuth();
@@ -54,13 +82,14 @@ export default function ClientProfile() {
   const [messagesLoading, setMessagesLoading] = useState(true);
   const [showAllMessages, setShowAllMessages] = useState(false);
   const [messageModal, setMessageModal] = useState<Message | null>(null);
+  const [selectedMessage, setSelectedMessage] = useState<Message | null>(null);
 
   const [photos, setPhotos] = useState<GalleryPhoto[]>([]);
   const [photosLoading, setPhotosLoading] = useState(true);
   const [showAllPhotos, setShowAllPhotos] = useState(false);
 
   const [deleteLoading, setDeleteLoading] = useState(false);
-  
+
   // --- Invoice State ---
   const [invoices, setInvoices] = useState<any[]>([]);
   const [invoicesLoading, setInvoicesLoading] = useState(true);
@@ -71,6 +100,33 @@ export default function ClientProfile() {
   const [invoiceServicesError, setInvoiceServicesError] = useState<string | null>(null);
   const [showInvoiceModal, setShowInvoiceModal] = useState(false);
   const [showAllInvoices, setShowAllInvoices] = useState(false);
+
+  // --- Mutations ---
+  const markAsReadMutation = useMarkAsReadMutation();
+  const archiveMutation = useArchiveMutation();
+  const repliedMutation = useRepliedMutation();
+  const createClientMutation = useCreateClientMutation();
+  const blockClientMutation = useBlockClientMutation();
+  const unblockClientMutation = useUnblockClientMutation();
+  const queryClient = useQueryClient();
+
+
+  // At the top level of your component (outside any effect)
+  const prevSelectedMessageRef = useRef<Message | null>(null);
+  // Delete
+  const deleteMutation = useMutation({
+    mutationFn: (id: number) => apiRequest('DELETE', `/api/messages/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/messages'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/messages/unread-count'] });
+      setSelectedMessage(null);
+      Alert.alert('Deleted', 'Message deleted');
+    },
+    onError: (error: any) => {
+      Alert.alert('Error', error.message || 'Failed to delete message');
+    },
+  });
+
 
   // Fetch client data
   useEffect(() => {
@@ -117,21 +173,49 @@ export default function ClientProfile() {
     return () => { mounted = false; };
   }, [clientId]);
 
-  // Fetch messages
+
   useEffect(() => {
-    let mounted = true;
+    const prev = prevSelectedMessageRef.current;
+
+    // Only trigger when selectedMessage goes from a value -> null
+    if (prev && !selectedMessage) {
+      (async () => {
+        setMessagesLoading(true);
+        try {
+          const data = await apiRequest<Message[]>(
+            'GET',
+            `/api/clients/${clientId}/messages?limit=20`
+          );
+          setMessages(data);
+        } catch {
+          setMessages([]);
+        } finally {
+          setMessagesLoading(false);
+        }
+      })();
+    }
+
+    // Update the ref *after* the check so "prev" is the last render's value
+    prevSelectedMessageRef.current = selectedMessage ?? null;
+  }, [selectedMessage, clientId]);
+
+  useEffect(() => {
     async function fetchMessages() {
       setMessagesLoading(true);
       try {
-        const data = await apiRequest<Message[]>('GET', `/api/clients/${clientId}/messages?limit=20`);
-        if (mounted) setMessages(data);
-      } catch (e) {
+        const data = await apiRequest<Message[]>(
+          'GET',
+          `/api/clients/${clientId}/messages?limit=20`
+        );
+        setMessages(data);
+      } catch {
         setMessages([]);
+      } finally {
+        setMessagesLoading(false);
       }
-      setMessagesLoading(false);
     }
+
     if (clientId) fetchMessages();
-    return () => { mounted = false; };
   }, [clientId]);
 
   // Fetch gallery photos
@@ -225,6 +309,112 @@ export default function ClientProfile() {
     );
   };
 
+  // Fetch blocked clients
+  const { data: blockedClients = [], isLoading: blockedLoading } = useQuery<any[]>({
+    queryKey: ['/api/anti-spam/blocked-clients'],
+    queryFn: () => apiRequest<any[]>('GET', '/api/anti-spam/blocked-clients'),
+  });
+
+  // Check if a phone number is blocked
+  const isPhoneBlocked = (phone: string) => {
+    return blockedClients.some((client: any) => client.phoneNumber === phone);
+  };
+  // Action handlers using mutations
+  const handleMarkAsReplied = (message: Message) => {
+    if (repliedMutation && repliedMutation.mutate) {
+      repliedMutation.mutate(message.id);
+    } else {
+      Alert.alert('Error', 'Reply mutation is not available.');
+    }
+    setSelectedMessage(null);
+  };
+  const handleArchive = (message: Message) => {
+    if (archiveMutation && archiveMutation.mutate) {
+      archiveMutation.mutate(message.id);
+    } else {
+      Alert.alert('Error', 'Archive mutation is not available.');
+    }
+    setSelectedMessage(null);
+  };
+  const handleCreateClient = (message: Message) => {
+    if (createClientMutation && createClientMutation.mutate) {
+      createClientMutation.mutate(message);
+    } else {
+      Alert.alert('Error', 'Create client mutation is not available.');
+    }
+    setSelectedMessage(null);
+  };
+  const handleBookAppointment = (message: Message) => {
+    // Extract appointment details from message
+    const dateMatch = message.message.match(/📅 Date: (\d{4}-\d{2}-\d{2})/);
+    const timeMatch = message.message.match(/⏰ Time: (\d{1,2}:\d{2})/);
+    const servicesMatch = message.message.match(/✂️ Services: (.+?)(?:\n|$)/);
+    const addressMatch = message.message.match(/🚗 Travel: Yes - (.+?)(?:\n|$)/);
+    const travelNoMatch = message.message.match(/🚗 Travel: No(?:\n|$)/);
+    const customServiceMatch = message.message.match(/✂️ Custom Service: (.+?)(?:\n|$)/);
+    const messageNotesMatch = message.message.match(/💬 Message: (.+?)(?:\n|$)/);
+
+    if (!dateMatch || !timeMatch) {
+      Alert.alert('Error', 'Could not extract date and time from the booking request.');
+      setSelectedMessage(null);
+      return;
+    }
+
+    const selectedDate = dateMatch[1];
+    const selectedTime = timeMatch[1];
+    const services = servicesMatch ? servicesMatch[1].split(', ') : [];
+    const address = addressMatch ? addressMatch[1] : '';
+    const customService = customServiceMatch ? customServiceMatch[1] : '';
+    const notes = messageNotesMatch ? messageNotesMatch[1] : '';
+    const hasTravel = !!addressMatch;
+    const travelNo = !!travelNoMatch;
+
+    // Compose params for navigation
+    const params: Record<string, any> = {
+      clientId: message.clientId,
+      clientName: message.customerName,
+      phone: message.customerPhone,
+      email: message.customerEmail,
+      date: selectedDate,
+      time: selectedTime,
+      services: services,
+      serviceIds: message.serviceIds,
+      customService: customService,
+      address: address,
+      notes: notes,
+      travel: hasTravel ? 'yes' : travelNo ? 'no' : undefined,
+    };
+    setSelectedMessage(null);
+
+    // Navigate to the new appointment screen with params
+    router.push({
+      pathname: '/appointments/new',
+      params,
+    });
+  };
+  const handleBlockUnblock = (message: Message, blocked: boolean) => {
+    if (!message.customerPhone) return;
+    if (blocked) {
+      if (unblockClientMutation && unblockClientMutation.mutate) {
+        unblockClientMutation.mutate({ phoneNumber: message.customerPhone });
+      } else {
+        Alert.alert('Error', 'Unblock mutation is not available.');
+      }
+    } else {
+      if (blockClientMutation && blockClientMutation.mutate) {
+        blockClientMutation.mutate({ phoneNumber: message.customerPhone, reason: 'Blocked from messages' });
+      } else {
+        Alert.alert('Error', 'Block mutation is not available.');
+      }
+    }
+    setSelectedMessage(null);
+  };
+  const handleDeleteMessage = (message: Message) => {
+    deleteMutation.mutate(message.id);
+    // setModalVisible(false) handled in mutation onSuccess
+  };
+
+
   if (loading) {
     return (
       <View style={styles.centered}>
@@ -250,11 +440,11 @@ export default function ClientProfile() {
   // useAuth is now called at the top of the component (see above)
   const lastVisit = client.lastVisit
     ? utcToLocal(
-        typeof client.lastVisit === "string"
-          ? client.lastVisit
-          : "",
-        user?.timezone
-      ).toLocaleDateString()
+      typeof client.lastVisit === "string"
+        ? client.lastVisit
+        : "",
+      user?.timezone
+    ).toLocaleDateString()
     : '--';
   const upcomingAppointments = appointments.filter(a =>
     new Date(a.scheduledAt) > new Date() && a.status === 'confirmed'
@@ -262,7 +452,7 @@ export default function ClientProfile() {
 
   // Render
   return (
-    
+
     <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 32 }}>
       {/* Header */}
       <View style={styles.header}>
@@ -511,7 +701,11 @@ export default function ClientProfile() {
             .sort((a, b) => new Date(b.scheduledAt).getTime() - new Date(a.scheduledAt).getTime())
             .slice(0, 5)
             .map((apt) => (
-              <View key={apt.id} style={styles.appointmentRow}>
+              <TouchableOpacity 
+              key={apt.id} 
+              style={styles.appointmentRow}
+              onPress={() => router.push(`/appointment-details?id=${apt.id}`)}
+              >
                 <View>
                   <Text style={styles.appointmentService}>{apt.service?.name}</Text>
                   <Text style={styles.appointmentDate}>
@@ -534,7 +728,7 @@ export default function ClientProfile() {
                     <Text style={styles.statusBadgeText}>{apt.status}</Text>
                   </View>
                 </View>
-              </View>
+              </TouchableOpacity>
             ))
         ) : (
           <View style={styles.emptyBlock}>
@@ -557,16 +751,12 @@ export default function ClientProfile() {
             {messages
               .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
               .slice(0, showAllMessages ? messages.length : 5)
-              .map((msg) => (
+              .map((msg: Message) => (
                 <TouchableOpacity
                   key={msg.id}
                   style={styles.messageRow}
                   onPress={() => {
-                    // Navigate to messages tab and open modal for this message
-                    router.push({
-                      pathname: '/messages',
-                      params: { messageId: msg.id.toString() }
-                    });
+                    setSelectedMessage(msg)
                   }}
                   accessibilityLabel="View message details"
                 >
@@ -574,10 +764,10 @@ export default function ClientProfile() {
                     <Text
                       style={[
                         styles.messageSubject,
-                        !msg.read && { fontWeight: 'bold', color: colors.gold }
+                        (msg.status === 'read') && { fontWeight: 'bold', color: colors.gold }
                       ]}
                     >
-                      {msg.services?.join(', ') || msg.message?.slice(0, 20) || 'Message'}
+                      {msg.serviceRequested || msg.message?.slice(0, 20) || 'Message'}
                     </Text>
                     <Text style={styles.messageMeta}>
                       From: {msg.customerName} • {utcToLocal(
@@ -588,19 +778,19 @@ export default function ClientProfile() {
                       ).toLocaleString()}
                     </Text>
                   </View>
-                  {msg.read ? (
+                  {msg.status === 'read' ? (
                     <View style={[
                       styles.statusBadge,
                       { backgroundColor: '#374151', alignSelf: 'flex-start' }
                     ]}>
-                      <Text style={[styles.statusBadgeText, { color: '#9CA3AF' }]}>Read</Text>
+                      <Text style={[styles.statusBadgeText, { color: '#9CA3AF' }]}>{msg.status}</Text>
                     </View>
                   ) : (
                     <View style={[
                       styles.statusBadge,
                       { backgroundColor: colors.yellow, alignSelf: 'flex-start' }
                     ]}>
-                      <Text style={[styles.statusBadgeText, { color: '#18181B' }]}>Unread</Text>
+                      <Text style={[styles.statusBadgeText, { color: '#18181B' }]}>{msg.status}</Text>
                     </View>
                   )}
                 </TouchableOpacity>
@@ -635,7 +825,7 @@ export default function ClientProfile() {
           <View style={styles.modalContent}>
             {messageModal && (
               <>
-                <Text style={styles.modalTitle}>{messageModal.services?.join(', ') || 'Message'}</Text>
+                <Text style={styles.modalTitle}>{messageModal.serviceRequested || 'Message'}</Text>
                 <Text style={styles.modalMeta}>From: {messageModal.customerName}</Text>
                 <Text style={styles.modalMeta}>Date: {utcToLocal(
                   typeof messageModal.createdAt === "string"
@@ -660,6 +850,138 @@ export default function ClientProfile() {
           </View>
         </View>
       </Modal>
+
+      {/* Message Detail Modal */}
+      {selectedMessage && (
+        <Modal
+          visible={!!selectedMessage}
+          animationType="slide"
+          transparent={true}
+          onRequestClose={() => setSelectedMessage(null)}
+        >
+          <View style={modalStyles.overlay}>
+            <View style={modalStyles.modalContainer}>
+              {/* Header */}
+              <View style={modalStyles.modalHeader}>
+                <Text style={modalStyles.modalTitle} numberOfLines={2}>
+                  {selectedMessage.subject}
+                </Text>
+                <TouchableOpacity onPress={() => setSelectedMessage(null)}>
+                  <Ionicons name="close" size={24} color="#fff" />
+                </TouchableOpacity>
+              </View>
+              {/* Status & Priority */}
+              <View style={modalStyles.statusRow}>
+                <View style={[modalStyles.statusBadge]}>
+                  <Text style={{ color: '#F59E0B', fontWeight: '700', fontSize: 14, textTransform: 'capitalize' }}>
+                    {selectedMessage.status}
+                  </Text>
+                </View>
+                <View style={[modalStyles.statusBadge]}>
+                  <Text style={{ color: getPriorityColor(selectedMessage.priority), fontWeight: '700', fontSize: 14, textTransform: 'capitalize' }}>
+                    {selectedMessage.priority}
+                  </Text>
+                </View>
+              </View>
+              {/* Customer Info */}
+              <View style={modalStyles.infoSection}>
+                <View style={modalStyles.infoRow}>
+                  <Ionicons name="person-outline" size={18} color="#F59E0B" />
+                  <Text style={modalStyles.infoText}>{selectedMessage.customerName}</Text>
+                </View>
+                {selectedMessage.customerPhone && (
+                  <View style={modalStyles.infoRow}>
+                    <Ionicons name="call-outline" size={18} color="#F59E0B" />
+                    <Text style={modalStyles.infoText}>{selectedMessage.customerPhone}</Text>
+                  </View>
+                )}
+                {selectedMessage.customerEmail && (
+                  <View style={modalStyles.infoRow}>
+                    <Ionicons name="mail-outline" size={18} color="#F59E0B" />
+                    <Text style={modalStyles.infoText}>{selectedMessage.customerEmail}</Text>
+                  </View>
+                )}
+                <View style={modalStyles.infoRow}>
+                  <Ionicons name="time-outline" size={18} color="#F59E0B" />
+                  <Text style={modalStyles.infoText}>{selectedMessage.createdAt}</Text>
+                </View>
+              </View>
+              {/* Message Content */}
+              <View style={modalStyles.section}>
+                <Text style={modalStyles.sectionTitle}>Message:</Text>
+                <View style={modalStyles.messageBox}>
+                  <Text style={modalStyles.messageText}>{selectedMessage.message}</Text>
+                </View>
+              </View>
+              {/* Actions */}
+              <View style={modalStyles.actionsRow}>
+                <TouchableOpacity
+                  style={[modalStyles.actionButton, { borderColor: '#22C55E' }]}
+                  onPress={() => handleMarkAsReplied(selectedMessage)}
+                >
+                  <Ionicons name="checkmark-done-outline" size={18} color="#22C55E" />
+                  <Text style={[modalStyles.actionText, { color: '#22C55E' }]}>Mark as Replied</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[modalStyles.actionButton, { borderColor: '#3B82F6' }]}
+                  onPress={() => handleArchive(selectedMessage)}
+                >
+                  <Ionicons name="archive-outline" size={18} color="#3B82F6" />
+                  <Text style={[modalStyles.actionText, { color: '#3B82F6' }]}>Archive</Text>
+                </TouchableOpacity>
+                {/* <TouchableOpacity
+                  style={[modalStyles.actionButton, { borderColor: '#A78BFA' }]}
+                  onPress={() => handleCreateClient(selectedMessage)}
+                >
+                  <Ionicons name="person-add-outline" size={18} color="#A78BFA" />
+                  <Text style={[modalStyles.actionText, { color: '#A78BFA' }]}>Create Client</Text>
+                </TouchableOpacity> */}
+                {selectedMessage.subject === 'New Booking Request' ? (
+                  <TouchableOpacity
+                    style={[modalStyles.actionButton, { borderColor: '#F59E0B' }]}
+                    onPress={() => handleBookAppointment(selectedMessage)}
+                  >
+                    <Ionicons name="calendar-outline" size={18} color="#F59E0B" />
+                    <Text style={[modalStyles.actionText, { color: '#F59E0B' }]}>Book Appointment</Text>
+                  </TouchableOpacity>
+                ) : null
+                }
+
+                {selectedMessage.customerPhone && (
+                  <TouchableOpacity
+                    style={[
+                      modalStyles.actionButton,
+                      { borderColor: isPhoneBlocked(selectedMessage.customerPhone || "") ? '#22C55E' : '#F59E0B' }
+                    ]}
+                    onPress={() => handleBlockUnblock(selectedMessage, isPhoneBlocked(selectedMessage.customerPhone || ""))}
+                  >
+                    <Ionicons
+                      name={"shield-outline"}
+                      size={18}
+                      color={isPhoneBlocked(selectedMessage.customerPhone || "") ? "#22C55E" : "#F59E0B"}
+                    />
+                    <Text
+                      style={[
+                        modalStyles.actionText,
+                        { color: isPhoneBlocked(selectedMessage.customerPhone || "") ? "#22C55E" : "#F59E0B" }
+                      ]}
+                    >
+                      {isPhoneBlocked(selectedMessage.customerPhone || "") ? "Unblock" : "Block"}
+                    </Text>
+                  </TouchableOpacity>
+                )}
+                <TouchableOpacity
+                  style={[modalStyles.actionButton, { borderColor: '#EF4444' }]}
+                  onPress={() => handleDeleteMessage(selectedMessage)}
+                >
+                  <Ionicons name="trash-outline" size={18} color="#EF4444" />
+                  <Text style={[modalStyles.actionText, { color: '#EF4444' }]}>Delete</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </Modal>
+      )}
 
       {/* Photo Gallery */}
       <View style={styles.card}>
@@ -1140,10 +1462,10 @@ function InvoiceDetailsModal({
                   {invoice.paymentMethod === 'stripe'
                     ? 'Card'
                     : invoice.paymentMethod === 'apple_pay'
-                    ? 'Apple Pay'
-                    : invoice.paymentMethod === 'cash'
-                    ? 'Cash'
-                    : 'Pending'}
+                      ? 'Apple Pay'
+                      : invoice.paymentMethod === 'cash'
+                        ? 'Cash'
+                        : 'Pending'}
                 </Text>
               </View>
               {/* Payment Status */}
@@ -1174,8 +1496,8 @@ function InvoiceDetailsModal({
                         {marking
                           ? '...'
                           : invoice.paymentStatus === 'paid'
-                          ? 'Mark Unpaid'
-                          : 'Mark Paid'}
+                            ? 'Mark Unpaid'
+                            : 'Mark Paid'}
                       </Text>
                     </TouchableOpacity>
                   )}
@@ -1187,11 +1509,11 @@ function InvoiceDetailsModal({
                 <Text style={styles.infoBlockText}>
                   {invoice.createdAt
                     ? utcToLocal(
-                        typeof invoice.createdAt === "string"
-                          ? invoice.createdAt
-                          : "",
-                        user?.timezone
-                      ).toLocaleString()
+                      typeof invoice.createdAt === "string"
+                        ? invoice.createdAt
+                        : "",
+                      user?.timezone
+                    ).toLocaleString()
                     : 'Unknown'}
                 </Text>
               </View>
@@ -1200,27 +1522,21 @@ function InvoiceDetailsModal({
                 <Text style={styles.infoBlockLabel}>Send Invoice</Text>
                 <View style={{ flexDirection: 'row', gap: 12 }}>
                   <TouchableOpacity
-                    style={[
-                      styles.iconButton,
-                      { backgroundColor: '#2563EB', marginRight: 8, flex: 1, flexDirection: 'row', justifyContent: 'center', alignItems: 'center' }
-                    ]}
+                    style={[modalStyles.actionButton, { borderColor: colors.blue }]}
                     onPress={handleSendSMS}
                     disabled={sendingSMS}
                   >
-                    <Ionicons name="chatbubble-outline" size={18} color="#fff" style={{ marginRight: 4 }} />
-                    <Text style={{ color: '#fff', fontWeight: 'bold' }}>{sendingSMS ? '...' : 'Send SMS'}</Text>
+                    <Ionicons name="chatbubble-outline" size={18} color={colors.blue} style={{ marginRight: 4 }} />
+                    <Text style={{ color: colors.blue, fontWeight: 'bold' }}>{sendingSMS ? '...' : 'Send SMS'}</Text>
                   </TouchableOpacity>
                   {client?.email && (
                     <TouchableOpacity
-                      style={[
-                        styles.iconButton,
-                        { backgroundColor: '#22C55E', flex: 1, flexDirection: 'row', justifyContent: 'center', alignItems: 'center' }
-                      ]}
+                      style={[modalStyles.actionButton, { borderColor: colors.green }]}
                       onPress={handleSendEmail}
                       disabled={sendingEmail}
                     >
-                      <Ionicons name="mail-outline" size={18} color="#18181B" style={{ marginRight: 4 }} />
-                      <Text style={{ color: '#18181B', fontWeight: 'bold' }}>{sendingEmail ? '...' : 'Send Email'}</Text>
+                      <Ionicons name="mail-outline" size={18} color={colors.green} style={{ marginRight: 4 }} />
+                      <Text style={{ color: colors.green, fontWeight: 'bold' }}>{sendingEmail ? '...' : 'Send Email'}</Text>
                     </TouchableOpacity>
                   )}
                 </View>
@@ -1228,16 +1544,13 @@ function InvoiceDetailsModal({
               {/* Trash Can Button */}
               <View style={{ marginTop: 24, alignItems: 'center' }}>
                 <TouchableOpacity
-                  style={[
-                    styles.iconButton,
-                    { backgroundColor: '#F87171', flexDirection: 'row', justifyContent: 'center', alignItems: 'center', width: 160 }
-                  ]}
+                  style={[modalStyles.actionButton, { borderColor: colors.red}]}
                   onPress={handleDeleteInvoice}
                   disabled={deleting}
                   accessibilityLabel="Delete invoice"
                 >
-                  <Ionicons name="trash-outline" size={20} color="#fff" style={{ marginRight: 8 }} />
-                  <Text style={{ color: '#fff', fontWeight: 'bold', fontSize: 16 }}>
+                  <Ionicons name="trash-outline" size={20} color={colors.red} style={{ marginRight: 8 }} />
+                  <Text style={{ color: colors.red, fontWeight: 'bold', fontSize: 16 }}>
                     {deleting ? 'Deleting...' : 'Delete Invoice'}
                   </Text>
                 </TouchableOpacity>
@@ -1561,5 +1874,122 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontWeight: '500',
     letterSpacing: 0.1,
+  },
+});
+
+const modalStyles = StyleSheet.create({
+  overlay: {
+    flex: 1,
+    backgroundColor: 'rgba(15,15,15,0.96)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContainer: {
+    width: '95%',
+    backgroundColor: '#18181B',
+    borderRadius: 18,
+    padding: 22,
+    maxHeight: '88%',
+    borderWidth: 1.5,
+    borderColor: '#37415155',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.12,
+    shadowRadius: 12,
+    elevation: 6,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  modalTitle: {
+    color: '#fff',
+    fontSize: 19,
+    fontWeight: '700',
+    flex: 1,
+    marginRight: 12,
+    letterSpacing: 0.1,
+  },
+  statusRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 10,
+    gap: 8,
+  },
+  statusBadge: {
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    backgroundColor: '#23232A',
+    marginRight: 4,
+    minWidth: 60,
+    alignItems: 'center',
+  },
+  infoSection: {
+    backgroundColor: '#23232A',
+    borderRadius: 10,
+    padding: 13,
+    marginBottom: 16,
+  },
+  infoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 7,
+  },
+  infoText: {
+    color: '#fff',
+    fontSize: 15,
+    marginLeft: 9,
+    fontWeight: '500',
+    letterSpacing: 0.05,
+  },
+  section: {
+    marginBottom: 16,
+  },
+  sectionTitle: {
+    color: '#fff',
+    fontWeight: '700',
+    marginBottom: 5,
+    fontSize: 15,
+    letterSpacing: 0.05,
+  },
+  messageBox: {
+    backgroundColor: '#23232A',
+    borderRadius: 8,
+    padding: 12,
+    maxHeight: 140,
+  },
+  messageText: {
+    color: '#fff',
+    fontSize: 15,
+    letterSpacing: 0.05,
+  },
+  actionsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'flex-start',
+    marginBottom: 8,
+    marginTop: 2,
+    gap: 8,
+  },
+  actionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1.5,
+    borderRadius: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    marginRight: 8,
+    marginBottom: 8,
+    backgroundColor: 'transparent',
+    minWidth: 0,
+  },
+  actionText: {
+    fontWeight: '700',
+    fontSize: 15,
+    marginLeft: 6,
+    letterSpacing: 0.05,
   },
 });

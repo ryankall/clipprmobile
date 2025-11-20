@@ -192,3 +192,29 @@ export const validators = {
   isRequired,
   formatCurrencyInput
 };
+
+
+export const FILTERS = [
+  { key: 'all', label: 'All' },
+  { key: 'unread', label: 'Unread' },
+  { key: 'read', label: 'Read' },
+  { key: 'replied', label: 'Replied' },
+  { key: 'archived', label: 'Archived' },
+];
+
+// API integration: remove static messages
+
+export function getPriorityColor(priority: string) {
+  switch (priority) {
+    case 'urgent':
+      return '#EF4444'; // red-500
+    case 'high':
+      return '#F59E0B'; // gold
+    case 'normal':
+      return '#3B82F6'; // blue-500
+    case 'low':
+      return '#9CA3AF'; // gray-500
+    default:
+      return '#3B82F6';
+  }
+}

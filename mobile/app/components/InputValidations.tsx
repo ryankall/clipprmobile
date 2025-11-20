@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import {colors } from '../../lib/theme'
 import {
   TextInput,
   TextInputProps,
@@ -55,17 +56,22 @@ const ValidatedRequiredTextInput: React.FC<ValidatedTextInputProps> = ({
 
     let isEmailValid = true;
     if (type === 'email') {
-    isEmailValid = value === '' || validators.isValidEmail(value);
+      isEmailValid = value === '' || validators.isValidEmail(value);
     }
 
     let isPhoneValid = true;
     if (type === 'phone') {
-    isPhoneValid = value === '' || validators.isValidPhoneNumber(value);
+      isPhoneValid = value === '' || validators.isValidPhoneNumber(value);
     }
 
-    const isRequiredValid = !required || (touched && validators.isRequired(value));
+    let isValidText = true;
+    if (type === 'text') {
+      isValidText = value === '' || validators.isRequired(value);
+    }
 
-    const hasError = !isRequiredValid || !isEmailValid || !isPhoneValid;
+    const isRequiredValid = !touched || !required;
+
+    const hasError = !isRequiredValid || !isEmailValid || !isPhoneValid || !isValidText;
   return (
     <>
       <TextInput
@@ -79,7 +85,8 @@ const ValidatedRequiredTextInput: React.FC<ValidatedTextInputProps> = ({
           props.style,
           hasError ? styles.inputError : null,
         ]}
-        placeholderTextColor="#9CA3AF"
+        placeholderTextColor={colors.textPlaceholder}
+        placeholder={required ? props.placeholder + ' (Required)' : props.placeholder}
       />
       {hasError && showErrorMessage? <Text style={styles.errorText}>{errorMessage}</Text> : null}
     </>
@@ -98,10 +105,11 @@ const styles = StyleSheet.create({
     borderColor: 'red',
   },
   errorText: {
-    color: 'red',
+    color: '#red',
     marginTop: 4,
     fontSize: 13,
   },
+  
 });
 
 export default ValidatedRequiredTextInput;

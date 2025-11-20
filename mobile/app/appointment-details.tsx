@@ -9,6 +9,7 @@ import { colors } from '../lib/theme';
 import { utcToLocal } from '../lib/utils';
 import { useAuth } from '../hooks/useAuth';
 export default function AppointmentDetails() {
+  const { user } = useAuth();
   const { id } = useLocalSearchParams();
   // Ensure appointmentId is a valid positive integer
   const appointmentId = typeof id === 'string' && /^\d+$/.test(id) ? parseInt(id, 10) : 0;
@@ -76,7 +77,7 @@ export default function AppointmentDetails() {
   if (loading) {
     return (
       <View style={styles.centered}>
-        <ActivityIndicator size="large" color="#FFD700" />
+        <ActivityIndicator size="large" color={colors.gold}/>
       </View>
     );
   }
@@ -88,14 +89,14 @@ export default function AppointmentDetails() {
           {error || 'Appointment Not Found'}
         </Text>
         <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-          <Ionicons name="arrow-back" size={20} color="#FFD700" />
+          <Ionicons name="arrow-back" size={20} color={colors.gold} />
           <Text style={{ color: '#FFD700', fontWeight: '600', marginLeft: 6 }}>Back</Text>
         </TouchableOpacity>
       </View>
     );
   }
 
-  const { user } = useAuth();
+  
   const startTime = utcToLocal(
     typeof appointment.scheduledAt === "string"
       ? appointment.scheduledAt
@@ -108,7 +109,7 @@ export default function AppointmentDetails() {
     <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 32 }}>
       <View style={styles.header}>
         <TouchableOpacity style={styles.iconButton} onPress={() => router.back()}>
-          <Ionicons name="arrow-back" size={22} color="#FFD700" />
+          <Ionicons name="arrow-back" size={22} color={colors.gold} />
         </TouchableOpacity>
         <Text style={styles.headerTitle} numberOfLines={1}>Appointment Details</Text>
         <View style={{ width: 32 }} />
@@ -146,7 +147,7 @@ export default function AppointmentDetails() {
             </View>
             <View style={styles.totalsRow}>
               <Text style={styles.totalsLabel}>Total Price:</Text>
-              <Text style={[styles.totalsValue, { color: '#FFD700' }]}>
+              <Text style={[styles.totalsValue, { color: colors.gold}]}>
                 $
                 {appointment.appointmentServices
                   .reduce(
@@ -176,7 +177,7 @@ export default function AppointmentDetails() {
             : styles.statusBadgePending
         ]}>
           <Text style={styles.statusBadgeText}>
-            {appointment.status === 'confirmed' ? 'Confirmed' : 'Pending'}
+            {appointment.status}
           </Text>
         </View>
         {/* Show phone and email if available */}
@@ -387,7 +388,7 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
   },
   sectionTitle: {
-    color: colors.yellow,
+    color: colors.gold,
     fontWeight: 'bold',
     fontSize: 16,
     marginTop: 8,
@@ -423,7 +424,7 @@ const styles = StyleSheet.create({
     borderTopColor: colors.borderCard,
   },
   totalsLabel: {
-    color: colors.yellow,
+    color: colors.gold,
     fontWeight: 'bold',
     fontSize: 15,
   },

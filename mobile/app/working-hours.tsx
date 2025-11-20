@@ -3,6 +3,7 @@ import { View, Text, ScrollView, Switch, TouchableOpacity, TextInput, Alert, Sty
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { apiRequest } from '../lib/api';
+import { colors } from '../lib/theme';
 
 type BreakTime = {
   start: string;
@@ -171,7 +172,12 @@ export default function WorkingHoursScreen() {
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 32 }}>
-      <Text style={styles.title}>Working Hours</Text>
+      <View style={styles.header}>
+        <TouchableOpacity style={styles.iconButton} onPress={() => router.back()}>
+                  <Ionicons name="arrow-back" size={22} color={colors.gold} />
+        </TouchableOpacity>
+        <Text style={styles.title}>Working Hours</Text>
+      </View>
       {days.map(day => {
         const hours = workingHours[day];
         return (
@@ -267,9 +273,32 @@ export default function WorkingHoursScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0F0F0F', padding: 16 },
+  iconButton: {
+      backgroundColor: colors.backgroundCardAlt,
+      borderRadius: 8,
+      padding: 8,
+      alignItems: 'center',
+      justifyContent: 'center',
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 18,
+    marginTop: 20,
+    justifyContent: 'space-between',
+    backgroundColor: colors.background,
+  },
+  container: { flex: 1, backgroundColor: '#0F0F0F', padding: 16, paddingTop: 50, paddingBottom: 100},
   centered: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#0F0F0F' },
-  title: { fontSize: 28, fontWeight: 'bold', color: '#FFFFFF', marginBottom: 16 },
+  title: {
+    flex: 1,
+    fontSize: 22,
+    fontWeight: 'bold',
+    color: colors.text,
+    marginLeft: 8,
+    marginRight: 8,
+    textAlign: 'center',
+  },
   daySection: { marginBottom: 24, backgroundColor: '#18181B', borderRadius: 12, padding: 12 },
   dayHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
   dayLabel: { fontSize: 18, color: '#FFFFFF', fontWeight: '600' },

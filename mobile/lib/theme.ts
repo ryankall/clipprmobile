@@ -21,6 +21,7 @@ export const colors = {
   textSecondary: '#9CA3AF',
   textSteel: '#737b89',
   textCharcoal: '#1e1e1e',
+  textPlaceholder: '#666',
 
   // Accent/Primary
   gold: '#F59E0B',
@@ -32,6 +33,7 @@ export const colors = {
   yellow: '#FFD700',
   black: '#0F0F0F',
   white: '#FFFFFF',
+  grey: '6B7280',
 
   // Borders
   border: '#37415133',

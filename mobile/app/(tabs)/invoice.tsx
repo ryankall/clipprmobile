@@ -406,6 +406,8 @@ const CreateInvoiceModalContent: React.FC<CreateInvoiceModalContentProps> = ({
 };
 export default function Invoice() {
   // --- Service Modal State (MOVED UP) ---
+  const { user } = useAuth();
+  const { isAuthenticated } = useAuth();
   const [serviceName, setServiceName] = useState('');
   const [serviceDescription, setServiceDescription] = useState('');
   const [servicePrice, setServicePrice] = useState('');
@@ -416,10 +418,9 @@ export default function Invoice() {
 
   const [services, setServices] = useState<Service[]>([]);
   const [loading, setLoading] = useState(true);
-  const { isAuthenticated } = useAuth();
-
+  
   const [activeTab, setActiveTab] = useState<'recentInvoice' | 'export' | 'blocked' | 'services' | 'stats' >('stats');
-
+  
   // --- Recent Invoices State ---
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
@@ -868,7 +869,7 @@ export default function Invoice() {
                   } 
 
                   // Format date
-                  const { user } = useAuth();
+                  
                   const localDate = utcToLocal(
                     typeof invoice.createdAt === "string"
                       ? invoice.createdAt
@@ -1690,6 +1691,7 @@ function InvoiceDetailsModal({
   client: any;
   reloadInvoices: () => void;
 }) {
+  const { user } = useAuth();
   const [services, setServices] = React.useState<any[]>([]);
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
@@ -1822,7 +1824,6 @@ function InvoiceDetailsModal({
 
   // Format date
   const date = invoice.createdAt ? new Date(invoice.createdAt) : null;
-  const { user } = useAuth();
   const localDate = invoice.createdAt
     ? utcToLocal(
         typeof invoice.createdAt === "string"

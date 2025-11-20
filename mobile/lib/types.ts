@@ -115,15 +115,19 @@ export interface GalleryPhoto {
 
 export interface Message {
   id: number;
-  barberId: string;
+  clientId?: number;
   customerName: string;
-  customerPhone: string;
-  selectedDate: string;
-  selectedTime: string;
-  services: string[];
-  message?: string;
-  isTravel: boolean;
-  address?: string;
+  customerPhone?: string;
+  customerEmail?: string;
+  subject: string;
+  message: string;
+  status: 'unread' | 'read' | 'replied' | 'archived';
+  priority: 'low' | 'normal' | 'high' | 'urgent';
+  serviceRequested?: string;
+  serviceIds: number[];
+  preferredDate?: string;
+  notes?: string;
   createdAt: string;
-  read?: boolean; // true if the message has been read, false or undefined if unread
+  readAt?: string;
+  repliedAt?: string;
 }

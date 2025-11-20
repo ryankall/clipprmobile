@@ -7,50 +7,18 @@ import { Client, Message as ApiMessage } from '../../lib/types';
 import { Alert } from 'react-native';
 import { formatDistanceToNow } from 'date-fns';
 import { useRouter } from 'expo-router';
+import { Message } from '../../lib/types';
+import { FILTERS, getPriorityColor } from '../../lib/utils';
+import {
+  useMarkAsReadMutation,
+  useArchiveMutation,
+  useRepliedMutation,
+  useCreateClientMutation,
+  useBlockClientMutation,
+  useUnblockClientMutation
+} from '../../hooks/message';
 
-type Message = {
-  id: number;
-  clientId?: number;
-  customerName: string;
-  customerPhone?: string;
-  customerEmail?: string;
-  subject: string;
-  message: string;
-  status: 'unread' | 'read' | 'replied' | 'archived';
-  priority: 'low' | 'normal' | 'high' | 'urgent';
-  serviceRequested?: string;
-  serviceIds: number[];
-  preferredDate?: string;
-  notes?: string;
-  createdAt: string;
-  readAt?: string;
-  repliedAt?: string;
-};
 
-const FILTERS = [
-  { key: 'all', label: 'All' },
-  { key: 'unread', label: 'Unread' },
-  { key: 'read', label: 'Read' },
-  { key: 'replied', label: 'Replied' },
-  { key: 'archived', label: 'Archived' },
-];
-
-// API integration: remove static messages
-
-function getPriorityColor(priority: string) {
-  switch (priority) {
-    case 'urgent':
-      return '#EF4444'; // red-500
-    case 'high':
-      return '#F59E0B'; // gold
-    case 'normal':
-      return '#3B82F6'; // blue-500
-    case 'low':
-      return '#9CA3AF'; // gray-500
-    default:
-      return '#3B82F6';
-  }
-}
 
 function getStatusIcon(status: string, color: string) {
   switch (status) {
@@ -74,44 +42,13 @@ export default function Messages() {
 
   const router = useRouter();
   const queryClient = useQueryClient();
-
   // --- Mutations for message actions ---
-
-  // Mark as read
-  const markAsReadMutation = useMutation({
-    mutationFn: (id: number) => apiRequest('PATCH', `/api/messages/${id}/read`),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/messages'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/messages/unread-count'] });
-    },
-    onError: (error: any) => {
-      Alert.alert('Error', error.message || 'Failed to mark as read');
-    },
-  });
-
-  // Archive
-  const archiveMutation = useMutation({
-    mutationFn: (id: number) => apiRequest('PATCH', `/api/messages/${id}`, { status: 'archived' }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/messages'] });
-      Alert.alert('Archived', 'Message archived');
-    },
-    onError: (error: any) => {
-      Alert.alert('Error', error.message || 'Failed to archive message');
-    },
-  });
-
-  // Mark as replied
-  const repliedMutation = useMutation({
-    mutationFn: (id: number) => apiRequest('PATCH', `/api/messages/${id}`, { status: 'replied' }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/messages'] });
-      Alert.alert('Marked as Replied', 'Message marked as replied');
-    },
-    onError: (error: any) => {
-      Alert.alert('Error', error.message || 'Failed to mark as replied');
-    },
-  });
+  const markAsReadMutation = useMarkAsReadMutation();
+  const archiveMutation = useArchiveMutation();
+  const repliedMutation = useRepliedMutation();
+  const createClientMutation = useCreateClientMutation();
+  const blockClientMutation = useBlockClientMutation();
+  const unblockClientMutation = useUnblockClientMutation();
 
   // Delete
   const deleteMutation = useMutation({
@@ -127,52 +64,7 @@ export default function Messages() {
     },
   });
 
-  // Create client
-  const createClientMutation = useMutation({
-    mutationFn: async (message: Message) => {
-      const clientData = {
-        name: message.customerName,
-        phone: message.customerPhone || undefined,
-        email: message.customerEmail || undefined,
-        notes: '',
-      };
-      return await apiRequest('POST', '/api/clients', clientData);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/clients'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/messages'] });
-      Alert.alert('Client Created', 'New client has been added and linked to this message');
-    },
-    onError: (error: any) => {
-      Alert.alert('Error', error.message || 'Failed to create client');
-    },
-  });
 
-  // Block client
-  const blockClientMutation = useMutation({
-    mutationFn: ({ phoneNumber, reason }: { phoneNumber: string; reason?: string }) =>
-      apiRequest('POST', '/api/anti-spam/block', { phoneNumber, reason }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/anti-spam/blocked-clients'] });
-      Alert.alert('Blocked', 'Client has been blocked');
-    },
-    onError: (error: any) => {
-      Alert.alert('Error', error.message || 'Failed to block client');
-    },
-  });
-
-  // Unblock client
-  const unblockClientMutation = useMutation({
-    mutationFn: ({ phoneNumber }: { phoneNumber: string }) =>
-      apiRequest('POST', '/api/anti-spam/unblock', { phoneNumber }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/anti-spam/blocked-clients'] });
-      Alert.alert('Unblocked', 'Client has been unblocked');
-    },
-    onError: (error: any) => {
-      Alert.alert('Error', error.message || 'Failed to unblock client');
-    },
-  });
 
   // Fetch messages
   const { data: rawMessages = [], isLoading: messagesLoading, error: messagesError } = useQuery<any[]>({
@@ -221,15 +113,27 @@ export default function Messages() {
 
   // Action handlers using mutations
   const handleMarkAsReplied = (message: Message) => {
-    repliedMutation.mutate(message.id);
+    if (repliedMutation && repliedMutation.mutate) {
+      repliedMutation.mutate(message.id);
+    } else {
+      Alert.alert('Error', 'Reply mutation is not available.');
+    }
     setSelectedMessage(null);
   };
   const handleArchive = (message: Message) => {
-    archiveMutation.mutate(message.id);
+    if (archiveMutation && archiveMutation.mutate) {
+      archiveMutation.mutate(message.id);
+    } else {
+      Alert.alert('Error', 'Archive mutation is not available.');
+    }
     setSelectedMessage(null);
   };
   const handleCreateClient = (message: Message) => {
-    createClientMutation.mutate(message);
+    if (createClientMutation && createClientMutation.mutate) {
+      createClientMutation.mutate(message);
+    } else {
+      Alert.alert('Error', 'Create client mutation is not available.');
+    }
     setSelectedMessage(null);
   };
   const handleBookAppointment = (message: Message) => {
@@ -283,9 +187,17 @@ export default function Messages() {
   const handleBlockUnblock = (message: Message, blocked: boolean) => {
     if (!message.customerPhone) return;
     if (blocked) {
-      unblockClientMutation.mutate({ phoneNumber: message.customerPhone });
+      if (unblockClientMutation && unblockClientMutation.mutate) {
+        unblockClientMutation.mutate({ phoneNumber: message.customerPhone });
+      } else {
+        Alert.alert('Error', 'Unblock mutation is not available.');
+      }
     } else {
-      blockClientMutation.mutate({ phoneNumber: message.customerPhone, reason: 'Blocked from messages' });
+      if (blockClientMutation && blockClientMutation.mutate) {
+        blockClientMutation.mutate({ phoneNumber: message.customerPhone, reason: 'Blocked from messages' });
+      } else {
+        Alert.alert('Error', 'Block mutation is not available.');
+      }
     }
     setSelectedMessage(null);
   };
@@ -356,17 +268,25 @@ export default function Messages() {
         }
         // Mark as read if unread
         if (selectedMessage.status === 'unread') {
-          markAsReadMutation.mutate(selectedMessage.id);
+          if (markAsReadMutation && markAsReadMutation.mutate) {
+            markAsReadMutation.mutate(selectedMessage.id);
+          } else {
+            Alert.alert('Error', 'Mark as read mutation is not available.');
+          }
         }
       } else if (selectedMessage.status === 'unread') {
         // Mark as read if no client found
-        markAsReadMutation.mutate(selectedMessage.id);
+        if (markAsReadMutation && markAsReadMutation.mutate) {
+          markAsReadMutation.mutate(selectedMessage.id);
+        } else {
+          Alert.alert('Error', 'Mark as read mutation is not available.');
+        }
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedMessage, clients]);
 
-  // (Removed navigation param-based modal logic)
+// handle open modal
 
   return (
     <SafeAreaView style={styles.container}>

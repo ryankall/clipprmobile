@@ -17,6 +17,7 @@ export default function RootLayout() {
           <Stack.Screen name="gallery/gallery" options={{ headerShown: false }} />
           <Stack.Screen name="appointment-details" options={{ headerShown: false }} />
           <Stack.Screen name="appointments/new" options={{ headerShown: false }} />
+          <Stack.Screen name="working-hours" options={{ headerShown: false }} />
         </Stack>
         <StatusBar style="light" />
       </SafeAreaProvider>
