@@ -236,6 +236,12 @@ export default function Messages() {
   const isPhoneBlocked = (phone: string) => {
     return blockedClients.some((client: any) => client.phoneNumber === phone);
   };
+
+  // Check if client exists in database/cache
+  const clientExists = (phone: string) => {
+    return clients.some((client: Client) => client.phone === phone);
+  };
+
 // Mutation for updating client info from message content
   const updateClientMutation = useMutation({
     mutationFn: async ({ clientId, updateData }: { clientId: number; updateData: any }) => {
@@ -527,19 +533,59 @@ export default function Messages() {
                   <Text style={[modalStyles.actionText, { color: '#3B82F6' }]}>Archive</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
-                  style={[modalStyles.actionButton, { borderColor: '#A78BFA' }]}
-                  onPress={() => handleCreateClient(selectedMessage)}
+                  style={[
+                    modalStyles.actionButton,
+                    {
+                      borderColor: '#A78BFA',
+                      opacity: selectedMessage.customerPhone && clientExists(selectedMessage.customerPhone) ? 0.5 : 1
+                    }
+                  ]}
+                  onPress={() => {
+                    if (!(selectedMessage.customerPhone && clientExists(selectedMessage.customerPhone))) {
+                      handleCreateClient(selectedMessage);
+                    }
+                  }}
+                  disabled={!!(selectedMessage.customerPhone && clientExists(selectedMessage.customerPhone))}
                 >
-                  <Ionicons name="person-add-outline" size={18} color="#A78BFA" />
-                  <Text style={[modalStyles.actionText, { color: '#A78BFA' }]}>Create Client</Text>
+                  <Ionicons
+                    name="person-add-outline"
+                    size={18}
+                    color={selectedMessage.customerPhone && clientExists(selectedMessage.customerPhone) ? '#6B7280' : '#A78BFA'}
+                  />
+                  <Text style={[
+                    modalStyles.actionText,
+                    {
+                      color: selectedMessage.customerPhone && clientExists(selectedMessage.customerPhone) ? '#6B7280' : '#A78BFA'
+                    }
+                  ]}>Create Client</Text>
                 </TouchableOpacity>
                 { selectedMessage.subject === 'New Booking Request' ? (
                   <TouchableOpacity
-                        style={[modalStyles.actionButton, { borderColor: '#F59E0B' }]}
-                        onPress={() => handleBookAppointment(selectedMessage)}
+                        style={[
+                          modalStyles.actionButton,
+                          {
+                            borderColor: '#F59E0B',
+                            opacity: selectedMessage.customerPhone && !clientExists(selectedMessage.customerPhone) ? 0.5 : 1
+                          }
+                        ]}
+                        onPress={() => {
+                          if (!(selectedMessage.customerPhone && !clientExists(selectedMessage.customerPhone))) {
+                            handleBookAppointment(selectedMessage);
+                          }
+                        }}
+                        disabled={!!(selectedMessage.customerPhone && !clientExists(selectedMessage.customerPhone))}
                       >
-                    <Ionicons name="calendar-outline" size={18} color="#F59E0B" />
-                    <Text style={[modalStyles.actionText, { color: '#F59E0B' }]}>Book Appointment</Text>
+                    <Ionicons
+                      name="calendar-outline"
+                      size={18}
+                      color={selectedMessage.customerPhone && !clientExists(selectedMessage.customerPhone) ? '#6B7280' : '#F59E0B'}
+                    />
+                    <Text style={[
+                      modalStyles.actionText,
+                      {
+                        color: selectedMessage.customerPhone && !clientExists(selectedMessage.customerPhone) ? '#6B7280' : '#F59E0B'
+                      }
+                    ]}>Book Appointment</Text>
                   </TouchableOpacity>
                 ) : null
                 }
