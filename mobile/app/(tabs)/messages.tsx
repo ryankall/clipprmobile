@@ -6,6 +6,7 @@ import { apiRequest } from '../../lib/api';
 import { Client, Message as ApiMessage } from '../../lib/types';
 import { Alert } from 'react-native';
 import { formatDistanceToNow } from 'date-fns';
+import { formatInTimeZone } from 'date-fns-tz';
 import { useRouter } from 'expo-router';
 import { Message } from '../../lib/types';
 import { FILTERS, getPriorityColor } from '../../lib/utils';
@@ -17,7 +18,6 @@ import {
   useBlockClientMutation,
   useUnblockClientMutation
 } from '../../hooks/message';
-
 
 
 function getStatusIcon(status: string, color: string) {
@@ -34,6 +34,32 @@ function getStatusIcon(status: string, color: string) {
       return <Ionicons name="mail-outline" size={18} color={color} />;
   }
 }
+
+// Function to format date in a reader-friendly way with timezone support
+const formatCreatedAt = (dateString: string) => {
+  try {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffInHours = (now.getTime() - date.getTime()) / (1000 * 60 * 60);
+    
+    // If it's within the last 24 hours, show relative time
+    if (diffInHours < 24) {
+      return formatDistanceToNow(date, { addSuffix: true });
+    }
+    
+    // If it's within the current year, show month and day with time
+    if (date.getFullYear() === now.getFullYear()) {
+      return formatInTimeZone(date, Intl.DateTimeFormat().resolvedOptions().timeZone, 'MMM d, h:mm a');
+    }
+    
+    // If it's a different year, show full date with time
+    return formatInTimeZone(date, Intl.DateTimeFormat().resolvedOptions().timeZone, 'MMM d, yyyy, h:mm a');
+  } catch (error) {
+    // Fallback to original string if formatting fails
+    return dateString;
+  }
+};
+
 
 
 export default function Messages() {
@@ -210,6 +236,12 @@ export default function Messages() {
   const isPhoneBlocked = (phone: string) => {
     return blockedClients.some((client: any) => client.phoneNumber === phone);
   };
+
+  // Check if client exists in database/cache
+  const clientExists = (phone: string) => {
+    return clients.some((client: Client) => client.phone === phone);
+  };
+
 // Mutation for updating client info from message content
   const updateClientMutation = useMutation({
     mutationFn: async ({ clientId, updateData }: { clientId: number; updateData: any }) => {
@@ -474,7 +506,7 @@ export default function Messages() {
                 )}
                 <View style={modalStyles.infoRow}>
                   <Ionicons name="time-outline" size={18} color="#F59E0B" />
-                  <Text style={modalStyles.infoText}>{selectedMessage.createdAt}</Text>
+                  <Text style={modalStyles.infoText}>{formatCreatedAt(selectedMessage.createdAt)}</Text>
                 </View>
               </View>
               {/* Message Content */}
@@ -501,19 +533,59 @@ export default function Messages() {
                   <Text style={[modalStyles.actionText, { color: '#3B82F6' }]}>Archive</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
-                  style={[modalStyles.actionButton, { borderColor: '#A78BFA' }]}
-                  onPress={() => handleCreateClient(selectedMessage)}
+                  style={[
+                    modalStyles.actionButton,
+                    {
+                      borderColor: '#A78BFA',
+                      opacity: selectedMessage.customerPhone && clientExists(selectedMessage.customerPhone) ? 0.5 : 1
+                    }
+                  ]}
+                  onPress={() => {
+                    if (!(selectedMessage.customerPhone && clientExists(selectedMessage.customerPhone))) {
+                      handleCreateClient(selectedMessage);
+                    }
+                  }}
+                  disabled={!!(selectedMessage.customerPhone && clientExists(selectedMessage.customerPhone))}
                 >
-                  <Ionicons name="person-add-outline" size={18} color="#A78BFA" />
-                  <Text style={[modalStyles.actionText, { color: '#A78BFA' }]}>Create Client</Text>
+                  <Ionicons
+                    name="person-add-outline"
+                    size={18}
+                    color={selectedMessage.customerPhone && clientExists(selectedMessage.customerPhone) ? '#6B7280' : '#A78BFA'}
+                  />
+                  <Text style={[
+                    modalStyles.actionText,
+                    {
+                      color: selectedMessage.customerPhone && clientExists(selectedMessage.customerPhone) ? '#6B7280' : '#A78BFA'
+                    }
+                  ]}>Create Client</Text>
                 </TouchableOpacity>
                 { selectedMessage.subject === 'New Booking Request' ? (
                   <TouchableOpacity
-                        style={[modalStyles.actionButton, { borderColor: '#F59E0B' }]}
-                        onPress={() => handleBookAppointment(selectedMessage)}
+                        style={[
+                          modalStyles.actionButton,
+                          {
+                            borderColor: '#F59E0B',
+                            opacity: selectedMessage.customerPhone && !clientExists(selectedMessage.customerPhone) ? 0.5 : 1
+                          }
+                        ]}
+                        onPress={() => {
+                          if (!(selectedMessage.customerPhone && !clientExists(selectedMessage.customerPhone))) {
+                            handleBookAppointment(selectedMessage);
+                          }
+                        }}
+                        disabled={!!(selectedMessage.customerPhone && !clientExists(selectedMessage.customerPhone))}
                       >
-                    <Ionicons name="calendar-outline" size={18} color="#F59E0B" />
-                    <Text style={[modalStyles.actionText, { color: '#F59E0B' }]}>Book Appointment</Text>
+                    <Ionicons
+                      name="calendar-outline"
+                      size={18}
+                      color={selectedMessage.customerPhone && !clientExists(selectedMessage.customerPhone) ? '#6B7280' : '#F59E0B'}
+                    />
+                    <Text style={[
+                      modalStyles.actionText,
+                      {
+                        color: selectedMessage.customerPhone && !clientExists(selectedMessage.customerPhone) ? '#6B7280' : '#F59E0B'
+                      }
+                    ]}>Book Appointment</Text>
                   </TouchableOpacity>
                 ) : null
                 }
