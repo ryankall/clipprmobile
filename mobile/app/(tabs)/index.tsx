@@ -227,12 +227,6 @@ export default function Dashboard() {
       onPress: () => router.push('/appointments/new')
     },
     { 
-      label: 'View Calendar', 
-      icon: 'calendar-outline', 
-      color: '#3B82F6', 
-      onPress: () => router.push('/(tabs)/calendar')
-    },
-    { 
       label: 'Client List', 
       icon: 'people-outline', 
       color: '#F59E0B', 
@@ -243,6 +237,18 @@ export default function Dashboard() {
       icon: 'chatbubbles-outline', 
       color: '#8B5CF6', 
       onPress: () => router.push('/messages')
+    },
+    { 
+      label: 'Gallery', 
+      icon: 'phone-portrait-outline', 
+      color: '#f65cbeff', 
+      onPress: () => router.push('/gallery/gallery')
+    },
+        { 
+      label: 'View Calendar', 
+      icon: 'calendar-outline', 
+      color: '#3B82F6', 
+      onPress: () => router.push('/(tabs)/calendar')
     },
   ];
 
