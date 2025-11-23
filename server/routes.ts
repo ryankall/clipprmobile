@@ -3474,6 +3474,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         selectedDate,
         selectedTime,
         selectedServices,
+        selectedServicesIds,
         customService,
         needsTravel,
         clientAddress,
@@ -3487,6 +3488,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         selectedDate,
         selectedTime,
         selectedServices,
+        selectedServicesIds,
         customService,
         needsTravel,
         clientAddress,
@@ -3500,7 +3502,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         !clientPhone ||
         !selectedDate ||
         !selectedTime ||
-        !selectedServices?.length
+        !selectedServices?.length ||
+        !selectedServicesIds?.length
       ) {
         console.log("Missing required fields:", {
           barberPhone,
@@ -3509,6 +3512,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           selectedDate,
           selectedTime,
           selectedServices,
+          selectedServicesIds,
         });
         return res.status(400).json({ message: "Missing required fields" });
       }
@@ -3558,18 +3562,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const services = await storage.getServicesByUserId(user.id);
 
       // Handle both service IDs and service names for backward compatibility
-      let requestedServices = [];
-      if (selectedServices.length > 0 && !isNaN(Number(selectedServices[0]))) {
-        // If first element is numeric, assume all are service IDs
-        requestedServices = services.filter((s) =>
-          selectedServices.includes(s.id.toString()),
-        );
-      } else {
-        // Otherwise, treat as service names (backward compatibility)
-        requestedServices = services.filter((s) =>
-          selectedServices.includes(s.name),
-        );
-      }
+
+      const requestedServices = services.filter((s) =>
+        selectedServicesIds.includes(s.id),
+      );
 
       let totalDuration = 0;
       const serviceIds = [];
